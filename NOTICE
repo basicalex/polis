@@ -11,4 +11,11 @@ Integration notice:
 - Paperless, upstream Polis, Keycloak/OIDC, AI providers, payment rails, timestamp authorities, digital signature providers, and government systems are not bundled as live production integrations.
 - Operators connecting third-party systems are responsible for their licenses, terms, data-processing agreements, security reviews, and attribution obligations.
 
+
+Third-party research notice:
+- The Iceberg Index materials are derived from Ayush Chopra, Santanu Bhattacharya, DeAndrea Salvador, Ayan Paul, Teddy Wright, Aditi Garg, Feroz Ahmad, Alice C. Schwarze, Ramesh Raskar, and Prasanna Balaprakash, "The Iceberg Index: Measuring Skills-centered Exposure in the AI Economy", arXiv:2510.25137.
+- Original source: https://arxiv.org/abs/2510.25137
+- License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/
+- Repository-local changes, if any, are formatting, extraction, or packaging changes. Inclusion does not imply author endorsement of Polis Interface.
+
 No trademark rights are granted by this notice.
