@@ -1,0 +1,23 @@
+{
+  "name": "polis-interface",
+  "version": "0.1.0-v1",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=4 build",
+    "test": "pnpm -r --workspace-concurrency=4 test",
+    "typecheck": "pnpm -r --workspace-concurrency=4 typecheck",
+    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm v1:smoke",
+    "dev:web": "pnpm --filter @polis/apps-web dev -- --host 0.0.0.0",
+    "dev:services": "node scripts/dev-services.mjs",
+    "v1:smoke": "node scripts/v1-smoke.mjs"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@types/node": "^24.10.1",
+    "astro": "^5.15.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

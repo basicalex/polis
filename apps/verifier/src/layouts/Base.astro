@@ -1,0 +1,4 @@
+---
+const { title = 'Polis Verifier' } = Astro.props;
+---
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>{title}</title><link rel="stylesheet" href="/styles.css"/></head><body><header><a href="/">Polis Verifier</a><nav><a href="/governance">Governance</a><a href="/verify">Verify</a><a href="/deliberate">Deliberate</a><a href="/audit">Audit</a></nav></header><main><slot /></main><footer>Source: https://github.com/basicalex/polis · AGPL-3.0-or-later · v0.1.0-v1</footer></body></html>

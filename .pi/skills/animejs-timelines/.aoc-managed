@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/animejs-timelines
+asset-version: 3
+source: ../.config/aoc/pi/skills/animejs-timelines
+sha256: 0b940e4144dae7effbdaa7140a47ef58aed8ebcccd45cd679911065cd6ce1b74
+updated-at: 2026-06-08T09:14:55Z

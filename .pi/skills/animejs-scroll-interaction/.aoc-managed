@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/animejs-scroll-interaction
+asset-version: 3
+source: ../.config/aoc/pi/skills/animejs-scroll-interaction
+sha256: dfa590e626c092e7d2aa6cd9bffd465a1dfc67155310c9c78f57df5aeba38140
+updated-at: 2026-06-08T09:14:54Z

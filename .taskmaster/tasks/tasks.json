@@ -1,0 +1,90 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Scaffold v1 monorepo workspace",
+        "description": "Create pnpm/Turbo workspace, env contract, public-code docs, and shared packages from Polis Interface v1 spec.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:52.953Z",
+        "activeAgent": false
+      },
+      {
+        "id": "2",
+        "title": "Implement domain schemas and fixtures",
+        "description": "Implement governance graph, evidence, proof, audit, assessment, reward, access, AI trace schemas plus seed demo data.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:53.052Z",
+        "activeAgent": false
+      },
+      {
+        "id": "3",
+        "title": "Implement v1 service APIs",
+        "description": "Implement local/mock v1 HTTP APIs with health/version/metrics and domain endpoints for platform, graph, polis adapter, AI, assessment, exposure, document, proof, verifier, reward, audit, notifications.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:53.137Z",
+        "activeAgent": false
+      },
+      {
+        "id": "4",
+        "title": "Implement public v1 applications",
+        "description": "Implement Astro public portal plus verifier, vault, admin and docs-facing routes/components for v1 flows.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:53.242Z",
+        "activeAgent": false
+      },
+      {
+        "id": "5",
+        "title": "Implement policy and deployment baseline",
+        "description": "Add OPA/Rego policies, compose stack, GitHub workflows, privacy/security docs, and verification scripts.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:53.369Z",
+        "activeAgent": false
+      },
+      {
+        "id": "6",
+        "title": "Verify v1 acceptance",
+        "description": "Run schema tests, service tests, app build, and end-to-end smoke coverage against the v1 demo contract.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-06-08T09:22:53.462Z",
+        "activeAgent": false
+      }
+    ]
+  }
+}

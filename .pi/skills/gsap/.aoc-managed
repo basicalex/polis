@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/gsap
+asset-version: 3
+source: ../.config/aoc/pi/skills/gsap
+sha256: 2b6adb7823c5107c9924f0abe6dd552b19c5a4bd74c7bd37dc52dfd393ca032e
+updated-at: 2026-06-08T09:14:59Z

@@ -1,0 +1,7 @@
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+Polis Interface project-owned source code is licensed under the GNU Affero General Public License v3.0 or later.
+
+You may redistribute and modify this software under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
+
+Upstream integrations keep their own licenses: Polis-derived code remains AGPL-3.0-compatible, and Paperless-ngx-derived code remains GPL-3.0-compatible.

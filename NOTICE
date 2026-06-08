@@ -1,0 +1,14 @@
+Polis Interface
+
+Copyright notices belong to their respective authors.
+
+License: AGPL-3.0-or-later for repository code unless a file states otherwise.
+
+Public documentation and seeded public-methodology text are intended for public review; deploying operators must verify any additional content license before publishing partner or government materials.
+
+Integration notice:
+- Local v1 uses deterministic mock adapters by default (`MOCK_EXTERNALS=true`).
+- Paperless, upstream Polis, Keycloak/OIDC, AI providers, payment rails, timestamp authorities, digital signature providers, and government systems are not bundled as live production integrations.
+- Operators connecting third-party systems are responsible for their licenses, terms, data-processing agreements, security reviews, and attribution obligations.
+
+No trademark rights are granted by this notice.

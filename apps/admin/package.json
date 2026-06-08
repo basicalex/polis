@@ -1,0 +1,1 @@
+{"name":"@polis/apps-admin","version":"0.1.0-v1","type":"module","scripts":{"build":"astro build","dev":"astro dev --port 4324","typecheck":"astro check || tsc -p tsconfig.json --noEmit","test":"node --test test/*.test.mjs"},"dependencies":{"astro":"^5.15.0","@polis/domain":"workspace:*"},"devDependencies":{"typescript":"^5.9.3"}}

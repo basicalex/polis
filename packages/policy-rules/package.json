@@ -1,0 +1,1 @@
+{"name":"@polis/policy-rules","version":"0.1.0-v1","type":"module","scripts":{"build":"node -e \"console.log('policy rules packaged')\"","typecheck":"node -e \"console.log('policy rules checked')\"","test":"node --test test/*.test.mjs"}}

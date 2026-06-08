@@ -1,0 +1,54 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Documentation">
+  <h1>Documentation</h1>
+  <p>
+    Polis Interface v1 documentation for operators, contributors, public methodology,
+    document trust, AI review, and partner pilots.
+  </p>
+
+  <section>
+    <h2>Local v1 status</h2>
+    <p>
+      This build is a local v1 with deterministic services and mock adapters. The
+      repository `.env.example` sets <code>MOCK_EXTERNALS=true</code>; production
+      credentials, Paperless, upstream Polis, Keycloak/OIDC, AI providers, payment
+      rails, timestamping, signatures, and government partnerships are not configured.
+    </p>
+  </section>
+
+  <section>
+    <h2>Start here</h2>
+    <ul>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/README.md">README</a> — local setup, apps, and service map.</li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/ARCHITECTURE.md">Architecture</a> — app, package, service, and data boundaries.</li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/ROADMAP.md">Roadmap</a> — implemented local v1 state and next build order.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Public documentation areas</h2>
+    <ul>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/architecture/service-map.md">Service map</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/public-methodology/scoring.md">Scoring methodology</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/public-methodology/evidence-rules.md">Evidence rules</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/document-trust/verification.md">Document verification</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/ai-safety/model-and-review.md">AI model and review</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/contributor-guides/evidence-and-claims.md">Contributor guide: evidence and claims</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/docs/partners/pilot-charter-template.md">Partner pilot charter template</a></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Trust and operations</h2>
+    <ul>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/PRIVACY.md">Privacy</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/AI_SAFETY.md">AI safety</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/THREAT_MODEL.md">Threat model</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/TRANSPARENCY.md">Transparency</a></li>
+      <li><a href="https://github.com/intrface/polis-interface/blob/main/GOVERNANCE.md">Governance</a></li>
+    </ul>
+  </section>
+</Base>

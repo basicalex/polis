@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/aoc-gaps
+asset-version: 3
+source: ../.config/aoc/pi/skills/aoc-gaps
+sha256: fdac5c2ab1cb94412430e5d6d5f32f94db9818ad35bcec489f24a0e461e4ab7e
+updated-at: 2026-06-08T09:14:55Z

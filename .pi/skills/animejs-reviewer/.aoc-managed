@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/animejs-reviewer
+asset-version: 3
+source: ../.config/aoc/pi/skills/animejs-reviewer
+sha256: 7b5fd61af0ca8106d794c3d4afd6c8269968642f5a67c2a4b59de0bec6e3a679
+updated-at: 2026-06-08T09:14:54Z

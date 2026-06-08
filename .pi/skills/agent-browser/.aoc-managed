@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/agent-browser
+asset-version: 3
+source: ../.config/aoc/pi/skills/agent-browser
+sha256: 3d7467b148a86a0fa21cfd16106ebf84033bb62c70360da28764fec14e7dbd40
+updated-at: 2026-06-08T09:14:53Z

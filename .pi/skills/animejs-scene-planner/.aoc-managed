@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/animejs-scene-planner
+asset-version: 3
+source: ../.config/aoc/pi/skills/animejs-scene-planner
+sha256: 8693718833007589e5d4b854819102a31c87b6d4c9e20cbda146b42f71fb8cb3
+updated-at: 2026-06-08T09:14:54Z

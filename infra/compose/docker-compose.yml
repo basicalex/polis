@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_SUPERUSER_PASSWORD
+  redis:
+    image: redis:7-alpine
+  nats:
+    image: nats:2-alpine
+    command: ["-js"]
+  minio:
+    image: minio/minio
+    command: ["server","/data"]
+  platform-api:
+    build: ../../services/platform-api
+    ports: ["8080:8080"]

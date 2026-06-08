@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/animejs-core-api
+asset-version: 3
+source: ../.config/aoc/pi/skills/animejs-core-api
+sha256: 139b805bc7617e80a3e985681512f79c63aed824e92c650238dbcda4769570cd
+updated-at: 2026-06-08T09:14:53Z

@@ -1,0 +1,6 @@
+aoc-managed: true
+asset: skill/tmcc
+asset-version: 3
+source: ../.config/aoc/pi/skills/tmcc
+sha256: fbe72ddad870289c1651413d3009a3da68cd7bc8689503563ea6b1b7a1af802b
+updated-at: 2026-06-08T09:15:01Z
