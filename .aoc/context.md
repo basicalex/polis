@@ -3,35 +3,69 @@
 ## Repository
 - Name: polis
 - Root: /home/ceii/dev/polis
-- VCS: jj (colocated with git)
-- Git branch: 368d0e9
-- Jujutsu root: /home/ceii/dev/polis
-- Jujutsu colocation: yes
+- VCS: git
+- Git branch: main
 
 ## Key Files
+- README.md
 - DESIGN.md
+- package.json
+- pnpm-lock.yaml
 
 ## Project Structure (tree -L 2)
 ```
 .
 ./AGENTS.md
+./AI_SAFETY.md
+./apps
+./apps/admin
+./apps/vault
+./apps/verifier
+./apps/web
+./ARCHITECTURE.md
+./CODE_OF_CONDUCT.md
+./CONTRIBUTING.md
+./data
+./data/seed
 ./DESIGN.md
-./polis_interface_full_system_spec.md
-./polis_interface_v1_agent.env.example
-./The Iceberg Index
-./The Iceberg Index/00README.json
-./The Iceberg Index/1_intro.tex
-./The Iceberg Index/2_iceberg.tex
-./The Iceberg Index/4_concl.tex
-./The Iceberg Index/algorithmic.sty
-./The Iceberg Index/algorithm.sty
-./The Iceberg Index/iceberg_index.tex
-./The Iceberg Index/images
-./The Iceberg Index/main.bib
-./The Iceberg Index/main.tex
-./The Iceberg Index/Oct5_results.tex
-./The Iceberg Index/sections_us
+./docs
+./docs/agent-playbooks
+./docs/ai-safety
+./docs/architecture
+./docs/contributor-guides
+./docs/document-trust
+./docs/partners
+./docs/public-methodology
+./.env.example
+./.github
+./.github/workflows
+./.gitignore
+./GOVERNANCE.md
+./infra
+./infra/compose
+./LICENSE
+./NOTICE
+./package.json
+./packages
+./packages/domain
+./packages/policy-rules
+./packages/service-runtime
+./.pi
+./.pi/agents
+./.pi/extensions
+./.pi/packages
+... [tree truncated to 40 lines]
 ```
+
+## README Headings
+# Polis Interface
+## Current state
+## Requirements
+## Local setup
+## Apps
+## Local v1 service map
+## Documentation
+## License
 
 ## Design Contract
 - Root DESIGN.md: present
@@ -44,6 +78,7 @@ master
 
 ## Active Workstreams (Tags)
 ```
+master (6)
 ```
 
 ## Task spec Location

@@ -7,7 +7,7 @@
       "expectedSha256": "66ee8af82f27bcce2f25dd6fa3714d3dfcb806dba2db669da25098109bd6189e",
       "marker": ".aoc/presets/design/.aoc-managed",
       "sha256": "66ee8af82f27bcce2f25dd6fa3714d3dfcb806dba2db669da25098109bd6189e",
-      "source": "../.config/aoc/presets/design",
+      "source": ".aoc/presets/design",
       "status": "current"
     },
     ".aoc/presets/hyperframes": {
@@ -16,7 +16,7 @@
       "expectedSha256": "e861f3597d22e564d10360d4452815938d96be52ce35747a99eae0b92c8051af",
       "marker": ".aoc/presets/hyperframes/.aoc-managed",
       "sha256": "e861f3597d22e564d10360d4452815938d96be52ce35747a99eae0b92c8051af",
-      "source": "../.config/aoc/presets/hyperframes",
+      "source": ".aoc/presets/hyperframes",
       "status": "current"
     },
     ".aoc/presets/ops": {
@@ -25,7 +25,7 @@
       "expectedSha256": "63142ff9ec383188d83ecf75505a2324c80118b9f517c292cff7e0f8f2f2617e",
       "marker": ".aoc/presets/ops/.aoc-managed",
       "sha256": "63142ff9ec383188d83ecf75505a2324c80118b9f517c292cff7e0f8f2f2617e",
-      "source": "../.config/aoc/presets/ops",
+      "source": ".aoc/presets/ops",
       "status": "current"
     },
     ".aoc/presets/research": {
@@ -34,7 +34,7 @@
       "expectedSha256": "db3a38c19330c414dd5b889dc12a6f6de6d4ae52230293b3047a473dc37f76aa",
       "marker": ".aoc/presets/research/.aoc-managed",
       "sha256": "db3a38c19330c414dd5b889dc12a6f6de6d4ae52230293b3047a473dc37f76aa",
-      "source": "../.config/aoc/presets/research",
+      "source": ".aoc/presets/research",
       "status": "current"
     },
     ".aoc/presets/test": {
@@ -43,7 +43,223 @@
       "expectedSha256": "d06a9b32ac516c4e5c1d80ee1e77276289a79e7cee7cb634ba73cd86cd5fa4cc",
       "marker": ".aoc/presets/test/.aoc-managed",
       "sha256": "d06a9b32ac516c4e5c1d80ee1e77276289a79e7cee7cb634ba73cd86cd5fa4cc",
-      "source": "../.config/aoc/presets/test",
+      "source": ".aoc/presets/test",
+      "status": "current"
+    },
+    ".omp/agents": {
+      "asset": "omp-agents",
+      "assetVersion": 3,
+      "expectedSha256": "e37ba23cb76f2f39c77846b3820f391145e3d70d984d8d478f72cad5eb90e017",
+      "marker": ".omp/agents/.aoc-managed",
+      "sha256": "e37ba23cb76f2f39c77846b3820f391145e3d70d984d8d478f72cad5eb90e017",
+      "source": ".omp/agents",
+      "status": "current"
+    },
+    ".omp/extensions": {
+      "asset": "omp-extensions",
+      "assetVersion": 3,
+      "expectedSha256": "5d802cd395db3b2cd50359145da389ab99d050b643f0c14b89fe36fc469afc84",
+      "marker": ".omp/extensions/.aoc-managed",
+      "sha256": "5d802cd395db3b2cd50359145da389ab99d050b643f0c14b89fe36fc469afc84",
+      "source": ".omp/extensions",
+      "status": "current"
+    },
+    ".omp/skills": {
+      "asset": "omp-skills",
+      "assetVersion": 3,
+      "expectedSha256": "e68be9bebef90b6d87192cf47a872647b9a7ca3be68aa67047692047a2976a81",
+      "marker": ".omp/skills/.aoc-managed",
+      "sha256": "50c3fc9462ca2abf406f16498199f362f83eb00cb62b76888a8446f71fcb84f1",
+      "source": ".omp/skills",
+      "status": "dirty"
+    },
+    ".omp/skills/aoc-hyperframes": {
+      "asset": "skill/aoc-hyperframes",
+      "assetVersion": 3,
+      "expectedSha256": "69c2d4c7005c50d8218dd27e48d4ddc6689174d55672408cb0c8e1db6a5b65ca",
+      "marker": ".omp/skills/aoc-hyperframes/.aoc-managed",
+      "sha256": "69c2d4c7005c50d8218dd27e48d4ddc6689174d55672408cb0c8e1db6a5b65ca",
+      "source": "../.config/aoc/pi/skills/aoc-hyperframes",
+      "status": "current"
+    },
+    ".omp/skills/aoc-init-ops": {
+      "asset": "skill/aoc-init-ops",
+      "assetVersion": 3,
+      "expectedSha256": "58726bcb19041ae80310ee9937971277eb46c55746da92ec5fecd549c6127236",
+      "marker": ".omp/skills/aoc-init-ops/.aoc-managed",
+      "sha256": "df27e3d33e8531d17b9c885eca8413984517da9e588bfd459f0451c33289b51b",
+      "source": "../.config/aoc/pi/skills/aoc-init-ops",
+      "status": "dirty"
+    },
+    ".omp/skills/aoc-map": {
+      "asset": "skill/aoc-map",
+      "assetVersion": 3,
+      "expectedSha256": "000954162e01e3d47617e0d9b4f754dfc3585ded0c5e747b6c443d20732e8863",
+      "marker": ".omp/skills/aoc-map/.aoc-managed",
+      "sha256": "000954162e01e3d47617e0d9b4f754dfc3585ded0c5e747b6c443d20732e8863",
+      "source": "../.config/aoc/pi/skills/aoc-map",
+      "status": "current"
+    },
+    ".omp/skills/aoc-understand": {
+      "asset": "skill/aoc-understand",
+      "assetVersion": 3,
+      "expectedSha256": "e68171afd5b884dd059d8440a00eed60a79793c7fe2396a79e72c34c6d5719c8",
+      "marker": ".omp/skills/aoc-understand/.aoc-managed",
+      "sha256": "e68171afd5b884dd059d8440a00eed60a79793c7fe2396a79e72c34c6d5719c8",
+      "source": "../.config/aoc/pi/skills/aoc-understand",
+      "status": "current"
+    },
+    ".omp/skills/architecture-design": {
+      "asset": "skill/architecture-design",
+      "assetVersion": 3,
+      "expectedSha256": "28596583c13cfb0d6eaec3abc9e3296001ee194e978e21882cfa7522972423af",
+      "marker": ".omp/skills/architecture-design/.aoc-managed",
+      "sha256": "28596583c13cfb0d6eaec3abc9e3296001ee194e978e21882cfa7522972423af",
+      "source": "../.config/aoc/pi/skills/architecture-design",
+      "status": "current"
+    },
+    ".omp/skills/design-diff": {
+      "asset": "skill/design-diff",
+      "assetVersion": 3,
+      "expectedSha256": "cd5b9cff85a25d1a8c8568d5f28179b410cd35a13f856f61baf4004cc4e9184c",
+      "marker": ".omp/skills/design-diff/.aoc-managed",
+      "sha256": "cd5b9cff85a25d1a8c8568d5f28179b410cd35a13f856f61baf4004cc4e9184c",
+      "source": "../.config/aoc/pi/skills/design-diff",
+      "status": "current"
+    },
+    ".omp/skills/design-director": {
+      "asset": "skill/design-director",
+      "assetVersion": 3,
+      "expectedSha256": "5cd46e26172d065b560234e4f443b62d3b90bda79e0508123738a23cedca7a48",
+      "marker": ".omp/skills/design-director/.aoc-managed",
+      "sha256": "5cd46e26172d065b560234e4f443b62d3b90bda79e0508123738a23cedca7a48",
+      "source": "../.config/aoc/pi/skills/design-director",
+      "status": "current"
+    },
+    ".omp/skills/design-handoff": {
+      "asset": "skill/design-handoff",
+      "assetVersion": 3,
+      "expectedSha256": "42279c934b9542ea3337492726ef1220b28950241ecb265743b1d6b87c9051f0",
+      "marker": ".omp/skills/design-handoff/.aoc-managed",
+      "sha256": "42279c934b9542ea3337492726ef1220b28950241ecb265743b1d6b87c9051f0",
+      "source": "../.config/aoc/pi/skills/design-handoff",
+      "status": "current"
+    },
+    ".omp/skills/design-premium-ui": {
+      "asset": "skill/design-premium-ui",
+      "assetVersion": 3,
+      "expectedSha256": "891f8c842d35260899f76e3445007f0303c7d90a87a7f21580c621174f3c93af",
+      "marker": ".omp/skills/design-premium-ui/.aoc-managed",
+      "sha256": "891f8c842d35260899f76e3445007f0303c7d90a87a7f21580c621174f3c93af",
+      "source": "../.config/aoc/pi/skills/design-premium-ui",
+      "status": "current"
+    },
+    ".omp/skills/design-redesign": {
+      "asset": "skill/design-redesign",
+      "assetVersion": 3,
+      "expectedSha256": "fd9240d92d567bf72ada0737f3cad991ba577867f8ddc8411536684f19832a7d",
+      "marker": ".omp/skills/design-redesign/.aoc-managed",
+      "sha256": "fd9240d92d567bf72ada0737f3cad991ba577867f8ddc8411536684f19832a7d",
+      "source": "../.config/aoc/pi/skills/design-redesign",
+      "status": "current"
+    },
+    ".omp/skills/design-review": {
+      "asset": "skill/design-review",
+      "assetVersion": 3,
+      "expectedSha256": "d58e9eda56973436149c6293acbd2d2c2cd209e4760e548c662bf1bcf8174240",
+      "marker": ".omp/skills/design-review/.aoc-managed",
+      "sha256": "d58e9eda56973436149c6293acbd2d2c2cd209e4760e548c662bf1bcf8174240",
+      "source": "../.config/aoc/pi/skills/design-review",
+      "status": "current"
+    },
+    ".omp/skills/design-spec": {
+      "asset": "skill/design-spec",
+      "assetVersion": 3,
+      "expectedSha256": "e76f1be8c09b7e5bb36cc96be4e7faad1a0557fd94a2b23d0166ec5650ab9751",
+      "marker": ".omp/skills/design-spec/.aoc-managed",
+      "sha256": "e76f1be8c09b7e5bb36cc96be4e7faad1a0557fd94a2b23d0166ec5650ab9751",
+      "source": "../.config/aoc/pi/skills/design-spec",
+      "status": "current"
+    },
+    ".omp/skills/design-tokens": {
+      "asset": "skill/design-tokens",
+      "assetVersion": 3,
+      "expectedSha256": "657037f25880f8410dd0400aa5cf6ffe5202e767f534bbcc8554c9eac92953ea",
+      "marker": ".omp/skills/design-tokens/.aoc-managed",
+      "sha256": "657037f25880f8410dd0400aa5cf6ffe5202e767f534bbcc8554c9eac92953ea",
+      "source": "../.config/aoc/pi/skills/design-tokens",
+      "status": "current"
+    },
+    ".omp/skills/enforce-dashboard-ux-guardrails": {
+      "asset": "skill/enforce-dashboard-ux-guardrails",
+      "assetVersion": 3,
+      "expectedSha256": "0867aa7e737e91bb544de8bb96329c29e795bdc17f5645b37caac1ab27d5dcee",
+      "marker": ".omp/skills/enforce-dashboard-ux-guardrails/.aoc-managed",
+      "sha256": "0867aa7e737e91bb544de8bb96329c29e795bdc17f5645b37caac1ab27d5dcee",
+      "source": "../.config/aoc/pi/skills/enforce-dashboard-ux-guardrails",
+      "status": "current"
+    },
+    ".omp/skills/frontend-design": {
+      "asset": "skill/frontend-design",
+      "assetVersion": 3,
+      "expectedSha256": "5302fb1270b962bac6aa443ee2b5aff6e857dbf3c0972a7a12a03ff22b29fa2f",
+      "marker": ".omp/skills/frontend-design/.aoc-managed",
+      "sha256": "5302fb1270b962bac6aa443ee2b5aff6e857dbf3c0972a7a12a03ff22b29fa2f",
+      "source": "../.config/aoc/pi/skills/frontend-design",
+      "status": "current"
+    },
+    ".omp/skills/funnel-design": {
+      "asset": "skill/funnel-design",
+      "assetVersion": 3,
+      "expectedSha256": "015c50a2ecd29e00457384aa8a3a17c0731200058685d7478bbdf56ddff54d10",
+      "marker": ".omp/skills/funnel-design/.aoc-managed",
+      "sha256": "015c50a2ecd29e00457384aa8a3a17c0731200058685d7478bbdf56ddff54d10",
+      "source": "../.config/aoc/pi/skills/funnel-design",
+      "status": "current"
+    },
+    ".omp/skills/motion-director": {
+      "asset": "skill/motion-director",
+      "assetVersion": 3,
+      "expectedSha256": "1bdd885db96bbbd768049dcc2671aa8b3b583698bb2125aae6b256ad127f1ab8",
+      "marker": ".omp/skills/motion-director/.aoc-managed",
+      "sha256": "1bdd885db96bbbd768049dcc2671aa8b3b583698bb2125aae6b256ad127f1ab8",
+      "source": "../.config/aoc/pi/skills/motion-director",
+      "status": "current"
+    },
+    ".omp/skills/rlm-analysis": {
+      "asset": "skill/rlm-analysis",
+      "assetVersion": 3,
+      "expectedSha256": "7844902bf081428c2a3f4586a69209e0ac30e0ee8e6fe7873c51ff79ba8d6f39",
+      "marker": ".omp/skills/rlm-analysis/.aoc-managed",
+      "sha256": "7844902bf081428c2a3f4586a69209e0ac30e0ee8e6fe7873c51ff79ba8d6f39",
+      "source": "../.config/aoc/pi/skills/rlm-analysis",
+      "status": "current"
+    },
+    ".omp/skills/safe-gamification": {
+      "asset": "skill/safe-gamification",
+      "assetVersion": 3,
+      "expectedSha256": "a8044d5601d26c3f13bc9bbb09cc6a0d1227b9d74843c5fadf5715a43fdc4500",
+      "marker": ".omp/skills/safe-gamification/.aoc-managed",
+      "sha256": "a8044d5601d26c3f13bc9bbb09cc6a0d1227b9d74843c5fadf5715a43fdc4500",
+      "source": "../.config/aoc/pi/skills/safe-gamification",
+      "status": "current"
+    },
+    ".omp/skills/spec-rpg-authoring": {
+      "asset": "skill/spec-rpg-authoring",
+      "assetVersion": 3,
+      "expectedSha256": "834f069461031316226821b6a7175210c1d48ea97e27855ae1280212a074f817",
+      "marker": ".omp/skills/spec-rpg-authoring/.aoc-managed",
+      "sha256": "834f069461031316226821b6a7175210c1d48ea97e27855ae1280212a074f817",
+      "source": "../.config/aoc/pi/skills/spec-rpg-authoring",
+      "status": "current"
+    },
+    ".omp/skills/tm-cc": {
+      "asset": "skill/tm-cc",
+      "assetVersion": 3,
+      "expectedSha256": "bf18338a71c856dd9b23188e5dfecfbbe95bb66e2498602af294c1dd7e2482af",
+      "marker": ".omp/skills/tm-cc/.aoc-managed",
+      "sha256": "bf18338a71c856dd9b23188e5dfecfbbe95bb66e2498602af294c1dd7e2482af",
+      "source": "../.config/aoc/pi/skills/tm-cc",
       "status": "current"
     },
     ".pi/extensions/aoc-presets": {
@@ -489,11 +705,11 @@
     }
   },
   "counts": {
-    "current": 53,
-    "dirty": 1,
+    "current": 75,
+    "dirty": 3,
     "stale": 0,
     "unknown": 0
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-06-08T09:15:03.683059Z"
+  "updatedAt": "2026-06-17T19:32:48.802310Z"
 }
