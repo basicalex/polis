@@ -1,0 +1,111 @@
+---
+import Base from '../../layouts/Base.astro';
+
+type Conversation = {
+  id: string;
+  externalPolisId: string;
+  title: string;
+  framingQuestion: string;
+  participationMode: string;
+  status: string;
+  reportUrl: string | null;
+} | null;
+
+type ResultGroups = {
+  consensus?: string[];
+  disagreement?: string[];
+  clusters?: { id: string; label: string; n: number }[];
+} | null;
+
+type ConversationResult = {
+  id: string;
+  participantCount: number | null;
+  consensusGroups: ResultGroups;
+} | null;
+
+type IssueDetail = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  status: string;
+  conversation: Conversation;
+  conversationResult: ConversationResult;
+};
+
+type EmbedConfig = {
+  issueId: string;
+  embed: { mode: string; src: string | null; framingQuestion: string | null };
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const issueId = Astro.params.issueId ?? '';
+const issue = (await fetchJson(`/api/v1/issues/${encodeURIComponent(issueId)}`)) as IssueDetail | null;
+const embedConfig = (await fetchJson(`/api/v1/issues/${encodeURIComponent(issueId)}/conversation`)) as EmbedConfig | null;
+const embed = embedConfig?.embed;
+const result = issue?.conversationResult ?? null;
+const groups = result?.consensusGroups ?? null;
+---
+
+<Base title={`Issue · ${issue?.title ?? issueId}`}>
+  <section class="stack">
+    <p class="badge">§13 Deliberation</p>
+    <h1>{issue?.title ?? 'Issue unavailable'}</h1>
+    <p class="muted">{issue?.summary ?? 'No summary recorded.'}</p>
+    {issue && <p><span class="badge">{issue.status}</span></p>}
+  </section>
+
+  <section class="stack">
+    <h2>Conversation</h2>
+    {embed?.src ? (
+      <iframe src={embed.src} title="Polis conversation" style="width:100%;min-height:600px;border:0;"></iframe>
+    ) : issue?.conversation ? (
+      <article class="card stack">
+        <h3>{issue.conversation.title}</h3>
+        <p class="muted">{issue.conversation.framingQuestion}</p>
+        <p>
+          <span class="badge">{issue.conversation.status}</span>
+          <span class="badge">{issue.conversation.participationMode}</span>
+        </p>
+        <p class="muted">Embedded Polis conversation (stub mode in M2; a live iframe lands when a Polis instance is deployed).</p>
+      </article>
+    ) : (
+      <p class="panel muted">No conversation attached yet.</p>
+    )}
+  </section>
+
+  {result && (
+    <section class="stack">
+      <h2>Deliberation result</h2>
+      <article class="card stack">
+        <p><strong>Participants:</strong> {result.participantCount ?? 'unknown'}</p>
+        {groups?.consensus?.length ? (
+          <div class="stack">
+            <p class="muted">Consensus statements</p>
+            <ul>
+              {groups.consensus.map((statement) => <li>{statement}</li>)}
+            </ul>
+          </div>
+        ) : null}
+        {groups?.disagreement?.length ? (
+          <div class="stack">
+            <p class="muted">Disagreement axes</p>
+            <ul>
+              {groups.disagreement.map((statement) => <li>{statement}</li>)}
+            </ul>
+          </div>
+        ) : null}
+      </article>
+    </section>
+  )}
+</Base>

@@ -88,6 +88,14 @@ export const RELATIONSHIP_TYPES = [
   'POLIS_CONVERSATION_DELIBERATES_ISSUE',
   'CONSENSUS_CLUSTER_SUPPORTS_PROPOSAL',
 ] as const;
+export const ISSUE_STATUSES = ['open', 'deliberating', 'resolved', 'archived'] as const;
+export const CONVERSATION_STATUSES = ['draft', 'active', 'closed', 'reported', 'archived'] as const;
+export const PARTICIPATION_MODES = [
+  'open',
+  'pseudonymous',
+  'verified',
+  'partner_restricted',
+] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -447,6 +455,66 @@ export const auditEventRedactions = pgTable('audit_event_redactions', {
   redactedAt: timestamp('redacted_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/* ------------------------------------------------------------------ */
+/* Polis deliberation (§13) v0                                         */
+/* ------------------------------------------------------------------ */
+
+export const issues = pgTable(
+  'issues',
+  {
+    id: pkId(),
+    jurisdictionId: text('jurisdiction_id'),
+    processId: text('process_id'), // supports GET /api/v1/processes/:id/issues
+    slug: text('slug').notNull(),
+    title: text('title').notNull(),
+    summary: text('summary'),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: text('created_by_user_id'),
+    updatedByUserId: text('updated_by_user_id'),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    uniqueIndex('issues_slug_idx').on(t.slug),
+    enumCheck('ck_issues_status', 'status', ISSUE_STATUSES),
+  ],
+);
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: pkId(),
+    issueId: text('issue_id').notNull(),
+    externalPolisId: text('external_polis_id').notNull(),
+    title: text('title').notNull(),
+    framingQuestion: text('framing_question').notNull(),
+    participationMode: text('participation_mode').notNull().default('open'),
+    status: text('status').notNull().default('draft'),
+    reportUrl: text('report_url'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: text('created_by_user_id'),
+    updatedByUserId: text('updated_by_user_id'),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  () => [
+    enumCheck('ck_conversations_participation', 'participation_mode', PARTICIPATION_MODES),
+    enumCheck('ck_conversations_status', 'status', CONVERSATION_STATUSES),
+  ],
+);
+
+export const conversationResults = pgTable('conversation_results', {
+  // Append-only (new row per sync; no in-place update). No universal()/updatedAt —
+  // follows evidence_links style (immutable explicit columns), not governance style.
+  id: pkId(),
+  conversationId: text('conversation_id').notNull(),
+  consensusGroups: jsonb('consensus_groups'),
+  participantCount: numeric('participant_count'),
+  capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const schema = {
   appMeta,
   jurisdictions,
@@ -473,4 +541,7 @@ export const schema = {
   confidenceScores,
   auditEvents,
   auditEventRedactions,
+  issues,
+  conversations,
+  conversationResults,
 };

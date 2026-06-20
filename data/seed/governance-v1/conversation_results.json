@@ -1,0 +1,15 @@
+[
+  {
+    "id": "result-conv-friction-1",
+    "conversation_id": "conv-complaint-friction",
+    "consensus_groups": {
+      "clusters": [
+        { "id": "c1", "label": "Skip residence re-proof at registry", "n": 42 }
+      ],
+      "consensus": ["Eliminate duplicate residence proof"],
+      "disagreement": ["Whether to centralize at complaints office"]
+    },
+    "participant_count": "87",
+    "captured_at": "2026-06-15T10:00:00Z"
+  }
+]

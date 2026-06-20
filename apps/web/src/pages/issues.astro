@@ -1,4 +1,52 @@
 ---
 import Base from '../layouts/Base.astro';
+
+type Issue = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  status: string;
+  jurisdictionId: string | null;
+  processId: string | null;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const res = (await fetchJson('/api/v1/issues')) as { items: Issue[] } | null;
+const issues = res?.items ?? [];
 ---
-<Base title="Issues"><section class="panel"><h1>Issues</h1><p>Lands in M2: issue pages will connect evidence packs to Polis deliberation.</p></section></Base>
+
+<Base title="Issues">
+  <section class="stack">
+    <p class="badge">§13 Deliberation</p>
+    <h1>Issues</h1>
+    <p class="muted">
+      Public issues under deliberation. Each issue can host a Polis conversation whose result snapshots attach as deliberation evidence.
+    </p>
+  </section>
+  <section class="stack">
+    {issues.length > 0 ? (
+      <div class="grid">
+        {issues.map((issue) => (
+          <article class="card stack">
+            <h3><a href={`/issues/${issue.id}`}>{issue.title}</a></h3>
+            <p class="muted">{issue.summary ?? 'No summary recorded.'}</p>
+            <p><span class="badge">{issue.status}</span></p>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="panel muted">No issues yet.</p>
+    )}
+  </section>
+</Base>

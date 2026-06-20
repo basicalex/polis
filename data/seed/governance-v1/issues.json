@@ -1,0 +1,20 @@
+[
+  {
+    "id": "issue-complaint-process-friction",
+    "jurisdiction_id": "jur-croatia-local",
+    "process_id": "process-citizen-service-complaint",
+    "slug": "complaint-process-friction",
+    "title": "Reduce duplicate document handoffs in the complaints process",
+    "summary": "Citizens submit the same identity/residence proof at two offices. Deliberate where to cut the duplication.",
+    "status": "deliberating"
+  },
+  {
+    "id": "issue-registry-once-only",
+    "jurisdiction_id": "jur-croatia-local",
+    "process_id": null,
+    "slug": "registry-once-only",
+    "title": "Once-only evidence for municipal registry services",
+    "summary": "Should a single verified residence proof be accepted across registry services?",
+    "status": "open"
+  }
+]

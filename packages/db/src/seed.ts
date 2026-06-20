@@ -12,7 +12,7 @@ type SeedTable = {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const seedDir = path.join(repoRoot, 'data/seed/governance-v1');
 
-const timestampColumns = new Set(['published_at', 'retrieved_at']);
+const timestampColumns = new Set(['published_at', 'retrieved_at', 'captured_at', 'closed_at']);
 
 function camelizeKey(key: string): string {
   return key.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
@@ -243,6 +243,36 @@ async function main(): Promise<void> {
     'updated_by_user_id',
     'status',
     'audit_correlation_id',
+  ]);
+  await upsert('issues', schema.issues, 'issues.json', [
+    'jurisdiction_id',
+    'process_id',
+    'slug',
+    'title',
+    'summary',
+    'status',
+    'created_by_user_id',
+    'updated_by_user_id',
+    'audit_correlation_id',
+  ]);
+  await upsert('conversations', schema.conversations, 'conversations.json', [
+    'issue_id',
+    'external_polis_id',
+    'title',
+    'framing_question',
+    'participation_mode',
+    'status',
+    'report_url',
+    'closed_at',
+    'created_by_user_id',
+    'updated_by_user_id',
+    'audit_correlation_id',
+  ]);
+  await upsert('conversation_results', schema.conversationResults, 'conversation_results.json', [
+    'conversation_id',
+    'consensus_groups',
+    'participant_count',
+    'captured_at',
   ]);
   await Promise.resolve();
 }

@@ -61,6 +61,33 @@ services:
     networks:
       - polis
 
+  polis-bridge-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: polis-bridge-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      POLIS_MODE: stub
+    ports:
+      - '8200:8200'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8200/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
   platform-api:
     build:
       context: ../..
@@ -74,12 +101,15 @@ services:
         condition: service_healthy
       audit-service:
         condition: service_healthy
+      polis-bridge-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       # Internal service URLs for the §23 proxy (compose service hostnames).
       GRAPH_INTERNAL_URL: http://governance-graph-api:8100
       AUDIT_INTERNAL_URL: http://audit-service:8600
+      POLIS_INTERNAL_URL: http://polis-bridge-service:8200
       GIT_SHA: ${GIT_SHA:-dev}
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}

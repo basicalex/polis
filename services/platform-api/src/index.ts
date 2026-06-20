@@ -54,9 +54,17 @@ const graphReadPaths = [
   '/api/v1/graph/traverse',
 ] as const;
 
+const polisReadPaths = [
+  '/api/v1/issues',
+  '/api/v1/issues/:id',
+  '/api/v1/processes/:id/issues',
+  '/api/v1/issues/:id/conversation',
+] as const;
+
 export function platformRoutes(): Route[] {
   const graphBase = process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100';
   const auditBase = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
+  const polisBase = process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -64,6 +72,11 @@ export function platformRoutes(): Route[] {
       method: 'GET',
       path,
       handler: async (req: IncomingMessage, body: unknown) => proxyTo(graphBase, req, body),
+    })),
+    ...polisReadPaths.map((path) => ({
+      method: 'GET',
+      path,
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(polisBase, req, body),
     })),
     {
       method: 'GET',

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "conv-complaint-friction",
+    "issue_id": "issue-complaint-process-friction",
+    "external_polis_id": "polis-stub-conv-001",
+    "title": "Which document handoff should be eliminated first?",
+    "framing_question": "If citizens could skip one repeated document submission in the complaints process, which one should go first?",
+    "participation_mode": "open",
+    "status": "active",
+    "report_url": null
+  }
+]

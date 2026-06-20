@@ -41,6 +41,41 @@ export type RelationshipType =
   | 'DOCUMENT_PROOF_LINKS_TO_DOCUMENT_TYPE'
   | 'POLIS_CONVERSATION_DELIBERATES_ISSUE'
   | 'CONSENSUS_CLUSTER_SUPPORTS_PROPOSAL';
+export type IssueStatus = 'open' | 'deliberating' | 'resolved' | 'archived';
+export type ConversationStatus = 'draft' | 'active' | 'closed' | 'reported' | 'archived'; // §13.5 verbatim
+export type ParticipationMode = 'open' | 'pseudonymous' | 'verified' | 'partner_restricted'; // §13.5 verbatim
+
+export type Issue = {
+  id: string;
+  jurisdictionId: string | null;
+  processId: string | null;
+  slug: string;
+  title: string;
+  summary: string | null;
+  status: IssueStatus;
+  createdAt: string;
+};
+
+export type PolisConversation = {
+  id: string;
+  externalPolisId: string;
+  issueId: string;
+  title: string;
+  framingQuestion: string;
+  participationMode: ParticipationMode;
+  status: ConversationStatus;
+  reportUrl: string | null;
+  createdAt: string;
+  closedAt: string | null;
+};
+
+export type ConversationResult = {
+  id: string;
+  conversationId: string;
+  consensusGroups: unknown | null; // §13.4 report snapshot jsonb
+  participantCount: number | null;
+  capturedAt: string;
+};
 export type EvidenceLink = {
   id: string;
   sourceId: string;

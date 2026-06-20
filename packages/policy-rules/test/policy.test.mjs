@@ -89,3 +89,22 @@ test('ai publish requires citations AND approved review (ADR-005)', () => {
     false,
   );
 });
+
+test('polis conversation creation requires service-level trust (M2 §13)', () => {
+  assert.equal(
+    opaEval(
+      'polis/access.rego',
+      { actor: { type: 'service' }, action: 'create_conversation' },
+      'data.polis.polis_access.allow',
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'polis/access.rego',
+      { actor: { type: 'user' }, action: 'create_conversation' },
+      'data.polis.polis_access.allow',
+    ),
+    false,
+  );
+});

@@ -1,4 +1,45 @@
 ---
 import Base from '../layouts/Base.astro';
+
+type Issue = { id: string; title: string; summary: string | null; status: string };
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const res = (await fetchJson('/api/v1/issues')) as { items: Issue[] } | null;
+const issues = res?.items ?? [];
+const open = issues.filter((i) => i.status === 'open' || i.status === 'deliberating');
 ---
-<Base title="Deliberate"><section class="panel"><h1>Deliberate</h1><p>Lands in M2: Polis conversations embed on issue pages after M1 governance data is live.</p></section></Base>
+
+<Base title="Deliberate">
+  <section class="stack">
+    <p class="badge">§13 Deliberation</p>
+    <h1>Deliberate</h1>
+    <p class="muted">
+      Open and active issues hosting Polis conversations. Open an issue to see its framing question and the embedded deliberation.
+    </p>
+  </section>
+  <section class="stack">
+    {open.length > 0 ? (
+      <div class="grid">
+        {open.map((issue) => (
+          <article class="card stack">
+            <h3><a href={`/issues/${issue.id}`}>{issue.title}</a></h3>
+            <p class="muted">{issue.summary ?? 'No summary recorded.'}</p>
+            <p><span class="badge">{issue.status}</span></p>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="panel muted">No open conversations yet.</p>
+    )}
+  </section>
+</Base>
