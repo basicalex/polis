@@ -1,0 +1,22 @@
+# VCS & agent/operator state
+.git
+.gitignore
+.aoc
+.taskmaster
+.omp
+.pi
+.github
+
+# Build outputs & caches
+**/node_modules
+**/dist
+**/.astro
+**/.vite
+**/__pycache__
+**/*.pyc
+.venv
+
+# Large/local-only
+The Iceberg Index
+*.log
+.env

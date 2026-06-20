@@ -1,0 +1,29 @@
+[
+  {
+    "id": "src-zagreb-complaints",
+    "title": "City of Zagreb — Submitting petitions, complaints and proposals",
+    "url": "https://www.zagreb.hr/",
+    "jurisdiction_id": "jur-croatia-local",
+    "source_type": "official",
+    "publisher": "City of Zagreb",
+    "published_at": "2024-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "src-govhr-residence",
+    "title": "Government of Croatia — Residence and address registration information",
+    "url": "https://gov.hr/",
+    "jurisdiction_id": "jur-croatia-local",
+    "source_type": "official",
+    "publisher": "Government of the Republic of Croatia",
+    "published_at": "2024-02-01T00:00:00.000Z"
+  },
+  {
+    "id": "src-eu-once-only",
+    "title": "European Commission — Once-Only Technical System overview",
+    "url": "https://digital-strategy.ec.europa.eu/",
+    "jurisdiction_id": "jur-croatia-local",
+    "source_type": "official",
+    "publisher": "European Commission",
+    "published_at": "2024-03-01T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,106 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import Claim from '../../../../components/Claim.astro';
+
+type Evidence = { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null };
+type Source = { id: string; title: string; url: string | null; publisher: string | null };
+type Claim = { id: string; text: string; confidenceState: string; reviewState: string; evidence: Evidence[]; sources: Source[] };
+type Step = { id: string; ordinal: string | null; name: string; description: string | null };
+type FailureMode = { id: string; name: string; description: string | null };
+type Process = {
+  id: string;
+  name: string;
+  need: string | null;
+  legalBasis: string | null;
+  steps: Step[];
+  requiredDocuments: { id: string; name: string; legalBasis: string | null; description: string | null }[];
+  failureModes: FailureMode[];
+  confidenceState: string;
+  reviewState: string;
+  visibility: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+// §11.5: hydrate claims (evidence + sources) per subject so the source-linked invariant renders inline.
+async function fetchClaims(subjectId: string) {
+  const res = (await fetchJson(`/api/v1/claims?subject_id=${encodeURIComponent(subjectId)}`)) as { items: Claim[] } | null;
+  return res?.items ?? [];
+}
+
+const processId = Astro.params.processId ?? '';
+const process = (await fetchJson(`/api/v1/processes/${encodeURIComponent(processId)}`)) as Process | null;
+
+const stepsWithClaims = process ? await Promise.all(process.steps.map(async (step: Step) => ({ step, claims: await fetchClaims(step.id) }))) : [];
+const failureModesWithClaims = process ? await Promise.all(process.failureModes.map(async (mode: FailureMode) => ({ mode, claims: await fetchClaims(mode.id) }))) : [];
+---
+
+<Base title={`Process · ${process?.name ?? processId}`}>
+  <section class="stack">
+    <p class="badge">§11.4 process</p>
+    <h1>{process?.name ?? 'Process unavailable'}</h1>
+    {process ? <p><span class="badge">{process.confidenceState}</span> <span class="badge">{process.reviewState}</span></p> : <p class="panel muted">Data unavailable. Run the services and seed the governance database.</p>}
+  </section>
+  {process && (
+    <div class="stack">
+      <section class="panel">
+        <dl class="kv">
+          <dt>Need</dt><dd>{process.need ?? 'Not recorded'}</dd>
+          <dt>Legal basis</dt><dd>{process.legalBasis ?? 'Not recorded'}</dd>
+          <dt>Confidence state</dt><dd><span class="badge">{process.confidenceState}</span></dd>
+          <dt>Review state</dt><dd><span class="badge">{process.reviewState}</span></dd>
+          <dt>Visibility</dt><dd>{process.visibility}</dd>
+        </dl>
+      </section>
+      <section class="panel stack">
+        <h2>Steps</h2>
+        {stepsWithClaims.length ? (
+          <ol>
+            {stepsWithClaims.map(({ step, claims }) => (
+              <li class="stack">
+                <strong>{step.ordinal ?? '?'}. {step.name}</strong>
+                <p class="muted">{step.description ?? 'No description recorded.'}</p>
+                {claims.length > 0 && (
+                  <div class="stack">
+                    {claims.map((claim) => <Claim claim={claim} />)}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        ) : <p class="muted">No steps recorded.</p>}
+      </section>
+      <section class="panel stack">
+        <h2>Required documents</h2>
+        {process.requiredDocuments.length ? <ul>{process.requiredDocuments.map((doc) => <li><strong>{doc.name}</strong><p class="muted">{doc.description ?? 'No description recorded.'} Legal basis: {doc.legalBasis ?? 'not recorded'}.</p></li>)}</ul> : <p class="muted">No required documents recorded.</p>}
+      </section>
+      <section class="panel stack">
+        <h2>Failure modes</h2>
+        {failureModesWithClaims.length ? (
+          <ul>
+            {failureModesWithClaims.map(({ mode, claims }) => (
+              <li class="stack">
+                <strong>{mode.name}</strong>
+                <p class="muted">{mode.description ?? 'No description recorded.'}</p>
+                {claims.length > 0 && (
+                  <div class="stack">
+                    {claims.map((claim) => <Claim claim={claim} />)}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : <p class="muted">No failure modes recorded.</p>}
+      </section>
+    </div>
+  )}
+</Base>

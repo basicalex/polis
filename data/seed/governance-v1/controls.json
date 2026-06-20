@@ -1,0 +1,8 @@
+[
+  {
+    "id": "ctrl-once-only-evidence-check",
+    "name": "Once-only evidence reuse check",
+    "failure_mode_id": "fm-duplicate-document-submission",
+    "description": "A shared proof checklist records that identity and residence were already verified, so the second office can rely on the prior check instead of requesting duplicate copies."
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "claim-complaints-intake-requires-id",
+    "text": "The Public Complaints Office requires identity evidence before accepting and routing a citizen complaint.",
+    "claim_type": "document_requirement",
+    "subject_type": "process_step",
+    "subject_id": "step-submit-complaint",
+    "confidence": "0.82",
+    "confidence_state": "single_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-registry-requires-residence-proof",
+    "text": "The Municipal Registry Office requires proof of residence when validating the resident record used in the complaint process.",
+    "claim_type": "document_requirement",
+    "subject_type": "process_step",
+    "subject_id": "step-registry-validation",
+    "confidence": "0.86",
+    "confidence_state": "single_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-duplicate-documents-create-burden",
+    "text": "Requiring the same identity proof and proof of residence at both the complaints and registry offices creates avoidable citizen burden and duplicate handling of personal documents.",
+    "claim_type": "risk_assessment",
+    "subject_type": "failure_mode",
+    "subject_id": "fm-duplicate-document-submission",
+    "confidence": "0.78",
+    "confidence_state": "multi_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-shared-checklist-control-pending",
+    "text": "A shared once-only checklist should reduce repeat requests without changing the legal authority of either office.",
+    "claim_type": "proposal_assertion",
+    "subject_type": "control",
+    "subject_id": "ctrl-once-only-evidence-check",
+    "confidence": "0.35",
+    "confidence_state": "unsupported_draft",
+    "review_state": "draft",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  }
+]

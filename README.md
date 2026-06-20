@@ -15,29 +15,41 @@ Local v1 runs deterministic TypeScript services and Astro apps. `.env.example` s
 
 ## Local setup
 
+### Option A — Docker Compose (recommended, full stack)
+
+```bash
+pnpm install
+docker compose -f infra/compose/docker-compose.yml up -d --build --wait
+pnpm db:seed          # migrate + idempotent seed (§34 governance scenario)
+```
+
+Services: postgres (:5432), governance-graph-api (:8100), audit-service (:8600), platform-api BFF (:8080).
+
+### Option B — Node-only (requires postgres on :5432)
+
 ```bash
 pnpm install
 cp .env.example .env
-pnpm dev:services
+pnpm dev:services     # spawns the 3 TS services, waits for /healthz
+pnpm db:seed
 ```
 
-In another shell:
+Then in another shell:
 
 ```bash
-pnpm dev:web
+pnpm dev:web          # public site on :4321
 ```
 
-Useful checks:
+### Checks
 
 ```bash
-pnpm build
-pnpm typecheck
-pnpm test
-pnpm v1:smoke
-pnpm verify
+pnpm build && pnpm typecheck && pnpm test
+pnpm lint
+pnpm verify           # build + typecheck + test + v1:smoke
+node scripts/phase1-acceptance.mjs   # §23 contract across live services
 ```
 
-`pnpm v1:smoke` expects the local services from `pnpm dev:services` to be listening, including `platform-api` on `http://localhost:8080`.
+`pnpm v1:smoke` and `scripts/phase1-acceptance.mjs` expect the services listening on :8080 (compose or `pnpm dev:services`).
 
 ## Apps
 
@@ -48,26 +60,17 @@ pnpm verify
 | `apps/vault` | Citizen document vault UI shell | 4323 |
 | `apps/admin` | Operator/admin UI shell | 4324 |
 
-## Local v1 service map
+## Phase 1 service map
 
-Every service uses the same local runtime contract from `packages/service-runtime/src/index.ts`:
+Three TypeScript services behind a single public BFF edge (`platform-api`). Domain services speak internal routes; only `platform-api` is public.
 
-- `GET /healthz`
-- `GET /readyz`
-- `GET /metrics`
-- `GET /version`
-- `GET /api/v1/governance/institutions`
-- `GET /api/v1/governance/processes`
-- `GET /api/v1/evidence/claims`
-- `GET /api/v1/assessment/process-public-complaint`
-- `POST /api/v1/proofs`
-- `POST /api/v1/verify/hash`
-- `GET /api/v1/polis/conversations`
-- `POST /api/v1/ai/explain`
-- `GET /api/v1/rewards/rules`
-- `GET /api/v1/audit/events`
+| Service | Port | Routes |
+| --- | --- | --- |
+| `platform-api` (BFF) | 8080 | `GET /api/v1/institutions`, `/institutions/:id`, `/roles/:id`, `/processes`, `/processes/:id`, `/claims`, `/jurisdictions`, `/graph/traverse`; `POST /api/v1/verify/hash` |
+| `governance-graph-api` | 8100 | internal graph reads (§23.1): institutions, roles, processes, claims (hydrated with evidence + sources), required documents, `/api/v1/graph/traverse` |
+| `audit-service` | 8600 | `POST /internal/audit/events` (§26.3 append-only hash-chain); `GET /api/v1/audit/:objectType/:objectId` (public-only) |
 
-Default local ports are declared in `.env.example` and used by `scripts/dev-services.mjs`.
+Every service exposes the shared runtime contract from `packages/service-runtime`: `GET /healthz`, `/readyz`, `/metrics`, `/version` (git sha + build metadata). Default ports are declared in `.env.example` and used by `scripts/dev-services.mjs` and `infra/compose/docker-compose.yml`.
 
 ## Documentation
 

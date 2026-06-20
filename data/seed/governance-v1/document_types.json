@@ -1,0 +1,16 @@
+[
+  {
+    "id": "doctype-identity-proof",
+    "name": "Identity proof",
+    "jurisdiction_id": "jur-croatia-local",
+    "legal_basis": "law-general-administrative-procedure",
+    "description": "Government-issued identity card or passport used to prove the submitter's identity."
+  },
+  {
+    "id": "doctype-proof-of-residence",
+    "name": "Proof of residence",
+    "jurisdiction_id": "jur-croatia-local",
+    "legal_basis": "law-local-self-government",
+    "description": "Residence certificate, utility bill, or registry confirmation showing residence in the municipality."
+  }
+]

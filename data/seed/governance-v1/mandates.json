@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mandate-public-complaints",
+    "name": "Receive and coordinate citizen administrative complaints",
+    "description": "Coordinate intake, routing, and response tracking for citizen complaints about municipal services.",
+    "legal_basis": "Local self-government complaint handling mandate under municipal statute."
+  },
+  {
+    "id": "mandate-civil-registry",
+    "name": "Maintain civil status and residence registry records",
+    "description": "Maintain registry office records and issue confirmations needed in local administrative proceedings.",
+    "legal_basis": "Registry and residence administration duties assigned to local registry offices."
+  }
+]

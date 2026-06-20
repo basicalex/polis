@@ -1,0 +1,20 @@
+[
+  {
+    "id": "dr-accept-complaint",
+    "role_id": "role-complaints-intake-officer",
+    "name": "Accept complaint submission",
+    "description": "Mark a complaint intake as complete once identity and required documents are present."
+  },
+  {
+    "id": "dr-request-evidence",
+    "role_id": "role-complaints-intake-officer",
+    "name": "Request missing evidence",
+    "description": "Ask the citizen to provide identity proof or residence proof when absent from the complaint packet."
+  },
+  {
+    "id": "dr-issue-residence-confirmation",
+    "role_id": "role-registry-clerk",
+    "name": "Issue residence confirmation",
+    "description": "Issue or confirm the residence record used by the complaint process."
+  }
+]

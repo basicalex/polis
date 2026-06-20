@@ -1,0 +1,23 @@
+[
+  {
+    "id": "step-submit-complaint",
+    "process_id": "process-citizen-service-complaint",
+    "ordinal": "1",
+    "name": "Submit complaint to Public Complaints Office",
+    "description": "Citizen files the complaint packet and is asked for identity proof and proof of residence at intake."
+  },
+  {
+    "id": "step-registry-validation",
+    "process_id": "process-citizen-service-complaint",
+    "ordinal": "2",
+    "name": "Validate residence at Municipal Registry Office",
+    "description": "Registry clerk checks the same identity proof and proof of residence before issuing a confirmation."
+  },
+  {
+    "id": "step-final-review",
+    "process_id": "process-citizen-service-complaint",
+    "ordinal": "3",
+    "name": "Return confirmation for final complaint review",
+    "description": "Citizen returns registry confirmation; complaints office again reconciles identity/residence evidence before routing."
+  }
+]

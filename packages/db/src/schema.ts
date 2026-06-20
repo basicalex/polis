@@ -1,0 +1,476 @@
+/**
+ * Drizzle schema — the canonical source of truth for the Polis Interface DB.
+ *
+ * Conventions (project-wide, ADR-004):
+ *   - Column names are snake_case (`created_at`, `review_state`).
+ *   - Wire objects (TS/Python) are camelCase; mappers live at service boundaries.
+ *   - Enums are CHECK constraints using the exact value sets from the spec
+ *     (§11/§12/§15/§21/§26.3).
+ *   - Migrations are generated DDL, committed, and language-agnostic.
+ *
+ * Phase 0 (0000_baseline): app_meta key/value.
+ * Phase 1 (0001_governance_v0): governance ontology + graph + evidence + audit.
+ */
+import { sql } from 'drizzle-orm';
+import { check, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+
+/* ------------------------------------------------------------------ */
+/* Enum value sets (canonical; mirror @polis/domain wire types)        */
+/* ------------------------------------------------------------------ */
+
+export const REVIEW_STATES = [
+  'draft',
+  'submitted',
+  'needs_revision',
+  'under_review',
+  'approved',
+  'contested',
+  'deprecated',
+  'rejected',
+  'archived',
+] as const;
+
+export const VISIBILITIES = [
+  'public',
+  'private',
+  'restricted',
+  'redacted',
+  'sealed',
+  'internal',
+] as const;
+
+export const CONFIDENCE_STATES = [
+  'unsupported_draft',
+  'single_source',
+  'multi_source',
+  'official_source',
+  'official_confirmed',
+  'expert_reviewed',
+  'contested',
+  'outdated',
+  'superseded',
+] as const;
+
+export const CLAIM_TYPES = [
+  'legal_mandate',
+  'budget_amount',
+  'role_responsibility',
+  'process_step',
+  'document_requirement',
+  'risk_assessment',
+  'proposal_assertion',
+  'public_statement',
+  'other',
+] as const;
+
+export const ACTOR_TYPES = ['user', 'service', 'system', 'partner'] as const;
+
+export const RELATIONSHIP_TYPES = [
+  'JURISDICTION_HAS_INSTITUTION',
+  'INSTITUTION_HAS_ROLE',
+  'ROLE_AUTHORIZED_BY_LAW',
+  'ROLE_HAS_MANDATE',
+  'ROLE_CONTROLS_DECISION_RIGHT',
+  'ROLE_PARTICIPATES_IN_PROCESS',
+  'PROCESS_HAS_STEP',
+  'STEP_REQUIRES_DOCUMENT_TYPE',
+  'INSTITUTION_ISSUES_DOCUMENT_TYPE',
+  'LAW_AUTHORIZES_DOCUMENT_TYPE',
+  'BUDGET_FUNDS_INSTITUTION',
+  'BUDGET_FUNDS_PROGRAM',
+  'PROCESS_CREATES_FAILURE_MODE',
+  'FAILURE_MODE_MITIGATED_BY_CONTROL',
+  'PROPOSAL_CHANGES_PROCESS',
+  'PROPOSAL_REDUCES_FAILURE_MODE',
+  'PROPOSAL_INTRODUCES_RISK',
+  'CLAIM_SUPPORTED_BY_SOURCE',
+  'DOCUMENT_PROOF_LINKS_TO_DOCUMENT_TYPE',
+  'POLIS_CONVERSATION_DELIBERATES_ISSUE',
+  'CONSENSUS_CLUSTER_SUPPORTS_PROPOSAL',
+] as const;
+
+/** Build a CHECK constraint restricting `column` to the given value set. */
+function enumCheck(name: string, column: string, values: readonly string[]) {
+  const list = values.map((v) => `'${v}'`).join(',');
+  return check(name, sql.raw(`${column} in (${list})`));
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared column helpers                                               */
+/* ------------------------------------------------------------------ */
+
+/** Primary-key id (semantic text ids from seed, e.g. 'inst-complaints-office'). */
+const pkId = () => text('id').primaryKey();
+
+/** Audit/ownership columns common to governance + evidence tables. */
+const universal = () => ({
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdByUserId: text('created_by_user_id'),
+  updatedByUserId: text('updated_by_user_id'),
+  status: text('status'),
+  auditCorrelationId: text('audit_correlation_id'),
+});
+
+/* ------------------------------------------------------------------ */
+/* Phase 0 baseline                                                    */
+/* ------------------------------------------------------------------ */
+
+export const appMeta = pgTable('app_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/* ------------------------------------------------------------------ */
+/* Governance ontology (§11)                                          */
+/* ------------------------------------------------------------------ */
+
+export const jurisdictions = pgTable(
+  'jurisdictions',
+  {
+    id: pkId(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    jurisdictionPath: text('jurisdiction_path').notNull(), // e.g. "HR/local"
+    description: text('description'),
+    confidenceState: text('confidence_state').notNull().default('official_source'),
+    reviewState: text('review_state').notNull().default('approved'),
+    visibility: text('visibility').notNull().default('public'),
+    ...universal(),
+  },
+  (t) => [
+    uniqueIndex('jurisdictions_slug_idx').on(t.slug),
+    enumCheck('ck_jurisdictions_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_jurisdictions_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_jurisdictions_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+export const mandates = pgTable('mandates', {
+  id: pkId(),
+  name: text('name').notNull(),
+  description: text('description'),
+  legalBasis: text('legal_basis'),
+  ...universal(),
+});
+
+export const laws = pgTable('laws', {
+  id: pkId(),
+  citation: text('citation').notNull(),
+  title: text('title'),
+  jurisdictionId: text('jurisdiction_id'),
+  url: text('url'),
+  ...universal(),
+});
+
+export const institutions = pgTable(
+  'institutions',
+  {
+    id: pkId(),
+    name: text('name').notNull(),
+    jurisdictionId: text('jurisdiction_id'),
+    description: text('description'),
+    confidenceState: text('confidence_state').notNull().default('official_source'),
+    reviewState: text('review_state').notNull().default('approved'),
+    visibility: text('visibility').notNull().default('public'),
+    ...universal(),
+  },
+  () => [
+    enumCheck('ck_institutions_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_institutions_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_institutions_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+export const roles = pgTable(
+  'roles',
+  {
+    id: pkId(),
+    name: text('name').notNull(),
+    institutionId: text('institution_id'),
+    mandateId: text('mandate_id'),
+    description: text('description'),
+    authorizedByLaw: text('authorized_by_law'),
+    decisionRights: jsonb('decision_rights'), // string[] of decision-right names
+    confidenceState: text('confidence_state').notNull().default('official_source'),
+    reviewState: text('review_state').notNull().default('approved'),
+    visibility: text('visibility').notNull().default('public'),
+    ...universal(),
+  },
+  () => [
+    enumCheck('ck_roles_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_roles_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_roles_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+export const decisionRights = pgTable('decision_rights', {
+  id: pkId(),
+  roleId: text('role_id'),
+  name: text('name').notNull(),
+  description: text('description'),
+  ...universal(),
+});
+
+export const processes = pgTable(
+  'processes',
+  {
+    id: pkId(),
+    name: text('name').notNull(),
+    need: text('need'),
+    legalBasis: text('legal_basis'),
+    jurisdictionId: text('jurisdiction_id'),
+    confidenceState: text('confidence_state').notNull().default('official_source'),
+    reviewState: text('review_state').notNull().default('approved'),
+    visibility: text('visibility').notNull().default('public'),
+    ...universal(),
+  },
+  () => [
+    enumCheck('ck_processes_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_processes_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_processes_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+export const processSteps = pgTable('process_steps', {
+  id: pkId(),
+  processId: text('process_id'),
+  ordinal: numeric('ordinal'),
+  name: text('name').notNull(),
+  description: text('description'),
+  ...universal(),
+});
+
+export const documentTypes = pgTable('document_types', {
+  id: pkId(),
+  name: text('name').notNull(),
+  jurisdictionId: text('jurisdiction_id'),
+  legalBasis: text('legal_basis'),
+  description: text('description'),
+  ...universal(),
+});
+
+export const failureModes = pgTable('failure_modes', {
+  id: pkId(),
+  name: text('name').notNull(),
+  processId: text('process_id'),
+  description: text('description'),
+  ...universal(),
+});
+
+export const controls = pgTable('controls', {
+  id: pkId(),
+  name: text('name').notNull(),
+  failureModeId: text('failure_mode_id'),
+  description: text('description'),
+  ...universal(),
+});
+
+export const budgetLines = pgTable('budget_lines', {
+  id: pkId(),
+  label: text('label').notNull(),
+  amount: numeric('amount'),
+  currency: text('currency'),
+  fiscalYear: text('fiscal_year'),
+  fundsInstitutionId: text('funds_institution_id'),
+  fundsProgram: text('funds_program'),
+  ...universal(),
+});
+
+export const publicServices = pgTable('public_services', {
+  id: pkId(),
+  name: text('name').notNull(),
+  jurisdictionId: text('jurisdiction_id'),
+  description: text('description'),
+  ...universal(),
+});
+
+export const risks = pgTable('risks', {
+  id: pkId(),
+  name: text('name').notNull(),
+  description: text('description'),
+  severity: text('severity'),
+  ...universal(),
+});
+
+/* ------------------------------------------------------------------ */
+/* Graph (§11.5): generic adjacency                                   */
+/* ------------------------------------------------------------------ */
+
+export const relationships = pgTable(
+  'relationships',
+  {
+    id: pkId(),
+    relationshipType: text('relationship_type').notNull(),
+    fromEntityType: text('from_entity_type').notNull(),
+    fromEntityId: text('from_entity_id').notNull(),
+    toEntityType: text('to_entity_type').notNull(),
+    toEntityId: text('to_entity_id').notNull(),
+    confidenceState: text('confidence_state').notNull().default('official_source'),
+    reviewState: text('review_state').notNull().default('approved'),
+    visibility: text('visibility').notNull().default('public'),
+    sourceConfidence: numeric('source_confidence'),
+    methodVersion: text('method_version'),
+    ...universal(),
+  },
+  () => [
+    enumCheck('ck_relationships_type', 'relationship_type', RELATIONSHIP_TYPES),
+    enumCheck('ck_relationships_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_relationships_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_relationships_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* Evidence vault (§12)                                               */
+/* ------------------------------------------------------------------ */
+
+export const sources = pgTable('sources', {
+  id: pkId(),
+  title: text('title').notNull(),
+  url: text('url'),
+  jurisdictionId: text('jurisdiction_id'),
+  sourceType: text('source_type'), // e.g. official, legal, news
+  publisher: text('publisher'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  ...universal(),
+});
+
+export const sourceSnapshots = pgTable('source_snapshots', {
+  id: pkId(),
+  sourceId: text('source_id'),
+  url: text('url'),
+  contentHash: text('content_hash'),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }).defaultNow().notNull(),
+  ...universal(),
+});
+
+export const documents = pgTable('documents', {
+  id: pkId(),
+  sourceId: text('source_id'),
+  title: text('title'),
+  documentClass: text('document_class'),
+  url: text('url'),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }).defaultNow().notNull(),
+  ...universal(),
+});
+
+export const claims = pgTable(
+  'claims',
+  {
+    id: pkId(),
+    text: text('text').notNull(),
+    claimType: text('claim_type').notNull(),
+    subjectType: text('subject_type').notNull(),
+    subjectId: text('subject_id').notNull(),
+    confidence: numeric('confidence').notNull(),
+    confidenceState: text('confidence_state').notNull().default('unsupported_draft'),
+    reviewState: text('review_state').notNull().default('draft'),
+    visibility: text('visibility').notNull().default('public'),
+    methodVersion: text('method_version'),
+    aiTraceId: text('ai_trace_id'),
+    ...universal(),
+  },
+  () => [
+    enumCheck('ck_claims_type', 'claim_type', CLAIM_TYPES),
+    enumCheck('ck_claims_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_claims_review', 'review_state', REVIEW_STATES),
+    enumCheck('ck_claims_visibility', 'visibility', VISIBILITIES),
+  ],
+);
+
+export const evidenceLinks = pgTable('evidence_links', {
+  id: pkId(),
+  claimId: text('claim_id').notNull(),
+  sourceId: text('source_id').notNull(),
+  locator: jsonb('locator'), // {page?, lineStart?, lineEnd?, xpath?, tableCell?, timestamp?}
+  quote: text('quote'),
+  paraphrase: text('paraphrase'),
+  sourceHash: text('source_hash'),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }),
+  confidence: numeric('confidence').notNull(),
+});
+
+export const reviewRecords = pgTable('review_records', {
+  id: pkId(),
+  claimId: text('claim_id').notNull(),
+  reviewer: text('reviewer'),
+  decision: text('decision'),
+  note: text('note'),
+  ...universal(),
+});
+
+export const confidenceScores = pgTable('confidence_scores', {
+  id: pkId(),
+  claimId: text('claim_id').notNull(),
+  methodVersion: text('method_version'),
+  score: numeric('score').notNull(),
+  ...universal(),
+});
+
+/* ------------------------------------------------------------------ */
+/* Audit (§26.3) — append-only hash chain                             */
+/* ------------------------------------------------------------------ */
+
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: pkId(),
+    eventType: text('event_type').notNull(),
+    actorType: text('actor_type').notNull(),
+    actorId: text('actor_id').notNull(),
+    targetType: text('target_type'),
+    targetId: text('target_id'),
+    action: text('action').notNull(),
+    reason: text('reason'),
+    correlationId: text('correlation_id'),
+    visibility: text('visibility').notNull().default('public'),
+    data: jsonb('data'),
+    redactedData: jsonb('redacted_data'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    hash: text('hash'),
+    previousHash: text('previous_hash'),
+  },
+  (t) => [
+    enumCheck('ck_audit_actor_type', 'actor_type', ACTOR_TYPES),
+    enumCheck('ck_audit_visibility', 'visibility', VISIBILITIES),
+    uniqueIndex('audit_events_created_idx').on(t.createdAt, t.id),
+  ],
+);
+
+export const auditEventRedactions = pgTable('audit_event_redactions', {
+  id: pkId(),
+  auditEventId: text('audit_event_id').notNull(),
+  field: text('field').notNull(),
+  reason: text('reason'),
+  redactedAt: timestamp('redacted_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const schema = {
+  appMeta,
+  jurisdictions,
+  mandates,
+  laws,
+  institutions,
+  roles,
+  decisionRights,
+  processes,
+  processSteps,
+  documentTypes,
+  failureModes,
+  controls,
+  budgetLines,
+  publicServices,
+  risks,
+  relationships,
+  sources,
+  sourceSnapshots,
+  documents,
+  claims,
+  evidenceLinks,
+  reviewRecords,
+  confidenceScores,
+  auditEvents,
+  auditEventRedactions,
+};

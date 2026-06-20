@@ -1,1 +1,10 @@
-{"extends":"astro/tsconfigs/strict","compilerOptions":{"moduleResolution":"Bundler","strict":true},"include":["src/**/*","astro.config.mjs"]}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "types": ["astro/client"]
+  },
+  "include": ["src/**/*", "astro.config.mjs"]
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "ev-complaints-intake-source",
+    "claim_id": "claim-complaints-intake-requires-id",
+    "source_id": "src-zagreb-complaints",
+    "locator": {
+      "page": 1,
+      "xpath": "//main"
+    },
+    "quote": "City complaint and petition intake information identifies municipal complaint submission channels.",
+    "paraphrase": "Official municipal complaint guidance supports mapping an intake office and its submission prerequisites.",
+    "source_hash": "sha256:3b50f9c73a17c96d2e9b8f257c0b1e69b7a83e1bb0d8d2f11ac89e0d0a0f9c21",
+    "retrieved_at": "2026-06-19T00:00:00.000Z",
+    "confidence": "0.82"
+  },
+  {
+    "id": "ev-registry-residence-source",
+    "claim_id": "claim-registry-requires-residence-proof",
+    "source_id": "src-govhr-residence",
+    "locator": {
+      "page": 1,
+      "xpath": "//main"
+    },
+    "quote": "Government residence-registration information describes official handling of residence/address evidence.",
+    "paraphrase": "Official government information supports the registry step's requirement to verify residence evidence.",
+    "source_hash": "sha256:42dd4c8c6c2ce91d8b1b33d41d27949213e3a31af932f3ab9e5d2788a1b67e4c",
+    "retrieved_at": "2026-06-19T00:00:00.000Z",
+    "confidence": "0.86"
+  },
+  {
+    "id": "ev-duplicate-burden-complaints",
+    "claim_id": "claim-duplicate-documents-create-burden",
+    "source_id": "src-zagreb-complaints",
+    "locator": {
+      "page": 1
+    },
+    "quote": "Complaint intake and routing are separate from registry confirmation handling.",
+    "paraphrase": "The complaint intake source shows one office in the chain requiring citizen-submitted evidence.",
+    "source_hash": "sha256:3b50f9c73a17c96d2e9b8f257c0b1e69b7a83e1bb0d8d2f11ac89e0d0a0f9c21",
+    "retrieved_at": "2026-06-19T00:00:00.000Z",
+    "confidence": "0.76"
+  },
+  {
+    "id": "ev-duplicate-burden-once-only",
+    "claim_id": "claim-duplicate-documents-create-burden",
+    "source_id": "src-eu-once-only",
+    "locator": {
+      "page": 1
+    },
+    "quote": "The once-only principle aims to reduce repeated submission of the same data to public administrations.",
+    "paraphrase": "EU once-only guidance supports treating duplicate document submission as a reform target.",
+    "source_hash": "sha256:9e9ca793dfd85bb4f3e1b0ec40eae5d88f58075654d35c978196f087237a4b4f",
+    "retrieved_at": "2026-06-19T00:00:00.000Z",
+    "confidence": "0.80"
+  }
+]

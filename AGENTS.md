@@ -3,6 +3,7 @@
 This file defines the always-on rules for agents in this repo. Procedural playbooks live in AOC skills.
 
 ## Always-on rules
+
 - Use `.aoc/context.md` for orientation; run `aoc-init` if it is missing or stale.
 - Use root `DESIGN.md` as the visual/product design contract before UI, docs-site, marketing, HyperFrames, or other product-facing work.
 - **DO NOT manually read these files** - use the Bash tool to run CLI commands instead (see below).
@@ -11,6 +12,7 @@ This file defines the always-on rules for agents in this repo. Procedural playbo
 - RTK exists to improve context health: allowlisted noisy commands are condensed for better signal density, with fail-open native fallback.
 
 ## Startup handshake
+
 - `aoc-handshake --json` is the metadata-only startup packet for agents: AOC status, Taskmaster tag, Mind availability, VCS mode/preferred command family, and usage policy.
 - Startup must not load broad Mind memories or context packs by default; use the handshake to discover Mind, not to prime direction.
 - Mind may sync/ingest in the background, but retrieval should be lazy and intent-bound.
@@ -20,6 +22,7 @@ This file defines the always-on rules for agents in this repo. Procedural playbo
 - Jujutsu setup/import/init/export is operator-controlled. AOC init reports existing `.jj` state but must not create or initialize Jujutsu; use explicit `/jj-init` or a direct shell command for setup.
 
 ## Low-Token Default Mode
+
 - Keep responses concise by default; do not print full files or raw logs unless explicitly requested.
 - Start with the smallest viable step; use narrow, path-scoped searches before broad scans.
 - When `.codegraph/` exists and the OMP `aoc_codegraph` tool is available, use it before broad text/file scans for code discovery, call-flow mapping, impact probes, and affected-test selection.
@@ -33,7 +36,9 @@ This file defines the always-on rules for agents in this repo. Procedural playbo
 - Use one narrow diagnostic path first; avoid retry spray with variant commands unless first attempt fails.
 
 ## AOC CLI Commands (run via Bash tool - NOT Read tool)
+
 These commands are in PATH and work without loading any skill:
+
 - Startup/repair: `aoc-handshake --json`, `aoc-init`
 - Memory: `aoc-mem read`, `aoc-mem search "query"`, `aoc-mem add "decision"`
 - STM directed handoff only: `aoc-stm status`, `aoc-stm template --purpose <kind>`, `aoc-stm`, `aoc-stm add "note"`, `aoc-stm handoff --purpose <kind> --to <recipient> --focus <focus>`, `aoc-stm resume <archive>`
@@ -44,6 +49,7 @@ These commands are in PATH and work without loading any skill:
 STM is for deliberate directed in-progress handoff packets only; it is not a mailbox and does not notify another agent by itself. Pass the printed next-agent brief or exact archive explicitly. In Pi, `/handoff <focus>` asks the agent to generate a clean purpose-matched packet for the current work; `/rresume [archive]` asks the agent to load a sealed handoff into context safely. Do not use STM for durable decisions, generic logs, raw command output, or every minor task.
 
 ## Core files
+
 - `.aoc/context.md`: auto-generated project snapshot.
 - `.aoc/rtk.toml`: project-local RTK routing policy and install contract.
 - `.aoc/mind-service.json`: optional project-local launcher metadata for the standalone Mind service.
@@ -57,10 +63,12 @@ STM is for deliberate directed in-progress handoff packets only; it is not a mai
 - Keep AOC/task/config/source state in git: `.aoc/**`, `.taskmaster/**`, `.omp/extensions/**`, `.omp/agents/**`, `.omp/skills/**`, `AGENTS.md`, and `DESIGN.md` should not be ignored except explicit high-churn runtime artifacts such as logs, locks, caches, debug output, and live Mind databases.
 
 ## Task Management
+
 - `.taskmaster/tasks/tasks.json` is task state; use the Taskmaster TUI, `aoc-task`, or `tm` (alias for `aoc-task`). Do not edit the file directly.
 - Record major decisions and constraints in memory (`aoc-mem add "..."`).
 
 ## Skills (load when needed)
+
 Load a skill only when its description matches the user request. Keep always-on guidance here minimal; procedural playbooks belong in skill files.
 
 Note: `aoc-mem`, `aoc-stm`, and `tm` are basic CLI commands (see above) - no skill needed.

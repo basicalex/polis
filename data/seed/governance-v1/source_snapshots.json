@@ -1,0 +1,23 @@
+[
+  {
+    "id": "snap-zagreb-complaints-2026-06-19",
+    "source_id": "src-zagreb-complaints",
+    "url": "https://www.zagreb.hr/",
+    "content_hash": "sha256:3b50f9c73a17c96d2e9b8f257c0b1e69b7a83e1bb0d8d2f11ac89e0d0a0f9c21",
+    "retrieved_at": "2026-06-19T00:00:00.000Z"
+  },
+  {
+    "id": "snap-govhr-residence-2026-06-19",
+    "source_id": "src-govhr-residence",
+    "url": "https://gov.hr/",
+    "content_hash": "sha256:42dd4c8c6c2ce91d8b1b33d41d27949213e3a31af932f3ab9e5d2788a1b67e4c",
+    "retrieved_at": "2026-06-19T00:00:00.000Z"
+  },
+  {
+    "id": "snap-eu-once-only-2026-06-19",
+    "source_id": "src-eu-once-only",
+    "url": "https://digital-strategy.ec.europa.eu/",
+    "content_hash": "sha256:9e9ca793dfd85bb4f3e1b0ec40eae5d88f58075654d35c978196f087237a4b4f",
+    "retrieved_at": "2026-06-19T00:00:00.000Z"
+  }
+]

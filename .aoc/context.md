@@ -2,7 +2,7 @@
 
 ## Repository
 - Name: polis
-- Root: /home/ceii/dev/polis
+- Root: ../polis
 - VCS: git
 - Git branch: main
 
@@ -11,6 +11,7 @@
 - DESIGN.md
 - package.json
 - pnpm-lock.yaml
+- pyproject.toml
 
 ## Project Structure (tree -L 2)
 ```
@@ -36,6 +37,7 @@
 ./docs/document-trust
 ./docs/partners
 ./docs/public-methodology
+./.env
 ./.env.example
 ./.github
 ./.github/workflows
@@ -44,16 +46,15 @@
 ./infra
 ./infra/compose
 ./LICENSE
+./.mypy_cache
+./.mypy_cache/3.12
+./.mypy_cache/CACHEDIR.TAG
+./.mypy_cache/.gitignore
 ./NOTICE
-./package.json
-./packages
-./packages/domain
-./packages/policy-rules
-./packages/service-runtime
-./.pi
-./.pi/agents
-./.pi/extensions
-./.pi/packages
+./.omp
+./.omp/agents
+./.omp/.aoc-backups
+./.omp/extensions
 ... [tree truncated to 40 lines]
 ```
 

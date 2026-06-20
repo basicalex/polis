@@ -1,0 +1,22 @@
+**/dist/**
+**/node_modules/**
+**/.astro/**
+**/.vite/**
+**/*.lock
+pnpm-lock.yaml
+uv.lock
+**/*.sql
+.env
+.env.*
+.env.example
+# Prose, seed data, and apps are not prettier-governed (apps reformatted in 1.6).
+**/*.md
+docs/**
+data/**
+apps/**
+The Iceberg Index/**
+.aoc/**
+.omp/**
+.pi/**
+.taskmaster/**
+packages/db/migrations/**

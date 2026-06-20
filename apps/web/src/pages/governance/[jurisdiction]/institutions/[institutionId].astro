@@ -1,0 +1,85 @@
+---
+import Base from '../../../../layouts/Base.astro';
+
+type Role = { id: string; name: string; description: string | null; confidenceState: string; reviewState: string };
+type Institution = { id: string; name: string; description: string | null; confidenceState: string; reviewState: string; roles?: Role[] };
+type Evidence = { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null };
+type Source = { id: string; title: string; url: string | null; publisher: string | null };
+type Claim = { id: string; text: string; confidenceState: string; reviewState: string; evidence: Evidence[]; sources: Source[] };
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const slug = Astro.params.jurisdiction ?? 'jur-croatia-local';
+const institutionId = Astro.params.institutionId ?? '';
+const institution = (await fetchJson(`/api/v1/institutions/${encodeURIComponent(institutionId)}`)) as Institution | null;
+const claims = (await fetchJson(`/api/v1/claims?subject_id=${encodeURIComponent(institutionId)}`)) as { items: Claim[] } | null;
+---
+
+<Base title={`Institution · ${institution?.name ?? institutionId}`}>
+  <section class="stack">
+    <p class="badge">Institution</p>
+    <h1>{institution?.name ?? 'Institution unavailable'}</h1>
+    <p class="muted">{institution?.description ?? 'Data unavailable. Run the services and seed the governance database.'}</p>
+    {institution && <p><span class="badge">{institution.confidenceState}</span> <span class="badge">{institution.reviewState}</span></p>}
+  </section>
+  <section class="stack">
+    <h2>Roles</h2>
+    {institution?.roles?.length ? (
+      <div class="grid">
+        {institution.roles.map((role) => (
+          <article class="card stack">
+            <h3><a href={`/governance/${slug}/roles/${role.id}`}>{role.name}</a></h3>
+            <p class="muted">{role.description ?? 'No description recorded.'}</p>
+            <p><span class="badge">{role.confidenceState}</span> <span class="badge">{role.reviewState}</span></p>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="panel muted">No roles available from the API.</p>
+    )}
+  </section>
+  <section class="stack">
+    <h2>Claims</h2>
+    {claims === null ? (
+      <p class="panel muted">Claims unavailable. Run the services to load source-linked claims.</p>
+    ) : claims.items.length ? (
+      <div class="stack">
+        {claims.items.map((claim) => (
+          <article class="card stack">
+            <h3>{claim.text}</h3>
+            <p><span class="badge">{claim.confidenceState}</span> <span class="badge">{claim.reviewState}</span></p>
+            {claim.evidence.length > 0 ? (
+              <ul>
+                {claim.evidence.map((evidence) => {
+                  const source = claim.sources.find((item) => item.id === evidence.sourceId);
+                  return (
+                    <li>
+                      {source?.url ? <a href={source.url}>{source.title}</a> : <span>{source?.title ?? evidence.sourceId}</span>}
+                      {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
+                      <p class="muted">hash {evidence.sourceHash ?? 'not recorded'} · retrieved {evidence.retrievedAt ?? 'not recorded'}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : claim.confidenceState === 'unsupported_draft' ? (
+              <p><span class="badge badge-warning">unsupported_draft</span></p>
+            ) : (
+              <p class="muted">No evidence links returned.</p>
+            )}
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="panel muted">No claims recorded for this institution. Claims attach to process steps, failure modes, and controls.</p>
+    )}
+  </section>
+</Base>

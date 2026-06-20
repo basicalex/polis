@@ -1,4 +1,31 @@
 ---
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Polis Interface"><section class="hero"><h1>Polis Interface</h1><p>The citizen carries authority; the system carries proof.</p><ul><li>Governance graph</li><li>Evidence vault</li><li>Polis deliberation</li><li>Document proof</li><li>Citizen vault</li><li>AI assistance with review</li></ul></section></Base>
+
+<Base title="Polis Interface">
+  <section class="hero stack">
+    <p class="badge">Governance map v0</p>
+    <h1>Polis Interface</h1>
+    <p>
+      A public, source-linked map of institutions, roles, processes, documents, failure modes, and audit trails.
+      Built dark, legible, and inspectable: the citizen carries authority; the system carries proof.
+    </p>
+    <p>
+      <a href="/governance/jur-croatia-local">Enter the governance map</a> · <a href="/audit">Read the public audit trail</a>
+    </p>
+  </section>
+  <section class="grid" aria-label="Public interface pillars">
+    <article class="card">
+      <h2>Map</h2>
+      <p class="muted">Follow jurisdiction → institution → role → process without losing confidence or review state.</p>
+    </article>
+    <article class="card">
+      <h2>Evidence</h2>
+      <p class="muted">Claims show source links when supported, or an explicit unsupported draft badge when not.</p>
+    </article>
+    <article class="card">
+      <h2>Audit</h2>
+      <p class="muted">Public, redacted audit events expose actors, actions, hashes, and previous hashes.</p>
+    </article>
+  </section>
+</Base>

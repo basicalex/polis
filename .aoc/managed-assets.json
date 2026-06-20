@@ -58,20 +58,20 @@
     ".omp/extensions": {
       "asset": "omp-extensions",
       "assetVersion": 3,
-      "expectedSha256": "5d802cd395db3b2cd50359145da389ab99d050b643f0c14b89fe36fc469afc84",
+      "expectedSha256": "92d3096761059323814672ca6a02ed319b6068cc521fd83306b45b7b0def81be",
       "marker": ".omp/extensions/.aoc-managed",
-      "sha256": "5d802cd395db3b2cd50359145da389ab99d050b643f0c14b89fe36fc469afc84",
+      "sha256": "92d3096761059323814672ca6a02ed319b6068cc521fd83306b45b7b0def81be",
       "source": ".omp/extensions",
       "status": "current"
     },
     ".omp/skills": {
       "asset": "omp-skills",
       "assetVersion": 3,
-      "expectedSha256": "e68be9bebef90b6d87192cf47a872647b9a7ca3be68aa67047692047a2976a81",
+      "expectedSha256": "50c3fc9462ca2abf406f16498199f362f83eb00cb62b76888a8446f71fcb84f1",
       "marker": ".omp/skills/.aoc-managed",
       "sha256": "50c3fc9462ca2abf406f16498199f362f83eb00cb62b76888a8446f71fcb84f1",
       "source": ".omp/skills",
-      "status": "dirty"
+      "status": "current"
     },
     ".omp/skills/aoc-hyperframes": {
       "asset": "skill/aoc-hyperframes",
@@ -705,11 +705,11 @@
     }
   },
   "counts": {
-    "current": 75,
-    "dirty": 3,
+    "current": 76,
+    "dirty": 2,
     "stale": 0,
     "unknown": 0
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-06-17T19:32:48.802310Z"
+  "updatedAt": "2026-06-19T13:47:05.764255Z"
 }

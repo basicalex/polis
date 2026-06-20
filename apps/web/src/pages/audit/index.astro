@@ -1,0 +1,68 @@
+---
+import Base from '../../layouts/Base.astro';
+
+type Institution = { id: string; name: string };
+type AuditEvent = {
+  id: string;
+  eventType: string;
+  actorType?: string;
+  actorId?: string;
+  actor?: { type: string; id: string };
+  action: string;
+  hash: string | null;
+  previousHash: string | null;
+  createdAt: string;
+  visibility: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const institutions = (await fetchJson('/api/v1/institutions')) as { items: Institution[] } | null;
+const auditTarget = institutions?.items[0] ?? null;
+const audit = auditTarget
+  ? ((await fetchJson(`/api/v1/audit/institution/${encodeURIComponent(auditTarget.id)}`)) as { items: AuditEvent[] } | null)
+  : null;
+---
+
+<Base title="Public audit trail">
+  <section class="stack">
+    <p class="badge">Append-only public audit</p>
+    <h1>Audit trail</h1>
+    <p class="muted">
+      Public redacted audit events for {auditTarget?.name ?? 'the seeded institution'}.
+      <a href="/governance/jur-croatia-local"> Back to the governance map.</a>
+    </p>
+  </section>
+  <section class="panel">
+    {audit?.items?.length ? (
+      <table class="data-table">
+        <thead>
+          <tr><th>Actor</th><th>Action</th><th>Hash</th><th>Previous hash</th><th>Created</th><th>Visibility</th></tr>
+        </thead>
+        <tbody>
+          {audit.items.map((event) => (
+            <tr>
+              <td>{event.actor ? `${event.actor.type}:${event.actor.id}` : `${event.actorType ?? 'unknown'}:${event.actorId ?? 'unknown'}`}</td>
+              <td>{event.action}</td>
+              <td><code>{event.hash ?? 'null'}</code></td>
+              <td><code>{event.previousHash ?? 'null'}</code></td>
+              <td>{event.createdAt}</td>
+              <td>{event.visibility}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p class="muted">Audit data unavailable. Run platform-api, audit-service, governance-graph-api, and the Phase 1 seed.</p>
+    )}
+  </section>
+</Base>

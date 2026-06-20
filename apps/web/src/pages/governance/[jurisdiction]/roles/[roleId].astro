@@ -1,0 +1,55 @@
+---
+import Base from '../../../../layouts/Base.astro';
+
+type Role = {
+  id: string;
+  name: string;
+  institutionId: string | null;
+  mandate: { id: string; name: string; description: string | null; legalBasis: string | null } | null;
+  authorizedByLaw: string | null;
+  decisionRights: string[];
+  description: string | null;
+  confidenceState: string;
+  reviewState: string;
+  visibility: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const roleId = Astro.params.roleId ?? '';
+const role = (await fetchJson(`/api/v1/roles/${encodeURIComponent(roleId)}`)) as Role | null;
+---
+
+<Base title={`Role · ${role?.name ?? roleId}`}>
+  <section class="stack">
+    <p class="badge">§11.3 role</p>
+    <h1>{role?.name ?? 'Role unavailable'}</h1>
+    <p class="muted">All role fields are shown; unavailable values are explicit.</p>
+    {role ? <p><span class="badge">{role.confidenceState}</span> <span class="badge">{role.reviewState}</span></p> : <p class="panel muted">Data unavailable. Run the services and seed the governance database.</p>}
+  </section>
+  {role && (
+    <section class="panel">
+      <dl class="kv">
+        <dt>Name</dt><dd>{role.name}</dd>
+        <dt>Mandate</dt><dd>{role.mandate ? `${role.mandate.name} — ${role.mandate.description ?? 'no description'}` : 'Not recorded'}</dd>
+        <dt>Mandate legal basis</dt><dd>{role.mandate?.legalBasis ?? 'Not recorded'}</dd>
+        <dt>Authorized by law</dt><dd>{role.authorizedByLaw ?? 'Not recorded'}</dd>
+        <dt>Decision rights</dt><dd>{role.decisionRights.length ? role.decisionRights.join(', ') : 'None recorded'}</dd>
+        <dt>Confidence state</dt><dd><span class="badge">{role.confidenceState}</span></dd>
+        <dt>Review state</dt><dd><span class="badge">{role.reviewState}</span></dd>
+        <dt>Description</dt><dd>{role.description ?? 'Not recorded'}</dd>
+        <dt>Institution ID</dt><dd>{role.institutionId ?? 'Not recorded'}</dd>
+        <dt>Visibility</dt><dd>{role.visibility}</dd>
+      </dl>
+    </section>
+  )}
+</Base>

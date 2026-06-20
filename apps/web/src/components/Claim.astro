@@ -1,0 +1,36 @@
+---
+export interface Props {
+  claim: {
+    id: string;
+    text: string;
+    confidenceState: string;
+    reviewState: string;
+    evidence: { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null }[];
+    sources: { id: string; title: string; url: string | null; publisher: string | null }[];
+  };
+}
+const { claim } = Astro.props;
+---
+
+<article class="card stack">
+  <p>{claim.text}</p>
+  <p><span class="badge">{claim.confidenceState}</span> <span class="badge">{claim.reviewState}</span></p>
+  {claim.evidence.length > 0 ? (
+    <ul>
+      {claim.evidence.map((evidence) => {
+        const source = claim.sources.find((item) => item.id === evidence.sourceId);
+        return (
+          <li>
+            {source?.url ? <a href={source.url}>{source.title}</a> : <span>{source?.title ?? evidence.sourceId}</span>}
+            {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
+            <p class="muted">hash {evidence.sourceHash ?? 'not recorded'} · retrieved {evidence.retrievedAt ?? 'not recorded'}</p>
+          </li>
+        );
+      })}
+    </ul>
+  ) : claim.confidenceState === 'unsupported_draft' ? (
+    <p><span class="badge badge-warning">unsupported_draft</span></p>
+  ) : (
+    <p class="muted">No evidence links returned.</p>
+  )}
+</article>

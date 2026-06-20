@@ -1,4 +1,361 @@
-import { startService } from '@polis/service-runtime';
-const port = Number(process.env.PORT ?? process.env.GOVERNANCE_GRAPH_API_PORT ?? 8100);
-startService('governance-graph-api', port);
-console.log(JSON.stringify({service:'governance-graph-api', port, status:'listening'}));
+/**
+ * @polis/governance-graph-api — internal governance read service over Postgres.
+ *
+ * Serves the §23.1 governance reads (and a typed graph/traverse API) backed by
+ * the governance + evidence + graph tables. platform-api proxies these paths
+ * as the public BFF edge. Wire objects are camelCase (see ./serialize.ts).
+ */
+import { getClient, schema } from '@polis/db';
+import type { DbClient } from '@polis/db';
+import type { IncomingMessage } from 'node:http';
+import { and, eq, inArray } from 'drizzle-orm';
+import {
+  operationalRoutes,
+  result,
+  startService,
+  type HttpResult,
+  type Route,
+} from '@polis/service-runtime';
+import {
+  claimWire,
+  documentTypeWire,
+  evidenceLinkWire,
+  failureModeWire,
+  institutionWire,
+  jurisdictionWire,
+  processStepWire,
+  processWire,
+  relationshipWire,
+  roleWire,
+  sourceWire,
+  type ClaimWire,
+  type InstitutionWire,
+  type JurisdictionWire,
+  type ProcessWire,
+  type RelationshipWire,
+  type RoleWire,
+} from './serialize.js';
+
+type EvidenceLinkRow = (typeof schema.evidenceLinks)['$inferSelect'];
+
+/** Query params from an IncomingMessage URL. Used across every list handler. */
+function query(req: IncomingMessage): URLSearchParams {
+  return new URL(req.url ?? '/', 'http://localhost').searchParams;
+}
+
+/** Stable 404 contract for detail endpoints. */
+const notFound = (id: string): HttpResult => result(404, { error: 'not_found', id });
+
+/** Build the §23.1 + graph route table bound to a DB client. */
+export function graphRoutes(db: DbClient): Route[] {
+  return [
+    ...operationalRoutes('governance-graph-api'),
+
+    {
+      method: 'GET',
+      path: '/api/v1/jurisdictions',
+      handler: async () => {
+        const rows = await db.select().from(schema.jurisdictions);
+        const items: JurisdictionWire[] = rows.map(jurisdictionWire);
+        return { items };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/institutions',
+      handler: async (req) => {
+        const jurisdictionId = query(req).get('jurisdiction_id');
+        const rows = await db
+          .select()
+          .from(schema.institutions)
+          .where(
+            jurisdictionId ? eq(schema.institutions.jurisdictionId, jurisdictionId) : undefined,
+          );
+        const items: InstitutionWire[] = rows.map(institutionWire);
+        return { items };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/institutions/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db
+          .select()
+          .from(schema.institutions)
+          .where(eq(schema.institutions.id, params.id));
+        const row = rows[0];
+        if (!row) return notFound(params.id);
+        const roles = await db
+          .select()
+          .from(schema.roles)
+          .where(eq(schema.roles.institutionId, params.id));
+        return { ...institutionWire(row), roles: roles.map((r) => roleWire(r, null)) };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/roles/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db.select().from(schema.roles).where(eq(schema.roles.id, params.id));
+        const row = rows[0];
+        if (!row) return notFound(params.id);
+        const mandates = row.mandateId
+          ? await db.select().from(schema.mandates).where(eq(schema.mandates.id, row.mandateId))
+          : [];
+        const wire: RoleWire = roleWire(row, mandates[0] ?? null);
+        return wire;
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/processes',
+      handler: async () => {
+        const rows = await db.select().from(schema.processes);
+        return {
+          items: rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            need: r.need,
+            legalBasis: r.legalBasis,
+            reviewState: r.reviewState,
+          })),
+        };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/processes/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db
+          .select()
+          .from(schema.processes)
+          .where(eq(schema.processes.id, params.id));
+        const row = rows[0];
+        if (!row) return notFound(params.id);
+        const steps = await db
+          .select()
+          .from(schema.processSteps)
+          .where(eq(schema.processSteps.processId, params.id));
+        const failureModes = await db
+          .select()
+          .from(schema.failureModes)
+          .where(eq(schema.failureModes.processId, params.id));
+
+        // Required document types = STEP_REQUIRES_DOCUMENT_TYPE edges from this process's steps.
+        const stepIds = steps.map((s) => s.id);
+        const docTypeIds = new Set<string>();
+        if (stepIds.length) {
+          const edges = await db
+            .select()
+            .from(schema.relationships)
+            .where(
+              and(
+                eq(schema.relationships.relationshipType, 'STEP_REQUIRES_DOCUMENT_TYPE'),
+                inArray(schema.relationships.fromEntityId, stepIds),
+              ),
+            );
+          for (const e of edges) docTypeIds.add(e.toEntityId);
+        }
+        const requiredDocuments =
+          docTypeIds.size > 0
+            ? await db
+                .select()
+                .from(schema.documentTypes)
+                .where(inArray(schema.documentTypes.id, [...docTypeIds]))
+            : [];
+
+        const wire: ProcessWire = processWire(
+          row,
+          steps.map(processStepWire),
+          requiredDocuments.map(documentTypeWire),
+          failureModes.map(failureModeWire),
+        );
+        return wire;
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/document-types/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db
+          .select()
+          .from(schema.documentTypes)
+          .where(eq(schema.documentTypes.id, params.id));
+        return rows[0] ? documentTypeWire(rows[0]) : notFound(params.id);
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/laws/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db.select().from(schema.laws).where(eq(schema.laws.id, params.id));
+        return rows[0] ?? notFound(params.id);
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/budget-lines/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db
+          .select()
+          .from(schema.budgetLines)
+          .where(eq(schema.budgetLines.id, params.id));
+        return rows[0] ?? notFound(params.id);
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/failure-modes',
+      handler: async () => {
+        const rows = await db.select().from(schema.failureModes);
+        return { items: rows.map(failureModeWire) };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/controls',
+      handler: async () => {
+        const rows = await db.select().from(schema.controls);
+        return {
+          items: rows.map((r) => ({ id: r.id, name: r.name, description: r.description })),
+        };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/proposals/:id',
+      handler: (_req, _body, params) => notFound(params.id),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/assessments/:id',
+      handler: (_req, _body, params) => notFound(params.id),
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/claims',
+      handler: async (req) => {
+        const subjectId = query(req).get('subject_id');
+        const claims = await db
+          .select()
+          .from(schema.claims)
+          .where(subjectId ? eq(schema.claims.subjectId, subjectId) : undefined);
+        const items: ClaimWire[] = await Promise.all(
+          claims.map(async (c) => {
+            const [evidenceRows, sourceIds] = await loadEvidence(db, c.id);
+            const sources = sourceIds.length
+              ? await db.select().from(schema.sources).where(inArray(schema.sources.id, sourceIds))
+              : [];
+            return claimWire(c, evidenceRows.map(evidenceLinkWire), sources.map(sourceWire));
+          }),
+        );
+        return { items };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/claims/:id',
+      handler: async (_req, _body, params) => {
+        const rows = await db.select().from(schema.claims).where(eq(schema.claims.id, params.id));
+        const c = rows[0];
+        if (!c) return notFound(params.id);
+        const [evidenceRows, sourceIds] = await loadEvidence(db, c.id);
+        const sources = sourceIds.length
+          ? await db.select().from(schema.sources).where(inArray(schema.sources.id, sourceIds))
+          : [];
+        const wire: ClaimWire = claimWire(
+          c,
+          evidenceRows.map(evidenceLinkWire),
+          sources.map(sourceWire),
+        );
+        return wire;
+      },
+    },
+
+    // Typed graph edges (§11.5)
+    {
+      method: 'GET',
+      path: '/api/v1/relationships',
+      handler: async (req) => {
+        const sp = query(req);
+        const conds = [];
+        const type = sp.get('type');
+        const fromId = sp.get('from_id');
+        const toId = sp.get('to_id');
+        if (type) conds.push(eq(schema.relationships.relationshipType, type));
+        if (fromId) conds.push(eq(schema.relationships.fromEntityId, fromId));
+        if (toId) conds.push(eq(schema.relationships.toEntityId, toId));
+        const rows = await db
+          .select()
+          .from(schema.relationships)
+          .where(conds.length ? and(...conds) : undefined);
+        const items: RelationshipWire[] = rows.map(relationshipWire);
+        return { items };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/graph/traverse',
+      handler: async (req) => {
+        const sp = query(req);
+        const entityId = sp.get('entity_id');
+        const entityType = sp.get('entity_type');
+        if (!entityId || !entityType)
+          return result(400, { error: 'entity_id and entity_type required' });
+        const rows = await db
+          .select()
+          .from(schema.relationships)
+          .where(
+            and(
+              eq(schema.relationships.fromEntityId, entityId),
+              eq(schema.relationships.fromEntityType, entityType),
+            ),
+          );
+        return {
+          entityType,
+          entityId,
+          edges: rows.map((r) => ({
+            relationshipType: r.relationshipType,
+            toEntityType: r.toEntityType,
+            toEntityId: r.toEntityId,
+          })),
+        };
+      },
+    },
+  ];
+}
+
+/** Evidence links for a claim + the distinct source ids they reference. */
+async function loadEvidence(db: DbClient, claimId: string): Promise<[EvidenceLinkRow[], string[]]> {
+  const evidenceRows = await db
+    .select()
+    .from(schema.evidenceLinks)
+    .where(eq(schema.evidenceLinks.claimId, claimId));
+  const sourceIdSet = new Set<string>();
+  for (const e of evidenceRows) sourceIdSet.add(e.sourceId);
+  return [evidenceRows, [...sourceIdSet]];
+}
+
+async function main(): Promise<void> {
+  const port = Number(process.env.PORT ?? process.env.GOVERNANCE_GRAPH_API_PORT ?? 8100);
+  const db = getClient();
+  startService('governance-graph-api', port, graphRoutes(db));
+  console.log(JSON.stringify({ service: 'governance-graph-api', port, status: 'listening' }));
+}
+
+const invokedDirectly = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+if (invokedDirectly) void main();

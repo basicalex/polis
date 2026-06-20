@@ -1,0 +1,12 @@
+[
+  {
+    "id": "process-citizen-service-complaint",
+    "name": "Citizen municipal service complaint with registry confirmation",
+    "need": "A resident challenges a municipal service decision, but must prove identity and residence separately to the complaints and registry offices.",
+    "legal_basis": "law-general-administrative-procedure",
+    "jurisdiction_id": "jur-croatia-local",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  }
+]

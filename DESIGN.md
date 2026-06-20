@@ -1,82 +1,82 @@
 ---
-version: "alpha"
-name: "Project design system"
-description: "Project-level visual and product design contract for coding agents."
+version: 'alpha'
+name: 'Project design system'
+description: 'Project-level visual and product design contract for coding agents.'
 colors:
-  bg: "#0B0F14"
-  surface: "#121923"
-  primary: "#38BDF8"
-  accent: "#A78BFA"
-  text: "#E5E7EB"
-  muted: "#9CA3AF"
-  success: "#22C55E"
-  warning: "#F59E0B"
-  danger: "#EF4444"
-  on-primary: "#071018"
-  on-danger: "#0B0F14"
+  bg: '#0B0F14'
+  surface: '#121923'
+  primary: '#38BDF8'
+  accent: '#A78BFA'
+  text: '#E5E7EB'
+  muted: '#9CA3AF'
+  success: '#22C55E'
+  warning: '#F59E0B'
+  danger: '#EF4444'
+  on-primary: '#071018'
+  on-danger: '#0B0F14'
 typography:
   body-md:
-    fontFamily: "terminal-default monospace"
-    fontSize: "1rem"
-    fontWeight: "400"
-    lineHeight: "1.5"
+    fontFamily: 'terminal-default monospace'
+    fontSize: '1rem'
+    fontWeight: '400'
+    lineHeight: '1.5'
   heading-sm:
-    fontFamily: "terminal-default monospace"
-    fontSize: "1.125rem"
-    fontWeight: "700"
-    lineHeight: "1.3"
+    fontFamily: 'terminal-default monospace'
+    fontSize: '1.125rem'
+    fontWeight: '700'
+    lineHeight: '1.3'
   label:
-    fontFamily: "terminal-default monospace"
-    fontSize: "0.875rem"
-    fontWeight: "600"
-    lineHeight: "1.4"
+    fontFamily: 'terminal-default monospace'
+    fontSize: '0.875rem'
+    fontWeight: '600'
+    lineHeight: '1.4'
 rounded:
-  sm: "4px"
-  md: "8px"
+  sm: '4px'
+  md: '8px'
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "16px"
-  lg: "24px"
+  xs: '4px'
+  sm: '8px'
+  md: '16px'
+  lg: '24px'
 components:
   action-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.on-primary}"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    padding: "8px"
+    backgroundColor: '{colors.primary}'
+    textColor: '{colors.on-primary}'
+    typography: '{typography.label}'
+    rounded: '{rounded.sm}'
+    padding: '8px'
   action-danger:
-    backgroundColor: "{colors.danger}"
-    textColor: "{colors.on-danger}"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    padding: "8px"
+    backgroundColor: '{colors.danger}'
+    textColor: '{colors.on-danger}'
+    typography: '{typography.label}'
+    rounded: '{rounded.sm}'
+    padding: '8px'
   app-background:
-    backgroundColor: "{colors.bg}"
-    textColor: "{colors.text}"
-    typography: "{typography.body-md}"
+    backgroundColor: '{colors.bg}'
+    textColor: '{colors.text}'
+    typography: '{typography.body-md}'
   panel:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: "16px"
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.text}'
+    typography: '{typography.body-md}'
+    rounded: '{rounded.md}'
+    padding: '16px'
   caption:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.muted}"
-    typography: "{typography.body-md}"
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.muted}'
+    typography: '{typography.body-md}'
   status-success:
-    backgroundColor: "{colors.success}"
-    textColor: "{colors.bg}"
-    typography: "{typography.label}"
+    backgroundColor: '{colors.success}'
+    textColor: '{colors.bg}'
+    typography: '{typography.label}'
   status-warning:
-    backgroundColor: "{colors.warning}"
-    textColor: "{colors.bg}"
-    typography: "{typography.label}"
+    backgroundColor: '{colors.warning}'
+    textColor: '{colors.bg}'
+    typography: '{typography.label}'
   status-accent:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.bg}"
-    typography: "{typography.label}"
+    backgroundColor: '{colors.accent}'
+    textColor: '{colors.bg}'
+    typography: '{typography.label}'
 ---
 
 # DESIGN.md
@@ -116,17 +116,17 @@ This is the project-wide visual and product design contract for agents and human
 
 ## Color system
 
-| Token | Value | Usage | Notes |
-| --- | --- | --- | --- |
-| `--color-bg` |  | Page/background |  |
-| `--color-surface` |  | Cards/panels |  |
-| `--color-primary` |  | Primary CTA/key action |  |
-| `--color-accent` |  | Highlights/attention |  |
-| `--color-text` |  | Main text |  |
-| `--color-muted` |  | Secondary text |  |
-| `--color-success` |  | Positive state |  |
-| `--color-warning` |  | Attention state |  |
-| `--color-danger` |  | Destructive/error state |  |
+| Token             | Value | Usage                   | Notes |
+| ----------------- | ----- | ----------------------- | ----- |
+| `--color-bg`      |       | Page/background         |       |
+| `--color-surface` |       | Cards/panels            |       |
+| `--color-primary` |       | Primary CTA/key action  |       |
+| `--color-accent`  |       | Highlights/attention    |       |
+| `--color-text`    |       | Main text               |       |
+| `--color-muted`   |       | Secondary text          |       |
+| `--color-success` |       | Positive state          |       |
+| `--color-warning` |       | Attention state         |       |
+| `--color-danger`  |       | Destructive/error state |       |
 
 ## Typography
 

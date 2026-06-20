@@ -1,0 +1,20 @@
+[
+  {
+    "id": "inst-complaints-office",
+    "name": "Public Complaints Office",
+    "jurisdiction_id": "jur-croatia-local",
+    "description": "Central municipal office that receives citizen complaints and requires identity and residence evidence before routing a case.",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  },
+  {
+    "id": "inst-registry-office",
+    "name": "Municipal Registry Office",
+    "jurisdiction_id": "jur-croatia-local",
+    "description": "Sector office that validates residence and civil-status records, separately requesting the same identity and residence evidence.",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  }
+]

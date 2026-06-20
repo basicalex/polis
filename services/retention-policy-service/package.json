@@ -1,1 +1,0 @@
-{"name":"@polis/retention-policy-service","version":"0.1.0-v1","type":"module","main":"dist/index.js","scripts":{"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit","test":"node --test dist/**/*.test.js","start":"node dist/index.js"},"dependencies":{"@polis/service-runtime":"workspace:*"}}

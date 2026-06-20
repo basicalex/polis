@@ -1,0 +1,34 @@
+[
+  {
+    "id": "role-complaints-intake-officer",
+    "name": "Complaints Intake Officer",
+    "institution_id": "inst-complaints-office",
+    "mandate_id": "mandate-public-complaints",
+    "description": "Checks identity, accepts complaint submissions, and routes complete cases to responsible departments.",
+    "authorized_by_law": "law-general-administrative-procedure",
+    "decision_rights": [
+      "accept_complaint_submission",
+      "request_missing_identity_or_residence_evidence",
+      "route_case_to_sector_office"
+    ],
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  },
+  {
+    "id": "role-registry-clerk",
+    "name": "Registry Clerk",
+    "institution_id": "inst-registry-office",
+    "mandate_id": "mandate-civil-registry",
+    "description": "Verifies resident records and issues registry confirmations for administrative cases.",
+    "authorized_by_law": "law-local-self-government",
+    "decision_rights": [
+      "verify_residence_record",
+      "issue_residence_confirmation",
+      "request_identity_or_residence_evidence"
+    ],
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  }
+]

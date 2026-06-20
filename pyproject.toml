@@ -1,0 +1,39 @@
+[project]
+name = "polis-interface"
+version = "0.1.0"
+description = "Polis Interface — polyglot monorepo. Python (FastAPI) services for AI, data, and document/ML; TypeScript for web, BFF, graph, audit, reward, access, verifier, and proof-registry."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+
+# Root is a uv workspace anchor; runtime deps live in member packages.
+dependencies = []
+
+[tool.uv.workspace]
+members = ["packages/py-core"]
+
+[tool.uv.sources]
+polis-core = { workspace = true }
+
+[dependency-groups]
+dev = ["ruff>=0.8", "pytest>=8", "pytest-asyncio>=0.24", "mypy>=1.13", "polis-core"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages", "services"]
+python_files = ["test_*.py", "*_test.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

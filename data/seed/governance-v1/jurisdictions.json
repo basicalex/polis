@@ -1,0 +1,12 @@
+[
+  {
+    "id": "jur-croatia-local",
+    "name": "Grad Primjer, Croatia",
+    "slug": "grad-primjer",
+    "jurisdiction_path": "HR/local/grad-primjer",
+    "description": "Municipal-level Croatian jurisdiction used to map duplicate document requests across public complaint and registry offices.",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  }
+]

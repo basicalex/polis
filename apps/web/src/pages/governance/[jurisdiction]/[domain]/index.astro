@@ -1,0 +1,54 @@
+---
+import GraphExplorer from '../../../../components/GraphExplorer';
+import Base from '../../../../layouts/Base.astro';
+
+type Relationship = {
+  id: string;
+  relationshipType: string;
+  fromEntityType: string;
+  fromEntityId: string;
+  toEntityType: string;
+  toEntityId: string;
+};
+
+type GraphNode = { id: string; label: string; type: string };
+type GraphEdge = { id: string; relationshipType: string; fromEntityId: string; toEntityId: string };
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const slug = Astro.params.jurisdiction ?? 'jur-croatia-local';
+const domain = Astro.params.domain ?? 'document-requirements';
+const relationships = (await fetchJson('/api/v1/relationships')) as { items: Relationship[] } | null;
+const nodeById: Record<string, GraphNode> = {};
+const edges: GraphEdge[] = [];
+for (const rel of relationships?.items ?? []) {
+  nodeById[rel.fromEntityId] = { id: rel.fromEntityId, label: rel.fromEntityId, type: rel.fromEntityType };
+  nodeById[rel.toEntityId] = { id: rel.toEntityId, label: rel.toEntityId, type: rel.toEntityType };
+  edges.push({ id: rel.id, relationshipType: rel.relationshipType, fromEntityId: rel.fromEntityId, toEntityId: rel.toEntityId });
+}
+const nodes = Object.values(nodeById);
+---
+
+<Base title={`Governance domain · ${domain}`}>
+  <section class="stack">
+    <p class="badge">Typed relationships</p>
+    <h1>{domain.replaceAll('-', ' ')}</h1>
+    <p class="muted">
+      Static-first domain overview for {slug}. Nodes are governance entities; arrows are explicit relationship_type values,
+      never processes-as-edges.
+    </p>
+  </section>
+  <section class="panel stack">
+    <h2>Graph explorer</h2>
+    {relationships ? <GraphExplorer client:load nodes={nodes} edges={edges} /> : <p class="muted">Data unavailable. Run the services to load relationships.</p>}
+  </section>
+</Base>

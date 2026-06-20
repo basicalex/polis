@@ -1,0 +1,8 @@
+[
+  {
+    "id": "fm-duplicate-document-submission",
+    "name": "Duplicate identity and residence document submission",
+    "process_id": "process-citizen-service-complaint",
+    "description": "The same identity proof and proof-of-residence evidence are requested by multiple offices, creating avoidable visits, copies, and privacy exposure."
+  }
+]
