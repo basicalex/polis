@@ -133,6 +133,25 @@ export const PROOF_REGISTRY_STATUSES = [
   'unknown',
 ] as const;
 export const PROOF_ALGORITHMS = ['sha256', 'sha512', 'blake3'] as const;
+export const SIGNATURE_TYPES = [
+  'citizen-signature',
+  'official-signature',
+  'institutional-seal',
+] as const;
+export const SIGNATURE_STANDARDS = [
+  'eIDAS-QES',
+  'eIDAS-AdES',
+  'eIDAS-eSeal',
+  'test-key',
+  'other',
+] as const;
+export const VALIDATION_STATUSES = ['valid', 'invalid', 'indeterminate', 'not_checked'] as const;
+export const TIMESTAMP_TYPES = [
+  'RFC3161',
+  'eIDAS-qualified-timestamp',
+  'blockchain-anchor',
+  'internal-test',
+] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -588,6 +607,103 @@ export const proofManifests = pgTable(
     enumCheck('ck_proof_manifests_proof_visibility', 'proof_visibility', PROOF_VISIBILITIES),
   ],
 );
+/* ------------------------------------------------------------------ */
+/* Document proof extensions (§15.2 / §15.6 / §15.7) — M4               */
+/* ------------------------------------------------------------------ */
+
+// §15.7 signature registry. Issuer id is caller-supplied (e.g.
+// 'issuer-demo-authority'); rows are upserted by signature-service so the
+// demo issuer is self-seeding — no separate seed step.
+export const proofIssuers = pgTable(
+  'proof_issuers',
+  {
+    id: pkId(),
+    name: text('name').notNull(),
+    publicKeyRef: text('public_key_ref').notNull(),
+    certificateRef: text('certificate_ref'),
+    standard: text('standard').notNull().default('test-key'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  () => [enumCheck('ck_proof_issuers_standard', 'standard', SIGNATURE_STANDARDS)],
+);
+
+// §15.7 signatures. Append-only. standard='test-key' is the test-key signal
+// (no isTest column — the standard column is the discriminator).
+export const proofSignatures = pgTable(
+  'proof_signatures',
+  {
+    id: pkId(),
+    proofId: text('proof_id').notNull(),
+    issuerId: text('issuer_id'),
+    type: text('type').notNull().default('institutional-seal'),
+    standard: text('standard').notNull().default('test-key'),
+    signerRef: text('signer_ref').notNull(),
+    certificateRef: text('certificate_ref'),
+    signatureValueRef: text('signature_value_ref').notNull(),
+    signedHash: text('signed_hash').notNull(),
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    validationStatus: text('validation_status').notNull().default('valid'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('proof_signatures_proof_id_idx').on(t.proofId),
+    enumCheck('ck_proof_signatures_type', 'type', SIGNATURE_TYPES),
+    enumCheck('ck_proof_signatures_standard', 'standard', SIGNATURE_STANDARDS),
+    enumCheck('ck_proof_signatures_validation', 'validation_status', VALIDATION_STATUSES),
+  ],
+);
+
+// §15.6 RFC 3161 timestamps. Append-only; stores the token + validation result.
+export const proofTimestamps = pgTable(
+  'proof_timestamps',
+  {
+    id: pkId(),
+    proofId: text('proof_id').notNull(),
+    type: text('type').notNull().default('RFC3161'),
+    timestampRef: text('timestamp_ref').notNull(),
+    timestampedHash: text('timestamped_hash').notNull(),
+    timestampedAt: timestamp('timestamped_at', { withTimezone: true }).notNull(),
+    validationStatus: text('validation_status').notNull().default('valid'),
+    tsa: text('tsa'),
+    clockSource: text('clock_source'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('proof_timestamps_proof_id_idx').on(t.proofId),
+    enumCheck('ck_proof_timestamps_type', 'type', TIMESTAMP_TYPES),
+    enumCheck('ck_proof_timestamps_validation', 'validation_status', VALIDATION_STATUSES),
+  ],
+);
+
+// §15.2 provenance.supersedes / registryStatus.supersededBy. Append-only;
+// latest row per proof wins (clients ORDER BY created_at DESC LIMIT 1).
+export const proofSupersessions = pgTable(
+  'proof_supersessions',
+  {
+    id: pkId(),
+    supersededProofId: text('superseded_proof_id').notNull(),
+    supersedingProofId: text('superseding_proof_id').notNull(),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('proof_supersessions_superseded_idx').on(t.supersededProofId),
+    index('proof_supersessions_superseding_idx').on(t.supersedingProofId),
+  ],
+);
+
+// §15.2 registryStatus='revoked'. Append-only; row existence == revoked.
+export const proofRevocations = pgTable(
+  'proof_revocations',
+  {
+    id: pkId(),
+    proofId: text('proof_id').notNull(),
+    reason: text('reason'),
+    revokedBy: text('revoked_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('proof_revocations_proof_id_idx').on(t.proofId)],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -618,4 +734,9 @@ export const schema = {
   conversations,
   conversationResults,
   proofManifests,
+  proofIssuers,
+  proofSignatures,
+  proofTimestamps,
+  proofSupersessions,
+  proofRevocations,
 };

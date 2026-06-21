@@ -25,6 +25,30 @@ type DocumentProof = {
   proofVisibility: string;
   createdAt: string;
   createdByService: string | null;
+  signatures: {
+    id: string;
+    type: string;
+    standard: string;
+    signerRef: string;
+    certificateRef: string | null;
+    signatureValueRef: string;
+    signedHash: string;
+    signedAt: string | null;
+    validationStatus: string;
+    issuerId: string | null;
+  }[];
+  timestamps: {
+    id: string;
+    type: string;
+    timestampRef: string;
+    timestampedHash: string;
+    timestampedAt: string;
+    validationStatus: string;
+    tsa: string | null;
+    clockSource: string | null;
+  }[];
+  supersededBy: string | null;
+  supersededAt: string | null;
 };
 
 async function fetchProof(path: string): Promise<DocumentProof | null> {
@@ -50,6 +74,9 @@ const statusBadge = proof
   {proof ? (
     <section class="stack">
       <p class="badge">§15.2 Proof manifest</p>
+      {proof.supersededBy ? (
+        <p class="badge badge-danger">Superseded by <a href={`/proofs/${proof.supersededBy}`}>{proof.supersededBy.slice(0, 12)}…</a></p>
+      ) : null}
       <h1>Proof {proof.id.slice(0, 12)}…</h1>
       <p><span class={statusBadge}>{proof.registryStatus}</span></p>
 
@@ -75,6 +102,34 @@ const statusBadge = proof
           <dt class="muted">metadata</dt><dd>{proof.hashes.metadataHash ?? '—'}</dd>
           <dt class="muted">manifest</dt><dd>{proof.hashes.manifestHash}</dd>
         </dl>
+      </article>
+
+      <article class="card stack">
+        <h2>Timestamp</h2>
+        {proof.timestamps.length > 0 && proof.timestamps[0] ? (
+          <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
+            <dt class="muted">status</dt><dd><span class="badge badge-success">Timestamp: {proof.timestamps[0].validationStatus}</span></dd>
+            <dt class="muted">type</dt><dd>{proof.timestamps[0].type}</dd>
+            <dt class="muted">tsa</dt><dd>{proof.timestamps[0].tsa ?? '—'}</dd>
+            <dt class="muted">timestamped at</dt><dd>{proof.timestamps[0].timestampedAt ? new Date(proof.timestamps[0].timestampedAt).toISOString() : '—'}</dd>
+          </dl>
+        ) : (
+          <p><span class="badge">Timestamp: none</span></p>
+        )}
+      </article>
+
+      <article class="card stack">
+        <h2>Signature</h2>
+        {proof.signatures.length > 0 && proof.signatures[0] ? (
+          <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
+            <dt class="muted">status</dt><dd><span class="badge badge-success">Signature: {proof.signatures[0].validationStatus}</span></dd>
+            <dt class="muted">standard</dt><dd>{proof.signatures[0].standard}</dd>
+            <dt class="muted">signer</dt><dd>{proof.signatures[0].signerRef}</dd>
+            <dt class="muted">signed at</dt><dd>{proof.signatures[0].signedAt ? new Date(proof.signatures[0].signedAt).toISOString() : '—'}</dd>
+          </dl>
+        ) : (
+          <p><span class="badge">Signature: none</span></p>
+        )}
       </article>
 
       <article class="panel stack">

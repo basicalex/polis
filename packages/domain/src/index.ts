@@ -172,6 +172,33 @@ export type DocumentProof = {
   proofVisibility: 'public' | 'restricted' | 'private' | 'commitment_only';
   createdAt: string;
   createdByService: string | null;
+  signatures: ProofSignature[];
+  timestamps: ProofTimestamp[];
+  supersededBy: string | null;
+  supersededAt: string | null;
+};
+export type ProofSignature = {
+  id: string;
+  type: 'citizen-signature' | 'official-signature' | 'institutional-seal';
+  standard: 'eIDAS-QES' | 'eIDAS-AdES' | 'eIDAS-eSeal' | 'test-key' | 'other';
+  signerRef: string;
+  certificateRef: string | null;
+  signatureValueRef: string;
+  signedHash: string;
+  signedAt: string | null;
+  validationStatus: 'valid' | 'invalid' | 'indeterminate' | 'not_checked';
+  issuerId: string | null;
+};
+
+export type ProofTimestamp = {
+  id: string;
+  type: 'RFC3161' | 'eIDAS-qualified-timestamp' | 'blockchain-anchor' | 'internal-test';
+  timestampRef: string;
+  timestampedHash: string;
+  timestampedAt: string;
+  validationStatus: 'valid' | 'invalid' | 'indeterminate' | 'not_checked';
+  tsa: string | null;
+  clockSource: string | null;
 };
 export type Assessment = {
   subjectId: string;

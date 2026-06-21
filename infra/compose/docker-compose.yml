@@ -134,6 +134,60 @@ services:
     networks:
       - polis
 
+  signature-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: signature-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      SIGNATURE_MODE: stub
+    ports:
+      - '8900:8900'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8900/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  timestamp-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: timestamp-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      TIMESTAMP_MODE: stub
+    ports:
+      - '8800:8800'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8800/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
   proof-service:
     build:
       context: ../..
@@ -145,10 +199,16 @@ services:
         condition: service_healthy
       audit-service:
         condition: service_healthy
+      signature-service:
+        condition: service_healthy
+      timestamp-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
+      SIGNATURE_INTERNAL_URL: http://signature-service:8900
+      TIMESTAMP_INTERNAL_URL: http://timestamp-service:8800
     ports:
       - '8700:8700'
     healthcheck:

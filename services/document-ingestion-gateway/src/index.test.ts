@@ -12,7 +12,10 @@ test('document-ingestion-gateway exposes §14.3 ingestion route', () => {
 test('missing contentBase64 returns 400 missing_content', async () => {
   const routes = ingestionRoutes();
   const route = routes.find((r) => r.path === '/internal/ingestion/documents')!;
-  const out = (await route.handler({} as never, {}, {})) as { status: number; body: { error: string } };
+  const out = (await route.handler({} as never, {}, {})) as {
+    status: number;
+    body: { error: string };
+  };
   assert.equal(out.status, 400);
   assert.equal(out.body.error, 'missing_content');
 });

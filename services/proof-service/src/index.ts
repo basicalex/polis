@@ -12,7 +12,12 @@
  */
 import { getClient } from '@polis/db';
 import type { DbClient } from '@polis/db';
-import { sha256Hex, type DocumentProof } from '@polis/domain';
+import {
+  sha256Hex,
+  type DocumentProof,
+  type ProofSignature,
+  type ProofTimestamp,
+} from '@polis/domain';
 import { and, desc, eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
@@ -24,7 +29,13 @@ import {
 } from '@polis/service-runtime';
 
 import { schema } from '@polis/db';
-import { documentProofWire } from './serialize.js';
+import {
+  documentProofWire,
+  mapSignature,
+  mapTimestamp,
+  type SupersessionView,
+  type RevocationView,
+} from './serialize.js';
 
 /** Stable 404 contract for detail endpoints. */
 const notFound = (id: string): HttpResult => result(404, { error: 'not_found', id });
@@ -79,7 +90,80 @@ async function findActiveByHash(db: DbClient, hash: string): Promise<DocumentPro
     )
     .orderBy(desc(schema.proofManifests.createdAt), desc(schema.proofManifests.id))
     .limit(1);
-  return rows[0] ? documentProofWire(rows[0]) : null;
+  return rows[0] ? documentProofWire(rows[0], [], [], null, null) : null;
+}
+
+/** POST JSON to an internal service; throw on non-2xx so the caller can decide. */
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ status: res.status }));
+    throw new Error(JSON.stringify(detail));
+  }
+  return (await res.json()) as T;
+}
+
+/** Read the latest supersession row for a proof (or null). */
+async function latestSupersession(db: DbClient, proofId: string): Promise<SupersessionView> {
+  const rows = await db
+    .select({
+      supersedingProofId: schema.proofSupersessions.supersedingProofId,
+      createdAt: schema.proofSupersessions.createdAt,
+    })
+    .from(schema.proofSupersessions)
+    .where(eq(schema.proofSupersessions.supersededProofId, proofId))
+    .orderBy(desc(schema.proofSupersessions.createdAt))
+    .limit(1);
+  if (!rows[0]) return null;
+  return {
+    supersededBy: rows[0].supersedingProofId,
+    supersededAt: rows[0].createdAt.toISOString(),
+  };
+}
+
+/** Read the latest revocation row for a proof (or null). */
+async function latestRevocation(db: DbClient, proofId: string): Promise<RevocationView> {
+  const rows = await db
+    .select({
+      reason: schema.proofRevocations.reason,
+      createdAt: schema.proofRevocations.createdAt,
+    })
+    .from(schema.proofRevocations)
+    .where(eq(schema.proofRevocations.proofId, proofId))
+    .orderBy(desc(schema.proofRevocations.createdAt))
+    .limit(1);
+  if (!rows[0]) return null;
+  return {
+    revokedAt: rows[0].createdAt.toISOString(),
+    reason: rows[0].reason,
+  };
+}
+
+/** Read all signatures + timestamps for a proof as wire objects. */
+async function fetchProofState(
+  db: DbClient,
+  proofId: string,
+): Promise<{ signatures: ProofSignature[]; timestamps: ProofTimestamp[] }> {
+  const [sigRows, tsRows] = await Promise.all([
+    db
+      .select()
+      .from(schema.proofSignatures)
+      .where(eq(schema.proofSignatures.proofId, proofId))
+      .orderBy(schema.proofSignatures.createdAt),
+    db
+      .select()
+      .from(schema.proofTimestamps)
+      .where(eq(schema.proofTimestamps.proofId, proofId))
+      .orderBy(schema.proofTimestamps.createdAt),
+  ]);
+  return {
+    signatures: sigRows.map(mapSignature),
+    timestamps: tsRows.map(mapTimestamp),
+  };
 }
 
 /** Build the §9.12 proof + verify route table bound to a DB client. */
@@ -141,10 +225,13 @@ export function proofRoutes(db: DbClient): Route[] {
           })
           .returning();
         const row = inserted[0];
-        const wire = documentProofWire(row);
+        // Immutable base payload (hashes/issuer/document metadata only).
+        // Sig/ts/supersession state lives in child tables and is assembled
+        // onto every DocumentProof read by GET /api/v1/proofs/:id.
+        const base = documentProofWire(row, [], [], null, null);
         await db
           .update(schema.proofManifests)
-          .set({ manifestJson: wire })
+          .set({ manifestJson: base })
           .where(eq(schema.proofManifests.id, row.id));
         await emitAudit({
           eventType: 'proof.manifest.created',
@@ -152,7 +239,58 @@ export function proofRoutes(db: DbClient): Route[] {
           target: { type: 'proof', id: row.id },
           data: { originalFileHash: row.originalFileHash, manifestHash: row.manifestHash },
         });
-        return result(201, wire);
+        // §9.12 orchestration: await sig + ts so the 201 already carries them.
+        // Failure is explicit (empty array + audit warning), never silently missing.
+        const signatureUrl = process.env.SIGNATURE_INTERNAL_URL ?? 'http://localhost:8900';
+        const timestampUrl = process.env.TIMESTAMP_INTERNAL_URL ?? 'http://localhost:8800';
+        let signatures: ProofSignature[] = [];
+        let timestamps: ProofTimestamp[] = [];
+        try {
+          const sig = await postJson<ProofSignature>(signatureUrl + '/internal/signatures', {
+            proofId: row.id,
+            hash: row.manifestHash,
+            issuerId: row.issuerId,
+            issuerName: row.issuerName,
+          });
+          signatures = [sig];
+        } catch (err) {
+          console.warn(
+            JSON.stringify({
+              service: 'proof-service',
+              stage: 'signature-create',
+              warning: err instanceof Error ? err.message : 'unknown',
+            }),
+          );
+          await emitAudit({
+            eventType: 'proof.signature.missed',
+            action: 'sign',
+            target: { type: 'proof', id: row.id },
+            data: { reason: err instanceof Error ? err.message : 'unknown' },
+          });
+        }
+        try {
+          const ts = await postJson<ProofTimestamp>(timestampUrl + '/internal/timestamps', {
+            proofId: row.id,
+            hash: row.manifestHash,
+            algorithm: row.algorithm,
+          });
+          timestamps = [ts];
+        } catch (err) {
+          console.warn(
+            JSON.stringify({
+              service: 'proof-service',
+              stage: 'timestamp-create',
+              warning: err instanceof Error ? err.message : 'unknown',
+            }),
+          );
+          await emitAudit({
+            eventType: 'proof.timestamp.missed',
+            action: 'timestamp',
+            target: { type: 'proof', id: row.id },
+            data: { reason: err instanceof Error ? err.message : 'unknown' },
+          });
+        }
+        return result(201, documentProofWire(row, signatures, timestamps, null, null));
       },
     },
 
@@ -221,7 +359,13 @@ export function proofRoutes(db: DbClient): Route[] {
           .where(eq(schema.proofManifests.id, params.id))
           .limit(1);
         if (!rows[0]) return notFound(params.id);
-        return documentProofWire(rows[0]);
+        const row = rows[0];
+        const [state, supersession, revocation] = await Promise.all([
+          fetchProofState(db, row.id),
+          latestSupersession(db, row.id),
+          latestRevocation(db, row.id),
+        ]);
+        return documentProofWire(row, state.signatures, state.timestamps, supersession, revocation);
       },
     },
 
@@ -239,7 +383,21 @@ export function proofRoutes(db: DbClient): Route[] {
           .where(eq(schema.proofManifests.id, params.id))
           .limit(1);
         if (!rows[0]) return notFound(params.id);
-        return rows[0];
+        const stored = rows[0];
+        const [supersession, revocation] = await Promise.all([
+          latestSupersession(db, params.id),
+          latestRevocation(db, params.id),
+        ]);
+        return {
+          registryStatus: revocation
+            ? 'revoked'
+            : supersession
+              ? 'superseded'
+              : stored.registryStatus,
+          contentVisibility: stored.contentVisibility,
+          proofVisibility: stored.proofVisibility,
+          supersededBy: supersession?.supersededBy ?? null,
+        };
       },
     },
 
@@ -266,15 +424,104 @@ export function proofRoutes(db: DbClient): Route[] {
       },
     },
 
-    // §15.7 issuer registry stub. Real issuer keys land in M4.
+    // §15.7 issuer registry. Falls back to the M3 stub shape if the row is
+    // not yet self-seeded (signature-service upserts it on first sign).
     {
       method: 'GET',
       path: '/api/v1/issuers/:id',
-      handler: async (_req, _body, params) => ({
-        id: params.id,
-        name: 'Polis Interface Demo Authority',
-        publicKeyRef: 'test-key-demo-v1',
-      }),
+      handler: async (_req, _body, params) => {
+        const rows = await db
+          .select()
+          .from(schema.proofIssuers)
+          .where(eq(schema.proofIssuers.id, params.id))
+          .limit(1);
+        const r = rows[0];
+        if (!r) {
+          return {
+            id: params.id,
+            name: 'Polis Interface Demo Authority',
+            publicKeyRef: 'test-key-demo-v1',
+          };
+        }
+        return {
+          id: r.id,
+          name: r.name,
+          publicKeyRef: r.publicKeyRef,
+          certificateRef: r.certificateRef,
+          standard: r.standard,
+        };
+      },
+    },
+
+    // §15.2 provenance.supersedes — internal-only (§23.7 reserves the public
+    // gov supersede for a later milestone). Append-only; latest row wins.
+    {
+      method: 'POST',
+      path: '/internal/proofs/:id/supersede',
+      handler: async (_req, body, params) => {
+        const input = body as { supersedingProofId?: string; reason?: string };
+        if (!input.supersedingProofId) {
+          return result(400, { error: 'missing_superseding_proof_id' });
+        }
+        // Verify the superseding proof exists (the superseded proof is
+        // already addressed by the route param; its existence was checked on
+        // the original manifest insert).
+        const targetRows = await db
+          .select({ id: schema.proofManifests.id })
+          .from(schema.proofManifests)
+          .where(eq(schema.proofManifests.id, input.supersedingProofId))
+          .limit(1);
+        if (!targetRows[0]) {
+          return result(404, {
+            error: 'superseding_proof_not_found',
+            id: input.supersedingProofId,
+          });
+        }
+        await db.insert(schema.proofSupersessions).values({
+          id: sql`gen_random_uuid()::text`,
+          supersededProofId: params.id,
+          supersedingProofId: input.supersedingProofId,
+          reason: input.reason ?? null,
+        });
+        await emitAudit({
+          eventType: 'proof.superseded',
+          action: 'supersede',
+          target: { type: 'proof', id: params.id },
+          data: { supersededBy: input.supersedingProofId, reason: input.reason ?? null },
+        });
+        return result(201, {
+          supersededProofId: params.id,
+          supersedingProofId: input.supersedingProofId,
+          reason: input.reason ?? null,
+        });
+      },
+    },
+
+    // §15.2 registryStatus='revoked' — internal-only. Append-only; row
+    // existence == revoked. Minimal M4 machinery (no CRL/OCSP).
+    {
+      method: 'POST',
+      path: '/internal/proofs/:id/revoke',
+      handler: async (_req, body, params) => {
+        const input = body as { reason?: string; revokedBy?: string };
+        await db.insert(schema.proofRevocations).values({
+          id: sql`gen_random_uuid()::text`,
+          proofId: params.id,
+          reason: input.reason ?? null,
+          revokedBy: input.revokedBy ?? null,
+        });
+        await emitAudit({
+          eventType: 'proof.revoked',
+          action: 'revoke',
+          target: { type: 'proof', id: params.id },
+          data: { reason: input.reason ?? null, revokedBy: input.revokedBy ?? null },
+        });
+        return result(201, {
+          proofId: params.id,
+          reason: input.reason ?? null,
+          revokedBy: input.revokedBy ?? null,
+        });
+      },
     },
   ];
 }
