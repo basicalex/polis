@@ -1,0 +1,101 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type DocumentProof = {
+  id: string;
+  schemaVersion: string;
+  documentClass: string;
+  documentTypeId: string | null;
+  issuer: { id: string; name: string };
+  hashes: {
+    algorithm: string;
+    originalFileHash: string;
+    canonicalPdfHash: string | null;
+    ocrTextHash: string | null;
+    metadataHash: string | null;
+    manifestHash: string;
+  };
+  originalFilename: string | null;
+  originalMime: string | null;
+  originalBytes: number | null;
+  registryStatus: string;
+  contentVisibility: string;
+  proofVisibility: string;
+  createdAt: string;
+  createdByService: string | null;
+};
+
+async function fetchProof(path: string): Promise<DocumentProof | null> {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return (await r.json()) as DocumentProof;
+  } catch {
+    return null;
+  }
+}
+
+const id = Astro.params.id ?? '';
+const proof = await fetchProof('/api/v1/proofs/' + encodeURIComponent(id));
+const statusBadge = proof
+  ? proof.registryStatus === 'active'
+    ? 'badge badge-success'
+    : 'badge badge-danger'
+  : 'badge';
+---
+
+<Base title={`Proof · ${proof ? id.slice(0, 8) : 'not found'}`}>
+  {proof ? (
+    <section class="stack">
+      <p class="badge">§15.2 Proof manifest</p>
+      <h1>Proof {proof.id.slice(0, 12)}…</h1>
+      <p><span class={statusBadge}>{proof.registryStatus}</span></p>
+
+      <article class="card stack">
+        <h2>Document</h2>
+        <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
+          <dt class="muted">document class</dt><dd>{proof.documentClass}</dd>
+          <dt class="muted">issuer</dt><dd>{proof.issuer.name} <span class="muted">({proof.issuer.id})</span></dd>
+          <dt class="muted">original filename</dt><dd>{proof.originalFilename ?? '—'}</dd>
+          <dt class="muted">mime</dt><dd>{proof.originalMime ?? '—'}</dd>
+          <dt class="muted">bytes</dt><dd>{proof.originalBytes ?? '—'}</dd>
+          <dt class="muted">created at</dt><dd>{new Date(proof.createdAt).toISOString()}</dd>
+          <dt class="muted">schema</dt><dd>{proof.schemaVersion}</dd>
+        </dl>
+      </article>
+
+      <article class="card stack">
+        <h2>Hashes ({proof.hashes.algorithm})</h2>
+        <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
+          <dt class="muted">original file</dt><dd>{proof.hashes.originalFileHash}</dd>
+          <dt class="muted">canonical pdf</dt><dd>{proof.hashes.canonicalPdfHash ?? '—'}</dd>
+          <dt class="muted">ocr text</dt><dd>{proof.hashes.ocrTextHash ?? '—'}</dd>
+          <dt class="muted">metadata</dt><dd>{proof.hashes.metadataHash ?? '—'}</dd>
+          <dt class="muted">manifest</dt><dd>{proof.hashes.manifestHash}</dd>
+        </dl>
+      </article>
+
+      <article class="panel stack">
+        <h2>Visibility</h2>
+        <p>
+          content: <span class="badge">{proof.contentVisibility}</span>
+          proof: <span class="badge">{proof.proofVisibility}</span>
+        </p>
+      </article>
+
+      <p class="muted">
+        <a href={`/api/v1/proofs/${encodeURIComponent(id)}/audit`}>View audit trail (JSON)</a>
+        · <a href="/verify">Verify a document</a>
+      </p>
+    </section>
+  ) : (
+    <section class="stack">
+      <p class="badge badge-danger">Not found</p>
+      <h1>Proof not found</h1>
+      <p class="muted">No proof manifest exists for id <code>{id}</code>.</p>
+      <p><a href="/verify">→ Verify a document instead</a></p>
+    </section>
+  )}
+</Base>

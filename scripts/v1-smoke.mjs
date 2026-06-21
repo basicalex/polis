@@ -55,15 +55,24 @@ try {
   // platform-api is the §23 proxy edge; the governance body shapes (institutions,
   // roles, processes, claims, audit) are asserted end-to-end by the full-stack
   // scripts/phase1-acceptance.mjs (needs governance-graph-api + audit-service +
-  // seeded Postgres). This smoke stays hermetic: operational + verify/hash only.
+  // seeded Postgres). This smoke stays hermetic: operational + verify/hash route
+  // presence only. Since M3, /api/v1/verify/hash is proxied to proof-service
+  // (PROOF_INTERNAL_URL); in hermetic smoke no proof-service runs, so the route
+  // responds 502 bad_gateway — proving the proxy wiring is in place without
+  // requiring the upstream. The valid/not_found behaviour is asserted by
+  // scripts/phase3-acceptance.mjs against a live stack.
 
   const vr = await fetch(`${BASE}/api/v1/verify/hash`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content: 'demo' }),
+    body: JSON.stringify({ hash: 'deadbeef' }),
   });
   const vbody = await vr.json();
-  assert('POST /api/v1/verify/hash → ok=true', vbody.ok === true, JSON.stringify(vbody));
+  assert(
+    'POST /api/v1/verify/hash route present + proxied (502 bad_gateway in hermetic smoke)',
+    vr.status === 502 && vbody.error === 'bad_gateway',
+    `status=${vr.status} body=${JSON.stringify(vbody)}`,
+  );
 
   console.log('[v1-smoke] all checks passed');
 } catch (err) {

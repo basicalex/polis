@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm v1:smoke",
     "dev:web": "pnpm --filter @polis/apps-web dev -- --host 0.0.0.0",
+    "dev:verifier": "pnpm --filter @polis/apps-verifier dev -- --host 0.0.0.0",
     "dev:services": "node scripts/dev-services.mjs",
     "v1:smoke": "node scripts/v1-smoke.mjs",
     "db:generate": "pnpm --filter @polis/db db:generate",

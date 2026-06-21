@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -64,6 +68,9 @@ importers:
 
   apps/verifier:
     dependencies:
+      '@astrojs/node':
+        specifier: ^9.2.0
+        version: 9.5.5(astro@5.18.2(@types/node@24.13.1)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.61.1)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0))
       '@polis/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -160,6 +167,35 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  services/canonicalization-service:
+    dependencies:
+      '@polis/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/document-ingestion-gateway:
+    dependencies:
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   services/governance-graph-api:
     dependencies:
       '@polis/db':
@@ -171,6 +207,19 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/paperless-adapter:
+    dependencies:
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
     devDependencies:
       '@types/node':
         specifier: ^24.10.1
@@ -199,6 +248,28 @@ importers:
         version: 5.9.3
 
   services/polis-bridge-service:
+    dependencies:
+      '@polis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@polis/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/proof-service:
     dependencies:
       '@polis/db':
         specifier: workspace:*
@@ -3442,6 +3513,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -6645,5 +6719,7 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.4.3: {}
 
   zwitch@2.0.4: {}

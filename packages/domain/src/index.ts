@@ -150,6 +150,29 @@ export type ProofManifest = {
   anchors: string[];
   provenance: string[];
 };
+export type DocumentProof = {
+  id: string;
+  schemaVersion: 'pi-doc-proof-v1';
+  documentClass: string;
+  documentTypeId: string | null;
+  issuer: { id: string; name: string };
+  hashes: {
+    algorithm: 'sha256' | 'sha512' | 'blake3';
+    originalFileHash: string;
+    canonicalPdfHash: string | null;
+    ocrTextHash: string | null;
+    metadataHash: string | null;
+    manifestHash: string;
+  };
+  originalFilename: string | null;
+  originalMime: string | null;
+  originalBytes: number | null;
+  registryStatus: 'active' | 'superseded' | 'revoked' | 'expired' | 'sealed' | 'unknown';
+  contentVisibility: 'public' | 'private' | 'restricted' | 'redacted' | 'sealed';
+  proofVisibility: 'public' | 'restricted' | 'private' | 'commitment_only';
+  createdAt: string;
+  createdByService: string | null;
+};
 export type Assessment = {
   subjectId: string;
   methodVersion: string;

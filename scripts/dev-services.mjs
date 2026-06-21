@@ -6,7 +6,10 @@ import { spawn } from 'node:child_process';
 const services = [
   { name: 'governance-graph-api', filter: '@polis/governance-graph-api', port: 8100 },
   { name: 'audit-service', filter: '@polis/audit-service', port: 8600 },
-  { name: 'polis-bridge-service', filter: '@polis/polis-bridge-service', port: 8200 },
+  { name: 'paperless-adapter', filter: '@polis/paperless-adapter', port: 8300 },
+  { name: 'canonicalization-service', filter: '@polis/canonicalization-service', port: 8500 },
+  { name: 'proof-service', filter: '@polis/proof-service', port: 8700 },
+  { name: 'document-ingestion-gateway', filter: '@polis/document-ingestion-gateway', port: 8400 },
   { name: 'platform-api', filter: '@polis/platform-api', port: 8080 },
 ];
 
@@ -58,6 +61,11 @@ for (const svc of services) {
       AUDIT_INTERNAL_URL: process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
       POLIS_INTERNAL_URL: process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200',
       POLIS_MODE: process.env.POLIS_MODE ?? 'stub',
+      PAPERLESS_INTERNAL_URL: process.env.PAPERLESS_INTERNAL_URL ?? 'http://localhost:8300',
+      CANONICALIZATION_INTERNAL_URL:
+        process.env.CANONICALIZATION_INTERNAL_URL ?? 'http://localhost:8500',
+      PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
+      PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',
     },
   });
   child.on('exit', (code) => {

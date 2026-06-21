@@ -12,7 +12,16 @@
  * Phase 1 (0001_governance_v0): governance ontology + graph + evidence + audit.
  */
 import { sql } from 'drizzle-orm';
-import { check, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  check,
+  index,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 /* ------------------------------------------------------------------ */
 /* Enum value sets (canonical; mirror @polis/domain wire types)        */
@@ -96,6 +105,34 @@ export const PARTICIPATION_MODES = [
   'verified',
   'partner_restricted',
 ] as const;
+// §14.4/§14.5/§14.6/§15.2/§15.5 value sets for the document-proof pipeline.
+export const DOCUMENT_CLASSES = [
+  'public-government-record',
+  'citizen-private-document',
+  'restricted-administrative-record',
+  'open-data-publication',
+  'court-or-legal-record',
+  'tax-or-accounting-record',
+  'internal-draft',
+  'redacted-public-derivative',
+] as const;
+export const CONTENT_VISIBILITIES = [
+  'public',
+  'private',
+  'restricted',
+  'redacted',
+  'sealed',
+] as const;
+export const PROOF_VISIBILITIES = ['public', 'restricted', 'private', 'commitment_only'] as const;
+export const PROOF_REGISTRY_STATUSES = [
+  'active',
+  'superseded',
+  'revoked',
+  'expired',
+  'sealed',
+  'unknown',
+] as const;
+export const PROOF_ALGORITHMS = ['sha256', 'sha512', 'blake3'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -515,6 +552,42 @@ export const conversationResults = pgTable('conversation_results', {
   capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const proofManifests = pgTable(
+  'proof_manifests',
+  {
+    // Append-only (new row per manifest; no in-place update). No universal()/
+    // updatedAt — mirrors conversation_results: immutable explicit columns.
+    id: pkId(),
+    documentClass: text('document_class').notNull(),
+    documentTypeId: text('document_type_id'),
+    issuerId: text('issuer_id').notNull(),
+    issuerName: text('issuer_name').notNull(),
+    originalFileHash: text('original_file_hash').notNull(),
+    canonicalPdfHash: text('canonical_pdf_hash'),
+    ocrTextHash: text('ocr_text_hash'),
+    metadataHash: text('metadata_hash'),
+    manifestHash: text('manifest_hash').notNull(),
+    originalFilename: text('original_filename'),
+    originalMime: text('original_mime'),
+    originalBytes: numeric('original_bytes'),
+    algorithm: text('algorithm').notNull().default('sha256'),
+    registryStatus: text('registry_status').notNull().default('active'),
+    contentVisibility: text('content_visibility').notNull().default('public'),
+    proofVisibility: text('proof_visibility').notNull().default('public'),
+    manifestJson: jsonb('manifest_json'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByService: text('created_by_service'),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    index('proof_manifests_original_hash_idx').on(t.originalFileHash),
+    enumCheck('ck_proof_manifests_class', 'document_class', DOCUMENT_CLASSES),
+    enumCheck('ck_proof_manifests_algorithm', 'algorithm', PROOF_ALGORITHMS),
+    enumCheck('ck_proof_manifests_registry', 'registry_status', PROOF_REGISTRY_STATUSES),
+    enumCheck('ck_proof_manifests_content_visibility', 'content_visibility', CONTENT_VISIBILITIES),
+    enumCheck('ck_proof_manifests_proof_visibility', 'proof_visibility', PROOF_VISIBILITIES),
+  ],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -544,4 +617,5 @@ export const schema = {
   issues,
   conversations,
   conversationResults,
+  proofManifests,
 };

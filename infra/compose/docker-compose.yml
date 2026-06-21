@@ -88,6 +88,107 @@ services:
     networks:
       - polis
 
+  paperless-adapter:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: paperless-adapter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PAPERLESS_MODE: stub
+    ports:
+      - '8300:8300'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8300/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  canonicalization-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: canonicalization-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+    ports:
+      - '8500:8500'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8500/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  proof-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: proof-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    ports:
+      - '8700:8700'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8700/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  document-ingestion-gateway:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: document-ingestion-gateway
+    depends_on:
+      paperless-adapter:
+        condition: service_healthy
+      canonicalization-service:
+        condition: service_healthy
+      proof-service:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PAPERLESS_INTERNAL_URL: http://paperless-adapter:8300
+      CANONICALIZATION_INTERNAL_URL: http://canonicalization-service:8500
+      PROOF_INTERNAL_URL: http://proof-service:8700
+    ports:
+      - '8400:8400'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8400/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
   platform-api:
     build:
       context: ../..
@@ -103,6 +204,8 @@ services:
         condition: service_healthy
       polis-bridge-service:
         condition: service_healthy
+      proof-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
@@ -110,6 +213,7 @@ services:
       GRAPH_INTERNAL_URL: http://governance-graph-api:8100
       AUDIT_INTERNAL_URL: http://audit-service:8600
       POLIS_INTERNAL_URL: http://polis-bridge-service:8200
+      PROOF_INTERNAL_URL: http://proof-service:8700
       GIT_SHA: ${GIT_SHA:-dev}
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}

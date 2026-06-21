@@ -1,0 +1,30 @@
+CREATE TABLE "proof_manifests" (
+	"id" text PRIMARY KEY NOT NULL,
+	"document_class" text NOT NULL,
+	"document_type_id" text,
+	"issuer_id" text NOT NULL,
+	"issuer_name" text NOT NULL,
+	"original_file_hash" text NOT NULL,
+	"canonical_pdf_hash" text,
+	"ocr_text_hash" text,
+	"metadata_hash" text,
+	"manifest_hash" text NOT NULL,
+	"original_filename" text,
+	"original_mime" text,
+	"original_bytes" numeric,
+	"algorithm" text DEFAULT 'sha256' NOT NULL,
+	"registry_status" text DEFAULT 'active' NOT NULL,
+	"content_visibility" text DEFAULT 'public' NOT NULL,
+	"proof_visibility" text DEFAULT 'public' NOT NULL,
+	"manifest_json" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by_service" text,
+	"audit_correlation_id" text,
+	CONSTRAINT "ck_proof_manifests_class" CHECK (document_class in ('public-government-record','citizen-private-document','restricted-administrative-record','open-data-publication','court-or-legal-record','tax-or-accounting-record','internal-draft','redacted-public-derivative')),
+	CONSTRAINT "ck_proof_manifests_algorithm" CHECK (algorithm in ('sha256','sha512','blake3')),
+	CONSTRAINT "ck_proof_manifests_registry" CHECK (registry_status in ('active','superseded','revoked','expired','sealed','unknown')),
+	CONSTRAINT "ck_proof_manifests_content_visibility" CHECK (content_visibility in ('public','private','restricted','redacted','sealed')),
+	CONSTRAINT "ck_proof_manifests_proof_visibility" CHECK (proof_visibility in ('public','restricted','private','commitment_only'))
+);
+--> statement-breakpoint
+CREATE INDEX "proof_manifests_original_hash_idx" ON "proof_manifests" USING btree ("original_file_hash");

@@ -7,7 +7,6 @@
 import type { IncomingMessage } from 'node:http';
 
 import { runMigrationsOnce } from '@polis/db';
-import { createProofManifest, sha256Hex, verifyProof } from '@polis/domain';
 import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
 async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Promise<unknown> {
@@ -61,10 +60,22 @@ const polisReadPaths = [
   '/api/v1/issues/:id/conversation',
 ] as const;
 
+const proofReadPaths = [
+  '/api/v1/proofs/:id',
+  '/api/v1/proofs/:id/status',
+  '/api/v1/proofs/:id/audit',
+  '/api/v1/issuers/:id',
+] as const;
+const proofVerifyPaths = [
+  '/api/v1/verify/file',
+  '/api/v1/verify/hash',
+  '/api/v1/verify/manifest',
+] as const;
 export function platformRoutes(): Route[] {
   const graphBase = process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100';
   const auditBase = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   const polisBase = process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200';
+  const proofBase = process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -83,16 +94,16 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/audit/:objectType/:objectId',
       handler: async (req: IncomingMessage, body: unknown) => proxyTo(auditBase, req, body),
     },
-    // §23.5 verifier — hash proof (re-uses @polis/domain; replaced by §15 at M3)
-    {
+    ...proofReadPaths.map((path) => ({
+      method: 'GET',
+      path,
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(proofBase, req, body),
+    })),
+    ...proofVerifyPaths.map((path) => ({
       method: 'POST',
-      path: '/api/v1/verify/hash',
-      handler: async (_req, body) => {
-        const content = String((body as { content?: string }).content ?? '');
-        const manifest = await createProofManifest(content);
-        return verifyProof(manifest, await sha256Hex(content));
-      },
-    },
+      path,
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(proofBase, req, body),
+    })),
   ];
 }
 
