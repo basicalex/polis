@@ -1,7 +1,7 @@
 ---
 import '../styles.css';
 
-const { title = 'Polis Interface' } = Astro.props;
+const { title = 'Polis Interface', description = 'Local v1 civic infrastructure for source-linked governance maps, public audit trails, and proof-oriented transition pilots.' } = Astro.props;
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
@@ -10,6 +10,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>{title}</title>
+    <meta name="description" content={description} />
   </head>
   <body>
     <div class="site-shell">
@@ -21,6 +22,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
           <a href="/deliberate">Deliberate</a>
           <a href="/audit">Audit</a>
           <a href="/verify">Verify</a>
+          <a href="/assistant">Assistant</a>
           <a href="/docs">Docs</a>
           <a href="/source">Source</a>
           <a href="/methodology">Methodology</a>

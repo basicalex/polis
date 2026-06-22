@@ -67,25 +67,75 @@ test('access allows the owner', () => {
   );
 });
 
-test('ai publish requires citations AND approved review (ADR-005)', () => {
+test('ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6)', () => {
+  // Fully grounded + approved: allowed.
   assert.equal(
     opaEval(
       'ai/ai.rego',
-      { has_citations: true, review_state: 'approved' },
+      {
+        has_citations: true,
+        has_approved_sources: true,
+        injection_detected: false,
+        review_state: 'approved',
+      },
       'data.polis.ai.publish',
     ),
     true,
   );
+  // Missing citations.
   assert.equal(
     opaEval(
       'ai/ai.rego',
-      { has_citations: false, review_state: 'approved' },
+      {
+        has_citations: false,
+        has_approved_sources: true,
+        injection_detected: false,
+        review_state: 'approved',
+      },
       'data.polis.ai.publish',
     ),
     false,
   );
+  // No approved sources (e.g. only non-official / non-legal sources).
   assert.equal(
-    opaEval('ai/ai.rego', { has_citations: true, review_state: 'draft' }, 'data.polis.ai.publish'),
+    opaEval(
+      'ai/ai.rego',
+      {
+        has_citations: true,
+        has_approved_sources: false,
+        injection_detected: false,
+        review_state: 'approved',
+      },
+      'data.polis.ai.publish',
+    ),
+    false,
+  );
+  // Injection detected → never publish.
+  assert.equal(
+    opaEval(
+      'ai/ai.rego',
+      {
+        has_citations: true,
+        has_approved_sources: true,
+        injection_detected: true,
+        review_state: 'approved',
+      },
+      'data.polis.ai.publish',
+    ),
+    false,
+  );
+  // Not yet approved.
+  assert.equal(
+    opaEval(
+      'ai/ai.rego',
+      {
+        has_citations: true,
+        has_approved_sources: true,
+        injection_detected: false,
+        review_state: 'under_review',
+      },
+      'data.polis.ai.publish',
+    ),
     false,
   );
 });

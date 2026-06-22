@@ -5,6 +5,17 @@ TypeScript edge agree on record shapes. Wire objects are camelCase; persistence
 (DB) column names are snake_case and mapped at the service boundary.
 """
 
+from polis_core.ai import (
+    AITrace,
+    AssistantAnswer,
+    Citation,
+    InjectionVerdict,
+    RetrievalChunk,
+    detect_prompt_injection,
+    extract_keywords,
+    is_low_confidence,
+    score_confidence,
+)
 from polis_core.crypto import sha256_hex
 from polis_core.models import (
     Claim,
@@ -17,12 +28,21 @@ from polis_core.models import (
 )
 
 __all__ = [
+    "AITrace",
+    "AssistantAnswer",
+    "Citation",
     "Claim",
     "ConfidenceState",
     "EvidenceLink",
     "GovernanceProcess",
+    "InjectionVerdict",
     "Institution",
+    "RetrievalChunk",
     "ReviewState",
     "Visibility",
+    "detect_prompt_injection",
+    "extract_keywords",
+    "is_low_confidence",
+    "score_confidence",
     "sha256_hex",
 ]

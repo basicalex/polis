@@ -1,0 +1,163 @@
+---
+import Base from '../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type Citation = {
+  index: number;
+  claimId: string;
+  sourceId: string;
+  evidenceLinkId: string;
+  sourceTitle: string | null;
+  sourceUrl: string | null;
+  quote: string | null;
+};
+
+type AssistantAnswer = {
+  answer: string;
+  citations: Citation[];
+  confidenceState: string;
+  lowConfidence: boolean;
+  published: boolean;
+  injectionBlocked: boolean;
+  traceId: string;
+  outputId: string;
+  reviewState: string;
+};
+
+const q = Astro.url.searchParams.get('q');
+let answer: AssistantAnswer | null = null;
+let error: string | null = null;
+
+if (q) {
+  try {
+    const r = await fetch(API + '/api/v1/assistant/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+    });
+    if (r.ok) {
+      answer = (await r.json()) as AssistantAnswer;
+    } else {
+      error = 'The assistant is unavailable. Please try again later.';
+    }
+  } catch {
+    error = 'The assistant is unavailable. Please try again later.';
+  }
+}
+---
+
+<Base title="Assistant">
+  <section class="page-hero">
+    <h1>Citizen assistant</h1>
+    <p class="lede">
+      Ask a question about local governance. Answers are grounded in approved
+      public sources with citations.
+    </p>
+  </section>
+
+  <section class="assistant-form">
+    <form method="get">
+      <label for="q">Your question</label>
+      <input
+        type="text"
+        id="q"
+        name="q"
+        value={q ?? ''}
+        placeholder="e.g. What does the complaints office require?"
+      />
+      <button type="submit">Ask</button>
+    </form>
+  </section>
+
+  {error && (
+    <section class="assistant-error">
+      <p>{error}</p>
+    </section>
+  )}
+
+  {answer && (
+    <section class="assistant-answer">
+      {answer.injectionBlocked && (
+        <div class="banner banner-warning">
+          This request was blocked as a potential prompt injection.
+        </div>
+      )}
+      {answer.lowConfidence && !answer.injectionBlocked && (
+        <div class="banner banner-info">
+          Low confidence — no approved public sources were found.
+        </div>
+      )}
+      <div class="answer-body">
+        <p>{answer.answer}</p>
+      </div>
+      {answer.citations.length > 0 && (
+        <div class="citations">
+          <h2>Sources</h2>
+          <ol>
+            {answer.citations.map((c) => (
+              <li>
+                {c.sourceUrl ? (
+                  <a href={c.sourceUrl} rel="nofollow noopener" target="_blank">
+                    {c.sourceTitle ?? c.sourceId}
+                  </a>
+                ) : (
+                  <span>{c.sourceTitle ?? c.sourceId}</span>
+                )}
+                {c.quote && <blockquote>{c.quote}</blockquote>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      <p class="trace-id">
+        <small>Trace: <code>{answer.traceId.slice(0, 12)}</code></small>
+      </p>
+    </section>
+  )}
+</Base>
+
+<style>
+  .assistant-form form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+    margin: 1.5rem 0;
+  }
+  .assistant-form input {
+    flex: 1;
+    padding: 0.6rem;
+    font-size: 1rem;
+    border: 1px solid var(--border, #ccc);
+    border-radius: 4px;
+  }
+  .assistant-form button {
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .banner {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+  .banner-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+  }
+  .banner-info {
+    background: #d1ecf1;
+    border: 1px solid #17a2b8;
+  }
+  .citations blockquote {
+    margin: 0.25rem 0 0.5rem 1rem;
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--border, #ccc);
+    color: var(--muted, #666);
+    font-size: 0.9rem;
+  }
+  .trace-id {
+    margin-top: 1.5rem;
+    color: var(--muted, #666);
+  }
+</style>

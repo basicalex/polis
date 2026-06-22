@@ -33,6 +33,32 @@ async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Prom
   }
 }
 
+async function proxyToPath(
+  base: string,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<unknown> {
+  try {
+    const hasBody = method !== 'GET' && body !== undefined;
+    const upstream = await fetch(base + path, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: hasBody ? JSON.stringify(body) : undefined,
+    });
+    if (!upstream.ok) {
+      return result(
+        upstream.status,
+        await upstream.json().catch(() => ({ error: 'upstream_error' })),
+      );
+    }
+    return await upstream.json();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown';
+    return result(502, { error: 'bad_gateway', detail: message });
+  }
+}
+
 const graphReadPaths = [
   '/api/v1/jurisdictions',
   '/api/v1/institutions',
@@ -76,6 +102,7 @@ export function platformRoutes(): Route[] {
   const auditBase = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   const polisBase = process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200';
   const proofBase = process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700';
+  const aiBase = process.env.AI_INTERNAL_URL ?? 'http://localhost:8550';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -104,6 +131,35 @@ export function platformRoutes(): Route[] {
       path,
       handler: async (req: IncomingMessage, body: unknown) => proxyTo(proofBase, req, body),
     })),
+    {
+      method: 'POST',
+      path: '/api/v1/assistant/ask',
+      handler: async (_req: IncomingMessage, body: unknown) =>
+        proxyToPath(aiBase, 'POST', '/internal/ai/answer', body),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/assistant/traces',
+      handler: async () => proxyToPath(aiBase, 'GET', '/internal/ai/traces'),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/assistant/traces/:id',
+      handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
+        proxyToPath(aiBase, 'GET', '/internal/ai/traces/' + params.id),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/assistant/outputs/:id',
+      handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
+        proxyToPath(aiBase, 'GET', '/internal/ai/outputs/' + params.id),
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/assistant/outputs/:id/review',
+      handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
+        proxyToPath(aiBase, 'POST', '/internal/ai/outputs/' + params.id + '/review', body),
+    },
   ];
 }
 

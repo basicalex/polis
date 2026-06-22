@@ -11,8 +11,10 @@
 # Dependency and generated build output
 node_modules/
 **/node_modules/
-dist/
-**/dist/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
 .astro/
 **/.astro/
 **/.vite/
@@ -31,3 +33,7 @@ The Iceberg Index/sections_us/images_us/iceberg_figmain.png
 !/.omp/skills/
 !/.omp/skills/**
 /.omp/.aoc-backups/
+
+
+
+

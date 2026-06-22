@@ -13,6 +13,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   index,
   jsonb,
@@ -152,6 +153,7 @@ export const TIMESTAMP_TYPES = [
   'blockchain-anchor',
   'internal-test',
 ] as const;
+export const AI_REVIEW_STATUSES = ['pending', 'approved', 'rejected'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -704,6 +706,75 @@ export const proofRevocations = pgTable(
   },
   (t) => [index('proof_revocations_proof_id_idx').on(t.proofId)],
 );
+/* ------------------------------------------------------------------ */
+/* AI assistant v0 (§17.5 AI trace + §17 AI output / review queue) — M5 */
+/* ------------------------------------------------------------------ */
+
+// §17.5 AI trace — internal-only, one row per assistant request.
+// Append-only: no universal()/updatedAt; soft text FKs (no references()).
+export const aiTraces = pgTable(
+  'ai_traces',
+  {
+    id: pkId(),
+    requestId: text('request_id').notNull(),
+    workflowType: text('workflow_type').notNull().default('citizen-assistant'),
+    userId: text('user_id'),
+    promptHash: text('prompt_hash').notNull(),
+    modelProvider: text('model_provider').notNull().default('polis'),
+    modelName: text('model_name').notNull().default('stub'),
+    modelVersion: text('model_version'),
+    promptTemplateId: text('prompt_template_id').notNull().default('citizen-assistant-v1'),
+    promptTemplateVersion: text('prompt_template_version').notNull().default('0.1'),
+    retrievedSourceIds: jsonb('retrieved_source_ids'),
+    retrievedClaimIds: jsonb('retrieved_claim_ids'),
+    riskFlags: jsonb('risk_flags'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('ai_traces_request_id_idx').on(t.requestId)],
+);
+
+// §17 AI output — immutable at creation; effective review/publish state derived
+// from the latest ai_review_queue row (mirrors proof_supersessions latest-row-wins).
+export const aiOutputs = pgTable(
+  'ai_outputs',
+  {
+    id: pkId(),
+    traceId: text('trace_id').notNull(),
+    answer: text('answer').notNull(),
+    citations: jsonb('citations'),
+    confidence: numeric('confidence'),
+    confidenceState: text('confidence_state').notNull().default('unsupported_draft'),
+    reviewState: text('review_state').notNull().default('draft'),
+    published: boolean('published').notNull().default(false),
+    outputHash: text('output_hash').notNull(),
+    model: text('model').notNull().default('stub'),
+    params: jsonb('params'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('ai_outputs_trace_id_idx').on(t.traceId),
+    enumCheck('ck_ai_outputs_confidence', 'confidence_state', CONFIDENCE_STATES),
+    enumCheck('ck_ai_outputs_review', 'review_state', REVIEW_STATES),
+  ],
+);
+
+// §17 human-review queue — append-only; latest row per output wins.
+export const aiReviewQueue = pgTable(
+  'ai_review_queue',
+  {
+    id: pkId(),
+    outputId: text('output_id').notNull(),
+    status: text('status').notNull().default('pending'),
+    reviewerId: text('reviewer_id'),
+    note: text('note'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('ai_review_queue_output_id_idx').on(t.outputId),
+    enumCheck('ck_ai_review_queue_status', 'status', AI_REVIEW_STATUSES),
+  ],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -739,4 +810,7 @@ export const schema = {
   proofTimestamps,
   proofSupersessions,
   proofRevocations,
+  aiTraces,
+  aiOutputs,
+  aiReviewQueue,
 };

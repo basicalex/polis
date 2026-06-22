@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type OutputView = {
+  outputId: string;
+  confidenceState: string;
+  published: boolean;
+  effectivePublished: boolean;
+  effectiveReviewState: string;
+  reviewState: string;
+};
+
+type TraceItem = {
+  traceId: string;
+  workflowType: string;
+  userId: string | null;
+  modelName: string;
+  riskFlags: string[] | null;
+  createdAt: string | null;
+  outputs: OutputView[];
+};
+
+type TracesResponse = { items: TraceItem[] };
+
+async function fetchTraces(): Promise<TraceItem[]> {
+  try {
+    const r = await fetch(API + '/api/v1/assistant/traces');
+    if (!r.ok) return [];
+    return ((await r.json()) as TracesResponse).items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+const traces = await fetchTraces();
+---
+
+<Base title="AI traces">
+  <h1>AI assistant traces</h1>
+  <p class="muted">
+    Read-only internal trace viewer (spec §17.5). Each row is one assistant
+    request with its effective output state. Approve/reject decisions are made
+    via the internal API and exercised by <code>scripts/phase5-acceptance.mjs</code>.
+  </p>
+  {traces.length === 0 ? (
+    <p class="muted">No traces yet.</p>
+  ) : (
+    <table>
+      <thead>
+        <tr>
+          <th>Trace</th>
+          <th>Confidence</th>
+          <th>Published</th>
+          <th>Review</th>
+          <th>Risk flags</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {traces.map((t) => {
+          const out = t.outputs[0];
+          return (
+            <tr>
+              <td><code>{t.traceId.slice(0, 8)}</code></td>
+              <td>{out?.confidenceState ?? '—'}</td>
+              <td>{out?.effectivePublished ? 'yes' : 'no'}</td>
+              <td>{out?.effectiveReviewState ?? '—'}</td>
+              <td>{(t.riskFlags && t.riskFlags.length > 0) ? t.riskFlags.join(', ') : '—'}</td>
+              <td>{t.createdAt ?? '—'}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  )}
+</Base>

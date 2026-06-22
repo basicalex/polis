@@ -274,6 +274,7 @@ services:
       AUDIT_INTERNAL_URL: http://audit-service:8600
       POLIS_INTERNAL_URL: http://polis-bridge-service:8200
       PROOF_INTERNAL_URL: http://proof-service:8700
+      AI_INTERNAL_URL: http://ai-gateway:8550
       GIT_SHA: ${GIT_SHA:-dev}
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}
@@ -285,6 +286,33 @@ services:
       timeout: 3s
       retries: 10
       start_period: 15s
+    networks:
+      - polis
+
+  ai-gateway:
+    build:
+      context: ../..
+      dockerfile: infra/docker/ai-gateway.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+      platform-api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      POLICY_REGO_PATH: /app/policy/ai.rego
+      PORT: '8550'
+    ports:
+      - '8550:8550'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8550/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
     networks:
       - polis
 
