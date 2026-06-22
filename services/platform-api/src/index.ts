@@ -26,7 +26,7 @@ async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Prom
       );
     }
 
-    return await upstream.json();
+    return result(upstream.status, await upstream.json());
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown';
     return result(502, { error: 'bad_gateway', detail: message });
@@ -52,7 +52,7 @@ async function proxyToPath(
         await upstream.json().catch(() => ({ error: 'upstream_error' })),
       );
     }
-    return await upstream.json();
+    return result(upstream.status, await upstream.json());
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown';
     return result(502, { error: 'bad_gateway', detail: message });
@@ -103,6 +103,7 @@ export function platformRoutes(): Route[] {
   const polisBase = process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200';
   const proofBase = process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700';
   const aiBase = process.env.AI_INTERNAL_URL ?? 'http://localhost:8550';
+  const contributionBase = process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -159,6 +160,39 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/assistant/outputs/:id/review',
       handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
         proxyToPath(aiBase, 'POST', '/internal/ai/outputs/' + params.id + '/review', body),
+    },
+    // Public contribution routes — same-path proxy (contribution-service serves these paths).
+    {
+      method: 'POST',
+      path: '/api/v1/contribute/evidence',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(contributionBase, req, body),
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/contribute/graph-edit',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(contributionBase, req, body),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/contributions/:id',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(contributionBase, req, body),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/contributors/:id',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(contributionBase, req, body),
+    },
+    // Admin review routes — map public path → internal path (mirrors assistant outputs review).
+    {
+      method: 'GET',
+      path: '/api/v1/review/queue',
+      handler: async () => proxyToPath(contributionBase, 'GET', '/internal/review/queue'),
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/review/:id/decide',
+      handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
+        proxyToPath(contributionBase, 'POST', '/internal/review/' + params.id + '/decide', body),
     },
   ];
 }

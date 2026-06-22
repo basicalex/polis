@@ -1,0 +1,92 @@
+---
+import Base from '../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+---
+
+<Base title="Review queue">
+  <h1>Contribution review queue</h1>
+  <p class="muted">
+    Pending submissions awaiting a reviewer decision (spec §19). Admin is
+    static-hosted, so the queue is fetched live in the browser. Approve/reject
+    decisions are exercised end-to-end by
+    <code>scripts/phase6-acceptance.mjs</code>.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Submission</th>
+        <th>Type</th>
+        <th>Class</th>
+        <th>Contributor</th>
+        <th>Status</th>
+        <th>Submitted</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="queue"></tbody>
+  </table>
+
+  <script is:inline define:vars={{ API }}>
+    async function loadQueue() {
+      const tbody = document.getElementById('queue');
+      try {
+        const r = await fetch(API + '/api/v1/review/queue');
+        const data = r.ok ? await r.json() : { items: [] };
+        const items = data.items ?? [];
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7">No pending submissions.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = items
+          .map(function (s) {
+            return (
+              '<tr>' +
+              '<td><code>' +
+              s.id.slice(0, 12) +
+              '</code></td>' +
+              '<td>' +
+              s.type +
+              '</td>' +
+              '<td>' +
+              s.contributionClass +
+              '</td>' +
+              '<td>' +
+              (s.contributorDisplayName ?? '—') +
+              '</td>' +
+              '<td>' +
+              s.status +
+              '</td>' +
+              '<td>' +
+              s.submittedAt +
+              '</td>' +
+              '<td><button onclick="decide(\'' +
+              s.id +
+              "', 'approve')\">Approve</button> <button onclick=\"decide('" +
+              s.id +
+              "', 'reject')\">Reject</button></td>" +
+              '</tr>'
+            );
+          })
+          .join('');
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="7">Failed to load queue.</td></tr>';
+      }
+    }
+    async function decide(id, decision) {
+      await fetch(API + '/api/v1/review/' + id + '/decide', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          reviewerId: 'reviewer-demo',
+          reviewerRole: 'reviewer',
+          decision: decision,
+          notes: '',
+        }),
+      });
+      loadQueue();
+    }
+    window.decide = decide;
+    loadQueue();
+  </script>
+</Base>

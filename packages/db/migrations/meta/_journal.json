@@ -43,6 +43,13 @@
       "when": 1782152470875,
       "tag": "0005_ai_v0",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782158578184,
+      "tag": "0006_contribution_review_v0",
+      "breakpoints": true
     }
   ]
 }

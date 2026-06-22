@@ -4,17 +4,17 @@ import Base from '../../layouts/Base.astro';
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
-<Base title="Contribute evidence">
+<Base title="Propose a graph edit">
   <section class="page-hero">
-    <h1>Contribute evidence</h1>
+    <h1>Propose a graph edit</h1>
     <p class="lede">
-      Submit evidence for human review (spec §19). Approved evidence is published
-      to the public governance graph with a full audit trail.
+      Propose an addition to the governance graph (spec §11/§19). Insert-only in
+      v0 — a reviewer approves the proposal before it is applied.
     </p>
   </section>
 
   <section class="contribute-form">
-    <form id="evidence-form">
+    <form id="graph-edit-form">
       <div class="form-row">
         <label>
           Display name
@@ -28,66 +28,58 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
           </select>
         </label>
       </div>
-      <label>
-        Claim type
-        <select name="claimType">
-          <option value="legal_mandate">Legal mandate</option>
-          <option value="budget_amount">Budget amount</option>
-          <option value="role_responsibility">Role responsibility</option>
-          <option value="process_step">Process step</option>
-          <option value="document_requirement">Document requirement</option>
-          <option value="risk_assessment">Risk assessment</option>
-          <option value="proposal_assertion">Proposal assertion</option>
-          <option value="public_statement">Public statement</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
       <div class="form-row">
         <label>
-          Subject type
-          <input name="subjectType" placeholder="e.g. process_step" required />
+          Target table
+          <select name="targetTable">
+            <option value="sources">sources</option>
+            <option value="claims">claims</option>
+          </select>
         </label>
         <label>
-          Subject id
-          <input name="subjectId" placeholder="e.g. step-registry-validation" required />
-        </label>
-        <label>
-          Confidence (0–1)
-          <input name="confidence" type="number" min="0" max="1" step="0.1" value="0.5" required />
+          Operation
+          <select name="op">
+            <option value="insert">insert</option>
+          </select>
         </label>
       </div>
       <label>
-        Evidence text
-        <textarea name="text" rows="4" required></textarea>
+        Proposed payload (JSON)
+        <textarea name="proposedPayload" rows="6" placeholder='{"title":"…","url":"https://…","sourceType":"official"}' required></textarea>
       </label>
-      <button type="submit">Submit evidence</button>
+      <button type="submit">Submit proposal</button>
     </form>
     <div id="result" class="contribute-result" aria-live="polite"></div>
   </section>
 </Base>
 
 <script is:inline define:vars={{ API }}>
-  const form = document.getElementById('evidence-form');
+  const form = document.getElementById('graph-edit-form');
   const result = document.getElementById('result');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
+    let payload;
+    try {
+      payload = JSON.parse(fd.get('proposedPayload'));
+    } catch {
+      result.textContent = 'Error: proposed payload is not valid JSON.';
+      return;
+    }
     const body = {
       contributor: {
         displayName: fd.get('displayName'),
         identityLevel: fd.get('identityLevel'),
       },
       payload: {
-        text: fd.get('text'),
-        claimType: fd.get('claimType'),
-        subjectType: fd.get('subjectType'),
-        subjectId: fd.get('subjectId'),
-        confidence: Number(fd.get('confidence')),
+        targetTable: fd.get('targetTable'),
+        op: fd.get('op'),
+        proposedPayload: payload,
       },
     };
     result.textContent = 'Submitting…';
     try {
-      const r = await fetch(API + '/api/v1/contribute/evidence', {
+      const r = await fetch(API + '/api/v1/contribute/graph-edit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),

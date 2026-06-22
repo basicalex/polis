@@ -154,6 +154,11 @@ export const TIMESTAMP_TYPES = [
   'internal-test',
 ] as const;
 export const AI_REVIEW_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export const IDENTITY_LEVELS = ['anonymous', 'casual', 'verified', 'enrolled', 'staff'] as const;
+export const SUBMISSION_TYPES = ['evidence', 'graph_edit', 'claim'] as const;
+export const SUBMISSION_STATUSES = ['pending', 'in_review', 'approved', 'rejected'] as const;
+export const GRAPH_PROPOSAL_OPS = ['insert', 'update', 'delete'] as const;
+export const REVIEW_DECISIONS = ['approved', 'rejected'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -775,6 +780,81 @@ export const aiReviewQueue = pgTable(
     enumCheck('ck_ai_review_queue_status', 'status', AI_REVIEW_STATUSES),
   ],
 );
+/* ------------------------------------------------------------------ */
+/* Contribution & review (§19) v0 — M6                                  */
+/* ------------------------------------------------------------------ */
+
+// §21 identity levels stored as data (no real auth until M8).
+export const contributors = pgTable(
+  'contributors',
+  {
+    id: pkId(),
+    identityLevel: text('identity_level').notNull().default('casual'),
+    displayName: text('display_name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  () => [enumCheck('ck_contributors_identity', 'identity_level', IDENTITY_LEVELS)],
+);
+
+// §19 submissions; payload is type-specific (see contribution-service).
+// contributionClass is hoisted (not buried in payload) so the auto_publish
+// policy check is a cheap read without parsing jsonb.
+export const submissions = pgTable(
+  'submissions',
+  {
+    id: pkId(),
+    contributorId: text('contributor_id').notNull(),
+    type: text('type').notNull(),
+    payload: jsonb('payload'),
+    status: text('status').notNull().default('pending'),
+    contributionClass: text('contribution_class').notNull().default('civic'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('submissions_contributor_idx').on(t.contributorId),
+    index('submissions_status_idx').on(t.status),
+    enumCheck('ck_submissions_type', 'type', SUBMISSION_TYPES),
+    enumCheck('ck_submissions_status', 'status', SUBMISSION_STATUSES),
+  ],
+);
+
+// §11 graph-edit staging; applied on approval (appliedAt set), never edited.
+export const graphProposals = pgTable(
+  'graph_proposals',
+  {
+    id: pkId(),
+    submissionId: text('submission_id').notNull(),
+    targetTable: text('target_table').notNull(),
+    targetId: text('target_id'),
+    op: text('op').notNull(),
+    proposedPayload: jsonb('proposed_payload'),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('graph_proposals_submission_idx').on(t.submissionId),
+    enumCheck('ck_graph_proposals_op', 'op', GRAPH_PROPOSAL_OPS),
+  ],
+);
+
+// §19 review decisions; latest row per submission wins (append-only).
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: pkId(),
+    submissionId: text('submission_id').notNull(),
+    reviewerId: text('reviewer_id'),
+    decision: text('decision').notNull(),
+    notes: text('notes'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('reviews_submission_idx').on(t.submissionId),
+    enumCheck('ck_reviews_decision', 'decision', REVIEW_DECISIONS),
+  ],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -813,4 +893,8 @@ export const schema = {
   aiTraces,
   aiOutputs,
   aiReviewQueue,
+  contributors,
+  submissions,
+  graphProposals,
+  reviews,
 };

@@ -158,3 +158,64 @@ test('polis conversation creation requires service-level trust (M2 §13)', () =>
     false,
   );
 });
+
+test('contribute allow_submit requires a known non-anonymous identity level (M6 §21)', () => {
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { identity_level: 'casual' },
+      'data.polis.contribute.allow_submit',
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { identity_level: 'anonymous' },
+      'data.polis.contribute.allow_submit',
+    ),
+    false,
+  );
+});
+
+test('contribute allow_review requires the reviewer role (M6 §19)', () => {
+  assert.equal(
+    opaEval('contribute/access.rego', { role: 'reviewer' }, 'data.polis.contribute.allow_review'),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { role: 'contributor' },
+      'data.polis.contribute.allow_review',
+    ),
+    false,
+  );
+});
+
+test('contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007)', () => {
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { contribution_class: 'civic', review_state: 'approved' },
+      'data.polis.contribute.auto_publish',
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { contribution_class: 'political_agreement', review_state: 'approved' },
+      'data.polis.contribute.auto_publish',
+    ),
+    false,
+  );
+  assert.equal(
+    opaEval(
+      'contribute/access.rego',
+      { contribution_class: 'civic', review_state: 'pending' },
+      'data.polis.contribute.auto_publish',
+    ),
+    false,
+  );
+});

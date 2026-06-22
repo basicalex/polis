@@ -1,0 +1,106 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type Review = {
+  decision: string;
+  reviewerId: string | null;
+  notes: string | null;
+  decidedAt: string;
+} | null;
+
+type Proposal = {
+  id: string;
+  targetTable: string;
+  op: string;
+  appliedAt: string | null;
+  proposedPayload: unknown;
+} | null;
+
+type Submission = {
+  id: string;
+  contributorId: string;
+  type: string;
+  payload: unknown;
+  status: string;
+  contributionClass: string;
+  submittedAt: string;
+  decidedAt: string | null;
+  review: Review;
+  proposal: Proposal;
+};
+
+const id = Astro.params.id;
+let submission: Submission | null = null;
+let notFound = false;
+
+if (id) {
+  try {
+    const r = await fetch(`${API}/api/v1/contributions/${id}`);
+    if (r.ok) submission = (await r.json()) as Submission;
+    else if (r.status === 404) notFound = true;
+  } catch {
+    notFound = true;
+  }
+}
+
+const statusClass = (s: string) =>
+  s === 'approved' ? 'badge-success' : s === 'rejected' ? 'badge-warning' : 'badge';
+---
+
+<Base title={submission ? `Submission ${submission.id.slice(0, 8)}` : 'Submission'}>
+  {notFound && (
+    <section class="panel">
+      <h1>Submission not found</h1>
+      <p class="muted">No contribution matches this id.</p>
+    </section>
+  )}
+
+  {submission && (
+    <section class="panel">
+      <h1>Submission <code>{submission.id.slice(0, 12)}</code></h1>
+      <dl class="kv">
+        <dt>Type</dt>
+        <dd>{submission.type}</dd>
+        <dt>Status</dt>
+        <dd><span class={statusClass(submission.status)}>{submission.status}</span></dd>
+        <dt>Contribution class</dt>
+        <dd>{submission.contributionClass}</dd>
+        <dt>Contributor</dt>
+        <dd><a href={`/contributors/${submission.contributorId}`}>{submission.contributorId.slice(0, 12)}</a></dd>
+        <dt>Submitted</dt>
+        <dd>{submission.submittedAt}</dd>
+        {submission.decidedAt && (<><dt>Decided</dt><dd>{submission.decidedAt}</dd></>)}
+      </dl>
+
+      <h2>Payload</h2>
+      <pre>{JSON.stringify(submission.payload, null, 2)}</pre>
+
+      {submission.review && (
+        <div>
+          <h2>Review</h2>
+          <dl class="kv">
+            <dt>Decision</dt>
+            <dd><span class={statusClass(submission.review.decision)}>{submission.review.decision}</span></dd>
+            <dt>Reviewer</dt>
+            <dd>{submission.review.reviewerId ?? '—'}</dd>
+            {submission.review.notes && (<><dt>Notes</dt><dd>{submission.review.notes}</dd></>)}
+          </dl>
+        </div>
+      )}
+
+      {submission.proposal && (
+        <div>
+          <h2>Graph proposal</h2>
+          <dl class="kv">
+            <dt>Target</dt>
+            <dd>{submission.proposal.targetTable} · {submission.proposal.op}</dd>
+            <dt>Applied</dt>
+            <dd>{submission.proposal.appliedAt ? submission.proposal.appliedAt : 'not yet'}</dd>
+          </dl>
+        </div>
+      )}
+    </section>
+  )}
+</Base>

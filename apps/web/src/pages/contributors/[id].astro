@@ -1,0 +1,89 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type Submission = {
+  id: string;
+  type: string;
+  status: string;
+  contributionClass: string;
+  submittedAt: string;
+};
+
+type Contributor = {
+  id: string;
+  identityLevel: string;
+  displayName: string;
+  createdAt: string;
+  submissions: Submission[];
+};
+
+const id = Astro.params.id;
+let contributor: Contributor | null = null;
+let notFound = false;
+
+if (id) {
+  try {
+    const r = await fetch(`${API}/api/v1/contributors/${id}`);
+    if (r.ok) contributor = (await r.json()) as Contributor;
+    else if (r.status === 404) notFound = true;
+  } catch {
+    notFound = true;
+  }
+}
+
+const statusClass = (s: string) =>
+  s === 'approved' ? 'badge-success' : s === 'rejected' ? 'badge-warning' : 'badge';
+---
+
+<Base title={contributor ? contributor.displayName : 'Contributor'}>
+  {notFound && (
+    <section class="panel">
+      <h1>Contributor not found</h1>
+      <p class="muted">No contributor matches this id.</p>
+    </section>
+  )}
+
+  {contributor && (
+    <section class="panel">
+      <h1>{contributor.displayName}</h1>
+      <dl class="kv">
+        <dt>Identity level</dt>
+        <dd><span class="badge">{contributor.identityLevel}</span></dd>
+        <dt>Contributor id</dt>
+        <dd><code>{contributor.id.slice(0, 12)}</code></dd>
+        <dt>Joined</dt>
+        <dd>{contributor.createdAt}</dd>
+      </dl>
+
+      <h2>Submissions ({contributor.submissions.length})</h2>
+      {contributor.submissions.length === 0 ? (
+        <p class="muted">No submissions yet.</p>
+      ) : (
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submission</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Class</th>
+              <th>Submitted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contributor.submissions.map((s) => (
+              <tr>
+                <td><a href={`/contributions/${s.id}`}>{s.id.slice(0, 12)}</a></td>
+                <td>{s.type}</td>
+                <td><span class={statusClass(s.status)}>{s.status}</span></td>
+                <td>{s.contributionClass}</td>
+                <td>{s.submittedAt}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  )}
+</Base>
