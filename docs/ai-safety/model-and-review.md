@@ -1,15 +1,14 @@
 # AI Safety: Model and Review
 
-The current AI route is a mock civic assistant, not a production model integration.
+The current local v1 build exposes an AI assistant v0 through `ai-gateway` and the BFF route `POST /api/v1/assistant/ask`. It is deterministic local RAG over approved public sources with stored traces, citations, review state, and audit events. It is not an external model-provider integration.
 
 ## Current behavior
 
-`POST /api/v1/ai/explain` returns:
-
-- a deterministic explanation string for the submitted `question`;
-- citations from seeded demo evidence claims;
-- `model: "mock-civic-chat-v1"`;
-- `reviewState: "under_review"`.
+- No external AI model is called and no user prompt is sent to a provider.
+- Answers must come from approved public sources or remain unpublished/low-confidence.
+- Prompt-injection heuristics block attempts to override source grounding, citation rules, or system constraints.
+- `packages/policy-rules/ai/ai.rego` keeps the production rule shape: publish only cited, approved outputs.
+- Assistant traces and output review decisions are persisted append-only for operator review.
 
 ## Review model
 

@@ -1,31 +1,45 @@
 # Architecture
 
-Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator surfaces, TypeScript packages hold deterministic domain logic, and service entrypoints expose the same HTTP runtime while the production integrations remain mocked.
+Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator surfaces, TypeScript packages hold deterministic domain logic, Postgres stores seeded civic graph/audit/proof/AI state, and service entrypoints expose the current HTTP runtime while production integrations remain mocked.
 
 ## Boundaries
 
-- `apps/web`: public landing, status, and `/docs` surface.
-- `apps/verifier`: public proof-verification UI.
+- `apps/web`: public landing, status, `/docs`, proof search, verifier entry, and assistant pages.
+- `apps/verifier`: public proof-verification UI, including `/proofs/:id` proof detail.
 - `apps/vault`: citizen vault UI shell for document custody flows.
-- `apps/admin`: operator UI shell.
-- `packages/domain`: schemas, demo institutions/processes/claims, proof hashing, verification, and process assessment.
-- `packages/service-runtime`: shared Node HTTP runtime and the current local v1 API route set.
-- `packages/policy-rules`: Rego policy files for access and evidence rules.
-- `services/*`: independently named service packages that start the shared runtime under service-specific names and ports.
-- `scripts/dev-services.mjs`: local launcher for the v1 service set.
+- `apps/admin`: operator UI shell, including assistant trace/review pages.
+- `packages/domain`: proof hashing and verification helpers retained by the BFF hash verifier.
+- `packages/db`: Drizzle schema, migrations, and idempotent seed data for civic graph, document proofs, proof signatures/timestamps, AI traces, review state, and audit events.
+- `packages/service-runtime`: shared Node HTTP runtime, operational routes, CORS, route matching, and JSON helpers.
+- `packages/policy-rules`: Rego policy files for access, AI, and rewards rules.
+- `services/platform-api`: public BFF on :8080; proxies graph/audit/Polis/proof/assistant reads and writes.
+- `services/governance-graph-api`: internal graph read API on :8100 backed by Postgres.
+- `services/polis-bridge-service`: internal stub Polis bridge on :8200.
+- `services/paperless-adapter`: internal stub document intake adapter on :8300.
+- `services/document-ingestion-gateway`: internal document pipeline conductor on :8400.
+- `services/canonicalization-service`: internal canonical hash service on :8500.
+- `services/ai-gateway`: internal deterministic assistant/RAG service on :8550 backed by Postgres.
+- `services/audit-service`: append-only audit write/read API on :8600 backed by Postgres.
+- `services/proof-service`: proof registry and public verifier API on :8700 backed by Postgres.
+- `services/timestamp-service`: internal RFC3161-stub timestamp service on :8800.
+- `services/signature-service`: internal test-key signature service on :8900.
+- `scripts/dev-services.mjs`: local launcher for the TypeScript v1 service set.
+- `infra/compose/docker-compose.yml`: compose stack for Postgres plus Node/Python services.
 - `scripts/v1-smoke.mjs`: smoke test for the documented local API contract.
 
 ## Runtime model
 
-The current services are deterministic and in-memory. They return seeded demo institutions, governance processes, evidence claims, assessment output, proof manifests, hash verification, mock Polis conversations, mock AI explanations, reward rules, and audit events.
+The current services are deterministic and Postgres-backed after `pnpm db:seed`. They return seeded jurisdictions, institutions, roles, processes, document types, laws, budget lines, failure modes, controls, claims with evidence/sources, graph relationships, public audit rows, local proof-verification results, proof manifests with test-key signatures and RFC3161-stub timestamps, and assistant traces/outputs grounded in approved local public sources.
 
-All services expose:
+Node services using `packages/service-runtime` expose:
 
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
 - `GET /version`
-- `GET /api/v1/*` routes listed in `docs/architecture/service-map.md`
+- public `/api/v1/*` or internal routes listed in `docs/architecture/service-map.md`
+
+`services/ai-gateway` is FastAPI-based and currently exposes `GET /healthz`, `GET /version`, and `/internal/ai/*` routes.
 
 ## Integration status
 
@@ -44,11 +58,14 @@ All services expose:
 
 1. Public claims are seeded in `packages/domain` with source references.
 2. Governance process endpoints expose institutions and processes.
-3. Assessment endpoints compute deterministic public-process scores.
-4. Proof endpoints hash submitted content and verify hashes against generated manifests.
-5. AI endpoints return mock, source-linked explanations with `reviewState: "under_review"`.
-6. Audit endpoints return public demo audit events.
+3. Relationship endpoints expose typed graph edges and traversal from a requested entity.
+4. Document ingestion posts base64 content to `document-ingestion-gateway`, which calls the Paperless stub, canonicalization, then `proof-service`.
+5. `proof-service` stores the manifest, asks `signature-service` for a test-key signature and `timestamp-service` for an RFC3161-stub timestamp, and emits best-effort audit events.
+6. Public verifier routes on `platform-api` proxy hash/file/manifest verification, proof detail, proof status, proof audit, and issuer reads to `proof-service`.
+7. Proof status resolves local append-only state with precedence `revoked > superseded > stored registryStatus`.
+8. Assistant pages call `platform-api`, which proxies to `ai-gateway`; `ai-gateway` retrieves approved public sources, applies deterministic prompt-injection heuristics, persists traces/outputs/review decisions, and emits best-effort audit events.
+9. `POST /internal/audit/events` appends canonical, hash-chained audit rows; public reads return only `visibility: "public"` target rows.
 
 ## Design constraint
 
-The architecture intentionally keeps public claims, private documents, AI review state, and audit events separate. A production cutover must replace mock adapters without weakening that separation.
+The architecture intentionally keeps public claims, private documents, proof manifests, signatures/timestamps, AI review state, and audit events separate. A production cutover must replace mock/test adapters without weakening that separation.
