@@ -1,0 +1,84 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Access Grants">
+<section class="panel">
+  <h1>Access Grants</h1>
+  <p class="muted">Grant or revoke access to your vault documents. §16.4: purpose-limitation mandatory, default time-limited.</p>
+  <div id="auth-required" style="display:none"><p><a href="/">Log in first →</a></p></div>
+  <div id="vault-content">
+    <h2>Create grant</h2>
+    <label>Grantee type <select id="g-type"><option value="institution">Institution</option><option value="partner">Partner</option><option value="user">User</option><option value="system">System</option></select></label>
+    <label>Grantee ID <input type="text" id="g-id" placeholder="inst-complaints-office" style="width:100%"/></label>
+    <label>Purpose <input type="text" id="g-purpose" placeholder="Benefits verification" style="width:100%"/></label>
+    <label>Scope <select id="g-scope"><option value="proof_only">Proof only</option><option value="metadata">Metadata</option><option value="redacted_content">Redacted content</option><option value="full_content">Full content</option><option value="vc_presentation">VC presentation</option></select></label>
+    <label>Vault Document ID <input type="text" id="g-vd" placeholder="vd-... (optional)" style="width:100%"/></label>
+    <button id="grant-btn" style="margin-top:0.5rem">Create grant</button>
+    <p id="grant-error" style="color:red;display:none"></p>
+    <h2 style="margin-top:1.5rem">My grants</h2>
+    <div id="grants-list"><p class="muted">Loading…</p></div>
+    <h2 style="margin-top:1.5rem">Access events</h2>
+    <div id="events-list"><p class="muted">Loading…</p></div>
+  </div>
+</section>
+<script is:inline>
+const API = window.__API_URL;
+const session = JSON.parse(sessionStorage.getItem('vault_session') || 'null');
+if (!session?.token) {
+  document.getElementById('auth-required').style.display = 'block';
+  document.getElementById('vault-content').style.display = 'none';
+} else {
+  const headers = { 'content-type': 'application/json', 'authorization': 'Bearer ' + session.token };
+  async function loadGrants() {
+    // Grants are returned via access-events (owner sees grant events).
+    // We also load access-events to show the full timeline.
+    try {
+      const r = await fetch(API + '/api/v1/vault/access-events', { headers });
+      if (!r.ok) throw new Error('Failed to load events');
+      const body = await r.json();
+      const items = body.items || [];
+      if (!items.length) {
+        document.getElementById('events-list').innerHTML = '<p class="muted">No access events yet.</p>';
+        document.getElementById('grants-list').innerHTML = '<p class="muted">No grants yet.</p>';
+        return;
+      }
+      // Group events by grantId to show grant summaries
+      const byGrant = {};
+      for (const e of items) {
+        if (!byGrant[e.grantId]) byGrant[e.grantId] = [];
+        byGrant[e.grantId].push(e);
+      }
+      const grantIds = Object.keys(byGrant);
+      document.getElementById('grants-list').innerHTML = '<p class="muted">' + grantIds.length + ' grant(s). Grant details are shown in the access events timeline below.</p>';
+      document.getElementById('events-list').innerHTML = '<table><thead><tr><th>Grant</th><th>Event</th><th>Actor</th><th>Time</th></tr></thead><tbody>' +
+        items.map(e => '<tr><td><code>' + e.grantId.slice(0,12) + '</code></td><td>' + e.event + '</td><td>' + e.actorId.slice(0,12) + '</td><td>' + e.at + '</td></tr>').join('') +
+        '</tbody></table>';
+    } catch (e) {
+      document.getElementById('events-list').innerHTML = '<p style="color:red">' + e.message + '</p>';
+    }
+  }
+  loadGrants();
+  document.getElementById('grant-btn').onclick = async () => {
+    const grantee = { type: document.getElementById('g-type').value, id: document.getElementById('g-id').value.trim() };
+    const purpose = document.getElementById('g-purpose').value.trim();
+    const scope = document.getElementById('g-scope').value;
+    const vaultDocumentId = document.getElementById('g-vd').value.trim() || undefined;
+    if (!grantee.id || !purpose) return;
+    document.getElementById('grant-error').style.display = 'none';
+    try {
+      const r = await fetch(API + '/api/v1/vault/grants', {
+        method: 'POST', headers,
+        body: JSON.stringify({ grantee, purpose, scope, vaultDocumentId }),
+      });
+      if (!r.ok) { const b = await r.json(); throw new Error(b.error || 'Failed'); }
+      document.getElementById('g-id').value = '';
+      document.getElementById('g-purpose').value = '';
+      loadGrants();
+    } catch (e) {
+      document.getElementById('grant-error').textContent = e.message;
+      document.getElementById('grant-error').style.display = 'block';
+    }
+  };
+}
+</script>
+</Base>

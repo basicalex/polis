@@ -302,6 +302,87 @@ services:
     networks:
       - polis
 
+  citizen-identity-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: citizen-identity-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      IDENTITY_DEV_TOKENS: 'true'
+    ports:
+      - '8650:8650'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8650/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  citizen-vault-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: citizen-vault-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+      citizen-identity-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    ports:
+      - '8750:8750'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8750/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  vc-issuer-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: vc-issuer-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    ports:
+      - '8950:8950'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8950/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
   platform-api:
     build:
       context: ../..
@@ -323,6 +404,12 @@ services:
         condition: service_healthy
       rewards-service:
         condition: service_healthy
+      citizen-identity-service:
+        condition: service_healthy
+      citizen-vault-service:
+        condition: service_healthy
+      vc-issuer-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
@@ -334,7 +421,9 @@ services:
       AI_INTERNAL_URL: http://ai-gateway:8550
       CONTRIBUTION_INTERNAL_URL: http://contribution-service:8450
       REWARDS_INTERNAL_URL: http://rewards-service:8460
-      GIT_SHA: ${GIT_SHA:-dev}
+      IDENTITY_INTERNAL_URL: http://citizen-identity-service:8650
+      VAULT_INTERNAL_URL: http://citizen-vault-service:8750
+      VC_ISSUER_INTERNAL_URL: http://vc-issuer-service:8950
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}
     ports:

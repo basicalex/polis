@@ -183,6 +183,50 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  services/citizen-identity-service:
+    dependencies:
+      '@polis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@polis/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/citizen-vault-service:
+    dependencies:
+      '@polis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@polis/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   services/contribution-service:
     dependencies:
       '@polis/db':
@@ -358,6 +402,28 @@ importers:
         version: 5.9.3
 
   services/timestamp-service:
+    dependencies:
+      '@polis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@polis/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@polis/service-runtime':
+        specifier: workspace:*
+        version: link:../../packages/service-runtime
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.13.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/vc-issuer-service:
     dependencies:
       '@polis/db':
         specifier: workspace:*

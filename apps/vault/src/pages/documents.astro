@@ -1,0 +1,68 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="My Documents">
+<section class="panel">
+  <h1>My Documents</h1>
+  <p class="muted">Your official documents and proof manifests stored in your vault.</p>
+  <div id="auth-required" style="display:none">
+    <p><a href="/">Log in first →</a></p>
+  </div>
+  <div id="vault-content">
+    <h2>Add document</h2>
+    <label>Proof Manifest ID <input type="text" id="proof-id" placeholder="manifest-id" style="width:100%"/></label>
+    <label>Label <input type="text" id="label" placeholder="My residence certificate" style="width:100%"/></label>
+    <button id="add-btn" style="margin-top:0.5rem">Add to vault</button>
+    <p id="add-error" style="color:red;display:none"></p>
+    <h2 style="margin-top:1.5rem">Vault documents</h2>
+    <div id="docs-list"><p class="muted">Loading…</p></div>
+  </div>
+</section>
+<script is:inline>
+const API = window.__API_URL;
+const session = JSON.parse(sessionStorage.getItem('vault_session') || 'null');
+if (!session?.token) {
+  document.getElementById('auth-required').style.display = 'block';
+  document.getElementById('vault-content').style.display = 'none';
+} else {
+  const headers = { 'content-type': 'application/json', 'authorization': 'Bearer ' + session.token };
+  async function loadDocs() {
+    try {
+      const r = await fetch(API + '/api/v1/vault/documents', { headers });
+      if (!r.ok) throw new Error('Failed to load');
+      const body = await r.json();
+      const items = body.items || [];
+      if (!items.length) {
+        document.getElementById('docs-list').innerHTML = '<p class="muted">No documents yet.</p>';
+        return;
+      }
+      document.getElementById('docs-list').innerHTML = '<table><thead><tr><th>Label</th><th>Proof Manifest</th><th>Issuer</th><th>Status</th><th>Added</th></tr></thead><tbody>' +
+        items.map(d => '<tr><td>' + (d.label||'') + '</td><td>' + (d.proofManifestId||'—') + '</td><td>' + (d.proof?.issuerName||'—') + '</td><td>' + (d.proof?.registryStatus||'—') + '</td><td>' + (d.addedAt||'') + '</td></tr>').join('') +
+        '</tbody></table>';
+    } catch (e) {
+      document.getElementById('docs-list').innerHTML = '<p style="color:red">' + e.message + '</p>';
+    }
+  }
+  loadDocs();
+  document.getElementById('add-btn').onclick = async () => {
+    const proofManifestId = document.getElementById('proof-id').value.trim();
+    const label = document.getElementById('label').value.trim();
+    if (!label) return;
+    document.getElementById('add-error').style.display = 'none';
+    try {
+      const r = await fetch(API + '/api/v1/vault/documents', {
+        method: 'POST', headers,
+        body: JSON.stringify({ proofManifestId: proofManifestId || undefined, label }),
+      });
+      if (!r.ok) { const b = await r.json(); throw new Error(b.error || 'Failed'); }
+      document.getElementById('proof-id').value = '';
+      document.getElementById('label').value = '';
+      loadDocs();
+    } catch (e) {
+      document.getElementById('add-error').textContent = e.message;
+      document.getElementById('add-error').style.display = 'block';
+    }
+  };
+}
+</script>
+</Base>

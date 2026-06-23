@@ -1,4 +1,39 @@
 ---
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Document verifier"><h1>Document verifier</h1><p>v1 demo route implementing the Polis Interface public contract for document verifier.</p><pre>{JSON.stringify({reviewState:'under_review', visibility:'public', mockExternals:true}, null, 2)}</pre></Base>
+<Base title="Verify a proof">
+<section class="panel">
+  <h1>Verify a proof</h1>
+  <p class="muted">Enter a grant ID to verify a proof shared with you. §30.9: grantee can verify within scope; proof-only grants never disclose document bytes.</p>
+  <label>Grant ID <input type="text" id="grant-id" placeholder="ag-..." style="width:100%"/></label>
+  <button id="verify-btn" style="margin-top:0.5rem">Verify</button>
+  <div id="result" style="display:none;margin-top:1rem">
+    <h2>Verification result</h2>
+    <pre id="verdict-json" style="background:#f5f5f5;padding:1rem;overflow-x:auto"></pre>
+  </div>
+  <p id="verify-error" style="color:red;display:none"></p>
+</section>
+<script is:inline>
+const API = window.__API_URL;
+document.getElementById('verify-btn').onclick = async () => {
+  const grantId = document.getElementById('grant-id').value.trim();
+  if (!grantId) return;
+  document.getElementById('verify-error').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  try {
+    const r = await fetch(API + '/api/v1/vault/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ grantId }),
+    });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || 'Verification failed');
+    document.getElementById('verdict-json').textContent = JSON.stringify(body, null, 2);
+    document.getElementById('result').style.display = 'block';
+  } catch (e) {
+    document.getElementById('verify-error').textContent = e.message;
+    document.getElementById('verify-error').style.display = 'block';
+  }
+};
+</script>
+</Base>

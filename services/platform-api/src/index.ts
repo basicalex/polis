@@ -97,6 +97,74 @@ const proofVerifyPaths = [
   '/api/v1/verify/hash',
   '/api/v1/verify/manifest',
 ] as const;
+/**
+ * Verify a session token against citizen-identity-service. Returns the
+ * citizenId on success, or null on any failure. Called by requireCitizen.
+ */
+async function verifySession(sessionToken: string): Promise<string | null> {
+  const base = process.env.IDENTITY_INTERNAL_URL ?? 'http://localhost:8650';
+  try {
+    const r = await fetch(base + '/internal/identity/verify-session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionToken }),
+    });
+    if (!r.ok) return null;
+    const body = (await r.json()) as { citizenId?: string };
+    return typeof body.citizenId === 'string' ? body.citizenId : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the session token from Authorization header, verify with identity-service,
+ * and return the citizenId. Returns null if unauthenticated (handler should 401).
+ */
+async function requireCitizen(req: IncomingMessage): Promise<string | null> {
+  const auth = req.headers['authorization'];
+  if (typeof auth !== 'string') return null;
+  const [scheme, token] = auth.split(' ', 2);
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+  return verifySession(token);
+}
+
+/**
+ * Proxy to an explicit internal path with X-Polis-Citizen header injected.
+ * Maps BFF public paths to service internal paths (e.g. /api/v1/vault/...
+ * → /internal/vault/...). The removed proxyWithCitizen used same-path and
+ * would 404 since services serve /internal/*.
+ */
+async function proxyToPathWithCitizen(
+  base: string,
+  method: string,
+  internalPath: string,
+  citizenId: string,
+  body?: unknown,
+): Promise<unknown> {
+  try {
+    const hasBody = method !== 'GET' && body !== undefined;
+    const upstream = await fetch(base + internalPath, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        'x-polis-citizen': citizenId,
+      },
+      body: hasBody ? JSON.stringify(body) : undefined,
+    });
+    if (!upstream.ok) {
+      return result(
+        upstream.status,
+        await upstream.json().catch(() => ({ error: 'upstream_error' })),
+      );
+    }
+    return result(upstream.status, await upstream.json());
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown';
+    return result(502, { error: 'bad_gateway', detail: message });
+  }
+}
+
 export function platformRoutes(): Route[] {
   const graphBase = process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100';
   const auditBase = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
@@ -105,6 +173,9 @@ export function platformRoutes(): Route[] {
   const aiBase = process.env.AI_INTERNAL_URL ?? 'http://localhost:8550';
   const contributionBase = process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450';
   const rewardsBase = process.env.REWARDS_INTERNAL_URL ?? 'http://localhost:8460';
+  const identityBase = process.env.IDENTITY_INTERNAL_URL ?? 'http://localhost:8650';
+  const vaultBase = process.env.VAULT_INTERNAL_URL ?? 'http://localhost:8750';
+  const vcIssuerBase = process.env.VC_ISSUER_INTERNAL_URL ?? 'http://localhost:8950';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -207,6 +278,102 @@ export function platformRoutes(): Route[] {
       method: 'GET',
       path: '/api/v1/rewards/public-ledger',
       handler: async (req: IncomingMessage, body: unknown) => proxyTo(rewardsBase, req, body),
+    },
+    // §30.9 / §21 public identity routes — login (no citizen session required).
+    // Map /api/v1/identity/* → /internal/identity/* on identity-service.
+    {
+      method: 'POST',
+      path: '/api/v1/identity/magic-link',
+      handler: async (_req: IncomingMessage, body: unknown) =>
+        proxyToPath(identityBase, 'POST', '/internal/identity/magic-link', body),
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/identity/exchange',
+      handler: async (_req: IncomingMessage, body: unknown) =>
+        proxyToPath(identityBase, 'POST', '/internal/identity/exchange', body),
+    },
+    // Dev-only: surface magic tokens so the vault UI + acceptance can complete
+    // login without SMTP. Gated by IDENTITY_DEV_TOKENS on identity-service (404 otherwise).
+    {
+      method: 'GET',
+      path: '/api/v1/identity/dev-tokens',
+      handler: async () => proxyToPath(identityBase, 'GET', '/internal/identity/dev-tokens'),
+    },
+    // §30.9 / §16 public-authenticated vault routes (requireCitizen → X-Polis-Citizen).
+    // Map /api/v1/vault/* → /internal/vault/* on vault-service.
+    {
+      method: 'GET',
+      path: '/api/v1/vault/documents',
+      handler: async (req: IncomingMessage, _body: unknown) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(vaultBase, 'GET', '/internal/vault/documents', citizenId);
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/vault/documents',
+      handler: async (req: IncomingMessage, body: unknown) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          vaultBase,
+          'POST',
+          '/internal/vault/documents',
+          citizenId,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/vault/grants',
+      handler: async (req: IncomingMessage, body: unknown) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(vaultBase, 'POST', '/internal/vault/grants', citizenId, body);
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/api/v1/vault/grants/:id',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          vaultBase,
+          'DELETE',
+          '/internal/vault/grants/' + params.id,
+          citizenId,
+          body,
+        );
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/vault/access-events',
+      handler: async (req: IncomingMessage, _body: unknown) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(vaultBase, 'GET', '/internal/vault/access-events', citizenId);
+      },
+    },
+    // §30.9 grantee verify — grant-scoped, no citizen session (grant IS the credential).
+    // Map /api/v1/vault/verify → /internal/vault/verify on vault-service.
+    {
+      method: 'POST',
+      path: '/api/v1/vault/verify',
+      handler: async (_req: IncomingMessage, body: unknown) =>
+        proxyToPath(vaultBase, 'POST', '/internal/vault/verify', body),
+    },
+    // §15 VC lookup — public (grantee presents a VC; verifier checks the VC).
+    // Map /api/v1/vc/:id → /internal/vc/:id on vc-issuer-service.
+    {
+      method: 'GET',
+      path: '/api/v1/vc/:id',
+      handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
+        proxyToPath(vcIssuerBase, 'GET', '/internal/vc/' + params.id),
     },
   ];
 }

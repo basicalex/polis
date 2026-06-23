@@ -161,6 +161,17 @@ export const GRAPH_PROPOSAL_OPS = ['insert', 'update', 'delete'] as const;
 export const REVIEW_DECISIONS = ['approved', 'rejected'] as const;
 export const REWARD_ELIGIBILITY_OUTCOMES = ['eligible', 'denied'] as const;
 export const PAYOUT_STATUSES = ['pending', 'paid'] as const;
+export const IDENTITY_AUTH_LEVELS = ['verified_resident', 'verified_official'] as const; // §21.1 vault-eligible tiers (v1)
+export const ACCESS_GRANT_SCOPES = [
+  'proof_only',
+  'metadata',
+  'redacted_content',
+  'full_content',
+  'vc_presentation',
+] as const;
+export const ACCESS_GRANT_STATUSES = ['active', 'expired', 'revoked', 'pending'] as const;
+export const ACCESS_EVENT_TYPES = ['grant', 'access', 'revoke'] as const;
+export const VC_STATUSES = ['active', 'expired', 'revoked'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -902,6 +913,101 @@ export const rewardPayouts = pgTable(
     enumCheck('ck_reward_payouts_status', 'status', PAYOUT_STATUSES),
   ],
 );
+
+// §21 persistent citizen identity (M8 Option A). Email is the login handle;
+// passcodeHash is a bcrypt-style hash; magic-link tokens are single-use and
+// hashed at rest. identityLevel mirrors the §21.1 'verified_resident' tier
+// required for vault access.
+export const citizens = pgTable(
+  'citizens',
+  {
+    id: pkId(),
+    email: text('email').notNull(),
+    displayName: text('display_name').notNull(),
+    identityLevel: text('identity_level').notNull().default('verified_resident'),
+    passcodeHash: text('passcode_hash'), // null until passcode set
+    magicTokenHash: text('magic_token_hash'), // single-use; null when consumed
+    magicTokenExpiresAt: timestamp('magic_token_expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('citizens_email_idx').on(t.email),
+    enumCheck('ck_citizens_identity', 'identity_level', IDENTITY_AUTH_LEVELS),
+  ],
+);
+
+// §16.2 citizen's listing of their own official documents/proofs.
+export const vaultDocuments = pgTable(
+  'vault_documents',
+  {
+    id: pkId(),
+    citizenId: text('citizen_id').notNull(),
+    documentId: text('document_id'), // soft FK documents.id
+    proofManifestId: text('proof_manifest_id'), // soft FK proof_manifests.id
+    label: text('label').notNull(),
+    addedAt: timestamp('added_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('vault_documents_citizen_idx').on(t.citizenId)],
+);
+
+// §16.3 access grant. grantee {type,id,name?} stored as jsonb (mirrors AccessGrant).
+export const accessGrants = pgTable(
+  'access_grants',
+  {
+    id: pkId(),
+    granterId: text('granter_id').notNull(), // citizens.id of the owner
+    grantee: jsonb('grantee').notNull(), // { type, id, name? }
+    purpose: text('purpose').notNull(), // §16.4 purpose-limitation mandatory
+    scope: text('scope').notNull(),
+    vaultDocumentId: text('vault_document_id'), // null = all owner docs (scoped at verify)
+    startsAt: timestamp('starts_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    status: text('status').notNull().default('active'),
+    policyRef: text('policy_ref'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('access_grants_granter_idx').on(t.granterId),
+    index('access_grants_grantee_idx').on(t.grantee),
+    enumCheck('ck_access_grants_scope', 'scope', ACCESS_GRANT_SCOPES),
+    enumCheck('ck_access_grants_status', 'status', ACCESS_GRANT_STATUSES),
+  ],
+);
+
+// §16.4 access audit — visible to the citizen (who/what/when/why).
+export const accessEvents = pgTable(
+  'access_events',
+  {
+    id: pkId(),
+    grantId: text('grant_id').notNull(),
+    event: text('event').notNull(),
+    actorId: text('actor_id').notNull(),
+    at: timestamp('at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('access_events_grant_idx').on(t.grantId),
+    enumCheck('ck_access_events_event', 'event', ACCESS_EVENT_TYPES),
+  ],
+);
+
+// §15 proof-only sharing VC. vc jsonb is a test-key-signed presentation (v1);
+// NEVER carries document content — only proof manifest refs + a verdict.
+export const verifiableCredentials = pgTable(
+  'verifiable_credentials',
+  {
+    id: pkId(),
+    grantId: text('grant_id').notNull(),
+    vc: jsonb('vc').notNull(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    status: text('status').notNull().default('active'),
+  },
+  (t) => [
+    index('verifiable_credentials_grant_idx').on(t.grantId),
+    enumCheck('ck_vc_status', 'status', VC_STATUSES),
+  ],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -946,4 +1052,9 @@ export const schema = {
   reviews,
   rewardEligibilityEvents,
   rewardPayouts,
+  citizens,
+  vaultDocuments,
+  accessGrants,
+  accessEvents,
+  verifiableCredentials,
 };

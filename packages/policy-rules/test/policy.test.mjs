@@ -64,6 +64,69 @@ test('rewards grants eligible for approved civic effort under cap; denies draft 
   );
 });
 
+test('vault access allows active, started, unexpired, unrevoked grant', () => {
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { status: 'active', revoked_at: null, starts_at: 0, expires_at: null }, now: 100 },
+      'data.polis.vault.allow',
+    ),
+    true,
+  );
+});
+
+test('vault access denies future-dated grant (starts_at > now)', () => {
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { status: 'active', revoked_at: null, starts_at: 200, expires_at: null }, now: 100 },
+      'data.polis.vault.allow',
+    ),
+    false,
+  );
+});
+
+test('vault access denies expired grant', () => {
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { status: 'active', revoked_at: null, starts_at: 0, expires_at: 50 }, now: 100 },
+      'data.polis.vault.allow',
+    ),
+    false,
+  );
+});
+
+test('vault access denies revoked grant', () => {
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { status: 'active', revoked_at: 50, starts_at: 0, expires_at: null }, now: 100 },
+      'data.polis.vault.allow',
+    ),
+    false,
+  );
+});
+
+test('vault proof_only scope reports no_bytes guard', () => {
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { scope: 'proof_only' } },
+      'data.polis.vault.proof_only_no_bytes',
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'vault/access.rego',
+      { grant: { scope: 'full_content' } },
+      'data.polis.vault.proof_only_no_bytes',
+    ),
+    false,
+  );
+});
+
 test('access allows the owner', () => {
   assert.equal(
     opaEval('access/access.rego', { subject: 'u1', owner: 'u1' }, 'data.polis.access.allow'),
