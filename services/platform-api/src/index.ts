@@ -104,6 +104,7 @@ export function platformRoutes(): Route[] {
   const proofBase = process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700';
   const aiBase = process.env.AI_INTERNAL_URL ?? 'http://localhost:8550';
   const contributionBase = process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450';
+  const rewardsBase = process.env.REWARDS_INTERNAL_URL ?? 'http://localhost:8460';
 
   return [
     ...operationalRoutes('platform-api'),
@@ -193,6 +194,19 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/review/:id/decide',
       handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
         proxyToPath(contributionBase, 'POST', '/internal/review/' + params.id + '/decide', body),
+    },
+    // §30.8 public rewards routes — same-path proxy (rewards-service serves these paths).
+    // Payout details stay private: NO public /api/v1/rewards/payouts* route exists
+    // (acceptance: GET /api/v1/rewards/payouts via BFF → 404).
+    {
+      method: 'GET',
+      path: '/api/v1/rewards/rules',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(rewardsBase, req, body),
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/rewards/public-ledger',
+      handler: async (req: IncomingMessage, body: unknown) => proxyTo(rewardsBase, req, body),
     },
   ];
 }

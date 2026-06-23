@@ -10,6 +10,7 @@ const services = [
   { name: 'canonicalization-service', filter: '@polis/canonicalization-service', port: 8500 },
   { name: 'proof-service', filter: '@polis/proof-service', port: 8700 },
   { name: 'document-ingestion-gateway', filter: '@polis/document-ingestion-gateway', port: 8400 },
+  { name: 'rewards-service', filter: '@polis/rewards-service', port: 8460 },
   { name: 'contribution-service', filter: '@polis/contribution-service', port: 8450 },
   { name: 'platform-api', filter: '@polis/platform-api', port: 8080 },
 ];
@@ -67,6 +68,7 @@ for (const svc of services) {
         process.env.CANONICALIZATION_INTERNAL_URL ?? 'http://localhost:8500',
       PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
       CONTRIBUTION_INTERNAL_URL: process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450',
+      REWARDS_INTERNAL_URL: process.env.REWARDS_INTERNAL_URL ?? 'http://localhost:8460',
       PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',
     },
   });

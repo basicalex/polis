@@ -1,4 +1,110 @@
 ---
 import Base from '../layouts/Base.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+
+type RewardRules = {
+  monthlyCap: number;
+  amountPerEligibility: number;
+  unit: string;
+  politicalAgreementRewardable: boolean;
+  rewardableActions: string[];
+  forbiddenActions: string[];
+  policy: string;
+};
+
+type LedgerItem = {
+  period: string;
+  contributionClass: string;
+  count: number;
+  totalAmount: string;
+};
+
+let rules: RewardRules | null = null;
+let ledger: LedgerItem[] = [];
+let apiDown = false;
+
+try {
+  const [rulesRes, ledgerRes] = await Promise.all([
+    fetch(`${API}/api/v1/rewards/rules`),
+    fetch(`${API}/api/v1/rewards/public-ledger`),
+  ]);
+  if (rulesRes.ok) rules = (await rulesRes.json()) as RewardRules;
+  if (ledgerRes.ok) {
+    const body = (await ledgerRes.json()) as { items: LedgerItem[] };
+    ledger = body.items ?? [];
+  }
+} catch {
+  apiDown = true;
+}
 ---
-<Base title="Rewards"><section class="panel"><h1>Rewards</h1><p>Lands in M7: reward rules will publish civic participation eligibility without rewarding agreement.</p></section></Base>
+
+<Base title="Rewards">
+  <section class="panel">
+    <h1>Rewards</h1>
+    <p class="muted">
+      Civic rewards (§30.8): approved non-political contributions make a contributor
+      reward-eligible. Political agreements are never rewardable (ADR-007: reward effort,
+      not outcome). The aggregate ledger below is public and contains no personal data;
+      payout details are private.
+    </p>
+
+    {apiDown && (
+      <p class="badge badge-warning">Rewards service unavailable — showing cached rules only.</p>
+    )}
+
+    {rules && (
+      <div>
+        <h2>Rules</h2>
+        <dl class="kv">
+          <dt>Amount per eligible contribution</dt>
+          <dd>{rules.amountPerEligibility} {rules.unit}</dd>
+          <dt>Monthly cap per contributor</dt>
+          <dd>{rules.monthlyCap} eligible events</dd>
+          <dt>Policy</dt>
+          <dd>{rules.policy}</dd>
+          <dt>Rewardable contributions</dt>
+          <dd>{rules.rewardableActions.join(', ')}</dd>
+          <dt>Never rewardable</dt>
+          <dd>{rules.forbiddenActions.join(', ')}</dd>
+          <dt>Political agreement rewardable</dt>
+          <dd>
+            {rules.politicalAgreementRewardable ? 'yes' : 'no — effort, not outcome'}
+          </dd>
+        </dl>
+      </div>
+    )}
+
+    <div>
+      <h2>Public aggregate ledger</h2>
+      <p class="muted">
+        Funding by category and period. Totals are in credits. No contributor or payout
+        detail appears here.
+      </p>
+      {ledger.length === 0 ? (
+        <p class="muted">No eligible rewards recorded yet.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Category</th>
+              <th>Count</th>
+              <th>Total (credits)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger.map((row) => (
+              <tr>
+                <td>{row.period}</td>
+                <td>{row.contributionClass}</td>
+                <td>{row.count}</td>
+                <td>{row.totalAmount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </section>
+</Base>

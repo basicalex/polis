@@ -26,22 +26,22 @@ function opaEval(regoRel, input, query) {
   return parsed?.result?.[0]?.expressions?.[0]?.value;
 }
 
-test('rewards denies political_agreement even when approved (ADR-007)', () => {
+test('rewards denies political_agreement even when approved + under cap (ADR-007)', () => {
   assert.equal(
     opaEval(
       'rewards/rewards.rego',
-      { action: 'political_agreement', review_state: 'approved' },
+      { action: 'political_agreement', review_state: 'approved', period_total: 0, monthly_cap: 5 },
       'data.polis.rewards.eligible',
     ),
     false,
   );
 });
 
-test('rewards grants eligible for approved civic effort', () => {
+test('rewards grants eligible for approved civic effort under cap; denies draft + over-cap', () => {
   assert.equal(
     opaEval(
       'rewards/rewards.rego',
-      { action: 'evidence', review_state: 'approved' },
+      { action: 'evidence', review_state: 'approved', period_total: 0, monthly_cap: 5 },
       'data.polis.rewards.eligible',
     ),
     true,
@@ -49,7 +49,15 @@ test('rewards grants eligible for approved civic effort', () => {
   assert.equal(
     opaEval(
       'rewards/rewards.rego',
-      { action: 'evidence', review_state: 'draft' },
+      { action: 'evidence', review_state: 'draft', period_total: 0, monthly_cap: 5 },
+      'data.polis.rewards.eligible',
+    ),
+    false,
+  );
+  assert.equal(
+    opaEval(
+      'rewards/rewards.rego',
+      { action: 'evidence', review_state: 'approved', period_total: 5, monthly_cap: 5 },
       'data.polis.rewards.eligible',
     ),
     false,

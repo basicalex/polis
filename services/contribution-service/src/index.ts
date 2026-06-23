@@ -95,6 +95,41 @@ async function emitAudit(event: {
 }
 
 /**
+ * Best-effort reward-eligibility emit. On approval of a non-political
+ * contribution, POST the submission to rewards-service which evaluates the
+ * §20.4 eligibility policy (ADR-007 + monthly cap). Failures (rewards-service
+ * unreachable) are logged and never fail the originating approval — matches
+ * emitAudit. Eligibility is reconciled by re-POSTing the submission to the
+ * idempotent endpoint (dedupes on submission_id).
+ */
+async function emitRewardEligibility(input: {
+  submissionId: string;
+  contributorId: string;
+  contributionClass: string;
+}): Promise<void> {
+  const base = process.env.REWARDS_INTERNAL_URL ?? 'http://localhost:8460';
+  try {
+    await fetch(base + '/internal/rewards/eligibility', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        submissionId: input.submissionId,
+        contributorId: input.contributorId,
+        contributionClass: input.contributionClass,
+      }),
+    });
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        service: 'contribution-service',
+        stage: 'reward-eligibility-emit',
+        warning: err instanceof Error ? err.message : 'unknown',
+      }),
+    );
+  }
+}
+
+/**
  * Apply an approved (non-political) submission to the shared governance graph
  * so it is publicly readable. Returns whether the application succeeded; a
  * failure is logged + audited and never propagates (the review decision is
@@ -505,6 +540,13 @@ export function contributionRoutes(db: DbClient): Route[] {
             target: { type: 'contribution', id: params.id },
             data: { reviewerId: input.reviewerId, applied },
           });
+          if (sub.contributionClass !== 'political_agreement') {
+            await emitRewardEligibility({
+              submissionId: params.id,
+              contributorId: sub.contributorId,
+              contributionClass: sub.contributionClass,
+            });
+          }
         } else {
           await emitAudit({
             eventType: 'contribution.rejected',

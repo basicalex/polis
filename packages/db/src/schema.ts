@@ -159,6 +159,8 @@ export const SUBMISSION_TYPES = ['evidence', 'graph_edit', 'claim'] as const;
 export const SUBMISSION_STATUSES = ['pending', 'in_review', 'approved', 'rejected'] as const;
 export const GRAPH_PROPOSAL_OPS = ['insert', 'update', 'delete'] as const;
 export const REVIEW_DECISIONS = ['approved', 'rejected'] as const;
+export const REWARD_ELIGIBILITY_OUTCOMES = ['eligible', 'denied'] as const;
+export const PAYOUT_STATUSES = ['pending', 'paid'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -855,6 +857,51 @@ export const reviews = pgTable(
     enumCheck('ck_reviews_decision', 'decision', REVIEW_DECISIONS),
   ],
 );
+
+// §20.4 reward eligibility event — one row per evaluated approved contribution.
+// Idempotent on submission_id (unique). 'denied' rows (cap hit) are kept for the
+// §20.5 appeal path; only 'eligible' rows feed the public aggregate ledger.
+export const rewardEligibilityEvents = pgTable(
+  'reward_eligibility_events',
+  {
+    id: pkId(),
+    submissionId: text('submission_id').notNull(),
+    contributorId: text('contributor_id').notNull(),
+    contributionClass: text('contribution_class').notNull(),
+    period: text('period').notNull(), // 'YYYY-MM' (UTC) — cap + ledger grouping
+    amount: numeric('amount').notNull(), // drizzle numeric → string at rest
+    outcome: text('outcome').notNull(),
+    denialReason: text('denial_reason'), // null when eligible; 'monthly_cap_reached' when denied
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('reward_elig_submission_idx').on(t.submissionId),
+    index('reward_elig_contributor_period_idx').on(t.contributorId, t.period),
+    enumCheck('ck_reward_elig_outcome', 'outcome', REWARD_ELIGIBILITY_OUTCOMES),
+  ],
+);
+
+// §20.4 private payout row — created 1:1 with each eligible event, pending until
+// exported. NEVER exposed via a public route (acceptance: payout details private).
+export const rewardPayouts = pgTable(
+  'reward_payouts',
+  {
+    id: pkId(),
+    eligibilityId: text('eligibility_id').notNull(),
+    contributorId: text('contributor_id').notNull(),
+    amount: numeric('amount').notNull(),
+    period: text('period').notNull(),
+    status: text('status').notNull().default('pending'),
+    payoutRef: text('payout_ref'), // set at export, e.g. 'payout-<ms>'
+    exportedAt: timestamp('exported_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('reward_payouts_contributor_idx').on(t.contributorId),
+    index('reward_payouts_status_idx').on(t.status),
+    enumCheck('ck_reward_payouts_status', 'status', PAYOUT_STATUSES),
+  ],
+);
 export const schema = {
   appMeta,
   jurisdictions,
@@ -897,4 +944,6 @@ export const schema = {
   submissions,
   graphProposals,
   reviews,
+  rewardEligibilityEvents,
+  rewardPayouts,
 };

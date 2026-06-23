@@ -264,10 +264,37 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
+      REWARDS_INTERNAL_URL: http://rewards-service:8460
     ports:
       - '8450:8450'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8450/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  rewards-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: rewards-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    ports:
+      - '8460:8460'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8460/healthz']
       interval: 10s
       timeout: 3s
       retries: 10
@@ -294,6 +321,8 @@ services:
         condition: service_healthy
       contribution-service:
         condition: service_healthy
+      rewards-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
@@ -304,6 +333,7 @@ services:
       PROOF_INTERNAL_URL: http://proof-service:8700
       AI_INTERNAL_URL: http://ai-gateway:8550
       CONTRIBUTION_INTERNAL_URL: http://contribution-service:8450
+      REWARDS_INTERNAL_URL: http://rewards-service:8460
       GIT_SHA: ${GIT_SHA:-dev}
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}
