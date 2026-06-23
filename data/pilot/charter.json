@@ -1,0 +1,36 @@
+{
+  "partner": "Grad Primjer Municipality",
+  "jurisdiction": "jur-croatia-local",
+  "jurisdictionName": "Grad Primjer, Croatia",
+  "purpose": "Test municipal document-requirement-map, public verifier, and Polis deliberation for duplicate document handoff reduction.",
+  "scope": "One civic issue (complaints process document duplication), one Polis deliberation conversation, one public document proof.",
+  "sunsetDate": "2026-09-21T00:00:00.000Z",
+  "successMetrics": [
+    "≥1 deliberation with ≥5 participant comments",
+    "≥1 document proof verified",
+    "Results report published",
+    "Redaction audit trail non-empty if redactions applied"
+  ],
+  "redactionPolicy": "Only pre-agreed privacy/security redactions. All redactions logged as audit events (eventType: pilot.result.redacted) with reason and authorizing authority. Partner cannot unilaterally delete results.",
+  "implementationStatus": {
+    "mocked": [
+      "Paperless-ngx (stub)",
+      "Upstream Polis (stub)",
+      "Keycloak/OIDC (dev tokens)",
+      "AI providers (deterministic RAG)",
+      "Payment rails (manual export)",
+      "RFC3161 timestamping (stub)",
+      "Signing (test-key)"
+    ],
+    "live": [
+      "Governance graph",
+      "Audit trail",
+      "Document proof registry",
+      "Citizen identity (local DB)",
+      "Citizen vault",
+      "Contribution/review",
+      "Rewards eligibility"
+    ]
+  },
+  "exitPlan": "At sunset: archive all data, preserve public pages and audit trail as immutable record, export deliberation results, transfer any partner-specific data per agreement."
+}

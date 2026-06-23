@@ -290,3 +290,36 @@ test('contribute auto_publish blocks political_agreement even when approved (M6 
     false,
   );
 });
+
+test('pilot redaction denies missing reason (M9 §30.10)', () => {
+  assert.equal(
+    opaEval(
+      'pilot/redaction.rego',
+      { action: 'redact', reason: '', actor_authority: 'project_governance' },
+      'data.polis.pilot.allow_redaction',
+    ),
+    false,
+  );
+});
+
+test('pilot redaction denies partner-alone request (M9 §30.10)', () => {
+  assert.equal(
+    opaEval(
+      'pilot/redaction.rego',
+      { action: 'redact', reason: 'privacy', actor_authority: 'partner' },
+      'data.polis.pilot.allow_redaction',
+    ),
+    false,
+  );
+});
+
+test('pilot redaction allows project governance with reason (M9 §30.10)', () => {
+  assert.equal(
+    opaEval(
+      'pilot/redaction.rego',
+      { action: 'redact', reason: 'personal data in screenshot', actor_authority: 'project_governance' },
+      'data.polis.pilot.allow_redaction',
+    ),
+    true,
+  );
+});

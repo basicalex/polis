@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+
+type Results = {
+  pilotId: string;
+  period: string;
+  publishedAt: string;
+  metrics: Record<string, number>;
+  outcomes: string[];
+  methodology: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+const results = (await fetchJson('/api/v1/pilot/results')) as Results | null;
+---
+
+<Base title="Pilot Results">
+  <section class="stack">
+    <p class="badge">§30.10 Results</p>
+    <h1>Pilot Results — {results?.period ?? 'N/A'}</h1>
+    <p class="muted">Published {results?.publishedAt ? new Date(results.publishedAt).toLocaleDateString() : 'N/A'}</p>
+  </section>
+  {results && (
+    <>
+      <section class="stack">
+        <h2>Metrics</h2>
+        <table>
+          <tbody>
+            {Object.entries(results.metrics).map(([key, val]) => (
+              <tr><td>{key}</td><td>{val}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <section class="stack">
+        <h2>Outcomes</h2>
+        <ul>{results.outcomes.map((o) => <li>{o}</li>)}</ul>
+      </section>
+      <section class="stack">
+        <h2>Methodology</h2>
+        <p>{results.methodology}</p>
+      </section>
+    </>
+  )}
+  <section class="stack">
+    <p><a href="/partners">View charter</a> · <a href="/issues">Live issue map</a></p>
+  </section>
+</Base>

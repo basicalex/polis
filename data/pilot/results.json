@@ -1,0 +1,20 @@
+{
+  "pilotId": "grad-primjer-2026",
+  "period": "2026-Q3",
+  "publishedAt": "2026-06-23T00:00:00.000Z",
+  "metrics": {
+    "deliberationParticipantCount": 87,
+    "consensusGroupsFound": 1,
+    "documentProofsVerified": 2,
+    "issuesDeliberated": 1,
+    "contributionsApproved": 4,
+    "redactionsApplied": 0
+  },
+  "outcomes": [
+    "Identified 2 duplicate document handoffs in complaints process",
+    "Polis deliberation found consensus on eliminating residence-proof resubmission (87 participants, 1 cluster)",
+    "2 public government records cryptographically verified via SHA-256 manifest + test-key signature",
+    "No redactions required; full transparency maintained"
+  ],
+  "methodology": "Outcomes measured against charter success criteria. Deliberation via Polis stub (POLIS_MODE=stub). Document proofs via SHA-256 manifest + test-key signature (proof.type=Ed25519Signature2018). All actions audit-logged via append-only hash chain. Participant count from conversation_results.participant_count seed data."
+}

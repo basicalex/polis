@@ -5,10 +5,13 @@
  * proof-hash verifier until the dedicated verifier service arrives.
  */
 import type { IncomingMessage } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import { runMigrationsOnce } from '@polis/db';
 import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
+const repoRoot = resolve(import.meta.dirname, '../../..');
 async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Promise<unknown> {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -374,6 +377,23 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/vc/:id',
       handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
         proxyToPath(vcIssuerBase, 'GET', '/internal/vc/' + params.id),
+    },
+    // M9 — pilot charter + results (static JSON files, no upstream service).
+    {
+      method: 'GET',
+      path: '/api/v1/pilot/charter',
+      handler: async () => {
+        const raw = await readFile(resolve(repoRoot, 'data/pilot/charter.json'), 'utf8');
+        return result(200, JSON.parse(raw));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/pilot/results',
+      handler: async () => {
+        const raw = await readFile(resolve(repoRoot, 'data/pilot/results.json'), 'utf8');
+        return result(200, JSON.parse(raw));
+      },
     },
   ];
 }

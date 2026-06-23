@@ -344,6 +344,7 @@ Each plan ends with an **Acceptance** block mapped 1:1 to §30.x acceptance crit
 ---
 
 ## M9 — First public pilot (§30.10, §27, §28, §34)
+> **Status: Implemented (2026-06-23).** Simulated partner (Grad Primjer Municipality) over existing `jur-croatia-local` seed. Charter at `docs/pilot/charter.md`, data at `data/pilot/`. BFF routes: `GET /api/v1/pilot/charter`, `GET /api/v1/pilot/results`. Redaction governance: `packages/policy-rules/pilot/redaction.rego`. Acceptance: `scripts/phase9-acceptance.mjs`.
 
 **Goal:** A scoped, time-bound public pilot with a partner, a live issue map, deliberation, document proof or workflow simplification, and a public results report the partner cannot suppress beyond pre-agreed redactions.
 

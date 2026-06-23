@@ -4,11 +4,11 @@ import Base from '../layouts/Base.astro';
 
 <Base title="Polis Interface">
   <section class="hero stack">
-    <p class="badge">Governance map v0</p>
+    <p class="badge">Local v1 civic graph</p>
     <h1>Polis Interface</h1>
     <p>
-      A public, source-linked map of institutions, roles, processes, documents, failure modes, and audit trails.
-      Built dark, legible, and inspectable: the citizen carries authority; the system carries proof.
+      Local civic infrastructure for source-linked governance maps, public audit trails, and proof-oriented transition pilots.
+      Current build: seeded Postgres graph, public BFF, internal graph API, append-only audit service, and Astro app shells.
     </p>
     <p>
       <a href="/governance/jur-croatia-local">Enter the governance map</a> · <a href="/audit">Read the public audit trail</a> · <a href="/issues">Browse issues</a>
@@ -26,6 +26,10 @@ import Base from '../layouts/Base.astro';
     <article class="card">
       <h2>Audit</h2>
       <p class="muted">Public, redacted audit events expose actors, actions, hashes, and previous hashes.</p>
+    </article>
+    <article class="card">
+      <h2>Pilot</h2>
+      <p class="muted">Live municipal pilot with Grad Primjer. <a href="/partners">Charter</a> · <a href="/pilot/results">Results</a></p>
     </article>
   </section>
 </Base>

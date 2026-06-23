@@ -1,4 +1,57 @@
 ---
 import Base from '../layouts/Base.astro';
+
+type Charter = {
+  partner: string;
+  jurisdiction: string;
+  jurisdictionName: string;
+  purpose: string;
+  scope: string;
+  sunsetDate: string;
+  successMetrics: string[];
+  redactionPolicy: string;
+  implementationStatus: { mocked: string[]; live: string[] };
+  exitPlan: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+const charter = (await fetchJson('/api/v1/pilot/charter')) as Charter | null;
 ---
-<Base title="Partners"><section class="panel"><h1>Partners</h1><p>Lands in M9: pilot partner pages publish scope, sunset, metrics, and redaction rules.</p></section></Base>
+
+<Base title="Pilot Partners">
+  <section class="stack">
+    <p class="badge">§30.10 Pilot</p>
+    <h1>{charter?.partner ?? 'Partner'}</h1>
+    <p class="muted">{charter?.purpose ?? 'Pilot charter loading…'}</p>
+  </section>
+  {charter && (
+    <section class="stack">
+      <h2>Scope</h2>
+      <p>{charter.scope}</p>
+      <h2>Jurisdiction</h2>
+      <p>{charter.jurisdictionName}</p>
+      <h2>Sunset</h2>
+      <p>{new Date(charter.sunsetDate).toLocaleDateString()}</p>
+      <h2>Success Metrics</h2>
+      <ul>{charter.successMetrics.map((m) => <li>{m}</li>)}</ul>
+      <h2>Redaction Policy</h2>
+      <p>{charter.redactionPolicy}</p>
+      <h2>Implementation Status</h2>
+      <p><strong>Live:</strong> {charter.implementationStatus.live.join(', ')}</p>
+      <p><strong>Mocked:</strong> {charter.implementationStatus.mocked.join(', ')}</p>
+      <h2>Exit Plan</h2>
+      <p>{charter.exitPlan}</p>
+    </section>
+  )}
+  <section class="stack">
+    <p><a href="/pilot/results">View results report</a> · <a href="/issues">Live issue map</a></p>
+  </section>
+</Base>

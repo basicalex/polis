@@ -13,4 +13,6 @@ test('platform-api exposes §23 public edge routes without network calls', () =>
   assert.ok(paths.includes('GET /api/v1/claims'));
   assert.ok(paths.includes('GET /api/v1/audit/:objectType/:objectId'));
   assert.ok(paths.includes('POST /api/v1/verify/hash'));
+  assert.ok(paths.includes('GET /api/v1/pilot/charter'));
+  assert.ok(paths.includes('GET /api/v1/pilot/results'));
 });
