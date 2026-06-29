@@ -1,0 +1,115 @@
+---
+import Base from '../../layouts/Base.astro';
+import DemoBadge from '../../components/DemoBadge.astro';
+
+type StatusEvent = {
+  id: string;
+  status: string;
+  decidedBy: string | null;
+  decidedAt: string;
+};
+
+type ResolutionClaim = {
+  id: string;
+  text: string;
+  reviewState: string;
+};
+
+type Resolution = {
+  claim: ResolutionClaim;
+  evidence: { id: string; quote?: string; paraphrase?: string }[];
+} | null;
+
+type CommitmentDetail = {
+  id: string;
+  successCriterion: string;
+  dueAt: string | null;
+  effectiveStatus: string;
+  statusTimeline: StatusEvent[];
+  resolution: Resolution;
+} | null;
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const id = Astro.params.id ?? '';
+const commitment = (await fetchJson(`/api/v1/commitments/${encodeURIComponent(id)}`)) as CommitmentDetail | null;
+---
+
+<Base title={`Commitment · ${commitment?.id ?? id}`}>
+  {commitment ? (
+    <Fragment>
+      <section class="stack">
+        <DemoBadge label="accountability, not endorsement" />
+        <h1>Commitment</h1>
+        <p>{commitment.successCriterion}</p>
+        <p>
+          <span class="badge">{commitment.effectiveStatus}</span>
+          {commitment.dueAt && <span class="muted"> · due {commitment.dueAt}</span>}
+        </p>
+        <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
+      </section>
+
+      <section class="stack">
+        <h2>Status timeline</h2>
+        {commitment.statusTimeline.length > 0 ? (
+          <table class="data-table">
+            <thead>
+              <tr><th>Status</th><th>Decided by</th><th>Decided at</th></tr>
+            </thead>
+            <tbody>
+              {commitment.statusTimeline.map((event) => (
+                <tr>
+                  <td><span class="badge">{event.status}</span></td>
+                  <td>{event.decidedBy ?? '—'}</td>
+                  <td>{event.decidedAt}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p class="panel muted">No status events recorded.</p>
+        )}
+      </section>
+
+      <section class="stack">
+        <h2>Resolution evidence</h2>
+        {commitment.resolution ? (
+          <div class="card stack">
+            <p>{commitment.resolution.claim.text}</p>
+            <p><span class="badge">{commitment.resolution.claim.reviewState}</span></p>
+            {commitment.resolution.evidence.length > 0 && (
+              <ul>
+                {commitment.resolution.evidence.map((e) => (
+                  <li class="muted">{e.quote ?? e.paraphrase ?? e.id}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <p class="panel muted">No resolution evidence published (commitment not yet resolved).</p>
+        )}
+      </section>
+
+      <section class="stack">
+        <p class="muted">
+          <a href="/audit">audit trail</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
+        </p>
+      </section>
+    </Fragment>
+  ) : (
+    <section class="stack">
+      <h1>Commitment not found</h1>
+      <p class="panel muted">No commitment record for <code>{id}</code>.</p>
+      <p><a href="/mandate-holders">← mandate-holders</a></p>
+    </section>
+  )}
+</Base>

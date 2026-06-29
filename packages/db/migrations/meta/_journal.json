@@ -64,6 +64,13 @@
       "when": 1782210680668,
       "tag": "0008_citizen_vault_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782727584501,
+      "tag": "0009_mandate_holder_v0",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "charter-mh-demo",
+    "mandate_holder_id": "mh-demo",
+    "status": "accepted",
+    "charter_doc": {
+      "purpose": "demo",
+      "scope": "jur-croatia-local",
+      "data_categories": [],
+      "retention": "",
+      "review_roles": [],
+      "redaction_rules": []
+    }
+  }
+]

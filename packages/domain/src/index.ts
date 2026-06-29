@@ -354,3 +354,68 @@ export const demoClaims: Claim[] = [
     methodVersion: 'evidence-v1',
   },
 ];
+
+/* ------------------------------------------------------------------ */
+/* Representative accountability (M-RA) — public read wire types        */
+/* ------------------------------------------------------------------ */
+
+export type MandateHolderStatus = 'active' | 'ended' | 'revoked';
+export type CommitmentStatus =
+  | 'proposed'
+  | 'in_progress'
+  | 'delivered'
+  | 'partial'
+  | 'not_delivered'
+  | 'overdue';
+export type CharterStatus = 'pending' | 'accepted' | 'withdrawn';
+
+export type MandateHolder = {
+  id: string;
+  citizenId: string;
+  roleId: string | null;
+  jurisdictionId: string | null;
+  displayName: string;
+  startsAt: string;
+  endsAt: string | null;
+  status: MandateHolderStatus;
+  charterAccepted: boolean;
+};
+
+export type MandateHolderCharter = {
+  id: string;
+  mandateHolderId: string;
+  charterDoc: unknown | null;
+  status: CharterStatus;
+};
+
+export type Commitment = {
+  id: string;
+  claimId: string;
+  mandateHolderId: string;
+  processId: string | null;
+  jurisdictionId: string | null;
+  successCriterion: string;
+  dueAt: string | null;
+  effectiveStatus: CommitmentStatus;
+};
+
+export type CommitmentStatusEvent = {
+  id: string;
+  commitmentId: string;
+  status: CommitmentStatus;
+  resolutionClaimId: string | null;
+  decidedBy: string | null;
+  decidedAt: string;
+};
+
+export type CommitmentScorecard = {
+  mandateHolderId: string;
+  totals: {
+    delivered: number;
+    partial: number;
+    notDelivered: number;
+    inProgress: number;
+    proposed: number;
+    overdue: number;
+  };
+};

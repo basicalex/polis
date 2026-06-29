@@ -1,0 +1,7 @@
+---
+interface Props {
+  label?: string;
+}
+const { label = 'demonstration' } = Astro.props;
+---
+<span class="badge badge-warning">{label}</span>

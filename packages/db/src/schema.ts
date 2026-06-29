@@ -172,6 +172,16 @@ export const ACCESS_GRANT_SCOPES = [
 export const ACCESS_GRANT_STATUSES = ['active', 'expired', 'revoked', 'pending'] as const;
 export const ACCESS_EVENT_TYPES = ['grant', 'access', 'revoke'] as const;
 export const VC_STATUSES = ['active', 'expired', 'revoked'] as const;
+export const MANDATE_HOLDER_STATUSES = ['active', 'ended', 'revoked'] as const;
+export const COMMITMENT_STATUSES = [
+  'proposed',
+  'in_progress',
+  'delivered',
+  'partial',
+  'not_delivered',
+  'overdue',
+] as const;
+export const CHARTER_STATUSES = ['pending', 'accepted', 'withdrawn'] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -1008,8 +1018,102 @@ export const verifiableCredentials = pgTable(
     enumCheck('ck_vc_status', 'status', VC_STATUSES),
   ],
 );
+/* ------------------------------------------------------------------ */
+/* Representative accountability (M-RA) v0                              */
+/* ------------------------------------------------------------------ */
+
+// M-RA mandate-holder: binds a specific verified_official citizen to a role
+// + jurisdiction for a period. Distinct from `mandates` (legal-basis concept).
+// Inlines explicit audit columns + a constrained lifecycle `status` (does NOT
+// spread universal() — its generic `status` has no default/notNull).
+export const mandateHolders = pgTable(
+  'mandate_holders',
+  {
+    id: pkId(),
+    citizenId: text('citizen_id').notNull(),
+    roleId: text('role_id'),
+    jurisdictionId: text('jurisdiction_id'),
+    displayName: text('display_name').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: text('created_by_user_id'),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    enumCheck('ck_mandate_holders_status', 'status', MANDATE_HOLDER_STATUSES),
+    index('mandate_holders_citizen_idx').on(t.citizenId),
+    index('mandate_holders_jurisdiction_idx').on(t.jurisdictionId),
+  ],
+);
+
+// M-RA accepted charter: a mandate-holder must have an accepted charter before
+// publishing any commitment (enforced in representative/access.rego, Phase 2).
+// Inlines lifecycle `status` (pending|accepted|withdrawn) — same rationale as
+// mandate_holders.
+export const mandateHolderCharters = pgTable(
+  'mandate_holder_charters',
+  {
+    id: pkId(),
+    mandateHolderId: text('mandate_holder_id').notNull(),
+    charterDoc: jsonb('charter_doc'),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    enumCheck('ck_mandate_holder_charters_status', 'status', CHARTER_STATUSES),
+    index('mandate_holder_charters_holder_idx').on(t.mandateHolderId),
+  ],
+);
+
+// M-RA commitment: a pledge bound to a promise claim. Effective status is
+// derived from commitment_status_events (latest-row-wins), never stored here,
+// so it spreads universal() like claims (generic status unused for lifecycle).
+export const commitments = pgTable(
+  'commitments',
+  {
+    id: pkId(),
+    claimId: text('claim_id').notNull(),
+    mandateHolderId: text('mandate_holder_id').notNull(),
+    processId: text('process_id'),
+    jurisdictionId: text('jurisdiction_id'),
+    successCriterion: text('success_criterion').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    ...universal(),
+  },
+  (t) => [
+    index('commitments_holder_idx').on(t.mandateHolderId),
+    index('commitments_due_idx').on(t.dueAt),
+  ],
+);
+
+// M-RA status event: append-only timeline (latest row wins). Mirrors reviews
+// (no universal()); `overdue` is derived in the read layer, never seeded here.
+export const commitmentStatusEvents = pgTable(
+  'commitment_status_events',
+  {
+    id: pkId(),
+    commitmentId: text('commitment_id').notNull(),
+    status: text('status').notNull(),
+    resolutionClaimId: text('resolution_claim_id'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    enumCheck('ck_commitment_status_events_status', 'status', COMMITMENT_STATUSES),
+    index('commitment_status_events_commitment_idx').on(t.commitmentId),
+  ],
+);
+
 export const schema = {
   appMeta,
+
   jurisdictions,
   mandates,
   laws,
@@ -1056,5 +1160,9 @@ export const schema = {
   vaultDocuments,
   accessGrants,
   accessEvents,
+  mandateHolders,
+  mandateHolderCharters,
+  commitments,
+  commitmentStatusEvents,
   verifiableCredentials,
 };

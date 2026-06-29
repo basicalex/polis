@@ -46,5 +46,41 @@
     "review_state": "draft",
     "visibility": "public",
     "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-mh-promise-1",
+    "text": "Mandate-holder pledge: publish a once-only evidence checklist so citizens never resubmit identity or residence proof at every office.",
+    "claim_type": "proposal_assertion",
+    "subject_type": "process",
+    "subject_id": "process-citizen-service-complaint",
+    "confidence": "0.5",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-mh-promise-2",
+    "text": "Mandate-holder pledge: publish a quarterly accountability report measuring duplicate-document burden reduction.",
+    "claim_type": "proposal_assertion",
+    "subject_type": "process",
+    "subject_id": "process-citizen-service-complaint",
+    "confidence": "0.5",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
+  },
+  {
+    "id": "claim-mh-resolution-1",
+    "text": "Q4 accountability report confirms the shared once-only checklist eliminated duplicate identity and residence submissions across the complaints and registry offices.",
+    "claim_type": "public_statement",
+    "subject_type": "process",
+    "subject_id": "process-citizen-service-complaint",
+    "confidence": "0.8",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public",
+    "method_version": "seed-v1"
   }
 ]

@@ -317,9 +317,59 @@ test('pilot redaction allows project governance with reason (M9 §30.10)', () =>
   assert.equal(
     opaEval(
       'pilot/redaction.rego',
-      { action: 'redact', reason: 'personal data in screenshot', actor_authority: 'project_governance' },
+      {
+        action: 'redact',
+        reason: 'personal data in screenshot',
+        actor_authority: 'project_governance',
+      },
       'data.polis.pilot.allow_redaction',
     ),
     true,
+  );
+});
+test('representative access allows verified_official with active mandate + accepted charter (M-RA)', () => {
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      {
+        identity_level: 'verified_official',
+        mandate_holder: { status: 'active' },
+        charter: { status: 'accepted' },
+      },
+      'data.polis.representative.access.allow',
+    ),
+    true,
+  );
+  // charter pending → denied (charter required before publishing)
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      {
+        identity_level: 'verified_official',
+        mandate_holder: { status: 'active' },
+        charter: { status: 'pending' },
+      },
+      'data.polis.representative.access.allow',
+    ),
+    false,
+  );
+});
+
+test('representative status allow_terminal requires an approved resolution review (M-RA)', () => {
+  assert.equal(
+    opaEval(
+      'representative/status.rego',
+      { resolution_review_state: 'approved' },
+      'data.polis.representative.status.allow_terminal',
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'representative/status.rego',
+      { resolution_review_state: 'draft' },
+      'data.polis.representative.status.allow_terminal',
+    ),
+    false,
   );
 });

@@ -30,5 +30,17 @@
     "confidence_state": "official_source",
     "review_state": "approved",
     "visibility": "public"
+  },
+  {
+    "id": "role-mh-demo",
+    "name": "Demo Mandate Holder",
+    "institution_id": "inst-mh-demo",
+    "mandate_id": null,
+    "description": "Simulated office-holder role hosting the M-RA demonstration mandate-holder.",
+    "authorized_by_law": "law-general-administrative-procedure",
+    "decision_rights": [],
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
   }
 ]

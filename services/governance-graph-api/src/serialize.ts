@@ -22,6 +22,10 @@ type ClaimRow = Row<'claims'>;
 type EvidenceLinkRow = Row<'evidenceLinks'>;
 type SourceRow = Row<'sources'>;
 type RelationshipRow = Row<'relationships'>;
+type MandateHolderRow = Row<'mandateHolders'>;
+type MandateHolderCharterRow = Row<'mandateHolderCharters'>;
+type CommitmentRow = Row<'commitments'>;
+type CommitmentStatusEventRow = Row<'commitmentStatusEvents'>;
 
 export interface JurisdictionWire {
   id: string;
@@ -137,6 +141,43 @@ export interface RelationshipWire {
   confidenceState: string;
   reviewState: string;
   visibility: string;
+}
+
+export interface MandateHolderWire {
+  id: string;
+  citizenId: string;
+  roleId: string | null;
+  jurisdictionId: string | null;
+  displayName: string;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+}
+
+export interface MandateHolderCharterWire {
+  id: string;
+  mandateHolderId: string;
+  charterDoc: unknown | null;
+  status: string;
+}
+
+export interface CommitmentWire {
+  id: string;
+  claimId: string;
+  mandateHolderId: string;
+  processId: string | null;
+  jurisdictionId: string | null;
+  successCriterion: string;
+  dueAt: string | null;
+}
+
+export interface CommitmentStatusEventWire {
+  id: string;
+  commitmentId: string;
+  status: string;
+  resolutionClaimId: string | null;
+  decidedBy: string | null;
+  decidedAt: string;
 }
 
 const ns = (t: Date | string | null): string | null => (t ? new Date(t).toISOString() : null);
@@ -275,4 +316,43 @@ export const processWire = (
   confidenceState: r.confidenceState,
   reviewState: r.reviewState,
   visibility: r.visibility,
+});
+
+export const mandateHolderWire = (r: MandateHolderRow): MandateHolderWire => ({
+  id: r.id,
+  citizenId: r.citizenId,
+  roleId: r.roleId,
+  jurisdictionId: r.jurisdictionId,
+  displayName: r.displayName,
+  startsAt: ns(r.startsAt) ?? '',
+  endsAt: ns(r.endsAt),
+  status: r.status,
+});
+
+export const mandateHolderCharterWire = (r: MandateHolderCharterRow): MandateHolderCharterWire => ({
+  id: r.id,
+  mandateHolderId: r.mandateHolderId,
+  charterDoc: r.charterDoc ?? null,
+  status: r.status,
+});
+
+export const commitmentWire = (r: CommitmentRow): CommitmentWire => ({
+  id: r.id,
+  claimId: r.claimId,
+  mandateHolderId: r.mandateHolderId,
+  processId: r.processId,
+  jurisdictionId: r.jurisdictionId,
+  successCriterion: r.successCriterion,
+  dueAt: ns(r.dueAt),
+});
+
+export const commitmentStatusEventWire = (
+  r: CommitmentStatusEventRow,
+): CommitmentStatusEventWire => ({
+  id: r.id,
+  commitmentId: r.commitmentId,
+  status: r.status,
+  resolutionClaimId: r.resolutionClaimId,
+  decidedBy: r.decidedBy,
+  decidedAt: ns(r.decidedAt) ?? '',
 });

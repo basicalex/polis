@@ -12,7 +12,17 @@ type SeedTable = {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const seedDir = path.join(repoRoot, 'data/seed/governance-v1');
 
-const timestampColumns = new Set(['published_at', 'retrieved_at', 'captured_at', 'closed_at']);
+const timestampColumns = new Set([
+  'published_at',
+  'retrieved_at',
+  'captured_at',
+  'closed_at',
+  'created_at',
+  'starts_at',
+  'ends_at',
+  'due_at',
+  'decided_at',
+]);
 
 function camelizeKey(key: string): string {
   return key.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
@@ -274,6 +284,40 @@ async function main(): Promise<void> {
     'participant_count',
     'captured_at',
   ]);
+  await upsert('citizens', schema.citizens, 'citizens.json', [
+    'email',
+    'display_name',
+    'identity_level',
+  ]);
+  await upsert('mandate_holders', schema.mandateHolders, 'mandate_holders.json', [
+    'citizen_id',
+    'role_id',
+    'jurisdiction_id',
+    'display_name',
+    'starts_at',
+    'ends_at',
+    'status',
+  ]);
+  await upsert(
+    'mandate_holder_charters',
+    schema.mandateHolderCharters,
+    'mandate_holder_charters.json',
+    ['mandate_holder_id', 'charter_doc', 'status'],
+  );
+  await upsert('commitments', schema.commitments, 'commitments.json', [
+    'claim_id',
+    'mandate_holder_id',
+    'process_id',
+    'jurisdiction_id',
+    'success_criterion',
+    'due_at',
+  ]);
+  await upsert(
+    'commitment_status_events',
+    schema.commitmentStatusEvents,
+    'commitment_status_events.json',
+    ['status', 'resolution_claim_id', 'decided_by', 'decided_at', 'created_at'],
+  );
   await Promise.resolve();
 }
 

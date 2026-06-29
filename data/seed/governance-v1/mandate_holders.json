@@ -1,0 +1,12 @@
+[
+  {
+    "id": "mh-demo",
+    "citizen_id": "citizen-mh-demo",
+    "role_id": "role-mh-demo",
+    "jurisdiction_id": "jur-croatia-local",
+    "display_name": "Ana Demo",
+    "starts_at": "2025-01-01T00:00:00Z",
+    "ends_at": null,
+    "status": "active"
+  }
+]

@@ -25,5 +25,23 @@
     "source_type": "official",
     "publisher": "European Commission",
     "published_at": "2024-03-01T00:00:00.000Z"
+  },
+  {
+    "id": "src-mh-demo-program",
+    "title": "Grad Primjer — Published mandate-holder programme (demo)",
+    "url": "https://example.org/grad-primjer/mandate-programme",
+    "jurisdiction_id": "jur-croatia-local",
+    "source_type": "official",
+    "publisher": "Grad Primjer",
+    "published_at": "2025-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "src-mh-demo-report",
+    "title": "Grad Primjer — Q4 accountability report on duplicate-document burden (demo)",
+    "url": "https://example.org/grad-primjer/q4-accountability-report",
+    "jurisdiction_id": "jur-croatia-local",
+    "source_type": "official",
+    "publisher": "Grad Primjer",
+    "published_at": "2025-11-01T00:00:00.000Z"
   }
 ]

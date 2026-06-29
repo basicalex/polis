@@ -1,0 +1,20 @@
+[
+  {
+    "id": "c-mh-1",
+    "claim_id": "claim-mh-promise-1",
+    "mandate_holder_id": "mh-demo",
+    "process_id": "process-citizen-service-complaint",
+    "jurisdiction_id": "jur-croatia-local",
+    "success_criterion": "Once-only evidence checklist live across complaints and registry offices; no citizen resubmits identity or residence proof twice.",
+    "due_at": "2025-12-31T00:00:00Z"
+  },
+  {
+    "id": "c-mh-2",
+    "claim_id": "claim-mh-promise-2",
+    "mandate_holder_id": "mh-demo",
+    "process_id": "process-citizen-service-complaint",
+    "jurisdiction_id": "jur-croatia-local",
+    "success_criterion": "Quarterly accountability report published with measured duplicate-document burden reduction.",
+    "due_at": "2027-01-01T00:00:00Z"
+  }
+]

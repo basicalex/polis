@@ -80,6 +80,10 @@ const graphReadPaths = [
   '/api/v1/claims/:id',
   '/api/v1/relationships',
   '/api/v1/graph/traverse',
+  '/api/v1/mandate-holders',
+  '/api/v1/mandate-holders/:id',
+  '/api/v1/mandate-holders/:id/scorecard',
+  '/api/v1/commitments/:id',
 ] as const;
 
 const polisReadPaths = [
@@ -166,6 +170,81 @@ async function proxyToPathWithCitizen(
     const message = err instanceof Error ? err.message : 'unknown';
     return result(502, { error: 'bad_gateway', detail: message });
   }
+}
+
+/**
+ * §23 public-edge hardening — when PUBLIC_EDGE=true, the BFF serves only reads
+ * + stateless self-verification (verify/hash|file|manifest), blocks every
+ * write/login/participation route + the dev-token route, and rate-limits by IP.
+ * When PUBLIC_EDGE is unset (dev), withPublicEdge is the identity function,
+ * so behaviour is byte-identical to today and pnpm verify is unaffected.
+ */
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT = Number(process.env.PUBLIC_EDGE_RATE_LIMIT_PER_MIN ?? 60);
+const rateBuckets = new Map<string, { count: number; windowStart: number }>();
+
+/** Fixed-window per-IP rate limit (single-instance v1; see plan Assumptions). */
+function allowRequest(req: IncomingMessage): boolean {
+  const key = req.socket.remoteAddress ?? 'unknown';
+  const now = Date.now();
+  let bucket = rateBuckets.get(key);
+  if (!bucket || now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    bucket = { count: RATE_LIMIT, windowStart: now };
+    rateBuckets.set(key, bucket);
+  }
+  bucket.count -= 1;
+  return bucket.count >= 0;
+}
+
+/** Routes blocked on the public edge (write/login/participation + dev-tokens). */
+const PUBLIC_EDGE_BLOCKED = new Set<string>([
+  'POST /api/v1/assistant/ask',
+  'POST /api/v1/assistant/outputs/:id/review',
+  'POST /api/v1/contribute/evidence',
+  'POST /api/v1/contribute/graph-edit',
+  'POST /api/v1/review/:id/decide',
+  'POST /api/v1/identity/magic-link',
+  'POST /api/v1/identity/exchange',
+  'GET /api/v1/identity/dev-tokens',
+  'POST /api/v1/vault/documents',
+  'POST /api/v1/vault/grants',
+  'POST /api/v1/vault/verify',
+  'DELETE /api/v1/vault/grants/:id',
+]);
+
+/** Operational routes exempt from rate-limiting so health checks pass. */
+const PUBLIC_EDGE_RATE_EXEMPT = new Set<string>(['/healthz', '/readyz', '/metrics', '/version']);
+
+/**
+ * Compose a route table for the public edge. No-op unless PUBLIC_EDGE='true'.
+ * - blocked routes → 405 method_not_allowed (public_edge)
+ * - operational routes → unchanged (exempt from rate-limit)
+ * - everything else → wrapped with a per-IP rate limit (429 when exhausted)
+ */
+export function withPublicEdge(routes: Route[]): Route[] {
+  if (process.env.PUBLIC_EDGE !== 'true') return routes;
+  return routes.map((route) => {
+    const routeKey = `${route.method} ${route.path}`;
+    if (PUBLIC_EDGE_BLOCKED.has(routeKey)) {
+      return {
+        ...route,
+        handler: () => result(405, { error: 'method_not_allowed', reason: 'public_edge' }),
+      };
+    }
+    if (PUBLIC_EDGE_RATE_EXEMPT.has(route.path)) return route;
+    const inner = route.handler;
+    return {
+      ...route,
+      handler: async (
+        req: IncomingMessage,
+        body: unknown,
+        params: Record<string, string>,
+      ): Promise<unknown> => {
+        if (!allowRequest(req)) return result(429, { error: 'rate_limited' });
+        return inner(req, body, params);
+      },
+    };
+  });
 }
 
 export function platformRoutes(): Route[] {
@@ -409,7 +488,7 @@ async function main(): Promise<void> {
       JSON.stringify({ service: 'platform-api', stage: 'db-migrate', warning: message }),
     );
   }
-  startService('platform-api', port, platformRoutes());
+  startService('platform-api', port, withPublicEdge(platformRoutes()));
   console.log(JSON.stringify({ service: 'platform-api', port, status: 'listening' }));
 }
 

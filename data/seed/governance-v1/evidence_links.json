@@ -52,5 +52,47 @@
     "source_hash": "sha256:9e9ca793dfd85bb4f3e1b0ec40eae5d88f58075654d35c978196f087237a4b4f",
     "retrieved_at": "2026-06-19T00:00:00.000Z",
     "confidence": "0.80"
+  },
+  {
+    "id": "ev-mh-promise-1-program",
+    "claim_id": "claim-mh-promise-1",
+    "source_id": "src-mh-demo-program",
+    "locator": {
+      "page": 1,
+      "xpath": "//main"
+    },
+    "quote": "Published mandate-holder programme commits to a once-only evidence checklist across municipal offices.",
+    "paraphrase": "The mandate-holder's published programme states the once-only checklist pledge.",
+    "source_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "retrieved_at": "2025-01-15T00:00:00.000Z",
+    "confidence": "0.5"
+  },
+  {
+    "id": "ev-mh-promise-2-program",
+    "claim_id": "claim-mh-promise-2",
+    "source_id": "src-mh-demo-program",
+    "locator": {
+      "page": 1,
+      "xpath": "//main"
+    },
+    "quote": "Published mandate-holder programme commits to a quarterly accountability report on duplicate-document burden.",
+    "paraphrase": "The mandate-holder's published programme states the quarterly report pledge.",
+    "source_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "retrieved_at": "2025-01-15T00:00:00.000Z",
+    "confidence": "0.5"
+  },
+  {
+    "id": "ev-mh-resolution-1-report",
+    "claim_id": "claim-mh-resolution-1",
+    "source_id": "src-mh-demo-report",
+    "locator": {
+      "page": 1,
+      "xpath": "//main"
+    },
+    "quote": "Q4 accountability report confirms the shared once-only checklist eliminated duplicate identity and residence submissions across the complaints and registry offices.",
+    "paraphrase": "The Q4 report evidences that the once-only checklist commitment was delivered.",
+    "source_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "retrieved_at": "2025-11-01T00:00:00.000Z",
+    "confidence": "0.8"
   }
 ]

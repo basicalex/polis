@@ -8,7 +8,7 @@
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import type { IncomingMessage } from 'node:http';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
   operationalRoutes,
   result,
@@ -18,19 +18,25 @@ import {
 } from '@polis/service-runtime';
 import {
   claimWire,
+  commitmentStatusEventWire,
+  commitmentWire,
   documentTypeWire,
   evidenceLinkWire,
   failureModeWire,
   institutionWire,
   jurisdictionWire,
+  mandateHolderWire,
   processStepWire,
   processWire,
   relationshipWire,
   roleWire,
   sourceWire,
   type ClaimWire,
+  type CommitmentStatusEventWire,
+  type EvidenceLinkWire,
   type InstitutionWire,
   type JurisdictionWire,
+  type MandateHolderWire,
   type ProcessWire,
   type RelationshipWire,
   type RoleWire,
@@ -336,6 +342,158 @@ export function graphRoutes(db: DbClient): Route[] {
         };
       },
     },
+
+    // M-RA (Phase 1) — read-only public mandate-holder layer.
+    {
+      method: 'GET',
+      path: '/api/v1/mandate-holders',
+      handler: async (req) => {
+        const jur = query(req).get('jurisdiction_id');
+        const rows = await db
+          .select()
+          .from(schema.mandateHolders)
+          .where(
+            and(
+              eq(schema.mandateHolders.status, 'active'),
+              jur ? eq(schema.mandateHolders.jurisdictionId, jur) : undefined,
+            ),
+          );
+        const items: MandateHolderWire[] = rows.map(mandateHolderWire);
+        return { items };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/mandate-holders/:id',
+      handler: async (_req, _body, params) => {
+        const holderRows = await db
+          .select()
+          .from(schema.mandateHolders)
+          .where(eq(schema.mandateHolders.id, params.id));
+        const row = holderRows[0];
+        if (!row) return notFound(params.id);
+
+        const charterRows = await db
+          .select()
+          .from(schema.mandateHolderCharters)
+          .where(eq(schema.mandateHolderCharters.mandateHolderId, params.id));
+        const charter = charterRows[0] ?? null;
+
+        const commitmentRows = await db
+          .select()
+          .from(schema.commitments)
+          .where(eq(schema.commitments.mandateHolderId, params.id));
+        const commitments = await Promise.all(
+          commitmentRows.map(async (c) => {
+            const effective = await effectiveStatus(db, c.id, c.dueAt);
+            const claimRows = await db
+              .select()
+              .from(schema.claims)
+              .where(eq(schema.claims.id, c.claimId));
+            const claim = claimRows[0];
+            if (!claim) {
+              return { ...commitmentWire(c), effectiveStatus: effective, claim: null };
+            }
+            const [evidenceRows, sourceIds] = await loadEvidence(db, claim.id);
+            const sources = sourceIds.length
+              ? await db.select().from(schema.sources).where(inArray(schema.sources.id, sourceIds))
+              : [];
+            return {
+              ...commitmentWire(c),
+              effectiveStatus: effective,
+              claim: claimWire(claim, evidenceRows.map(evidenceLinkWire), sources.map(sourceWire)),
+            };
+          }),
+        );
+
+        return {
+          ...mandateHolderWire(row),
+          charterAccepted: charter?.status === 'accepted',
+          commitments,
+        };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/mandate-holders/:id/scorecard',
+      handler: async (_req, _body, params) => {
+        const holderRows = await db
+          .select()
+          .from(schema.mandateHolders)
+          .where(eq(schema.mandateHolders.id, params.id));
+        if (!holderRows[0]) return notFound(params.id);
+
+        const commitmentRows = await db
+          .select()
+          .from(schema.commitments)
+          .where(eq(schema.commitments.mandateHolderId, params.id));
+
+        const totals = {
+          delivered: 0,
+          partial: 0,
+          notDelivered: 0,
+          inProgress: 0,
+          proposed: 0,
+          overdue: 0,
+        };
+        for (const c of commitmentRows) {
+          const status = await effectiveStatus(db, c.id, c.dueAt);
+          if (status === 'delivered') totals.delivered += 1;
+          else if (status === 'partial') totals.partial += 1;
+          else if (status === 'not_delivered') totals.notDelivered += 1;
+          else if (status === 'in_progress') totals.inProgress += 1;
+          else if (status === 'proposed') totals.proposed += 1;
+          else if (status === 'overdue') totals.overdue += 1;
+        }
+        return { mandateHolderId: params.id, totals };
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/api/v1/commitments/:id',
+      handler: async (_req, _body, params) => {
+        const commitmentRows = await db
+          .select()
+          .from(schema.commitments)
+          .where(eq(schema.commitments.id, params.id));
+        const row = commitmentRows[0];
+        if (!row) return notFound(params.id);
+
+        const eventRows = await db
+          .select()
+          .from(schema.commitmentStatusEvents)
+          .where(eq(schema.commitmentStatusEvents.commitmentId, params.id))
+          .orderBy(desc(schema.commitmentStatusEvents.createdAt));
+        const timeline: CommitmentStatusEventWire[] = eventRows.map(commitmentStatusEventWire);
+
+        const latest = eventRows[0];
+        let resolution: { claim: ClaimWire; evidence: EvidenceLinkWire[] } | null = null;
+        if (latest?.resolutionClaimId) {
+          const claimRows = await db
+            .select()
+            .from(schema.claims)
+            .where(eq(schema.claims.id, latest.resolutionClaimId));
+          const resolutionClaim = claimRows[0];
+          if (resolutionClaim) {
+            const [evidenceRows] = await loadEvidence(db, resolutionClaim.id);
+            resolution = {
+              claim: claimWire(resolutionClaim, evidenceRows.map(evidenceLinkWire), []),
+              evidence: evidenceRows.map(evidenceLinkWire),
+            };
+          }
+        }
+
+        return {
+          ...commitmentWire(row),
+          effectiveStatus: await effectiveStatus(db, row.id, row.dueAt),
+          statusTimeline: timeline,
+          resolution,
+        };
+      },
+    },
   ];
 }
 
@@ -348,6 +506,30 @@ async function loadEvidence(db: DbClient, claimId: string): Promise<[EvidenceLin
   const sourceIdSet = new Set<string>();
   for (const e of evidenceRows) sourceIdSet.add(e.sourceId);
   return [evidenceRows, [...sourceIdSet]];
+}
+
+/**
+ * M-RA effective commitment status: latest-row-wins over
+ * commitment_status_events, with `overdue` derived when due_at is past and the
+ * latest event is non-terminal (proposed|in_progress). Terminal events
+ * (delivered|partial|not_delivered) are never overridden by overdue.
+ */
+async function effectiveStatus(
+  db: DbClient,
+  commitmentId: string,
+  dueAt: Date | null,
+): Promise<string> {
+  const ev = await db
+    .select()
+    .from(schema.commitmentStatusEvents)
+    .where(eq(schema.commitmentStatusEvents.commitmentId, commitmentId))
+    .orderBy(desc(schema.commitmentStatusEvents.createdAt))
+    .limit(1);
+  const latest = ev[0]?.status ?? 'proposed';
+  if (dueAt && dueAt < new Date() && (latest === 'proposed' || latest === 'in_progress')) {
+    return 'overdue';
+  }
+  return latest;
 }
 
 async function main(): Promise<void> {

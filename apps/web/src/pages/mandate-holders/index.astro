@@ -1,0 +1,60 @@
+---
+import Base from '../../layouts/Base.astro';
+import DemoBadge from '../../components/DemoBadge.astro';
+
+type MandateHolder = {
+  id: string;
+  citizenId: string;
+  roleId: string | null;
+  jurisdictionId: string | null;
+  displayName: string;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+};
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const res = (await fetchJson('/api/v1/mandate-holders')) as { items: MandateHolder[] } | null;
+const holders = res?.items ?? [];
+---
+
+<Base title="Mandate-holders">
+  <section class="stack">
+    <p class="badge">M-RA Representative accountability</p>
+    <DemoBadge label="accountability, not endorsement" />
+    <h1>Mandate-holders</h1>
+    <p class="muted">
+      Public, read-only record of office-holders and their published commitments. Each commitment is
+      tracked against verifiable evidence — this surface reports follow-through, never endorses a
+      person, party, or candidate.
+    </p>
+    <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
+  </section>
+  <section class="stack">
+    {holders.length > 0 ? (
+      <div class="grid">
+        {holders.map((holder) => (
+          <article class="card stack">
+            <h3><a href={`/mandate-holders/${holder.id}`}>{holder.displayName}</a></h3>
+            <p class="muted">{holder.jurisdictionId ?? 'Jurisdiction not recorded.'}</p>
+            <p><span class="badge">{holder.status}</span></p>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="panel muted">
+        No mandate-holders published yet. Start platform-api and governance-graph-api, then run the seed.
+      </p>
+    )}
+  </section>
+</Base>

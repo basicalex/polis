@@ -1,0 +1,151 @@
+---
+import Base from '../../layouts/Base.astro';
+import DemoBadge from '../../components/DemoBadge.astro';
+
+type ClaimWire = {
+  id: string;
+  text: string;
+  claimType: string;
+  reviewState: string;
+  visibility: string;
+} | null;
+
+type Commitment = {
+  id: string;
+  claimId: string;
+  successCriterion: string;
+  dueAt: string | null;
+  effectiveStatus: string;
+  claim: ClaimWire;
+};
+
+type MandateHolderDetail = {
+  id: string;
+  citizenId: string;
+  displayName: string;
+  jurisdictionId: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+  charterAccepted: boolean;
+  commitments: Commitment[];
+} | null;
+
+type ScorecardTotals = {
+  delivered: number;
+  partial: number;
+  notDelivered: number;
+  inProgress: number;
+  proposed: number;
+  overdue: number;
+};
+
+type Scorecard = {
+  mandateHolderId: string;
+  totals: ScorecardTotals;
+} | null;
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+async function fetchJson(path: string) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const id = Astro.params.id ?? '';
+const holder = (await fetchJson(`/api/v1/mandate-holders/${encodeURIComponent(id)}`)) as MandateHolderDetail | null;
+const scorecard = (await fetchJson(
+  `/api/v1/mandate-holders/${encodeURIComponent(id)}/scorecard`,
+)) as Scorecard | null;
+const linkedClaims = holder?.commitments.map((c) => c.claim).filter((c): c is NonNullable<ClaimWire> => c !== null) ?? [];
+---
+
+<Base title={`Mandate-holder · ${holder?.displayName ?? id}`}>
+  {holder ? (
+    <Fragment>
+      <section class="stack">
+        <DemoBadge label="accountability, not endorsement" />
+        <h1>{holder.displayName}</h1>
+        <p class="muted">Jurisdiction: {holder.jurisdictionId ?? 'not recorded'}</p>
+        <p>
+          <span class="badge">{holder.status}</span>
+          {holder.charterAccepted && <span class="badge">charter accepted</span>}
+        </p>
+        <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
+      </section>
+
+      {scorecard && (
+        <section class="stack">
+          <h2>Scorecard</h2>
+          <p class="muted">
+            Counts of commitments by effective status. No grade, ranking, or comparative score is ever
+            produced — accountability is reported, not ranked.
+          </p>
+          <div class="panel stack">
+            <table class="data-table">
+              <tbody>
+                <tr><th scope="row">delivered</th><td>{scorecard.totals.delivered}</td><th scope="row">in progress</th><td>{scorecard.totals.inProgress}</td></tr>
+                <tr><th scope="row">proposed</th><td>{scorecard.totals.proposed}</td><th scope="row">partial</th><td>{scorecard.totals.partial}</td></tr>
+                <tr><th scope="row">not delivered</th><td>{scorecard.totals.notDelivered}</td><th scope="row">overdue</th><td>{scorecard.totals.overdue}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section class="stack">
+        <h2>Commitments</h2>
+        {holder.commitments.length > 0 ? (
+          <table class="data-table">
+            <thead>
+              <tr><th>Success criterion</th><th>Effective status</th><th>Due</th><th></th></tr>
+            </thead>
+            <tbody>
+              {holder.commitments.map((c) => (
+                <tr>
+                  <td>{c.successCriterion}</td>
+                  <td><span class="badge">{c.effectiveStatus}</span></td>
+                  <td>{c.dueAt ?? '—'}</td>
+                  <td><a href={`/commitments/${c.id}`}>details</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p class="panel muted">No commitments published.</p>
+        )}
+      </section>
+
+      <section class="stack">
+        <h2>Published claims</h2>
+        {linkedClaims.length > 0 ? (
+          <ul>
+            {linkedClaims.map((claim) => (
+              <li>{claim.text} <span class="badge">{claim.reviewState}</span></li>
+            ))}
+          </ul>
+        ) : (
+          <p class="panel muted">No claims linked to commitments.</p>
+        )}
+      </section>
+
+      <section class="stack">
+        <p class="muted">
+          <a href="/audit">audit trail</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
+        </p>
+      </section>
+    </Fragment>
+  ) : (
+    <section class="stack">
+      <h1>Mandate-holder not found</h1>
+      <p class="panel muted">
+        No mandate-holder record for <code>{id}</code>. Start the services and seed the database.
+      </p>
+      <p><a href="/mandate-holders">← back to mandate-holders</a></p>
+    </section>
+  )}
+</Base>

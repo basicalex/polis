@@ -16,5 +16,14 @@
     "confidence_state": "official_source",
     "review_state": "approved",
     "visibility": "public"
+  },
+  {
+    "id": "inst-mh-demo",
+    "name": "Demo Mandate Office",
+    "jurisdiction_id": "jur-croatia-local",
+    "description": "Demo office hosting a simulated mandate-holder for the M-RA read-only public launch.",
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
   }
 ]
