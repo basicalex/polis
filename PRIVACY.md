@@ -1,10 +1,10 @@
 # Privacy
 
-Polis Interface separates public civic evidence from private citizen documents. The current local v1 uses seeded demo data and deterministic mock adapters; it is not connected to production identity, Paperless, government registers, or external AI providers.
+Polis Interface separates public civic evidence from private citizen documents. The current local v1 uses seeded demo data and mock external adapters; it is not connected to production identity, Paperless, government registers, or external AI providers.
 
 ## Local v1 data
 
-Local endpoints return demo institutions, processes, claims, conversations, proof manifests, mock AI explanations, reward rules, and audit events. Submitted proof or hash-verification content is processed by the local runtime for the request and is not persisted by the current implementation.
+Local endpoints return seeded jurisdictions, institutions, roles, processes, claims with evidence/sources, graph relationships, public audit rows, and local hash-verification responses. Submitted hash-verification content is processed by the local runtime for the request and is not persisted by the BFF verifier.
 
 ## Production principles
 

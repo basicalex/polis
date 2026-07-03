@@ -1,0 +1,54 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Polis Interface — Signing in…">
+<section class="stack">
+  <h1>Signing in…</h1>
+  <p id="status" class="muted">Completing sign-in.</p>
+  <p id="error" style="color:red;display:none"></p>
+  <p id="retry" style="display:none"><a href="/login">← Back to sign in</a></p>
+</section>
+<script is:inline>
+const API = window.__API_URL;
+const params = new URLSearchParams(location.search);
+const code = params.get('code');
+const state = params.get('state');
+const status = document.getElementById('status');
+const errorEl = document.getElementById('error');
+const retryEl = document.getElementById('retry');
+if (!code || !state) {
+  status.style.display = 'none';
+  errorEl.textContent = 'Missing sign-in parameters.';
+  errorEl.style.display = 'block';
+  retryEl.style.display = 'block';
+} else {
+  (async () => {
+    try {
+      const r = await fetch(API + '/api/v1/identity/callback', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          state,
+          redirectUri: location.origin + '/login/callback',
+        }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || 'Sign-in failed (' + r.status + ')');
+      sessionStorage.setItem('web_session', JSON.stringify({
+        token: body.sessionToken,
+        email: body.citizen?.email,
+        citizenId: body.citizen?.id,
+        identityLevel: body.citizen?.identityLevel,
+      }));
+      location.href = '/mandate-holders';
+    } catch (e) {
+      status.style.display = 'none';
+      errorEl.textContent = e.message;
+      errorEl.style.display = 'block';
+      retryEl.style.display = 'block';
+    }
+  })();
+}
+</script>
+</Base>

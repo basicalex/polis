@@ -20,6 +20,20 @@ type Resolution = {
   evidence: { id: string; quote?: string; paraphrase?: string }[];
 } | null;
 
+type Answer = {
+  mandateHolderId: string;
+  body: string;
+  decidedAt: string | null;
+};
+
+type Question = {
+  id: string;
+  askedByCitizenId: string;
+  body: string;
+  createdAt: string;
+  answer: Answer | null;
+};
+
 type CommitmentDetail = {
   id: string;
   successCriterion: string;
@@ -27,6 +41,7 @@ type CommitmentDetail = {
   effectiveStatus: string;
   statusTimeline: StatusEvent[];
   resolution: Resolution;
+  questions: Question[];
 } | null;
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -98,6 +113,71 @@ const commitment = (await fetchJson(`/api/v1/commitments/${encodeURIComponent(id
           <p class="panel muted">No resolution evidence published (commitment not yet resolved).</p>
         )}
       </section>
+
+      <section class="stack">
+        <h2>Questions</h2>
+        <p class="muted">Citizens ask; the mandate-holder answers; answers are adjudicated before publication.</p>
+        {commitment.questions.length > 0 ? (
+          <ul class="stack">
+            {commitment.questions.map((q) => (
+              <li class="card stack">
+                <p>{q.body}</p>
+                <p class="muted">asked by <code>{q.askedByCitizenId}</code> · {q.createdAt}</p>
+                {q.answer ? (
+                  <blockquote>
+                    <p>{q.answer.body}</p>
+                    <p class="muted">answered · decided {q.answer.decidedAt ?? '—'}</p>
+                  </blockquote>
+                ) : (
+                  <p class="panel muted">Not yet answered.</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="panel muted">No questions asked yet.</p>
+        )}
+        <DemoBadge label="demonstration" />
+        <div id="ask-logged-out" style="display:none">
+          <p class="muted"><a href="/login">Log in</a> to ask a question.</p>
+        </div>
+        <form id="ask-form" class="stack" style="display:none">
+          <label>Ask a question <textarea name="body" rows="2" style="width:100%"></textarea></label>
+          <button type="submit">Submit question</button>
+          <p class="muted" id="ask-msg"></p>
+        </form>
+      </section>
+      <script is:inline define:vars={{ API, id }}>
+        (function () {
+          var form = document.getElementById('ask-form');
+          var loggedOut = document.getElementById('ask-logged-out');
+          if (!form) return;
+          var raw = sessionStorage.getItem('web_session');
+          var session = raw ? JSON.parse(raw) : null;
+          if (!session || !session.token) {
+            loggedOut.style.display = 'block';
+            return;
+          }
+          form.style.display = 'block';
+          form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            var msg = document.getElementById('ask-msg');
+            var body = form.body.value.trim();
+            if (!body) { msg.textContent = 'Question text required.'; return; }
+            try {
+              var r = await fetch(API + '/api/v1/commitments/' + id + '/questions', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+                body: JSON.stringify({ body: body }),
+              });
+              var b = await r.json();
+              if (r.status === 401) { location.href = '/login'; return; }
+              if (!r.ok) { msg.textContent = (b && b.error) || 'submit failed'; return; }
+              location.reload();
+            } catch (err) { msg.textContent = String(err); }
+          });
+        })();
+      </script>
 
       <section class="stack">
         <p class="muted">

@@ -10,6 +10,7 @@ type ContributorRow = (typeof schema.contributors)['$inferSelect'];
 type SubmissionRow = (typeof schema.submissions)['$inferSelect'];
 type GraphProposalRow = (typeof schema.graphProposals)['$inferSelect'];
 type ReviewRow = (typeof schema.reviews)['$inferSelect'];
+type CommitmentQuestionRow = (typeof schema.commitmentQuestions)['$inferSelect'];
 
 export const contributorWire = (r: ContributorRow) => ({
   id: r.id,
@@ -47,5 +48,13 @@ export const reviewWire = (r: ReviewRow) => ({
   decision: r.decision,
   notes: r.notes,
   decidedAt: r.decidedAt.toISOString(),
+  createdAt: r.createdAt.toISOString(),
+});
+
+export const questionWire = (r: CommitmentQuestionRow) => ({
+  id: r.id,
+  commitmentId: r.commitmentId,
+  askedByCitizenId: r.askedByCitizenId,
+  body: r.body,
   createdAt: r.createdAt.toISOString(),
 });

@@ -71,6 +71,20 @@
       "when": 1782727584501,
       "tag": "0009_mandate_holder_v0",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782839999871,
+      "tag": "0010_commitment_qa_v0",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782982208761,
+      "tag": "0011_identity_oidc_v0",
+      "breakpoints": true
     }
   ]
 }

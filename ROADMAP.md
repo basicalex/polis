@@ -31,6 +31,12 @@ Local v1 is implemented as a deterministic, seeded Postgres environment with moc
 8. Pilot with one partner institution using a written charter, threat review, and rollback plan.
 Detailed plans: docs/roadmap/m10-productionization-plans.md (M10–M15), docs/roadmap/productionization-overview.md (sequencing + cross-cutting).
 
+## Parallel capability tracks
+
+Capability milestones that compose with the M0–M15 sequence without being gated by it (public-read surfaces ship now; drafting surfaces gate on M10):
+
+- **M-RA — Representative Accountability:** office-holders publish positions and commitments as audited, evidence-anchored claims tracked against reality — follow-through is adjudicated through the public review queue, never self-reported; no persuasion/targeting/GOTV (firewall). Architecture: `docs/architecture/representative-accountability.md`; plan: `docs/roadmap/m-ra-representative-accountability.md`.
+
 ## Non-goals for current v1
 
 - No production identity provider.

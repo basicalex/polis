@@ -175,6 +175,16 @@ dl {
   color: var(--color-success);
 }
 
+.demo-banner {
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--color-warning);
+  padding: 0.35rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

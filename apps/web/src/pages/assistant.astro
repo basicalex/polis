@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import DemoBadge from '../components/DemoBadge.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -49,6 +50,7 @@ if (q) {
 
 <Base title="Assistant">
   <section class="page-hero">
+    <DemoBadge />
     <h1>Citizen assistant</h1>
     <p class="lede">
       Ask a question about local governance. Answers are grounded in approved

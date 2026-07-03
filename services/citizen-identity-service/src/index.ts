@@ -16,10 +16,11 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
 import { citizenWire } from './serialize.js';
+import { createIdentityProvider } from './identity-provider.js';
 
 /** HMAC key for session-token signing. Dev default; operators override via env. */
 const IDENTITY_HMAC_KEY = process.env.IDENTITY_HMAC_KEY ?? 'polis-identity-v1-dev-key';
@@ -249,6 +250,146 @@ export function identityRoutes(db: DbClient): Route[] {
         return result(200, citizenWire(rows[0]));
       },
     },
+    // M10 OIDC authorize — kick off the Keycloak auth-code + PKCE flow. 404 in
+    // stub mode (the seam is OIDC-only); the BFF gates the UI on this 200/404.
+    {
+      method: 'GET',
+      path: '/internal/identity/authorize',
+      handler: async (req) => {
+        if ((process.env.IDENTITY_MODE ?? 'stub') !== 'oidc') {
+          return result(404, { error: 'oidc_required' });
+        }
+        const redirectUri =
+          new URL(req.url ?? '/', 'http://localhost').searchParams.get('redirect_uri') ?? '';
+        if (!redirectUri) return result(400, { error: 'redirect_uri_required' });
+        const { authorizationUrl, state } = await createIdentityProvider().beginLogin(redirectUri);
+        return result(200, { authorizationUrl, state });
+      },
+    },
+
+    // M10 OIDC callback — exchange code → resolve citizen → mint Polis session.
+    // Token-translation boundary: Keycloak never reaches a downstream service.
+    {
+      method: 'POST',
+      path: '/internal/identity/callback',
+      handler: async (_req, body) => {
+        if ((process.env.IDENTITY_MODE ?? 'stub') !== 'oidc') {
+          return result(404, { error: 'oidc_required' });
+        }
+        const input = body as { code?: string; state?: string; redirectUri?: string };
+        if (!input.code || !input.state || !input.redirectUri) {
+          return result(400, { error: 'invalid_callback_payload' });
+        }
+        let resolved;
+        try {
+          resolved = await createIdentityProvider().completeLogin(
+            input.code,
+            input.state,
+            input.redirectUri,
+          );
+        } catch (e) {
+          return result(400, { error: e instanceof Error ? e.message : 'login_failed' });
+        }
+        // identity/access.rego enforced in code: OIDC requires a verified email.
+        if (!resolved.emailVerified || !resolved.email) {
+          return result(403, { error: 'email_not_verified' });
+        }
+
+        // Resolve citizen by IdP subject link, else by email, else create.
+        const linkRows = await db
+          .select()
+          .from(schema.externalIdentities)
+          .where(
+            and(
+              eq(schema.externalIdentities.provider, resolved.provider),
+              eq(schema.externalIdentities.subject, resolved.subject),
+            ),
+          )
+          .limit(1);
+        let citizenId = linkRows[0]?.citizenId;
+        if (!citizenId) {
+          const byEmail = await db
+            .select()
+            .from(schema.citizens)
+            .where(eq(schema.citizens.email, resolved.email))
+            .limit(1);
+          if (byEmail[0]) {
+            citizenId = byEmail[0].id;
+          } else {
+            const ins = await db
+              .insert(schema.citizens)
+              .values({
+                id: `cit-${randomBytes(8).toString('hex')}`,
+                email: resolved.email,
+                displayName: resolved.email.split('@')[0],
+              })
+              .returning({ id: schema.citizens.id });
+            citizenId = ins[0].id;
+          }
+          // Link the IdP subject. onConflictDoNothing guards the UNIQUE(provider,
+          // subject) invariant against a concurrent first-login for the same
+          // subject (two tabs): if a sibling won the race, re-resolve its citizen.
+          const linked = await db
+            .insert(schema.externalIdentities)
+            .values({
+              id: `ext-${randomBytes(8).toString('hex')}`,
+              citizenId,
+              provider: resolved.provider,
+              subject: resolved.subject,
+            })
+            .onConflictDoNothing({
+              target: [
+                schema.externalIdentities.provider,
+                schema.externalIdentities.subject,
+              ],
+            })
+            .returning({ citizenId: schema.externalIdentities.citizenId });
+          if (linked.length === 0) {
+            const winner = await db
+              .select()
+              .from(schema.externalIdentities)
+              .where(
+                and(
+                  eq(schema.externalIdentities.provider, resolved.provider),
+                  eq(schema.externalIdentities.subject, resolved.subject),
+                ),
+              )
+              .limit(1);
+            citizenId = winner[0]?.citizenId ?? citizenId;
+          }
+        } else {
+          // Refresh email if the IdP says it changed.
+          await db
+            .update(schema.citizens)
+            .set({ email: resolved.email })
+            .where(
+              and(
+                eq(schema.citizens.id, citizenId),
+                sql`${schema.citizens.email} is distinct from ${resolved.email}`,
+              ),
+            );
+        }
+
+        const cRow = (
+          await db
+            .select()
+            .from(schema.citizens)
+            .where(eq(schema.citizens.id, citizenId))
+            .limit(1)
+        )[0];
+        if (!cRow) return result(500, { error: 'citizen_resolution_failed' });
+        await emitAudit({
+          eventType: 'identity.session.oidc.exchanged',
+          action: 'exchange',
+          target: { type: 'citizen', id: citizenId },
+          data: { provider: resolved.provider, subject: resolved.subject },
+        });
+        return result(200, {
+          sessionToken: signSession(citizenId),
+          citizen: citizenWire(cRow),
+        });
+      },
+    },
 
     // Gated by IDENTITY_DEV_TOKENS=true: surfaces the latest magic token per email
     // so local demo + acceptance harness can complete login without SMTP. 404 otherwise.
@@ -256,7 +397,7 @@ export function identityRoutes(db: DbClient): Route[] {
       method: 'GET',
       path: '/internal/identity/dev-tokens',
       handler: async () => {
-        if (process.env.IDENTITY_DEV_TOKENS !== 'true') return result(404, { error: 'not_found' });
+        if ((process.env.IDENTITY_MODE ?? 'stub') === 'oidc' || process.env.IDENTITY_DEV_TOKENS !== 'true') return result(404, { error: 'not_found' });
         return result(200, { tokens: Object.fromEntries(devTokens) });
       },
     },

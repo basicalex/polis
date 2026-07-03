@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import DemoBadge from '../components/DemoBadge.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -41,6 +42,7 @@ try {
 
 <Base title="Rewards">
   <section class="panel">
+    <DemoBadge />
     <h1>Rewards</h1>
     <p class="muted">
       Civic rewards (§30.8): approved non-political contributions make a contributor

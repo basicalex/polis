@@ -1,5 +1,6 @@
 {
   "name": "polis-interface",
+  "description": "Local v1 civic infrastructure for source-linked governance maps, public audit trails, and proof-oriented transition pilots.",
   "version": "0.1.0-v1",
   "private": true,
   "license": "AGPL-3.0-or-later",
@@ -35,5 +36,8 @@
       "esbuild",
       "sharp"
     ]
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   }
 }

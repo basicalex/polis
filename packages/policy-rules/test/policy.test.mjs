@@ -373,3 +373,18 @@ test('representative status allow_terminal requires an approved resolution revie
     false,
   );
 });
+
+test('identity access allows stub mode and oidc with verified email (M10)', () => {
+  assert.equal(
+    opaEval('identity/access.rego', { mode: 'stub' }, 'data.polis.identity.access.allow'),
+    true,
+  );
+  assert.equal(
+    opaEval('identity/access.rego', { mode: 'oidc', email_verified: true }, 'data.polis.identity.access.allow'),
+    true,
+  );
+  assert.equal(
+    opaEval('identity/access.rego', { mode: 'oidc', email_verified: false }, 'data.polis.identity.access.allow'),
+    false,
+  );
+});

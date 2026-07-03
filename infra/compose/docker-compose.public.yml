@@ -1,0 +1,23 @@
+# Public read-only deploy override (§23 public-edge launch hardening).
+#
+# Usage:
+#   docker compose -f infra/compose/docker-compose.yml \
+#                  -f infra/compose/docker-compose.public.yml up
+#
+# - platform-api.PUBLIC_EDGE='true'  → BFF serves only reads + stateless
+#   self-verification (verify/hash|file|manifest); every write/login/
+#   participation route and the dev-tokens route return 405; remaining reads
+#   are per-IP rate-limited. See services/platform-api/src/index.ts withPublicEdge.
+# - citizen-identity-service.IDENTITY_DEV_TOKENS='false' → magic tokens no
+#   longer surfaced. Defense-in-depth: even if an operator forgets this, the
+#   BFF dev-tokens proxy route is 405 under PUBLIC_EDGE=true.
+#
+# Base docker-compose.yml is intentionally unchanged: dev-services and
+# scripts/phase8-acceptance.mjs (lines 63-76) rely on dev-tokens → 200.
+services:
+  platform-api:
+    environment:
+      PUBLIC_EDGE: 'true'
+  citizen-identity-service:
+    environment:
+      IDENTITY_DEV_TOKENS: 'false'

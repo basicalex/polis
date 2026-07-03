@@ -946,6 +946,25 @@ export const citizens = pgTable(
   ],
 );
 
+// M10 external-identity link — binds an IdP subject (Keycloak `sub`) to a
+// citizen. UNIQUE(provider, subject) is the load-bearing invariant: one IdP
+// subject → one citizen. citizenId is a soft text FK (no references(); mirrors
+// vaultDocuments.citizenId). provider e.g. 'keycloak'.
+export const externalIdentities = pgTable(
+  'external_identities',
+  {
+    id: pkId(),
+    citizenId: text('citizen_id').notNull(),
+    provider: text('provider').notNull(),
+    subject: text('subject').notNull(),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('external_identities_provider_subject_idx').on(t.provider, t.subject),
+    index('external_identities_citizen_idx').on(t.citizenId),
+  ],
+);
+
 // §16.2 citizen's listing of their own official documents/proofs.
 export const vaultDocuments = pgTable(
   'vault_documents',
@@ -1111,6 +1130,39 @@ export const commitmentStatusEvents = pgTable(
   ],
 );
 
+// M-RA citizen question on a commitment: a prompt (not a claim), authored by
+// any authenticated citizen and auto-published (no review). Mirrors commitments
+// (universal(); generic status unused — questions are publish-once).
+export const commitmentQuestions = pgTable(
+  'commitment_questions',
+  {
+    id: pkId(),
+    commitmentId: text('commitment_id').notNull(),
+    askedByCitizenId: text('asked_by_citizen_id').notNull(),
+    body: text('body').notNull(),
+    ...universal(),
+  },
+  (t) => [index('commitment_questions_commitment_idx').on(t.commitmentId)],
+);
+
+// M-RA official answer to a question: mandate-holder authored, admin-adjudicated
+// (a 'mandate_answer' submission applied on approval). Append-only; latest row
+// per question wins (mirrors commitment_status_events — no universal()).
+export const commitmentAnswers = pgTable(
+  'commitment_answers',
+  {
+    id: pkId(),
+    questionId: text('question_id').notNull(),
+    mandateHolderId: text('mandate_holder_id').notNull(),
+    body: text('body').notNull(),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [index('commitment_answers_question_idx').on(t.questionId)],
+);
+
 export const schema = {
   appMeta,
 
@@ -1157,6 +1209,7 @@ export const schema = {
   rewardEligibilityEvents,
   rewardPayouts,
   citizens,
+  externalIdentities,
   vaultDocuments,
   accessGrants,
   accessEvents,
@@ -1164,5 +1217,7 @@ export const schema = {
   mandateHolderCharters,
   commitments,
   commitmentStatusEvents,
+  commitmentQuestions,
+  commitmentAnswers,
   verifiableCredentials,
 };

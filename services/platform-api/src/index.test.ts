@@ -20,6 +20,13 @@ test('platform-api exposes §23 public edge routes without network calls', () =>
   assert.ok(paths.includes('GET /api/v1/commitments/:id'));
   assert.ok(paths.includes('GET /api/v1/pilot/charter'));
   assert.ok(paths.includes('GET /api/v1/pilot/results'));
+  assert.ok(paths.includes('POST /api/v1/mandate-holders/:id/commitments'));
+  assert.ok(paths.includes('POST /api/v1/commitments/:id/resolutions'));
+  assert.ok(paths.includes('GET /api/v1/commitments/:id/questions'));
+  assert.ok(paths.includes('POST /api/v1/commitments/:id/questions'));
+  assert.ok(paths.includes('POST /api/v1/commitment-questions/:id/answers'));
+  assert.ok(paths.includes('GET /api/v1/identity/authorize'));
+  assert.ok(paths.includes('POST /api/v1/identity/callback'));
 });
 
 test('withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity)', () => {
@@ -55,6 +62,42 @@ test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=
       {},
     );
     assert.equal((devTokensOut as { status: number }).status, 405);
+
+    const mandateCommitmentOut = await find(
+      'POST',
+      '/api/v1/mandate-holders/:id/commitments',
+    ).handler(mockReq('198.51.100.1'), {}, {});
+    assert.equal((mandateCommitmentOut as { status: number }).status, 405);
+
+    const resolutionOut = await find(
+      'POST',
+      '/api/v1/commitments/:id/resolutions',
+    ).handler(mockReq('198.51.100.1'), {}, {});
+    assert.equal((resolutionOut as { status: number }).status, 405);
+    const askOut = await find('POST', '/api/v1/commitments/:id/questions').handler(
+      mockReq('198.51.100.1'),
+      {},
+      {},
+    );
+    assert.equal((askOut as { status: number }).status, 405);
+    const answerOut = await find('POST', '/api/v1/commitment-questions/:id/answers').handler(
+      mockReq('198.51.100.1'),
+      {},
+      {},
+    );
+    assert.equal((answerOut as { status: number }).status, 405);
+    const authorizeOut = await find('GET', '/api/v1/identity/authorize').handler(
+      mockReq('198.51.100.1'),
+      {},
+      {},
+    );
+    assert.equal((authorizeOut as { status: number }).status, 405);
+    const callbackOut = await find('POST', '/api/v1/identity/callback').handler(
+      mockReq('198.51.100.1'),
+      {},
+      {},
+    );
+    assert.equal((callbackOut as { status: number }).status, 405);
 
     // verify/hash must remain on the public edge (present + not blocked).
     const verifyHash = routes.find((r) => r.method === 'POST' && r.path === '/api/v1/verify/hash');

@@ -1,0 +1,153 @@
+---
+import Base from '../layouts/Base.astro';
+import DemoBadge from '../components/DemoBadge.astro';
+
+const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+---
+<Base title="Reviewer Admin — Drafting">
+<section class="panel">
+  <DemoBadge label="demonstration — dev identity, not production" />
+  <h1>Mandate drafting</h1>
+  <p class="muted">
+    A <strong>verified_official</strong> files commitments and answers citizen questions here.
+    Filings are submitted as pending contributions and applied to the governance graph only after a
+    reviewer approves them through <a href="/review">/review</a> (accountability, not self-declaration).
+  </p>
+  <div id="gate" style="display:none">
+    <p id="gate-msg" class="panel"></p>
+    <p><a href="/login">← back to login</a></p>
+  </div>
+  <div id="drafting" style="display:none">
+    <p>Signed in as <strong id="who"></strong> (<code id="who-level"></code>).</p>
+    <div id="mandates"></div>
+    <p class="muted">Filed-but-pending submissions appear in the <a href="/review">review queue</a>.</p>
+  </div>
+</section>
+<script is:inline define:vars={{ API }}>
+function authHeader(session) { return { 'content-type': 'application/json', authorization: 'Bearer ' + session.token }; }
+function el(html) { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
+
+async function loadDrafting(session) {
+  document.getElementById('who').textContent = session.email || session.citizenId;
+  document.getElementById('who-level').textContent = session.identityLevel || 'unknown';
+  if (session.identityLevel !== 'verified_official') {
+    document.getElementById('gate').style.display = 'block';
+    document.getElementById('gate-msg').textContent = 'Only a verified_official (mandate-holder) may draft. Your identity level is ' + (session.identityLevel || 'unknown') + '.';
+    return;
+  }
+  // Claims for the commitment <select> (proposal_assertion | public_statement).
+  const claimsResp = await fetch(API + '/api/v1/claims');
+  const claimsBody = claimsResp.ok ? await claimsResp.json() : { items: [] };
+  const claims = (claimsBody.items ?? []).filter((c) => c.claimType === 'proposal_assertion' || c.claimType === 'public_statement');
+
+  const mhResp = await fetch(API + '/api/v1/mandate-holders');
+  const mhBody = mhResp.ok ? await mhResp.json() : { items: [] };
+  const mine = (mhBody.items ?? []).filter((h) => h.citizenId === session.citizenId && h.status === 'active');
+
+  const root = document.getElementById('mandates');
+  if (mine.length === 0) {
+    root.innerHTML = '<p class="panel muted">No active mandates bound to your citizen identity.</p>';
+    return;
+  }
+  for (const mh of mine) {
+    const card = el('<section class="card stack"></section>');
+    card.innerHTML = '<h2>' + mh.displayName + ' <span class="badge">' + mh.status + '</span></h2>' +
+      '<h3>File a commitment</h3>' +
+      '<form class="stack" data-commitment data-mh="' + mh.id + '">' +
+        '<label>Promise claim <select name="claimId">' +
+          claims.map((c) => '<option value="' + c.id + '">' + c.text.slice(0, 80) + ' (' + c.claimType + ')</option>').join('') +
+        '</select></label>' +
+        '<label>Success criterion <textarea name="successCriterion" rows="2" style="width:100%"></textarea></label>' +
+        '<label>Due at <input type="date" name="dueAt"/></label>' +
+        '<button type="submit">File commitment</button>' +
+        '<p class="muted form-msg"></p>' +
+      '</form>' +
+      '<h3>Unanswered questions</h3>' +
+      '<div class="pending-questions">Loading…</div>';
+    root.appendChild(card);
+
+    card.querySelector('[data-commitment]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const msg = f.querySelector('.form-msg');
+      const body = { claimId: f.claimId.value, successCriterion: f.successCriterion.value.trim() };
+      if (f.dueAt.value) body.dueAt = f.dueAt.value;
+      try {
+        const r = await fetch(API + '/api/v1/mandate-holders/' + f.dataset.mh + '/commitments', {
+          method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
+        });
+        const b = await r.json();
+        if (r.status === 401) { location.href = '/login'; return; }
+        if (!r.ok) { msg.textContent = (b && b.error) || 'filing failed'; return; }
+        msg.textContent = 'Filed — pending review. See /review.';
+        f.reset();
+      } catch (err) { msg.textContent = String(err); }
+    });
+
+    loadPendingQuestions(card.querySelector('.pending-questions'), mh, session);
+  }
+}
+
+async function loadPendingQuestions(container, mh, session) {
+  // Load the mandate-holder detail (commitments), then each commitment's questions.
+  const detailResp = await fetch(API + '/api/v1/mandate-holders/' + mh.id);
+  const detail = detailResp.ok ? await detailResp.json() : { commitments: [] };
+  const commitments = detail.commitments ?? [];
+  const pending = [];
+  for (const c of commitments) {
+    const qr = await fetch(API + '/api/v1/commitments/' + c.id + '/questions');
+    const qb = qr.ok ? await qr.json() : { items: [] };
+    for (const q of (qb.items ?? [])) {
+      if (q.answer === null) pending.push({ commitment: c, question: q });
+    }
+  }
+  if (pending.length === 0) { container.innerHTML = '<p class="muted">No unanswered questions.</p>'; return; }
+  container.innerHTML = '';
+  for (const { commitment, question } of pending) {
+    const item = el('<div class="card stack"></div>');
+    item.innerHTML =
+      '<p class="muted">Commitment: ' + commitment.successCriterion + '</p>' +
+      '<blockquote>' + question.body + '</blockquote>' +
+      '<form class="stack" data-answer data-q="' + question.id + '">' +
+        '<label>Answer <textarea name="body" rows="2" style="width:100%"></textarea></label>' +
+        '<button type="submit">File answer</button>' +
+        '<p class="muted form-msg"></p>' +
+      '</form>';
+    container.appendChild(item);
+    item.querySelector('[data-answer]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const msg = f.querySelector('.form-msg');
+      const body = { body: f.body.value.trim() };
+      if (!body.body) { msg.textContent = 'Answer text required.'; return; }
+      try {
+        const r = await fetch(API + '/api/v1/commitment-questions/' + f.dataset.q + '/answers', {
+          method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
+        });
+        const b = await r.json();
+        if (r.status === 401) { location.href = '/login'; return; }
+        if (!r.ok) { msg.textContent = (b && b.error) || 'filing failed'; return; }
+        msg.textContent = 'Answer filed — pending review.';
+        f.reset();
+      } catch (err) { msg.textContent = String(err); }
+    });
+  }
+}
+
+const raw = sessionStorage.getItem('admin_session');
+if (!raw) { location.href = '/login'; }
+else {
+  let session;
+  try { session = JSON.parse(raw); } catch { session = null; }
+  if (!session || !session.token) { location.href = '/login'; }
+  else {
+    document.getElementById('drafting').style.display = 'block';
+    loadDrafting(session).catch((err) => {
+      const g = document.getElementById('gate');
+      g.style.display = 'block';
+      document.getElementById('gate-msg').textContent = 'Failed to load drafting: ' + String(err);
+    });
+  }
+}
+</script>
+</Base>

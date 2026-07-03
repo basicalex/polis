@@ -318,6 +318,17 @@ async function main(): Promise<void> {
     'commitment_status_events.json',
     ['status', 'resolution_claim_id', 'decided_by', 'decided_at', 'created_at'],
   );
+  await upsert('commitment_questions', schema.commitmentQuestions, 'commitment_questions.json', [
+    'commitment_id',
+    'asked_by_citizen_id',
+    'body',
+  ]);
+  await upsert(
+    'commitment_answers',
+    schema.commitmentAnswers,
+    'commitment_answers.json',
+    ['question_id', 'mandate_holder_id', 'body', 'decided_by', 'decided_at'],
+  );
   await Promise.resolve();
 }
 

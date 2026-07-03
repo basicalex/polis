@@ -1,6 +1,6 @@
 # Public Methodology: Scoring
 
-Local v1 scoring is deterministic demo logic from the domain package. It is intended to show how a public governance process can be assessed, not to certify any real institution.
+Local v1 exposes sourced governance graph data and review states. Scoring/assessment detail routes are reserved for later milestones and currently return `404 not_found`.
 
 ## Principles
 
@@ -11,7 +11,7 @@ Local v1 scoring is deterministic demo logic from the domain package. It is inte
 
 ## Current local v1
 
-`GET /api/v1/assessment/process-public-complaint` assesses the seeded demo process. The response is stable for local tests and demos.
+The implemented methodology surface is evidence discipline: claims must be sourced or explicitly marked as unsupported drafts, and public graph reads expose review state. `/api/v1/assessments/:id` is reserved but not implemented.
 
 ## Production requirement
 

@@ -1,11 +1,13 @@
 ---
 import Base from '../../layouts/Base.astro';
+import DemoBadge from '../../components/DemoBadge.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
 <Base title="Contribute evidence">
   <section class="page-hero">
+    <DemoBadge />
     <h1>Contribute evidence</h1>
     <p class="lede">
       Submit evidence for human review (spec §19). Approved evidence is published

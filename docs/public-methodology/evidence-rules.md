@@ -12,7 +12,7 @@ Evidence is the boundary between civic explanation and unsupported assertion.
 
 ## Current local v1
 
-`GET /api/v1/evidence/claims` returns seeded demo claims from the domain package. The local AI endpoint cites those claims but remains a mock adapter with `reviewState: "under_review"`.
+`GET /api/v1/claims` returns seeded claims hydrated with evidence links and sources. Claims must have evidence or be explicitly marked as unsupported drafts; no active AI endpoint cites or rewrites those claims in local v1.
 
 ## Review checklist
 

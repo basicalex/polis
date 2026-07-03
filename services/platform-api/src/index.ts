@@ -84,6 +84,7 @@ const graphReadPaths = [
   '/api/v1/mandate-holders/:id',
   '/api/v1/mandate-holders/:id/scorecard',
   '/api/v1/commitments/:id',
+  '/api/v1/commitments/:id/questions',
 ] as const;
 
 const polisReadPaths = [
@@ -205,11 +206,17 @@ const PUBLIC_EDGE_BLOCKED = new Set<string>([
   'POST /api/v1/review/:id/decide',
   'POST /api/v1/identity/magic-link',
   'POST /api/v1/identity/exchange',
+  'GET /api/v1/identity/authorize',
+  'POST /api/v1/identity/callback',
   'GET /api/v1/identity/dev-tokens',
   'POST /api/v1/vault/documents',
   'POST /api/v1/vault/grants',
   'POST /api/v1/vault/verify',
   'DELETE /api/v1/vault/grants/:id',
+  'POST /api/v1/mandate-holders/:id/commitments',
+  'POST /api/v1/commitments/:id/resolutions',
+  'POST /api/v1/commitments/:id/questions',
+  'POST /api/v1/commitment-questions/:id/answers',
 ]);
 
 /** Operational routes exempt from rate-limiting so health checks pass. */
@@ -375,6 +382,24 @@ export function platformRoutes(): Route[] {
       handler: async (_req: IncomingMessage, body: unknown) =>
         proxyToPath(identityBase, 'POST', '/internal/identity/exchange', body),
     },
+    // M10 OIDC authorize — GET carries redirect_uri as a query param, so forward
+    // url.search alongside the remapped internal path (identity-service serves
+    // /internal/*, not /api/v1/* — a plain same-path proxy would 404 upstream).
+    {
+      method: 'GET',
+      path: '/api/v1/identity/authorize',
+      handler: async (req: IncomingMessage) => {
+        const url = new URL(req.url ?? '/', 'http://localhost');
+        return proxyToPath(identityBase, 'GET', '/internal/identity/authorize' + url.search);
+      },
+    },
+    // M10 OIDC callback — POST carries code/state/redirectUri in the body.
+    {
+      method: 'POST',
+      path: '/api/v1/identity/callback',
+      handler: async (_req: IncomingMessage, body: unknown) =>
+        proxyToPath(identityBase, 'POST', '/internal/identity/callback', body),
+    },
     // Dev-only: surface magic tokens so the vault UI + acceptance can complete
     // login without SMTP. Gated by IDENTITY_DEV_TOKENS on identity-service (404 otherwise).
     {
@@ -456,6 +481,72 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/vc/:id',
       handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
         proxyToPath(vcIssuerBase, 'GET', '/internal/vc/' + params.id),
+    },
+    // M-RA Phase 2 — citizen-authenticated mandate filings (requireCitizen → X-Polis-Citizen).
+    // Map /api/v1/mandate-holders/:id/commitments → /internal/mandate-holders/:id/commitments
+    //     /api/v1/commitments/:id/resolutions      → /internal/commitments/:id/resolutions
+    {
+      method: 'POST',
+      path: '/api/v1/mandate-holders/:id/commitments',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          contributionBase,
+          'POST',
+          '/internal/mandate-holders/' + params.id + '/commitments',
+          citizenId,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/commitments/:id/resolutions',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          contributionBase,
+          'POST',
+          '/internal/commitments/' + params.id + '/resolutions',
+          citizenId,
+          body,
+        );
+      },
+    },
+    // M-RA Phase 3 — citizen-authenticated Q&A (requireCitizen → X-Polis-Citizen).
+    // Map /api/v1/commitments/:id/questions            → /internal/commitments/:id/questions
+    //     /api/v1/commitment-questions/:id/answers     → /internal/commitment-questions/:id/answers
+    {
+      method: 'POST',
+      path: '/api/v1/commitments/:id/questions',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          contributionBase,
+          'POST',
+          '/internal/commitments/' + params.id + '/questions',
+          citizenId,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/commitment-questions/:id/answers',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const citizenId = await requireCitizen(req);
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          contributionBase,
+          'POST',
+          '/internal/commitment-questions/' + params.id + '/answers',
+          citizenId,
+          body,
+        );
+      },
     },
     // M9 — pilot charter + results (static JSON files, no upstream service).
     {

@@ -27,6 +27,8 @@ const seedFiles = [
   'claims.json',
   'evidence_links.json',
   'relationships.json',
+  'commitment_questions.json',
+  'commitment_answers.json',
 ] as const;
 
 async function load(fileName: string): Promise<JsonRow[]> {

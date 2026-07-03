@@ -14,6 +14,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
   </head>
   <body>
     <div class="site-shell">
+      <div class="demo-banner" role="note">Demonstration environment — seeded data; no live integrations.</div>
       <header class="site-header">
         <a class="site-brand" href="/">Polis Interface</a>
         <nav class="site-nav" aria-label="Primary">
@@ -28,6 +29,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
           <a href="/methodology">Methodology</a>
           <a href="/transparency">Transparency</a>
           <a href="/privacy">Privacy</a>
+          <span id="auth-nav"></span>
         </nav>
       </header>
       <main class="site-main"><slot /></main>
@@ -55,5 +57,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         </script>
       </footer>
     </div>
+    <script is:inline define:vars={{ apiUrl }}>
+      window.__API_URL = apiUrl;
+      const s = sessionStorage.getItem('web_session');
+      const n = document.getElementById('auth-nav');
+      if (n) n.innerHTML = s ? '<a href="/mandate-holders">Mandate-holders</a> · <a href="#" onclick="sessionStorage.removeItem(\'web_session\');location.reload()">Logout</a>' : '<a href="/login">Login</a>';
+    </script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import DemoBadge from '../components/DemoBadge.astro';
 
 type Issue = { id: string; title: string; summary: string | null; status: string };
 
@@ -21,6 +22,7 @@ const open = issues.filter((i) => i.status === 'open' || i.status === 'deliberat
 
 <Base title="Deliberate">
   <section class="stack">
+    <DemoBadge />
     <p class="badge">§13 Deliberation</p>
     <h1>Deliberate</h1>
     <p class="muted">

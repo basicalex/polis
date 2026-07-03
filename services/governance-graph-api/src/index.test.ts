@@ -16,6 +16,7 @@ test('governance-graph-api exposes §23.1 institutions + roles + processes + tra
     'GET /api/v1/mandate-holders/:id',
     'GET /api/v1/mandate-holders/:id/scorecard',
     'GET /api/v1/commitments/:id',
+    'GET /api/v1/commitments/:id/questions',
   ]) {
     assert.ok(paths.includes(p), `missing ${p}`);
   }

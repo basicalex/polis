@@ -73,6 +73,7 @@ for (const svc of services) {
       VAULT_INTERNAL_URL: process.env.VAULT_INTERNAL_URL ?? 'http://localhost:8750',
       VC_ISSUER_INTERNAL_URL: process.env.VC_ISSUER_INTERNAL_URL ?? 'http://localhost:8950',
       IDENTITY_DEV_TOKENS: 'true',
+      IDENTITY_MODE: process.env.IDENTITY_MODE ?? 'stub',
       PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
       CONTRIBUTION_INTERNAL_URL: process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450',
       PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',

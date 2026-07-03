@@ -8,7 +8,7 @@
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import type { IncomingMessage } from 'node:http';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, countDistinct, desc, eq, inArray } from 'drizzle-orm';
 import {
   operationalRoutes,
   result,
@@ -18,6 +18,7 @@ import {
 } from '@polis/service-runtime';
 import {
   claimWire,
+  commitmentQuestionWire,
   commitmentStatusEventWire,
   commitmentWire,
   documentTypeWire,
@@ -32,6 +33,7 @@ import {
   roleWire,
   sourceWire,
   type ClaimWire,
+  type CommitmentQuestionWire,
   type CommitmentStatusEventWire,
   type EvidenceLinkWire,
   type InstitutionWire,
@@ -411,6 +413,7 @@ export function graphRoutes(db: DbClient): Route[] {
           ...mandateHolderWire(row),
           charterAccepted: charter?.status === 'accepted',
           commitments,
+          answeredQuestionCount: await answeredQuestionCount(db, params.id),
         };
       },
     },
@@ -491,7 +494,23 @@ export function graphRoutes(db: DbClient): Route[] {
           effectiveStatus: await effectiveStatus(db, row.id, row.dueAt),
           statusTimeline: timeline,
           resolution,
+          questions: await loadCommitmentQuestions(db, row.id),
         };
+      },
+    },
+
+    // M-RA Phase 3 — public read of a commitment's Q&A (questions + latest answer).
+    {
+      method: 'GET',
+      path: '/api/v1/commitments/:id/questions',
+      handler: async (_req, _body, params) => {
+        const commitmentRows = await db
+          .select({ id: schema.commitments.id })
+          .from(schema.commitments)
+          .where(eq(schema.commitments.id, params.id))
+          .limit(1);
+        if (!commitmentRows[0]) return notFound(params.id);
+        return { items: await loadCommitmentQuestions(db, params.id) };
       },
     },
   ];
@@ -530,6 +549,54 @@ async function effectiveStatus(
     return 'overdue';
   }
   return latest;
+}
+
+/**
+ * M-RA commitment questions with their latest applied answer (if any).
+ * Latest answer wins (commitment_answers append-only, created_at DESC LIMIT 1).
+ * Mirrors the lazy per-row load used for the commitments list.
+ */
+async function loadCommitmentQuestions(
+  db: DbClient,
+  commitmentId: string,
+): Promise<CommitmentQuestionWire[]> {
+  const qRows = await db
+    .select()
+    .from(schema.commitmentQuestions)
+    .where(eq(schema.commitmentQuestions.commitmentId, commitmentId))
+    .orderBy(asc(schema.commitmentQuestions.createdAt));
+  return Promise.all(
+    qRows.map(async (q) => {
+      const aRows = await db
+        .select()
+        .from(schema.commitmentAnswers)
+        .where(eq(schema.commitmentAnswers.questionId, q.id))
+        .orderBy(desc(schema.commitmentAnswers.createdAt))
+        .limit(1);
+      return commitmentQuestionWire(q, aRows[0] ?? null);
+    }),
+  );
+}
+
+/**
+ * M-RA answered-question count for a mandate-holder projection. Counts
+ * questions across the holder's commitments that have ≥1 answer (pure count,
+ * no grade/ranking — anti-endorsement). One aggregate query via a join.
+ */
+async function answeredQuestionCount(db: DbClient, mandateHolderId: string): Promise<number> {
+  const rows = await db
+    .select({ n: countDistinct(schema.commitmentQuestions.id) })
+    .from(schema.commitmentQuestions)
+    .innerJoin(
+      schema.commitments,
+      eq(schema.commitments.id, schema.commitmentQuestions.commitmentId),
+    )
+    .innerJoin(
+      schema.commitmentAnswers,
+      eq(schema.commitmentAnswers.questionId, schema.commitmentQuestions.id),
+    )
+    .where(eq(schema.commitments.mandateHolderId, mandateHolderId));
+  return Number(rows[0]?.n ?? 0);
 }
 
 async function main(): Promise<void> {

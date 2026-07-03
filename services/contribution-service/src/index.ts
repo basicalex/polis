@@ -23,7 +23,7 @@ import {
   type Route,
 } from '@polis/service-runtime';
 
-import { contributorWire, graphProposalWire, reviewWire, submissionWire } from './serialize.js';
+import { contributorWire, graphProposalWire, questionWire, reviewWire, submissionWire } from './serialize.js';
 
 /** §21 non-anonymous identity levels. */
 const ALLOWED_IDENTITY: Record<string, true> = {
@@ -54,6 +54,17 @@ const GRAPH_TARGET_TABLES: Record<string, true> = { claims: true, sources: true 
 const GRAPH_OPS: Record<string, true> = { insert: true, update: true, delete: true };
 /** §19 review decision inputs (action form); mapped to 'approved'/'rejected' state for storage. */
 const DECISION_INPUTS: Record<string, true> = { approve: true, reject: true };
+/** M-RA resolution statuses adjudicable via the filing route (status.rego terminal set). */
+const RESOLUTION_STATUSES: Record<string, true> = {
+  delivered: true,
+  partial: true,
+  not_delivered: true,
+};
+
+/** Return a trimmed non-empty string, or null for absent/non-string. */
+function optionalNonEmpty(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
 
 type SubmissionRow = (typeof schema.submissions)['$inferSelect'];
 
@@ -130,12 +141,57 @@ async function emitRewardEligibility(input: {
 }
 
 /**
+ * M-RA publish gate (Phase 2). TS-mirror of the authoritative
+ * representative/access.rego: a mandate-holder may publish only when ALL three
+ * hold — (1) their citizen identity is verified_official, (2) their
+ * mandate_holder row is active, and (3) they hold an accepted charter.
+ * Returns `null` when allowed, or the exact 403 result to return otherwise.
+ */
+async function assertCanPublish(
+  db: DbClient,
+  citizenId: string,
+  mandateHolderId: string,
+): Promise<null | HttpResult> {
+  const citizenRows = await db
+    .select({ identityLevel: schema.citizens.identityLevel })
+    .from(schema.citizens)
+    .where(eq(schema.citizens.id, citizenId))
+    .limit(1);
+  const citizen = citizenRows[0];
+  if (!citizen || citizen.identityLevel !== 'verified_official') {
+    return result(403, { error: 'not_verified_official' });
+  }
+  const holderRows = await db
+    .select({ citizenId: schema.mandateHolders.citizenId, status: schema.mandateHolders.status })
+    .from(schema.mandateHolders)
+    .where(eq(schema.mandateHolders.id, mandateHolderId))
+    .limit(1);
+  const holder = holderRows[0];
+  if (!holder || holder.citizenId !== citizenId) {
+    return result(403, { error: 'not_mandate_holder' });
+  }
+  if (holder.status !== 'active') {
+    return result(403, { error: 'mandate_inactive' });
+  }
+  const charterRows = await db
+    .select({ status: schema.mandateHolderCharters.status })
+    .from(schema.mandateHolderCharters)
+    .where(eq(schema.mandateHolderCharters.mandateHolderId, mandateHolderId))
+    .orderBy(desc(schema.mandateHolderCharters.updatedAt))
+    .limit(1);
+  const charter = charterRows[0];
+  if (!charter || charter.status !== 'accepted') {
+    return result(403, { error: 'charter_required' });
+  }
+  return null;
+}
+/**
  * Apply an approved (non-political) submission to the shared governance graph
  * so it is publicly readable. Returns whether the application succeeded; a
  * failure is logged + audited and never propagates (the review decision is
  * already recorded and must not be lost).
  */
-async function applySubmission(db: DbClient, sub: SubmissionRow): Promise<boolean> {
+async function applySubmission(db: DbClient, sub: SubmissionRow, reviewerId: string): Promise<boolean> {
   try {
     if (sub.type === 'evidence') {
       const p = (sub.payload ?? {}) as {
@@ -209,6 +265,78 @@ async function applySubmission(db: DbClient, sub: SubmissionRow): Promise<boolea
         action: 'apply',
         target: { type: 'graph-proposal', id: proposal.id },
         data: { targetTable: proposal.targetTable },
+      });
+      return true;
+    }
+    if (sub.type === 'claim' && sub.contributionClass === 'mandate_commitment') {
+      const p = (sub.payload ?? {}) as {
+        kind?: string;
+        mandateHolderId?: string;
+        claimId?: string;
+        successCriterion?: string;
+        dueAt?: string;
+        processId?: string;
+        jurisdictionId?: string;
+        commitmentId?: string;
+        status?: string;
+        resolutionClaimId?: string;
+      };
+      if (p.kind === 'commitment') {
+        await db.insert(schema.commitments).values({
+          id: sql`gen_random_uuid()::text`,
+          claimId: p.claimId ?? '',
+          mandateHolderId: p.mandateHolderId ?? '',
+          processId: p.processId ?? null,
+          jurisdictionId: p.jurisdictionId ?? null,
+          successCriterion: p.successCriterion ?? '',
+          dueAt: p.dueAt ? new Date(p.dueAt) : null,
+        });
+        await emitAudit({
+          eventType: 'mandate.commitment_applied',
+          action: 'apply',
+          target: { type: 'commitment', id: sub.id },
+          data: { mandateHolderId: p.mandateHolderId },
+        });
+        return true;
+      }
+      if (p.kind === 'resolution') {
+        await db.insert(schema.commitmentStatusEvents).values({
+          id: sql`gen_random_uuid()::text`,
+          commitmentId: p.commitmentId ?? '',
+          status: p.status ?? 'delivered',
+          resolutionClaimId: p.resolutionClaimId ?? null,
+          decidedBy: reviewerId, // status.rego: completion is adjudicated, never self-declared
+          decidedAt: new Date(),
+        });
+        await emitAudit({
+          eventType: 'mandate.resolution_applied',
+          action: 'apply',
+          target: { type: 'commitment-status-event', id: sub.id },
+          data: { commitmentId: p.commitmentId },
+        });
+        return true;
+      }
+    }
+    if (sub.type === 'claim' && sub.contributionClass === 'mandate_answer') {
+      const p = (sub.payload ?? {}) as {
+        kind?: string;
+        questionId?: string;
+        mandateHolderId?: string;
+        body?: string;
+      };
+      await db.insert(schema.commitmentAnswers).values({
+        id: sql`gen_random_uuid()::text`,
+        questionId: p.questionId ?? '',
+        mandateHolderId: p.mandateHolderId ?? '',
+        body: p.body ?? '',
+        decidedBy: reviewerId, // answers are adjudicated, never self-declared
+        decidedAt: new Date(),
+      });
+      await emitAudit({
+        eventType: 'mandate.answer_applied',
+        action: 'apply',
+        target: { type: 'commitment-answer', id: sub.id },
+        data: { questionId: p.questionId },
       });
       return true;
     }
@@ -532,7 +660,7 @@ export function contributionRoutes(db: DbClient): Route[] {
               data: { reason: 'political_agreement_not_auto_publishable' },
             });
           } else {
-            applied = await applySubmission(db, sub);
+            applied = await applySubmission(db, sub, input.reviewerId);
           }
           await emitAudit({
             eventType: 'contribution.approved',
@@ -540,7 +668,7 @@ export function contributionRoutes(db: DbClient): Route[] {
             target: { type: 'contribution', id: params.id },
             data: { reviewerId: input.reviewerId, applied },
           });
-          if (sub.contributionClass !== 'political_agreement') {
+          if (sub.contributionClass !== 'political_agreement' && sub.contributionClass !== 'mandate_commitment' && sub.contributionClass !== 'mandate_answer') {
             await emitRewardEligibility({
               submissionId: params.id,
               contributorId: sub.contributorId,
@@ -568,6 +696,243 @@ export function contributionRoutes(db: DbClient): Route[] {
       },
     },
 
+    // M-RA Phase 2 — file a commitment (mandate-holder authored, admin-reviewed).
+    // Citizen identity rides X-Polis-Citizen (set by the BFF). The mandate-holder
+    // citizen is stored as contributor_id: submissions.contributor_id is NOT NULL
+    // with no FK to contributors (the §19 contributors table is a separate
+    // contributor concept, not the mandate-holder author).
+    {
+      method: 'POST',
+      path: '/internal/mandate-holders/:id/commitments',
+      handler: async (req, body, params) => {
+        const rawCitizen = req.headers['x-polis-citizen'];
+        const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        const gate = await assertCanPublish(db, citizenId, params.id);
+        if (gate) return gate;
+        const p = (body ?? {}) as {
+          claimId?: string;
+          successCriterion?: string;
+          dueAt?: string;
+          processId?: string;
+          jurisdictionId?: string;
+        };
+        const detail: string[] = [];
+        const claimId = typeof p.claimId === 'string' ? p.claimId.trim() : '';
+        const successCriterion =
+          typeof p.successCriterion === 'string' ? p.successCriterion.trim() : '';
+        if (!claimId) detail.push('claim_required');
+        if (!successCriterion) detail.push('success_criterion_required');
+        let dueAt: string | null = null;
+        if (p.dueAt !== undefined && p.dueAt !== null) {
+          if (
+            typeof p.dueAt !== 'string' ||
+            !p.dueAt.trim() ||
+            Number.isNaN(Date.parse(p.dueAt))
+          ) {
+            detail.push('invalid_due_at');
+          } else {
+            dueAt = p.dueAt.trim();
+          }
+        }
+        const processId = optionalNonEmpty(p.processId);
+        if (p.processId !== undefined && p.processId !== null && processId === null) {
+          detail.push('invalid_process_id');
+        }
+        const jurisdictionId = optionalNonEmpty(p.jurisdictionId);
+        if (
+          p.jurisdictionId !== undefined &&
+          p.jurisdictionId !== null &&
+          jurisdictionId === null
+        ) {
+          detail.push('invalid_jurisdiction_id');
+        }
+        if (detail.length) {
+          return result(400, { error: 'invalid_commitment_payload', detail });
+        }
+        const payload = {
+          kind: 'commitment',
+          mandateHolderId: params.id,
+          claimId,
+          successCriterion,
+          dueAt,
+          processId,
+          jurisdictionId,
+        };
+        const ins = await db
+          .insert(schema.submissions)
+          .values({
+            id: sql`gen_random_uuid()::text`,
+            contributorId: citizenId,
+            type: 'claim',
+            status: 'pending',
+            contributionClass: 'mandate_commitment',
+            payload,
+          })
+          .returning();
+        const row = ins[0];
+        await emitAudit({
+          eventType: 'mandate.commitment_filed',
+          action: 'submit',
+          target: { type: 'contribution', id: row.id },
+          data: { mandateHolderId: params.id, claimId },
+        });
+        return result(201, submissionWire(row));
+      },
+    },
+    // M-RA Phase 2 — file a resolution (terminal status adjudication) for an
+    // existing commitment. The filing citizen must own the commitment's mandate
+    // (assertCanPublish); the terminal status is adjudicated by admin review
+    // (status.rego) and recorded with the reviewer's id, never self-declared.
+    {
+      method: 'POST',
+      path: '/internal/commitments/:id/resolutions',
+      handler: async (req, body, params) => {
+        const rawCitizen = req.headers['x-polis-citizen'];
+        const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        const cRows = await db
+          .select({ mandateHolderId: schema.commitments.mandateHolderId })
+          .from(schema.commitments)
+          .where(eq(schema.commitments.id, params.id))
+          .limit(1);
+        const commitment = cRows[0];
+        if (!commitment) return result(404, { error: 'not_found', id: params.id });
+        const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId);
+        if (gate) return gate;
+        const p = (body ?? {}) as { status?: string; resolutionClaimId?: string };
+        if (!p.status || !(p.status in RESOLUTION_STATUSES)) {
+          return result(400, { error: 'invalid_resolution_status' });
+        }
+        const resolutionClaimId = optionalNonEmpty(p.resolutionClaimId);
+        if (
+          p.resolutionClaimId !== undefined &&
+          p.resolutionClaimId !== null &&
+          resolutionClaimId === null
+        ) {
+          return result(400, { error: 'invalid_resolution_claim_id' });
+        }
+        const payload = {
+          kind: 'resolution',
+          commitmentId: params.id,
+          status: p.status,
+          resolutionClaimId,
+        };
+        const ins = await db
+          .insert(schema.submissions)
+          .values({
+            id: sql`gen_random_uuid()::text`,
+            contributorId: citizenId,
+            type: 'claim',
+            status: 'pending',
+            contributionClass: 'mandate_commitment',
+            payload,
+          })
+          .returning();
+        const row = ins[0];
+        await emitAudit({
+          eventType: 'mandate.resolution_filed',
+          action: 'submit',
+          target: { type: 'contribution', id: row.id },
+          data: { commitmentId: params.id, status: p.status },
+        });
+        return result(201, submissionWire(row));
+      },
+    },
+    // M-RA Phase 3 — citizen ask on a commitment. Auto-published (a prompt, not
+    // a claim): any authenticated citizen may ask; no review adjudication.
+    {
+      method: 'POST',
+      path: '/internal/commitments/:id/questions',
+      handler: async (req, body, params) => {
+        const rawCitizen = req.headers['x-polis-citizen'];
+        const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        const cRows = await db
+          .select({ id: schema.commitments.id })
+          .from(schema.commitments)
+          .where(eq(schema.commitments.id, params.id))
+          .limit(1);
+        if (!cRows[0]) return result(404, { error: 'not_found', id: params.id });
+        const q = (body ?? {}) as { body?: string };
+        const text = typeof q.body === 'string' ? q.body.trim() : '';
+        if (!text) return result(400, { error: 'invalid_question_payload', detail: ['body_required'] });
+        const ins = await db
+          .insert(schema.commitmentQuestions)
+          .values({
+            id: sql`gen_random_uuid()::text`,
+            commitmentId: params.id,
+            askedByCitizenId: citizenId,
+            body: text,
+          })
+          .returning();
+        const row = ins[0];
+        await emitAudit({
+          eventType: 'mandate.question_asked',
+          action: 'submit',
+          target: { type: 'commitment-question', id: row.id },
+          data: { commitmentId: params.id },
+        });
+        return result(201, questionWire(row));
+      },
+    },
+    // M-RA Phase 3 — official answer to a question. Mandate-gated (only the
+    // commitment's mandate owner may answer) and admin-adjudicated: the answer
+    // is filed as a 'mandate_answer' submission and applied on approval
+    // (mirrors the Phase 2 resolution path).
+    {
+      method: 'POST',
+      path: '/internal/commitment-questions/:id/answers',
+      handler: async (req, body, params) => {
+        const rawCitizen = req.headers['x-polis-citizen'];
+        const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
+        if (!citizenId) return result(401, { error: 'unauthenticated' });
+        const qRows = await db
+          .select({ commitmentId: schema.commitmentQuestions.commitmentId })
+          .from(schema.commitmentQuestions)
+          .where(eq(schema.commitmentQuestions.id, params.id))
+          .limit(1);
+        const question = qRows[0];
+        if (!question) return result(404, { error: 'not_found', id: params.id });
+        const cRows = await db
+          .select({ mandateHolderId: schema.commitments.mandateHolderId })
+          .from(schema.commitments)
+          .where(eq(schema.commitments.id, question.commitmentId))
+          .limit(1);
+        const commitment = cRows[0];
+        if (!commitment) return result(404, { error: 'not_found', id: question.commitmentId });
+        const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId);
+        if (gate) return gate;
+        const input = (body ?? {}) as { body?: string };
+        const answerText = typeof input.body === 'string' ? input.body.trim() : '';
+        if (!answerText) return result(400, { error: 'invalid_answer_payload', detail: ['body_required'] });
+        const payload = {
+          kind: 'answer',
+          questionId: params.id,
+          mandateHolderId: commitment.mandateHolderId,
+          body: answerText,
+        };
+        const ins = await db
+          .insert(schema.submissions)
+          .values({
+            id: sql`gen_random_uuid()::text`,
+            contributorId: citizenId,
+            type: 'claim',
+            status: 'pending',
+            contributionClass: 'mandate_answer',
+            payload,
+          })
+          .returning();
+        const row = ins[0];
+        await emitAudit({
+          eventType: 'mandate.answer_filed',
+          action: 'submit',
+          target: { type: 'contribution', id: row.id },
+          data: { questionId: params.id },
+        });
+        return result(201, submissionWire(row));
+      },
+    },
     // §11 graph-proposal staging view for the admin UI.
     {
       method: 'GET',

@@ -5,13 +5,10 @@ Polis Interface should make public civic processes traceable without exposing pr
 ## What local v1 exposes
 
 - Service health, readiness, metrics, and version endpoints.
-- Demo governance institutions and processes.
-- Demo public evidence claims with source references.
-- Deterministic process assessment output.
-- Proof manifest creation and hash verification.
-- Mock Polis conversation summaries.
-- Mock AI explanations with citations and review state.
-- Demo reward rules and public audit events.
+- Seeded jurisdictions, institutions, roles, processes, document types, laws, budget lines, failure modes, controls, claims, and graph relationships.
+- Public claims hydrated with evidence links and source references.
+- Local hash verification through `POST /api/v1/verify/hash`.
+- Append-only public audit reads backed by canonical, hash-chained audit rows.
 
 ## What local v1 does not claim
 

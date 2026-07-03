@@ -1,4 +1,138 @@
 ---
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Transparency"><section class="panel"><h1>Transparency</h1><p>Lands in M1: public audit and version metadata are available now; broader transparency reporting lands in M9.</p></section></Base>
+<Base title="Transparency">
+  <section class="panel">
+    <h1>Transparency</h1>
+    <p class="lede">
+      Polis Interface is open <strong>by default, not by request</strong>. The rules governing
+      claims, evidence, AI behavior, rewards, and audit are themselves published, reviewable,
+      re-runnable code — and changes to those rules are themselves audited.
+    </p>
+    <p class="muted">
+      This is the canonical public contract for what Polis Interface publishes, what anyone can
+      verify, what is demonstration-only, and what is not live yet.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>1 · The promise</h2>
+    <p>
+      Open by default means the trust layer is a set of <em>published, inspectable, re-runnable
+      rules</em>, not private assertions. Policy-as-code decides what is allowed; the audit trail
+      records what happened; anyone can re-derive a decision from the committed code. Changes to the
+      rules are themselves audited.
+    </p>
+    <p>
+      <a href="/governance/jur-croatia-local">Governance graph →</a> ·
+      <a href="/audit">Audit trail →</a>
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Published by default <span class="badge">public-read</span></h2>
+    <ul>
+      <li>
+        <strong>Policy-as-code</strong>: Rego modules + OPA tests in <code>packages/policy-rules/</code>
+        (<code>access</code>, <code>ai</code>, <code>rewards</code>, <code>contribute</code>,
+        <code>polis</code>, <code>vault</code>, <code>pilot</code>). The code — not a private
+        assertion — decides access and gating.
+      </li>
+      <li>
+        <strong>Append-only hash-chained audit</strong>: a <em>public/redacted view</em> (spec §26.4)
+        exposing only <code>visibility=public</code>, target-scoped rows — never private
+        document-access or private-flow events unredacted. Each row carries <code>hash</code> +
+        <code>previousHash</code> linkage with no UPDATE/DELETE semantics.
+        <a href="/audit">Read the public audit view →</a>
+      </li>
+      <li>
+        <strong>Proof manifests</strong>: cryptographically-linked proof objects anchoring evidence
+        and claims. <a href="/proofs">Proofs →</a>
+      </li>
+      <li>
+        <strong>Methodology</strong>: published evidence rules and scoring.
+        <a href="/methodology">Methodology →</a>
+      </li>
+      <li>
+        <strong>Seeded governance graph</strong>: jurisdictions, processes, institutions, roles,
+        domains, laws, budget lines, controls, and claims. <a href="/source">Source data →</a>
+      </li>
+      <li>
+        <strong>Pilot charter + results</strong>:
+        <a href="/governance/jur-croatia-local">charter</a> ·
+        <a href="/pilot/results">results</a>.
+      </li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>3 · Verifiable by anyone <span class="badge badge-success">verifiable</span></h2>
+    <ul>
+      <li>
+        <strong>Hash-verify any document or proof</strong>: submit bytes + expected digest to
+        <a href="/verify">/verify</a> (<code>POST /api/v1/verify/hash</code>) and compare against the
+        published manifest. Verification is stateless and request-local — no account, no persistence.
+      </li>
+      <li>
+        <strong>Check audit-view integrity</strong>: read public rows at
+        <a href="/audit">/audit</a>, then verify each row's <code>previousHash</code> linkage and that
+        the trail is append-only (no UPDATE/DELETE).
+      </li>
+      <li>
+        <strong>Re-run any policy decision</strong>: inspect committed Rego in
+        <code>packages/policy-rules/</code>, then run the same input through <code>opa eval</code>.
+        The result is determined by the published rule, not a private claim.
+      </li>
+      <li>
+        <strong>Inspect proof manifests</strong>: compare manifest document hashes against
+        <a href="/verify">/verify</a> to confirm references match published evidence.
+      </li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>4 · Demonstration-only <span class="badge badge-warning">demonstration/stub</span></h2>
+    <p class="muted">Demonstration means a mechanism preview, <strong>not</strong> evidence of a live capability.</p>
+    <ul>
+      <li>
+        <strong>Assistant</strong> (<a href="/assistant">/assistant</a>): deterministic RAG over
+        seeded/public content; no real LLM and no external AI provider.
+      </li>
+      <li>
+        <strong>Deliberate</strong> (<a href="/deliberate">/deliberate</a>): mechanism preview; no
+        live Polis instance.
+      </li>
+      <li>
+        <strong>Contribute / review</strong>:
+        <a href="/contribute/evidence">evidence</a>,
+        <a href="/contribute/graph-edit">graph-edit</a> — demo intake workflow, not a production
+        civic channel.
+      </li>
+      <li>
+        <strong>Rewards</strong> (<a href="/rewards">/rewards</a>): demo eligibility rules and review
+        states; no payment, token, or payout provider.
+      </li>
+      <li>
+        <strong>Timestamps / signatures</strong>: RFC3161-stub and test-key signatures — mechanism
+        demonstration only, not active trust-service evidence.
+      </li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>5 · Explicit limits <span class="badge badge-warning">not yet live</span></h2>
+    <p>This limit list is the credibility moat. Stubs demonstrate mechanisms; they are never evidence of live capability.</p>
+    <ul>
+      <li>No production public authority is connected.</li>
+      <li>No upstream/live Polis instance is connected.</li>
+      <li>No external AI model is used.</li>
+      <li>No Paperless backend is processing documents.</li>
+      <li>No active timestamp, signature, identity, or payment provider is connected.</li>
+    </ul>
+    <p class="muted">
+      Productionization of private and transactional flows is tracked as follow-up milestones
+      (M10–M15). Those gate only private/transactional flows — never the public read and
+      self-verification surfaces described on this page.
+    </p>
+  </section>
+</Base>

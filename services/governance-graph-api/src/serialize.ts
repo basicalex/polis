@@ -26,6 +26,8 @@ type MandateHolderRow = Row<'mandateHolders'>;
 type MandateHolderCharterRow = Row<'mandateHolderCharters'>;
 type CommitmentRow = Row<'commitments'>;
 type CommitmentStatusEventRow = Row<'commitmentStatusEvents'>;
+type CommitmentQuestionRow = Row<'commitmentQuestions'>;
+type CommitmentAnswerRow = Row<'commitmentAnswers'>;
 
 export interface JurisdictionWire {
   id: string;
@@ -160,6 +162,21 @@ export interface MandateHolderCharterWire {
   charterDoc: unknown | null;
   status: string;
 }
+export interface CommitmentAnswerWire {
+  mandateHolderId: string;
+  body: string;
+  decidedAt: string | null;
+}
+
+export interface CommitmentQuestionWire {
+  id: string;
+  commitmentId: string;
+  askedByCitizenId: string;
+  body: string;
+  createdAt: string;
+  answer: CommitmentAnswerWire | null;
+}
+
 
 export interface CommitmentWire {
   id: string;
@@ -355,4 +372,22 @@ export const commitmentStatusEventWire = (
   resolutionClaimId: r.resolutionClaimId,
   decidedBy: r.decidedBy,
   decidedAt: ns(r.decidedAt) ?? '',
+});
+
+export const commitmentQuestionWire = (
+  q: CommitmentQuestionRow,
+  answer: CommitmentAnswerRow | null,
+): CommitmentQuestionWire => ({
+  id: q.id,
+  commitmentId: q.commitmentId,
+  askedByCitizenId: q.askedByCitizenId,
+  body: q.body,
+  createdAt: ns(q.createdAt) ?? '',
+  answer: answer
+    ? {
+        mandateHolderId: answer.mandateHolderId,
+        body: answer.body,
+        decidedAt: ns(answer.decidedAt),
+      }
+    : null,
 });

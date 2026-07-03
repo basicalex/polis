@@ -1,0 +1,11 @@
+[
+  {
+    "id": "ca-mh-1",
+    "question_id": "cq-mh-1",
+    "mandate_holder_id": "mh-demo",
+    "body": "Q3 rollout extends the checklist to the registry office.",
+    "decided_by": "reviewer-demo",
+    "decided_at": "2025-10-01T00:00:00Z",
+    "created_at": "2025-10-01T00:00:00Z"
+  }
+]

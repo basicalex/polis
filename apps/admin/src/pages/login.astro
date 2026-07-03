@@ -1,0 +1,86 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Reviewer Admin — Login">
+<section class="panel">
+  <h1>Reviewer Admin — Sign in</h1>
+  <p class="muted">A mandate-holder (verified_official) signs in to draft commitments and answer questions. Reviewers approve filings through <a href="/review">/review</a>.</p>
+  <div id="logged-in" style="display:none">
+    <p>Logged in as <strong id="user-email"></strong>.</p>
+    <p><a href="/drafting">Go to drafting →</a></p>
+  </div>
+  <div id="login-form">
+    <h2>Sign in with email</h2>
+    <p class="muted">Enter your email to receive a magic link (dev mode: token shown directly).</p>
+    <label>Email <input type="email" id="email" placeholder="mandate-holder-demo@polis.local" style="width:100%"/></label>
+    <button id="send-btn" style="margin-top:0.5rem">Send magic link</button>
+    <div id="token-section" style="display:none;margin-top:1rem">
+      <p class="muted">Magic token (dev mode — in production this arrives by email):</p>
+      <code id="dev-token" style="word-break:break-all;display:block;padding:0.5rem;background:#f5f5f5;margin:0.5rem 0"></code>
+      <button id="exchange-btn">Exchange for session</button>
+    </div>
+    <p id="error" style="color:red;display:none"></p>
+  </div>
+</section>
+<script is:inline>
+const API = window.__API_URL;
+const session = sessionStorage.getItem('admin_session');
+if (session) {
+  document.getElementById('logged-in').style.display = 'block';
+  document.getElementById('login-form').style.display = 'none';
+  try { document.getElementById('user-email').textContent = JSON.parse(session).email || 'official'; } catch {}
+}
+document.getElementById('send-btn').onclick = async () => {
+  const email = document.getElementById('email').value.trim();
+  if (!email) return;
+  document.getElementById('error').style.display = 'none';
+  try {
+    const r = await fetch(API + '/api/v1/identity/magic-link', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!r.ok) throw new Error('Failed to send magic link');
+    // Dev mode: fetch the token from dev-tokens endpoint
+    const dr = await fetch(API + '/api/v1/identity/dev-tokens');
+    if (dr.ok) {
+      const db = await dr.json();
+      const token = db.tokens?.[email];
+      if (token) {
+        document.getElementById('dev-token').textContent = token;
+        document.getElementById('token-section').style.display = 'block';
+        window._exchangeEmail = email;
+        window._exchangeToken = token;
+      }
+    }
+  } catch (e) {
+    document.getElementById('error').textContent = e.message;
+    document.getElementById('error').style.display = 'block';
+  }
+};
+document.getElementById('exchange-btn').onclick = async () => {
+  const email = window._exchangeEmail;
+  const token = window._exchangeToken;
+  if (!email || !token) return;
+  try {
+    const r = await fetch(API + '/api/v1/identity/exchange', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, token }),
+    });
+    if (!r.ok) throw new Error('Exchange failed');
+    const body = await r.json();
+    sessionStorage.setItem('admin_session', JSON.stringify({
+      token: body.sessionToken,
+      email,
+      citizenId: body.citizen?.id,
+      identityLevel: body.citizen?.identityLevel,
+    }));
+    location.href = '/drafting';
+  } catch (e) {
+    document.getElementById('error').textContent = e.message;
+    document.getElementById('error').style.display = 'block';
+  }
+};
+</script>
+</Base>
