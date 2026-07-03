@@ -1,6 +1,6 @@
 aoc-managed: true
 asset: omp-extensions
 asset-version: 3
-source: .omp/extensions
-sha256: 5d802cd395db3b2cd50359145da389ab99d050b643f0c14b89fe36fc469afc84
-updated-at: 2026-06-17T19:32:40Z
+source: ../.config/aoc/omp/extensions
+sha256: 2f62ce49c87c2f684d7f3d9766781eb96403add0332ca6dbbb5c2e6dc8f87e4d
+updated-at: 2026-07-01T09:37:32Z

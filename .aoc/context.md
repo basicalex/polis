@@ -1,8 +1,8 @@
 # Project Context Snapshot
 
 ## Repository
-- Name: polis
-- Root: ../polis
+- Name: .
+- Root: .
 - VCS: git
 - Git branch: main
 
@@ -27,34 +27,34 @@
 ./CODE_OF_CONDUCT.md
 ./CONTRIBUTING.md
 ./data
+./data/pilot
 ./data/seed
 ./DESIGN.md
+./.dockerignore
 ./docs
 ./docs/agent-playbooks
 ./docs/ai-safety
 ./docs/architecture
+./docs/communication
 ./docs/contributor-guides
 ./docs/document-trust
 ./docs/partners
+./docs/pilot
 ./docs/public-methodology
+./docs/roadmap
 ./.env
 ./.env.example
+./eslint.config.mjs
 ./.github
 ./.github/workflows
 ./.gitignore
 ./GOVERNANCE.md
 ./infra
 ./infra/compose
+./infra/docker
 ./LICENSE
 ./.mypy_cache
 ./.mypy_cache/3.12
-./.mypy_cache/CACHEDIR.TAG
-./.mypy_cache/.gitignore
-./NOTICE
-./.omp
-./.omp/agents
-./.omp/.aoc-backups
-./.omp/extensions
 ... [tree truncated to 40 lines]
 ```
 
@@ -63,8 +63,13 @@
 ## Current state
 ## Requirements
 ## Local setup
+### Option A — Docker Compose (recommended, full stack)
+# Optional targeted checks after compose is healthy:
+### Option B — Node-only (requires postgres on :5432)
+### Checks
+# Optional targeted checks after compose is running:
 ## Apps
-## Local v1 service map
+## Service map summary
 ## Documentation
 ## License
 

@@ -7,7 +7,7 @@
       "expectedSha256": "66ee8af82f27bcce2f25dd6fa3714d3dfcb806dba2db669da25098109bd6189e",
       "marker": ".aoc/presets/design/.aoc-managed",
       "sha256": "66ee8af82f27bcce2f25dd6fa3714d3dfcb806dba2db669da25098109bd6189e",
-      "source": ".aoc/presets/design",
+      "source": "../.config/aoc/presets/design",
       "status": "current"
     },
     ".aoc/presets/hyperframes": {
@@ -16,7 +16,7 @@
       "expectedSha256": "e861f3597d22e564d10360d4452815938d96be52ce35747a99eae0b92c8051af",
       "marker": ".aoc/presets/hyperframes/.aoc-managed",
       "sha256": "e861f3597d22e564d10360d4452815938d96be52ce35747a99eae0b92c8051af",
-      "source": ".aoc/presets/hyperframes",
+      "source": "../.config/aoc/presets/hyperframes",
       "status": "current"
     },
     ".aoc/presets/ops": {
@@ -25,7 +25,7 @@
       "expectedSha256": "63142ff9ec383188d83ecf75505a2324c80118b9f517c292cff7e0f8f2f2617e",
       "marker": ".aoc/presets/ops/.aoc-managed",
       "sha256": "63142ff9ec383188d83ecf75505a2324c80118b9f517c292cff7e0f8f2f2617e",
-      "source": ".aoc/presets/ops",
+      "source": "../.config/aoc/presets/ops",
       "status": "current"
     },
     ".aoc/presets/research": {
@@ -34,7 +34,7 @@
       "expectedSha256": "db3a38c19330c414dd5b889dc12a6f6de6d4ae52230293b3047a473dc37f76aa",
       "marker": ".aoc/presets/research/.aoc-managed",
       "sha256": "db3a38c19330c414dd5b889dc12a6f6de6d4ae52230293b3047a473dc37f76aa",
-      "source": ".aoc/presets/research",
+      "source": "../.config/aoc/presets/research",
       "status": "current"
     },
     ".aoc/presets/test": {
@@ -43,7 +43,7 @@
       "expectedSha256": "d06a9b32ac516c4e5c1d80ee1e77276289a79e7cee7cb634ba73cd86cd5fa4cc",
       "marker": ".aoc/presets/test/.aoc-managed",
       "sha256": "d06a9b32ac516c4e5c1d80ee1e77276289a79e7cee7cb634ba73cd86cd5fa4cc",
-      "source": ".aoc/presets/test",
+      "source": "../.config/aoc/presets/test",
       "status": "current"
     },
     ".omp/agents": {
@@ -52,25 +52,34 @@
       "expectedSha256": "e37ba23cb76f2f39c77846b3820f391145e3d70d984d8d478f72cad5eb90e017",
       "marker": ".omp/agents/.aoc-managed",
       "sha256": "e37ba23cb76f2f39c77846b3820f391145e3d70d984d8d478f72cad5eb90e017",
-      "source": ".omp/agents",
+      "source": "../.config/aoc/omp/agents",
       "status": "current"
     },
     ".omp/extensions": {
       "asset": "omp-extensions",
       "assetVersion": 3,
-      "expectedSha256": "92d3096761059323814672ca6a02ed319b6068cc521fd83306b45b7b0def81be",
+      "expectedSha256": "2f62ce49c87c2f684d7f3d9766781eb96403add0332ca6dbbb5c2e6dc8f87e4d",
       "marker": ".omp/extensions/.aoc-managed",
-      "sha256": "92d3096761059323814672ca6a02ed319b6068cc521fd83306b45b7b0def81be",
-      "source": ".omp/extensions",
+      "sha256": "2f62ce49c87c2f684d7f3d9766781eb96403add0332ca6dbbb5c2e6dc8f87e4d",
+      "source": "../.config/aoc/omp/extensions",
+      "status": "current"
+    },
+    ".omp/manifest.toml": {
+      "asset": "omp-manifest",
+      "assetVersion": 3,
+      "expectedSha256": "20e631a871ec55d5dcbbd82bb76e0d346fe7c61bc46f75fbce439e6ac6007f95",
+      "marker": ".omp/manifest.toml.aoc-managed",
+      "sha256": "20e631a871ec55d5dcbbd82bb76e0d346fe7c61bc46f75fbce439e6ac6007f95",
+      "source": "../.config/aoc/omp/manifest.toml",
       "status": "current"
     },
     ".omp/skills": {
       "asset": "omp-skills",
       "assetVersion": 3,
-      "expectedSha256": "50c3fc9462ca2abf406f16498199f362f83eb00cb62b76888a8446f71fcb84f1",
+      "expectedSha256": "1467e082a05f4accfce97829c7f4ef4766a64935b71e4a5de0184012291aafec",
       "marker": ".omp/skills/.aoc-managed",
-      "sha256": "50c3fc9462ca2abf406f16498199f362f83eb00cb62b76888a8446f71fcb84f1",
-      "source": ".omp/skills",
+      "sha256": "1467e082a05f4accfce97829c7f4ef4766a64935b71e4a5de0184012291aafec",
+      "source": "../.config/aoc/omp/skills",
       "status": "current"
     },
     ".omp/skills/aoc-hyperframes": {
@@ -87,7 +96,7 @@
       "assetVersion": 3,
       "expectedSha256": "58726bcb19041ae80310ee9937971277eb46c55746da92ec5fecd549c6127236",
       "marker": ".omp/skills/aoc-init-ops/.aoc-managed",
-      "sha256": "df27e3d33e8531d17b9c885eca8413984517da9e588bfd459f0451c33289b51b",
+      "sha256": "78919b0c9067aa451c1e9c00b54dd8c0564ada8569714ad2d78a88e5e790c4c3",
       "source": "../.config/aoc/pi/skills/aoc-init-ops",
       "status": "dirty"
     },
@@ -705,11 +714,11 @@
     }
   },
   "counts": {
-    "current": 76,
+    "current": 77,
     "dirty": 2,
     "stale": 0,
     "unknown": 0
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-06-19T13:47:05.764255Z"
+  "updatedAt": "2026-07-01T09:37:40.332987Z"
 }
