@@ -37,6 +37,36 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 const badGateway = (stage: StageName, message: string) =>
   result(502, { error: 'bad_gateway', stage, detail: message });
+/**
+ * Best-effort audit emit. Failures (audit-service unreachable) are swallowed
+ * and never fail the originating request — matches proof-service / platform-api.
+ * Payload shape mirrors proof-service's emitAudit (required visibility + actor).
+ */
+async function emitAudit(event: {
+  eventType: string;
+  action: string;
+  target: { type: string; id: string };
+  data: Record<string, unknown>;
+}): Promise<void> {
+  const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
+  try {
+    await fetch(base + '/internal/audit/events', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventType: event.eventType,
+        action: event.action,
+        visibility: 'public',
+        actor: { type: 'service', id: 'document-ingestion-gateway' },
+        target: event.target,
+        data: event.data,
+        correlationId: null,
+      }),
+    });
+  } catch {
+    /* best-effort, never throw — matches proof-service */
+  }
+}
 
 /** Build the §14.3 route table. No DB binding — reads upstream URLs from env. */
 export function ingestionRoutes(): Route[] {
@@ -76,6 +106,16 @@ export function ingestionRoutes(): Route[] {
         } catch (err) {
           return badGateway('paperless', err instanceof Error ? err.message : 'unknown');
         }
+        // Persist the observable Paperless doc-id link (best-effort). This
+        // audit event is how a proof manifest traces back to its Paperless
+        // document — no schema column exists for it (the roadmap's storage_uri
+        // was never added; M11 deliberately adds no migration).
+        await emitAudit({
+          eventType: 'document.paperless.linked',
+          action: 'link',
+          target: { type: 'document', id: paperless.id },
+          data: { paperlessDocumentId: paperless.id, originalFilename: filename, documentClass },
+        });
 
         // 2. Canonicalize.
         let hashes: {

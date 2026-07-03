@@ -21,9 +21,16 @@ test('missing contentBase64 returns 400 missing_content', async () => {
 });
 
 test('orchestrates paperless → canonicalization → proof and returns the manifest', async () => {
+  type AuditEmit = {
+    eventType?: string;
+    action?: string;
+    target?: { type?: string; id?: string };
+    data?: { paperlessDocumentId?: string; originalFilename?: string; documentClass?: string };
+  };
   const calls: string[] = [];
+  const auditEmits: AuditEmit[] = [];
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (url: string | URL, _init?: RequestInit) => {
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
     const u = String(url);
     calls.push(u);
     if (u.endsWith('/internal/paperless/consume')) {
@@ -61,6 +68,13 @@ test('orchestrates paperless → canonicalization → proof and returns the mani
         { status: 201, headers: { 'content-type': 'application/json' } },
       );
     }
+    if (u.endsWith('/internal/audit/events')) {
+      if (init?.body) auditEmits.push(JSON.parse(String(init.body)) as AuditEmit);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     return new Response('not found', { status: 404 });
   }) as typeof globalThis.fetch;
 
@@ -75,7 +89,17 @@ test('orchestrates paperless → canonicalization → proof and returns the mani
     assert.equal(out.status, 201);
     assert.equal(out.body.id, 'proof-1');
     assert.equal(out.body.hashes.originalFileHash, 'hash-orig');
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
+    assert.ok(
+      calls.some((c) => c.endsWith('/internal/audit/events')),
+      'document.paperless.linked audit emit fired',
+    );
+    const audit = auditEmits[0];
+    assert.equal(audit?.eventType, 'document.paperless.linked');
+    assert.equal(audit?.action, 'link');
+    assert.equal(audit?.target?.type, 'document');
+    assert.equal(audit?.target?.id, 'paperless-stub-abc');
+    assert.equal(audit?.data?.paperlessDocumentId, 'paperless-stub-abc');
   } finally {
     globalThis.fetch = originalFetch;
   }

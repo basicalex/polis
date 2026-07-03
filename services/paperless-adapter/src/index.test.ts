@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { paperlessRoutes } from './index.js';
-import { StubPaperlessClient, createPaperlessClient } from './paperless-client.js';
+import { StubPaperlessClient, HttpPaperlessClient, createPaperlessClient } from './paperless-client.js';
 
 const b64 = (s: string) => Buffer.from(s).toString('base64');
 
@@ -46,11 +46,69 @@ test('fetchDocument round-trips a consumed id and rejects unknown ids', async ()
   assert.equal(unknown, null);
 });
 
-test('createPaperlessClient throws on unsupported mode', () => {
-  process.env.PAPERLESS_MODE = 'http';
+// ── createPaperlessClient mode resolution ──────────────────────────────────
+// Env is saved/restored around every case so the suite is order-independent.
+
+test('createPaperlessClient defaults to stub when PAPERLESS_MODE is unset', () => {
+  const savedMode = process.env.PAPERLESS_MODE;
+  delete process.env.PAPERLESS_MODE;
   try {
-    assert.throws(() => createPaperlessClient(), /not supported in M3/);
+    assert.ok(createPaperlessClient() instanceof StubPaperlessClient);
   } finally {
-    delete process.env.PAPERLESS_MODE;
+    if (savedMode !== undefined) process.env.PAPERLESS_MODE = savedMode;
+  }
+});
+
+test('createPaperlessClient resolves PAPERLESS_MODE=stub to StubPaperlessClient', () => {
+  const savedMode = process.env.PAPERLESS_MODE;
+  process.env.PAPERLESS_MODE = 'stub';
+  try {
+    assert.ok(createPaperlessClient() instanceof StubPaperlessClient);
+  } finally {
+    if (savedMode !== undefined) process.env.PAPERLESS_MODE = savedMode;
+    else delete process.env.PAPERLESS_MODE;
+  }
+});
+
+test('createPaperlessClient resolves PAPERLESS_MODE=http to HttpPaperlessClient when token is set', () => {
+  const savedMode = process.env.PAPERLESS_MODE;
+  const savedToken = process.env.PAPERLESS_API_TOKEN;
+  process.env.PAPERLESS_MODE = 'http';
+  process.env.PAPERLESS_API_TOKEN = 'test-token';
+  try {
+    // ctor validates env and stores fields — no network is touched.
+    assert.ok(createPaperlessClient() instanceof HttpPaperlessClient);
+  } finally {
+    if (savedMode !== undefined) process.env.PAPERLESS_MODE = savedMode;
+    else delete process.env.PAPERLESS_MODE;
+    if (savedToken !== undefined) process.env.PAPERLESS_API_TOKEN = savedToken;
+    else delete process.env.PAPERLESS_API_TOKEN;
+  }
+});
+
+test('HttpPaperlessClient ctor requires PAPERLESS_API_TOKEN in http mode', () => {
+  const savedMode = process.env.PAPERLESS_MODE;
+  const savedToken = process.env.PAPERLESS_API_TOKEN;
+  process.env.PAPERLESS_MODE = 'http';
+  delete process.env.PAPERLESS_API_TOKEN;
+  try {
+    // Env validated at construction — fails before any network call.
+    assert.throws(() => createPaperlessClient(), /PAPERLESS_API_TOKEN/);
+  } finally {
+    if (savedMode !== undefined) process.env.PAPERLESS_MODE = savedMode;
+    else delete process.env.PAPERLESS_MODE;
+    if (savedToken !== undefined) process.env.PAPERLESS_API_TOKEN = savedToken;
+    else delete process.env.PAPERLESS_API_TOKEN;
+  }
+});
+
+test('createPaperlessClient throws on an unsupported mode', () => {
+  const savedMode = process.env.PAPERLESS_MODE;
+  process.env.PAPERLESS_MODE = 'bad';
+  try {
+    assert.throws(() => createPaperlessClient(), /not supported/);
+  } finally {
+    if (savedMode !== undefined) process.env.PAPERLESS_MODE = savedMode;
+    else delete process.env.PAPERLESS_MODE;
   }
 });

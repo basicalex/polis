@@ -99,7 +99,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PAPERLESS_MODE: stub
+      PAPERLESS_MODE: ${PAPERLESS_MODE:-stub}
+      PAPERLESS_BASE_URL: ${PAPERLESS_BASE_URL:-http://paperless:8000}
+      PAPERLESS_API_TOKEN: ${PAPERLESS_API_TOKEN:-polis-paperless-dev-token}
     ports:
       - '8300:8300'
     healthcheck:
@@ -238,6 +240,7 @@ services:
       PAPERLESS_INTERNAL_URL: http://paperless-adapter:8300
       CANONICALIZATION_INTERNAL_URL: http://canonicalization-service:8500
       PROOF_INTERNAL_URL: http://proof-service:8700
+      AUDIT_INTERNAL_URL: http://audit-service:8600
     ports:
       - '8400:8400'
     healthcheck:
@@ -318,6 +321,12 @@ services:
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
       IDENTITY_DEV_TOKENS: 'true'
+      IDENTITY_MODE: ${IDENTITY_MODE:-stub}
+      OIDC_ISSUER: ${OIDC_ISSUER:-http://keycloak:8080/realms/polis}
+      OIDC_AUTHORIZATION_ISSUER: ${OIDC_AUTHORIZATION_ISSUER:-http://localhost:8081/realms/polis}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-polis-web}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-polis-web-dev-secret}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:4321/login/callback}
     ports:
       - '8650:8650'
     healthcheck:
@@ -464,9 +473,105 @@ services:
     networks:
       - polis
 
+  # M10 OIDC identity provider (self-hosted Keycloak). Default IDENTITY_MODE is
+  # stub, so a bare `docker compose up` never depends on Keycloak; flipped on
+  # with IDENTITY_MODE=oidc. Dev H2 (start-dev) + idempotent init-realm.sh on
+  # each boot — reproducible; production uses a real Keycloak DB (operator env).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    # Stable issuer (--hostname as a full URL, strict defaults true): the realm
+    # issuer is fixed to http://localhost:8081 so the browser authorize, the
+    # token `iss` claim, and server-side userinfo validation all agree — even
+    # though the service reaches Keycloak via the internal `keycloak:8080` URL.
+    command: ['start-dev', '--import-realm', '--http-port', '8080', '--hostname', 'http://localhost:8081', '--health-enabled=true']
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - '8081:8080'
+    networks:
+      - polis
+
+  # One-shot realm/client/user provisioning. The official image has no curl, so
+  # there is no docker healthcheck on `keycloak`; init-realm.sh loops kcadm until
+  # Keycloak answers (depends_on: service_started, not service_healthy).
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.0
+    depends_on:
+      keycloak:
+        condition: service_started
+    entrypoint: ['/bin/bash', '/etc/keycloak/init-realm.sh']
+    volumes:
+      - ../../infra/keycloak/init-realm.sh:/etc/keycloak/init-realm.sh:ro
+    environment:
+      KC_SERVER: http://keycloak:8080
+      KC_ADMIN: admin
+      KC_ADMIN_PASSWORD: admin
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-polis-web}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-polis-web-dev-secret}
+    restart: 'no'
+    networks:
+      - polis
+
+  # M11 Paperless-ngx document node (self-hosted). Default PAPERLESS_MODE is
+  # stub, so a bare `docker compose up` never depends on Paperless; flipped on
+  # with PAPERLESS_MODE=http. The adapter reaches Paperless at request time
+  # (no depends_on on paperless-adapter — mirrors M10's keycloak rule).
+  paperless-redis:
+    image: redis:7
+    networks:
+      - polis
+
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.14
+    depends_on:
+      paperless-redis:
+        condition: service_started
+    environment:
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:-polis-paperless-dev-secret}
+      PAPERLESS_URL: http://localhost:8001
+      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_ADMIN_USER: admin
+      PAPERLESS_ADMIN_MAIL: admin@polis.local
+      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD:-admin}
+      # Poll the consume inbox instead of inotify — healthier in a compose mount.
+      PAPERLESS_CONSUMER_POLLING: '1'
+      PAPERLESS_OCR_LANGUAGE: eng
+    volumes:
+      - paperless-data:/usr/src/paperless/data
+      - paperless-media:/usr/src/paperless/media
+    ports:
+      - '8001:8000'
+    networks:
+      - polis
+
+  # One-shot deterministic dev API token. The image has no curl/healthcheck on
+  # `paperless`; init-token.sh loops a urllib readiness then upserts the same
+  # POLIS_PAPERLESS_DEV_TOKEN the adapter reads (depends_on: service_started).
+  paperless-init:
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.14
+    depends_on:
+      paperless:
+        condition: service_started
+    entrypoint: ['/bin/bash', '/infra/paperless/init-token.sh']
+    volumes:
+      - paperless-data:/usr/src/paperless/data
+      - ../../infra/paperless/init-token.sh:/infra/paperless/init-token.sh:ro
+    environment:
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:-polis-paperless-dev-secret}
+      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_ADMIN_USER: admin
+      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD:-admin}
+      POLIS_PAPERLESS_DEV_TOKEN: ${PAPERLESS_API_TOKEN:-polis-paperless-dev-token}
+    restart: 'no'
+    networks:
+      - polis
+
 networks:
   polis:
     driver: bridge
 
 volumes:
   pgdata:
+  paperless-data:
+  paperless-media:

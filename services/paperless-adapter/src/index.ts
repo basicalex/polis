@@ -60,19 +60,24 @@ export function paperlessRoutes(client: PaperlessClient): Route[] {
     {
       method: 'GET',
       path: '/internal/paperless/documents/:id/original',
-      handler: async (_req, _body, params) => ({
-        documentId: params.id,
-        originalRef: `stub://${params.id}`,
-      }),
+      handler: async (_req, _body, params) => {
+        const doc = await client.fetchDocument(params.id);
+        if (!doc) return notFound(params.id);
+        return {
+          documentId: params.id,
+          originalRef: doc.originalMime ? `paperless-original://${params.id}` : null,
+        };
+      },
     },
 
     {
       method: 'GET',
       path: '/internal/paperless/documents/:id/archive',
-      handler: async (_req, _body, params) => ({
-        documentId: params.id,
-        archiveRef: `stub-archive://${params.id}`,
-      }),
+      handler: async (_req, _body, params) => {
+        const doc = await client.fetchDocument(params.id);
+        if (!doc) return notFound(params.id);
+        return { documentId: params.id, archiveRef: doc.archiveRef };
+      },
     },
 
     {
