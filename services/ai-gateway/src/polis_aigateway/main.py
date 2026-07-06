@@ -8,9 +8,14 @@ synchronous psycopg safe. Each request gets a fresh ``request_id`` /
 
 from __future__ import annotations
 
+import json
+import os
 import sys
+import urllib.error
+import urllib.request
 import uuid
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Protocol
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -36,13 +41,172 @@ from polis_aigateway.rag import APPROVED_SOURCE_TYPES, retrieve
 
 app = FastAPI(title="polis-ai-gateway", version="0.1.0")
 
-_MODEL_PROVIDER = "polis"
-_MODEL_NAME = "stub"
+_STUB_MODEL_PROVIDER = "polis"
+_STUB_MODEL_NAME = "stub"
 _PROMPT_TEMPLATE_ID = "citizen-assistant-v1"
 _PROMPT_TEMPLATE_VERSION = "0.1"
 _INJECTION_REFUSAL = "I can't act on that request."
 _NO_RESULTS = "No approved public sources were found for this question."
 _RESULTS_PREFIX = "Based on approved public sources: "
+
+
+@dataclass(frozen=True)
+class ModelResponse:
+    answer: str
+    params: dict[str, Any] | None
+
+
+class ModelProvider(Protocol):
+    model_provider: str
+    model_name: str
+
+    def answer(self, *, question: str, chunks: list[Any]) -> ModelResponse:
+        """Synthesize an answer from already-retrieved approved chunks."""
+
+
+class StubModelProvider:
+    model_provider = _STUB_MODEL_PROVIDER
+    model_name = _STUB_MODEL_NAME
+
+    def answer(self, *, question: str, chunks: list[Any]) -> ModelResponse:
+        if chunks:
+            answer_text = _RESULTS_PREFIX + "; ".join(
+                f"{c.text} [{i + 1}]" for i, c in enumerate(chunks)
+            )
+        else:
+            answer_text = _NO_RESULTS
+        return ModelResponse(answer=answer_text, params=None)
+
+
+class OpenAICompatibleModelProvider:
+    def __init__(self) -> None:
+        base_url = os.getenv("AI_PROVIDER_BASE_URL")
+        api_key = os.getenv("AI_PROVIDER_API_KEY")
+        model = os.getenv("AI_PROVIDER_MODEL")
+        missing = [
+            name
+            for name, value in (
+                ("AI_PROVIDER_BASE_URL", base_url),
+                ("AI_PROVIDER_API_KEY", api_key),
+                ("AI_PROVIDER_MODEL", model),
+            )
+            if not value
+        ]
+        if missing:
+            raise RuntimeError(
+                f"AI_MODE=real requires {', '.join(missing)}"
+            )
+        assert base_url is not None
+        assert api_key is not None
+        assert model is not None
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model_name = model
+        self.model_provider = "openai-compatible"
+        self.timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "15"))
+        self.temperature = 0.2
+
+    def answer(self, *, question: str, chunks: list[Any]) -> ModelResponse:
+        context = "\n".join(
+            f"[{i + 1}] {c.text}\n"
+            f"Source title: {c.source_title}\n"
+            f"Source URL: {c.source_url or 'n/a'}"
+            for i, c in enumerate(chunks)
+        )
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are the Polis citizen assistant. Answer only from the "
+                    "approved public source excerpts provided. Cite every factual "
+                    "claim using the bracket number of its source excerpt, e.g. [1]. "
+                    "Do not invent citations, sources, actions, or facts."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question:\n{question}\n\n"
+                    f"Approved public source excerpts:\n{context}"
+                ),
+            },
+        ]
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": self.temperature,
+        }
+        response = _post_chat_completions(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            payload=payload,
+            timeout_seconds=self.timeout_seconds,
+        )
+        try:
+            answer_text = response["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(
+                "AI provider response missing choices[0].message.content"
+            ) from exc
+        if not isinstance(answer_text, str):
+            raise RuntimeError(
+                "AI provider response choices[0].message.content is not a string"
+            )
+        return ModelResponse(
+            answer=answer_text,
+            params={
+                "mode": "real",
+                "base_url": self.base_url,
+                "provider": self.model_provider,
+                "model": self.model_name,
+                "temperature": self.temperature,
+                "timeout_seconds": self.timeout_seconds,
+            },
+        )
+
+
+def _post_chat_completions(
+    *,
+    base_url: str,
+    api_key: str,
+    payload: dict[str, Any],
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base_url}/chat/completions",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
+            data = resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"AI provider request failed with HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"AI provider request failed: {exc.reason}") from exc
+    decoded = json.loads(data.decode("utf-8"))
+    if not isinstance(decoded, dict):
+        raise RuntimeError("AI provider response was not a JSON object")
+    return decoded
+
+
+def create_model_provider() -> ModelProvider:
+    mode = os.getenv("AI_MODE", "stub")
+    if mode == "stub":
+        return StubModelProvider()
+    if mode == "real":
+        return OpenAICompatibleModelProvider()
+    raise ValueError(f"AI_MODE={mode} is not supported; use 'stub' or 'real'.")
+
+_MODEL_PROVIDER = create_model_provider()
+
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +246,8 @@ def _persist_trace(
     source_ids: list[str],
     claim_ids: list[str],
     risk_flags: list[str],
+    model_provider: str,
+    model_name: str,
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -95,7 +261,7 @@ def _persist_trace(
             """,
             (
                 trace_id, request_id, workflow_type, user_id, prompt_hash,
-                _MODEL_PROVIDER, _MODEL_NAME,
+                model_provider, model_name,
                 _PROMPT_TEMPLATE_ID, _PROMPT_TEMPLATE_VERSION,
                 Json(source_ids), Json(claim_ids), Json(risk_flags),
             ),
@@ -113,6 +279,8 @@ def _persist_output(
     review_state: ReviewState,
     published: bool,
     output_hash: str,
+    model: str,
+    params: dict[str, Any] | None,
 ) -> None:
     wire_citations = [c.model_dump(by_alias=True) for c in citations]
     with conn.cursor() as cur:
@@ -121,12 +289,12 @@ def _persist_output(
             INSERT INTO ai_outputs
               (id, trace_id, answer, citations, confidence,
                confidence_state, review_state, published, output_hash, model, params)
-            VALUES (%s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, NULL)
+            VALUES (%s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s)
             """,
             (
                 output_id, trace_id, answer, Json(wire_citations),
                 confidence_state.value, review_state.value, published,
-                output_hash, _MODEL_NAME,
+                output_hash, model, Json(params) if params is not None else None,
             ),
         )
 
@@ -219,6 +387,7 @@ def answer(req: AskRequest):
     output_id = str(uuid.uuid4())
     prompt_hash = sha256_hex(question.encode())
     workflow_type = req.workflow_type or "citizen-assistant"
+    provider = _MODEL_PROVIDER
 
     verdict = detect_prompt_injection(question)
 
@@ -235,13 +404,16 @@ def answer(req: AskRequest):
                     workflow_type=workflow_type, user_id=req.user_id,
                     prompt_hash=prompt_hash, source_ids=[], claim_ids=[],
                     risk_flags=verdict.flags,
+                    model_provider=provider.model_provider,
+                    model_name=provider.model_name,
                 )
                 _persist_output(
                     conn, output_id=output_id, trace_id=trace_id,
                     answer=answer_text, citations=[],
                     confidence_state=confidence_state,
                     review_state=review_state, published=False,
-                    output_hash=output_hash,
+                    output_hash=output_hash, model=provider.model_name,
+                    params=None,
                 )
             emit_audit(
                 event_type="ai.answer.requested", action="answer",
@@ -273,11 +445,12 @@ def answer(req: AskRequest):
         return JSONResponse(status_code=503, content={"error": "db_unavailable"})
 
     if chunks:
-        answer_text = _RESULTS_PREFIX + "; ".join(
-            f"{c.text} [{i + 1}]" for i, c in enumerate(chunks)
-        )
+        model_response = provider.answer(question=question, chunks=chunks)
+        answer_text = model_response.answer
+        output_params = model_response.params
     else:
         answer_text = _NO_RESULTS
+        output_params = None
 
     # Citations built ONLY from chunks — never reads the question for source ids
     # (citation-forgery defense).
@@ -320,13 +493,16 @@ def answer(req: AskRequest):
                 workflow_type=workflow_type, user_id=req.user_id,
                 prompt_hash=prompt_hash, source_ids=source_ids,
                 claim_ids=claim_ids, risk_flags=[],
+                model_provider=provider.model_provider,
+                model_name=provider.model_name,
             )
             _persist_output(
                 conn, output_id=output_id, trace_id=trace_id,
                 answer=answer_text, citations=citations,
                 confidence_state=confidence_state,
                 review_state=creation_review_state, published=published,
-                output_hash=output_hash,
+                output_hash=output_hash, model=provider.model_name,
+                params=output_params,
             )
             if review_queue_status:
                 _persist_review_queue(

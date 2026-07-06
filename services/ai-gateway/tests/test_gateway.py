@@ -8,15 +8,115 @@ phase5-acceptance covers them end-to-end against the Docker stack.
 
 from __future__ import annotations
 
+import json
 import os
 import socket
+import subprocess
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
+from polis_aigateway import main as gateway
 from polis_aigateway.main import app
+from polis_core import ConfidenceState, RetrievalChunk
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _restore_ai_provider_env(monkeypatch):
+    """Provider-seam tests must not leak process env between cases."""
+    for key in (
+        "AI_MODE",
+        "AI_PROVIDER_BASE_URL",
+        "AI_PROVIDER_API_KEY",
+        "AI_PROVIDER_MODEL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
+def _chunk(
+    *,
+    text: str = "Residents may file complaints with the ombuds office within 30 days.",
+    claim_id: str = "claim-complaints-1",
+    source_id: str = "src-ordinance-1",
+    evidence_link_id: str = "ev-complaints-1",
+) -> RetrievalChunk:
+    return RetrievalChunk(
+        claimId=claim_id,
+        text=text,
+        confidenceState=ConfidenceState.official_source,
+        evidenceLinkId=evidence_link_id,
+        sourceId=source_id,
+        sourceTitle="Official complaint ordinance",
+        sourceType="official",
+        sourceUrl="https://example.test/ordinance",
+    )
+
+
+class _DummyConn:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+def _patch_db_and_persistence(monkeypatch, chunks, captured):
+    monkeypatch.setattr(gateway, "get_conn", lambda: _DummyConn())
+    monkeypatch.setattr(gateway, "retrieve", lambda _conn, _question: list(chunks))
+    monkeypatch.setattr(
+        gateway,
+        "_persist_trace",
+        lambda _conn, **kwargs: captured.setdefault("trace", kwargs),
+    )
+    monkeypatch.setattr(
+        gateway,
+        "_persist_output",
+        lambda _conn, **kwargs: captured.setdefault("output", kwargs),
+    )
+    monkeypatch.setattr(
+        gateway,
+        "_persist_review_queue",
+        lambda _conn, **kwargs: captured.setdefault("review_queue", kwargs),
+    )
+    monkeypatch.setattr(gateway, "emit_audit", lambda **_kwargs: None)
+    monkeypatch.setattr(gateway, "publish_allowed", lambda **_kwargs: False)
+
+
+def _run_openai_compatible_server(response_text):
+    captured = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802 - stdlib hook
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length)
+            captured["path"] = self.path
+            captured["authorization"] = self.headers.get("Authorization")
+            captured["payload"] = json.loads(body.decode())
+            response = {
+                "id": "chatcmpl-test",
+                "object": "chat.completion",
+                "choices": [{"message": {"role": "assistant", "content": response_text}}],
+                "model": "gpt-real-test",
+            }
+            encoded = json.dumps(response).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, captured
 
 
 def _db_reachable() -> bool:
@@ -49,6 +149,145 @@ def test_version():
     body = r.json()
     assert body["service"] == "ai-gateway"
     assert body["version"] == "0.1.0"
+
+
+def test_create_model_provider_defaults_to_stub(monkeypatch):
+    monkeypatch.delenv("AI_MODE", raising=False)
+
+    provider = gateway.create_model_provider()
+
+    assert "Stub" in type(provider).__name__
+
+
+def test_create_model_provider_resolves_stub(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "stub")
+
+    provider = gateway.create_model_provider()
+
+    assert "Stub" in type(provider).__name__
+
+
+def test_create_model_provider_rejects_unknown_mode(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "bogus")
+
+    with pytest.raises(Exception, match=r"AI_MODE=bogus is not supported"):
+        gateway.create_model_provider()
+
+
+def test_unsupported_ai_mode_fails_module_import_startup():
+    env = {
+        **os.environ,
+        "AI_MODE": "bogus",
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import polis_aigateway.main"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "AI_MODE=bogus is not supported" in result.stderr
+
+
+def test_stub_mode_preserves_deterministic_rag_answer(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setattr(gateway, "_MODEL_PROVIDER", gateway.create_model_provider())
+    chunk = _chunk()
+    captured = {}
+    _patch_db_and_persistence(monkeypatch, [chunk], captured)
+
+    r = client.post("/internal/ai/answer", json={"question": "How do complaints work?"})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["answer"] == (
+        "Based on approved public sources: "
+        "Residents may file complaints with the ombuds office within 30 days. [1]"
+    )
+    assert body["citations"] == [
+        {
+            "index": 1,
+            "claimId": "claim-complaints-1",
+            "sourceId": "src-ordinance-1",
+            "evidenceLinkId": "ev-complaints-1",
+            "sourceTitle": "Official complaint ordinance",
+            "sourceUrl": "https://example.test/ordinance",
+            "quote": "Residents may file complaints with the ombuds office within 30 days.",
+        }
+    ]
+    assert body["injectionBlocked"] is False
+    assert captured["trace"]["source_ids"] == ["src-ordinance-1"]
+    assert captured["trace"]["claim_ids"] == ["claim-complaints-1"]
+    assert captured["output"]["answer"] == body["answer"]
+
+
+def test_real_mode_maps_openai_request_response_without_live_llm(monkeypatch):
+    server, http_capture = _run_openai_compatible_server("Real provider answer.")
+    try:
+        monkeypatch.setenv("AI_MODE", "real")
+        monkeypatch.setenv(
+            "AI_PROVIDER_BASE_URL",
+            f"http://127.0.0.1:{server.server_port}",
+        )
+        monkeypatch.setenv("AI_PROVIDER_API_KEY", "test-secret")
+        monkeypatch.setenv("AI_PROVIDER_MODEL", "gpt-real-test")
+        monkeypatch.setattr(gateway, "_MODEL_PROVIDER", gateway.create_model_provider())
+        chunk = _chunk(text="Complaint appeals must cite the original case number.")
+        captured = {}
+        _patch_db_and_persistence(monkeypatch, [chunk], captured)
+
+        r = client.post("/internal/ai/answer", json={"question": "How do complaints work?"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["answer"] == "Real provider answer."
+    assert body["citations"][0]["quote"] == "Complaint appeals must cite the original case number."
+    assert http_capture["authorization"] == "Bearer test-secret"
+    payload = http_capture["payload"]
+    assert payload["model"] == "gpt-real-test"
+    serialized_payload = json.dumps(payload)
+    assert "How do complaints work?" in serialized_payload
+    assert "Complaint appeals must cite the original case number." in serialized_payload
+    assert captured["output"]["answer"] == "Real provider answer."
+    assert captured["output"].get("model_name", captured["output"].get("model")) == "gpt-real-test"
+    assert captured["output"].get("params") is not None
+    assert captured["trace"].get("model_provider") not in (None, "polis")
+    assert captured["trace"].get("model_name") == "gpt-real-test"
+    assert captured["trace"]["source_ids"] == ["src-ordinance-1"]
+    assert captured["trace"]["claim_ids"] == ["claim-complaints-1"]
+
+
+def test_real_mode_with_no_chunks_preserves_no_results_and_skips_llm(monkeypatch):
+    server, http_capture = _run_openai_compatible_server("Should not be used.")
+    try:
+        monkeypatch.setenv("AI_MODE", "real")
+        monkeypatch.setenv(
+            "AI_PROVIDER_BASE_URL",
+            f"http://127.0.0.1:{server.server_port}",
+        )
+        monkeypatch.setenv("AI_PROVIDER_API_KEY", "test-secret")
+        monkeypatch.setenv("AI_PROVIDER_MODEL", "gpt-real-test")
+        monkeypatch.setattr(gateway, "_MODEL_PROVIDER", gateway.create_model_provider())
+        captured = {}
+        _patch_db_and_persistence(monkeypatch, [], captured)
+
+        r = client.post("/internal/ai/answer", json={"question": "zzzz no matching sources"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["answer"] == "No approved public sources were found for this question."
+    assert body["citations"] == []
+    assert "payload" not in http_capture
+    assert captured["output"]["answer"] == body["answer"]
 
 
 def test_missing_question_returns_400():

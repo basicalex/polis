@@ -464,6 +464,10 @@ services:
       AUDIT_INTERNAL_URL: http://audit-service:8600
       POLICY_REGO_PATH: /app/policy/ai.rego
       PORT: '8550'
+      AI_MODE: ${AI_MODE:-stub}
+      AI_PROVIDER_BASE_URL: ${AI_PROVIDER_BASE_URL:-}
+      AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      AI_PROVIDER_MODEL: ${AI_PROVIDER_MODEL:-stub}
     ports:
       - '8550:8550'
     healthcheck:
