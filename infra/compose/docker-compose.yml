@@ -151,7 +151,7 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
-      SIGNATURE_MODE: stub
+      SIGNATURE_MODE: ${SIGNATURE_MODE:-stub}
     ports:
       - '8900:8900'
     healthcheck:
@@ -178,7 +178,9 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
-      TIMESTAMP_MODE: stub
+      TIMESTAMP_MODE: ${TIMESTAMP_MODE:-stub}
+      TSA_URL: ${TSA_URL:-http://tsa:3000/api/v1/timestamp}
+      TSA_CERTCHAIN_URL: ${TSA_CERTCHAIN_URL:-http://tsa:3000/api/v1/timestamp/certchain}
     ports:
       - '8800:8800'
     healthcheck:
@@ -483,7 +485,16 @@ services:
     # issuer is fixed to http://localhost:8081 so the browser authorize, the
     # token `iss` claim, and server-side userinfo validation all agree — even
     # though the service reaches Keycloak via the internal `keycloak:8080` URL.
-    command: ['start-dev', '--import-realm', '--http-port', '8080', '--hostname', 'http://localhost:8081', '--health-enabled=true']
+    command:
+      [
+        'start-dev',
+        '--import-realm',
+        '--http-port',
+        '8080',
+        '--hostname',
+        'http://localhost:8081',
+        '--health-enabled=true',
+      ]
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -564,6 +575,26 @@ services:
       PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD:-admin}
       POLIS_PAPERLESS_DEV_TOKEN: ${PAPERLESS_API_TOKEN:-polis-paperless-dev-token}
     restart: 'no'
+    networks:
+      - polis
+
+  # M12 RFC 3161 timestamp authority (self-hosted sigstore/timestamp-authority).
+  # Default TIMESTAMP_MODE is stub, so a bare `docker compose up` never depends
+  # on the TSA; flipped on with TIMESTAMP_MODE=real. Built from the pinned
+  # upstream release (no published image — binaries-only); boots with an
+  # in-memory signing key/cert regenerated each start (explicitly NOT
+  # production). The adapter reaches it at request time (no depends_on on
+  # timestamp-service — mirrors M10/M11 rule). certReq=true embeds the TSA cert
+  # in each token so validation is self-contained without persisting the chain.
+  tsa:
+    build:
+      context: https://github.com/sigstore/timestamp-authority.git#v2.1.2
+      dockerfile: Dockerfile
+      target: deploy
+    command:
+      ['timestamp-server', 'serve', '--host=0.0.0.0', '--port=3000', '--timestamp-signer=memory']
+    ports:
+      - '3002:3000'
     networks:
       - polis
 

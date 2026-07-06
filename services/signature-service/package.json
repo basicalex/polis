@@ -13,7 +13,9 @@
     "@polis/db": "workspace:*",
     "@polis/domain": "workspace:*",
     "@polis/service-runtime": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "asn1js": "3.0.10",
+    "drizzle-orm": "^0.45.2",
+    "pkijs": "3.4.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

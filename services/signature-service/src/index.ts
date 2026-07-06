@@ -84,6 +84,15 @@ export function signatureRoutes(db: DbClient, client: SignerClient): Route[] {
         if (!input.proofId || !input.hash || !input.issuerId) {
           return result(400, { error: 'missing_required_fields' });
         }
+        // Sign FIRST so the issuer registry reflects the real signer's material
+        // (stub: test-signer-stub-ed25519/test-key/null; real: dev seal). The
+        // previous hardcoded upsert lied under SIGNATURE_MODE=real (M12 fix).
+        const signed = await client.sign({
+          proofId: input.proofId,
+          hash: input.hash,
+          issuerId: input.issuerId,
+          issuerName: input.issuerName,
+        });
         // §15.7 issuer registry — self-seeding upsert so the demo issuer is
         // always present without a separate seed step.
         await db
@@ -91,20 +100,19 @@ export function signatureRoutes(db: DbClient, client: SignerClient): Route[] {
           .values({
             id: input.issuerId,
             name: input.issuerName ?? input.issuerId,
-            publicKeyRef: 'test-signer-stub-ed25519',
-            certificateRef: null,
-            standard: 'test-key',
+            publicKeyRef: signed.signerRef,
+            certificateRef: signed.certificateRef,
+            standard: signed.standard,
           })
           .onConflictDoUpdate({
             target: schema.proofIssuers.id,
-            set: { name: sql`EXCLUDED.name` },
+            set: {
+              name: sql`EXCLUDED.name`,
+              publicKeyRef: sql`EXCLUDED.public_key_ref`,
+              certificateRef: sql`EXCLUDED.certificate_ref`,
+              standard: sql`EXCLUDED.standard`,
+            },
           });
-        const signed = await client.sign({
-          proofId: input.proofId,
-          hash: input.hash,
-          issuerId: input.issuerId,
-          issuerName: input.issuerName,
-        });
         const inserted = await db
           .insert(schema.proofSignatures)
           .values({
