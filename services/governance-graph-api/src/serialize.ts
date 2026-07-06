@@ -20,6 +20,7 @@ type DocumentTypeRow = Row<'documentTypes'>;
 type FailureModeRow = Row<'failureModes'>;
 type ClaimRow = Row<'claims'>;
 type EvidenceLinkRow = Row<'evidenceLinks'>;
+type EvidenceLinkRowWithVisibility = EvidenceLinkRow & { visibility?: string | null };
 type SourceRow = Row<'sources'>;
 type RelationshipRow = Row<'relationships'>;
 type MandateHolderRow = Row<'mandateHolders'>;
@@ -107,6 +108,9 @@ export interface EvidenceLinkWire {
   sourceHash: string | null;
   retrievedAt: string | null;
   confidence: string;
+  visibility: string;
+  redacted?: boolean;
+  redactionReason?: string;
 }
 
 export interface SourceWire {
@@ -265,17 +269,41 @@ export const failureModeWire = (r: FailureModeRow) => ({
   description: r.description,
 });
 
-export const evidenceLinkWire = (r: EvidenceLinkRow): EvidenceLinkWire => ({
-  id: r.id,
-  claimId: r.claimId,
-  sourceId: r.sourceId,
-  locator: (r.locator as Record<string, unknown> | null) ?? null,
-  quote: r.quote,
-  paraphrase: r.paraphrase,
-  sourceHash: r.sourceHash,
-  retrievedAt: ns(r.retrievedAt),
-  confidence: r.confidence,
-});
+const isPublicEvidenceVisibility = (visibility: string | null): boolean => visibility === 'public';
+
+const evidenceVisibility = (r: EvidenceLinkRowWithVisibility): string => r.visibility ?? 'public';
+
+export const evidenceLinkWire = (r: EvidenceLinkRow): EvidenceLinkWire => {
+  const visibility = evidenceVisibility(r);
+  const base = {
+    id: r.id,
+    claimId: r.claimId,
+    sourceId: r.sourceId,
+    retrievedAt: ns(r.retrievedAt),
+    confidence: r.confidence,
+    visibility,
+  };
+
+  if (isPublicEvidenceVisibility(visibility)) {
+    return {
+      ...base,
+      locator: (r.locator as Record<string, unknown> | null) ?? null,
+      quote: r.quote,
+      paraphrase: r.paraphrase,
+      sourceHash: r.sourceHash,
+    };
+  }
+
+  return {
+    ...base,
+    locator: null,
+    quote: null,
+    paraphrase: null,
+    sourceHash: null,
+    redacted: true,
+    redactionReason: 'evidence_visibility',
+  };
+};
 
 export const sourceWire = (r: SourceRow): SourceWire => ({
   id: r.id,

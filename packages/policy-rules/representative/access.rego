@@ -17,10 +17,24 @@ default allow := false
 
 allow if {
 	input.identity_level == "verified_official"
-	input.mandate_holder.status == "active"
+	active_mandate_holder
 	input.charter.status == "accepted"
 	scope_covers_commitment
 	mandate_scope_covers_request
+}
+
+active_mandate_holder if {
+	input.mandate_holder.status == "active"
+	not mandate_revoked
+	not mandate_ended
+}
+
+mandate_revoked if {
+	input.mandate_holder.revoked_at != null
+}
+
+mandate_ended if {
+	input.mandate_holder.ended_at != null
 }
 
 scope_covers_commitment if {

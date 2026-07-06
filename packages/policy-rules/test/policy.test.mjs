@@ -336,15 +336,72 @@ test('representative access allows only verified active accepted in-scope offici
     requested_scope: 'health',
   };
   assert.equal(opaEval('representative/access.rego', allowed, query), true);
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      { ...allowed, mandate_holder: { status: 'active', scope: 'health', revoked_at: null, ended_at: null } },
+      query,
+    ),
+    true,
+  );
 
   for (const input of [
     { ...allowed, identity_level: 'casual' },
     { ...allowed, mandate_holder: { status: 'inactive', scope: 'health' } },
+    { ...allowed, mandate_holder: { status: 'revoked', scope: 'health' } },
+    { ...allowed, mandate_holder: { status: 'ended', scope: 'health' } },
+    { ...allowed, mandate_holder: { status: 'active', scope: 'health', revoked_at: '2026-01-01T00:00:00.000Z' } },
+    { ...allowed, mandate_holder: { status: 'active', scope: 'health', ended_at: '2026-01-01T00:00:00.000Z' } },
     { ...allowed, charter: { status: 'pending' } },
+    { ...allowed, charter: undefined },
     { ...allowed, requested_scope: 'transport' },
   ]) {
     assert.equal(opaEval('representative/access.rego', input, query), false);
   }
+});
+
+test('representative access enforces charter jurisdiction and process coverage (M-RA Phase 4)', () => {
+  const query = 'data.polis.representative.access.allow';
+  const allowed = {
+    identity_level: 'verified_official',
+    mandate_holder: { status: 'active', scope: 'all' },
+    charter: {
+      status: 'accepted',
+      scope: {
+        jurisdictions: ['jurisdiction-covered'],
+        processes: ['process-covered'],
+      },
+    },
+    commitment: {
+      jurisdiction: 'jurisdiction-covered',
+      process: 'process-covered',
+    },
+  };
+  assert.equal(opaEval('representative/access.rego', allowed, query), true);
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      { ...allowed, commitment: { ...allowed.commitment, jurisdiction: 'jurisdiction-other' } },
+      query,
+    ),
+    false,
+  );
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      { ...allowed, commitment: { ...allowed.commitment, process: 'process-other' } },
+      query,
+    ),
+    false,
+  );
+  assert.equal(
+    opaEval(
+      'representative/access.rego',
+      { ...allowed, charter: { status: 'accepted', scope: { jurisdictions: ['all'], processes: ['all'] } } },
+      query,
+    ),
+    true,
+  );
 });
 
 test('representative status terminal changes require approved resolution and no self-assignment (M-RA)', () => {

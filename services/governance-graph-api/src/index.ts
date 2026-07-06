@@ -8,7 +8,7 @@
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import type { IncomingMessage } from 'node:http';
-import { and, asc, countDistinct, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, countDistinct, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   operationalRoutes,
   result,
@@ -44,7 +44,7 @@ import {
   type RoleWire,
 } from './serialize.js';
 
-type EvidenceLinkRow = (typeof schema.evidenceLinks)['$inferSelect'];
+type EvidenceLinkRow = (typeof schema.evidenceLinks)['$inferSelect'] & { visibility: string };
 
 /** Query params from an IncomingMessage URL. Used across every list handler. */
 function query(req: IncomingMessage): URLSearchParams {
@@ -489,10 +489,25 @@ export function graphRoutes(db: DbClient): Route[] {
           }
         }
 
+        const commitmentClaimRows = await db
+          .select()
+          .from(schema.claims)
+          .where(eq(schema.claims.id, row.claimId));
+        const commitmentClaim = commitmentClaimRows[0];
+        let claim: ClaimWire | null = null;
+        if (commitmentClaim) {
+          const [evidenceRows, sourceIds] = await loadEvidence(db, commitmentClaim.id);
+          const sources = sourceIds.length
+            ? await db.select().from(schema.sources).where(inArray(schema.sources.id, sourceIds))
+            : [];
+          claim = claimWire(commitmentClaim, evidenceRows.map(evidenceLinkWire), sources.map(sourceWire));
+        }
+
         return {
           ...commitmentWire(row),
           effectiveStatus: await effectiveStatus(db, row.id, row.dueAt),
           statusTimeline: timeline,
+          claim,
           resolution,
           questions: await loadCommitmentQuestions(db, row.id),
         };
@@ -519,7 +534,18 @@ export function graphRoutes(db: DbClient): Route[] {
 /** Evidence links for a claim + the distinct source ids they reference. */
 async function loadEvidence(db: DbClient, claimId: string): Promise<[EvidenceLinkRow[], string[]]> {
   const evidenceRows = await db
-    .select()
+    .select({
+      id: schema.evidenceLinks.id,
+      claimId: schema.evidenceLinks.claimId,
+      sourceId: schema.evidenceLinks.sourceId,
+      locator: schema.evidenceLinks.locator,
+      quote: schema.evidenceLinks.quote,
+      paraphrase: schema.evidenceLinks.paraphrase,
+      sourceHash: schema.evidenceLinks.sourceHash,
+      retrievedAt: schema.evidenceLinks.retrievedAt,
+      confidence: schema.evidenceLinks.confidence,
+      visibility: schema.evidenceLinks.visibility,
+    })
     .from(schema.evidenceLinks)
     .where(eq(schema.evidenceLinks.claimId, claimId));
   const sourceIdSet = new Set<string>();

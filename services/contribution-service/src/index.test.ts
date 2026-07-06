@@ -30,6 +30,7 @@ const httpStatus = (value: unknown): number | undefined => {
   return undefined;
 };
 
+
 type InsertedSubmission = {
   status?: string;
   contributionClass?: string;
@@ -142,6 +143,147 @@ test('commitment filing rejects direct terminal status instead of self-adjudicat
 
   assert.equal(httpStatus(out), 400);
   assert.equal(inserts.length, 0, 'terminal self-assignment must not create a submission');
+});
+
+test('commitment filing rejects non-covering charter scope before inserts', async () => {
+  const { db, inserts } = queuedDb([
+    [{ identityLevel: 'verified_official' }],
+    [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+    [{ status: 'accepted', charterDoc: { scope: { jurisdictions: ['jurisdiction-b'] } } }],
+  ]);
+  const route = contributionRoutes(db as never).find(
+    (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
+  );
+  assert.ok(route);
+
+  const out = await route.handler(
+    reqWithCitizen('citizen-1'),
+    {
+      text: 'Open the clinic',
+      successCriterion: 'Clinic is open',
+      jurisdictionId: 'jurisdiction-a',
+    },
+    { id: 'holder-1' },
+  );
+
+  assert.equal(httpStatus(out), 403);
+  assert.ok(out && typeof out === 'object' && 'body' in out);
+  assert.deepEqual(out.body, {
+    error: 'charter_scope_not_covered',
+    reason: 'jurisdiction_not_covered',
+    field: 'jurisdictionId',
+  });
+  assert.equal(inserts.length, 0, 'scope denial must not create claims, commitments, status events, or submissions');
+});
+
+test('commitment filing allows covering charter scope', async () => {
+  const { db, inserts } = queuedDb([
+    [{ identityLevel: 'verified_official' }],
+    [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+    [
+      {
+        status: 'accepted',
+        charterDoc: { scope: { jurisdictions: ['jurisdiction-a'], processes: ['process-1'] } },
+      },
+    ],
+  ]);
+  const route = contributionRoutes(db as never).find(
+    (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
+  );
+  assert.ok(route);
+
+  const out = await route.handler(
+    reqWithCitizen('citizen-1'),
+    {
+      text: 'Open the clinic',
+      successCriterion: 'Clinic is open',
+      jurisdictionId: 'jurisdiction-a',
+      processId: 'process-1',
+    },
+    { id: 'holder-1' },
+  );
+
+  assert.equal(httpStatus(out), 201);
+  assert.equal(inserts.length, 4, 'publish path creates claim, commitment, initial status event, and submission');
+  assert.ok(
+    inserts.some((entry) => {
+      const values = entry.values;
+      return (
+        values !== null &&
+        typeof values === 'object' &&
+        'jurisdictionId' in values &&
+        'processId' in values &&
+        values.jurisdictionId === 'jurisdiction-a' &&
+        values.processId === 'process-1'
+      );
+    }),
+    'commitment insert must retain requested scope',
+  );
+});
+
+test('commitment filing persists restricted evidence with restricted default visibility', async () => {
+  const { db, inserts } = queuedDb([
+    [{ identityLevel: 'verified_official' }],
+    [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+    [{ status: 'accepted', charterDoc: { scope: { jurisdictions: ['jurisdiction-a'] } } }],
+  ]);
+  const route = contributionRoutes(db as never).find(
+    (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
+  );
+  assert.ok(route);
+
+  const out = await route.handler(
+    reqWithCitizen('citizen-1'),
+    {
+      text: 'Open the clinic',
+      successCriterion: 'Clinic is open',
+      jurisdictionId: 'jurisdiction-a',
+      evidence: [{ quote: 'private quote', locator: { uri: 'urn:private' } }],
+    },
+    { id: 'holder-1' },
+  );
+
+  assert.equal(httpStatus(out), 201);
+  const evidenceInsert = inserts.find((entry) => Array.isArray(entry.values));
+  assert.ok(evidenceInsert, 'evidence payload must create evidence_links rows');
+  const values = (evidenceInsert.values as Array<Record<string, unknown>>)[0];
+  assert.equal(values.visibility, 'restricted');
+  assert.equal(values.confidence, '0.5');
+  assert.equal(values.quote, 'private quote');
+  assert.deepEqual(values.locator, { uri: 'urn:private' });
+  assert.equal(typeof values.sourceId, 'string');
+  assert.match(values.sourceId as string, /^representative:/);
+});
+
+test('commitment filing rejects requested jurisdiction when object scope omits jurisdictions array', async () => {
+  const { db, inserts } = queuedDb([
+    [{ identityLevel: 'verified_official' }],
+    [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+    [{ status: 'accepted', charterDoc: { scope: { processes: ['process-1'] } } }],
+  ]);
+  const route = contributionRoutes(db as never).find(
+    (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
+  );
+  assert.ok(route);
+
+  const out = await route.handler(
+    reqWithCitizen('citizen-1'),
+    {
+      text: 'Open the clinic',
+      successCriterion: 'Clinic is open',
+      jurisdictionId: 'jurisdiction-a',
+    },
+    { id: 'holder-1' },
+  );
+
+  assert.equal(httpStatus(out), 403);
+  assert.ok(out && typeof out === 'object' && 'body' in out);
+  assert.deepEqual(out.body, {
+    error: 'charter_scope_not_covered',
+    reason: 'jurisdiction_not_covered',
+    field: 'jurisdictionId',
+  });
+  assert.equal(inserts.length, 0);
 });
 
 test('resolution filing records requested terminal status as a pending claim only', async () => {

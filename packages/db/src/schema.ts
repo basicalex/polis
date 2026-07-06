@@ -49,6 +49,8 @@ export const VISIBILITIES = [
   'internal',
 ] as const;
 
+export const EVIDENCE_LINK_VISIBILITIES = ['public', 'restricted', 'private'] as const;
+
 export const CONFIDENCE_STATES = [
   'unsupported_draft',
   'single_source',
@@ -484,7 +486,10 @@ export const evidenceLinks = pgTable('evidence_links', {
   sourceHash: text('source_hash'),
   retrievedAt: timestamp('retrieved_at', { withTimezone: true }),
   confidence: numeric('confidence').notNull(),
-});
+  visibility: text('visibility').default('public').notNull(),
+}, () => [
+  enumCheck('ck_evidence_links_visibility', 'visibility', EVIDENCE_LINK_VISIBILITIES),
+]);
 
 export const reviewRecords = pgTable('review_records', {
   id: pkId(),

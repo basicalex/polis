@@ -85,6 +85,13 @@
       "when": 1782982208761,
       "tag": "0011_identity_oidc_v0",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782982208762,
+      "tag": "0012_evidence_visibility_v0",
+      "breakpoints": true
     }
   ]
 }

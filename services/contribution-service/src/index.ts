@@ -14,7 +14,7 @@
  */
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
-import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   operationalRoutes,
   result,
@@ -110,6 +110,70 @@ async function emitAudit(event: {
   }
 }
 
+type RepresentativeEvidenceInput = {
+  sourceId?: string;
+  locator?: unknown;
+  quote?: string;
+  paraphrase?: string;
+  sourceHash?: string;
+  retrievedAt?: string;
+  confidence?: number | string;
+  visibility?: string;
+};
+
+const representativeEvidenceItems = (value: unknown): RepresentativeEvidenceInput[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is RepresentativeEvidenceInput => item !== null && typeof item === 'object');
+};
+
+const representativeEvidenceVisibility = (visibility: unknown): 'public' | 'restricted' | 'private' => {
+  return visibility === 'public' || visibility === 'restricted' || visibility === 'private'
+    ? visibility
+    : 'restricted';
+};
+
+async function persistRepresentativeEvidence(input: {
+  db: DbClient;
+  evidence: unknown;
+  claimId: string;
+  eventType: string;
+  target: { type: string; id: string };
+  auditData: Record<string, unknown>;
+}): Promise<void> {
+  const items = representativeEvidenceItems(input.evidence);
+  if (!items.length) return;
+  let redactionRelevant = false;
+  await input.db.insert(schema.evidenceLinks).values(
+    items.map((item, index) => {
+      const visibility = representativeEvidenceVisibility(item.visibility);
+      redactionRelevant ||= visibility !== 'public';
+      return {
+        id: sql`gen_random_uuid()::text`,
+        claimId: input.claimId,
+        sourceId: optionalNonEmpty(item.sourceId) ?? `representative:${input.claimId}:${index}`,
+        locator: item.locator ?? null,
+        quote: typeof item.quote === 'string' ? item.quote : null,
+        paraphrase: typeof item.paraphrase === 'string' ? item.paraphrase : null,
+        sourceHash: typeof item.sourceHash === 'string' ? item.sourceHash : null,
+        retrievedAt:
+          typeof item.retrievedAt === 'string' && !Number.isNaN(Date.parse(item.retrievedAt))
+            ? new Date(item.retrievedAt)
+            : null,
+        confidence: String(item.confidence ?? 0.5),
+        visibility,
+      };
+    }),
+  );
+  if (redactionRelevant) {
+    await emitAudit({
+      eventType: input.eventType,
+      action: 'attach_evidence',
+      target: input.target,
+      data: { ...input.auditData, evidenceCount: items.length, redactionRelevant: true },
+    });
+  }
+}
+
 /**
  * Best-effort reward-eligibility emit. On approval of a non-political
  * contribution, POST the submission to rewards-service which evaluates the
@@ -145,18 +209,68 @@ async function emitRewardEligibility(input: {
   }
 }
 
+type RequestedCommitmentScope = {
+  jurisdictionId?: string | null;
+  processId?: string | null;
+};
+
+type PublishDenial = {
+  error: string;
+  reason: string;
+  field?: string;
+};
+
+type PublishGateDenied = {
+  denied: true;
+  body: PublishDenial;
+  response: HttpResult;
+};
+
+function charterScopeCovers(scope: unknown, requested: RequestedCommitmentScope): true | PublishDenial {
+  const jurisdictionId = requested.jurisdictionId ?? null;
+  const processId = requested.processId ?? null;
+  if (scope == null || scope === 'all') return true;
+  if (typeof scope === 'string') {
+    if (!jurisdictionId && !processId) return true;
+    if (scope === jurisdictionId || scope === processId) return true;
+    return { error: 'charter_scope_not_covered', reason: 'legacy_scope_mismatch', field: 'scope' };
+  }
+  if (typeof scope !== 'object' || Array.isArray(scope)) {
+    return { error: 'charter_scope_not_covered', reason: 'invalid_charter_scope', field: 'scope' };
+  }
+  const scoped = scope as { jurisdictions?: unknown; processes?: unknown };
+  if (jurisdictionId) {
+    if (
+      !Array.isArray(scoped.jurisdictions) ||
+      (!scoped.jurisdictions.includes('all') && !scoped.jurisdictions.includes(jurisdictionId))
+    ) {
+      return { error: 'charter_scope_not_covered', reason: 'jurisdiction_not_covered', field: 'jurisdictionId' };
+    }
+  }
+  if (processId) {
+    if (
+      !Array.isArray(scoped.processes) ||
+      (!scoped.processes.includes('all') && !scoped.processes.includes(processId))
+    ) {
+      return { error: 'charter_scope_not_covered', reason: 'process_not_covered', field: 'processId' };
+    }
+  }
+  return true;
+}
+
 /**
- * M-RA publish gate (Phase 2). TS-mirror of the authoritative
- * representative/access.rego: a mandate-holder may publish only when ALL three
- * hold — (1) their citizen identity is verified_official, (2) their
- * mandate_holder row is active, and (3) they hold an accepted charter.
- * Returns `null` when allowed, or the exact 403 result to return otherwise.
+ * M-RA publish gate. TS-mirror of the authoritative
+ * representative/access.rego: a mandate-holder may publish only when their
+ * citizen identity is verified_official, the matching mandate_holder row is
+ * active, they hold an accepted charter, and that charter covers the requested
+ * commitment jurisdiction/process.
  */
 async function assertCanPublish(
   db: DbClient,
   citizenId: string,
   mandateHolderId: string,
-): Promise<null | HttpResult> {
+  requestedScope: RequestedCommitmentScope = {},
+): Promise<null | PublishGateDenied> {
   const citizenRows = await db
     .select({ identityLevel: schema.citizens.identityLevel })
     .from(schema.citizens)
@@ -164,31 +278,80 @@ async function assertCanPublish(
     .limit(1);
   const citizen = citizenRows[0];
   if (!citizen || citizen.identityLevel !== 'verified_official') {
-    return result(403, { error: 'not_verified_official' });
+    const body = { error: 'not_verified_official', reason: 'identity_level_required', field: 'identityLevel' };
+    return { denied: true, body, response: result(403, body) };
   }
   const holderRows = await db
-    .select({ citizenId: schema.mandateHolders.citizenId, status: schema.mandateHolders.status })
+    .select({
+      citizenId: schema.mandateHolders.citizenId,
+      status: schema.mandateHolders.status,
+      jurisdictionId: schema.mandateHolders.jurisdictionId,
+    })
     .from(schema.mandateHolders)
     .where(eq(schema.mandateHolders.id, mandateHolderId))
     .limit(1);
   const holder = holderRows[0];
   if (!holder || holder.citizenId !== citizenId) {
-    return result(403, { error: 'not_mandate_holder' });
+    const body = { error: 'not_mandate_holder', reason: 'citizen_mismatch', field: 'mandateHolderId' };
+    return { denied: true, body, response: result(403, body) };
   }
   if (holder.status !== 'active') {
-    return result(403, { error: 'mandate_inactive' });
+    const body = { error: 'mandate_inactive', reason: 'mandate_holder_not_active', field: 'status' };
+    return { denied: true, body, response: result(403, body) };
   }
   const charterRows = await db
-    .select({ status: schema.mandateHolderCharters.status })
+    .select({
+      status: schema.mandateHolderCharters.status,
+      charterDoc: schema.mandateHolderCharters.charterDoc,
+    })
     .from(schema.mandateHolderCharters)
-    .where(eq(schema.mandateHolderCharters.mandateHolderId, mandateHolderId))
+    .where(
+      and(
+        eq(schema.mandateHolderCharters.mandateHolderId, mandateHolderId),
+        eq(schema.mandateHolderCharters.status, 'accepted'),
+      ),
+    )
     .orderBy(desc(schema.mandateHolderCharters.updatedAt))
     .limit(1);
   const charter = charterRows[0];
   if (!charter || charter.status !== 'accepted') {
-    return result(403, { error: 'charter_required' });
+    const body = { error: 'charter_required', reason: 'accepted_charter_required', field: 'charter' };
+    return { denied: true, body, response: result(403, body) };
+  }
+  const charterScope =
+    charter.charterDoc && typeof charter.charterDoc === 'object' && 'scope' in charter.charterDoc
+      ? charter.charterDoc.scope
+      : undefined;
+  const scopeCheck = charterScopeCovers(charterScope, requestedScope);
+  if (scopeCheck !== true) {
+    return { denied: true, body: scopeCheck, response: result(403, scopeCheck) };
   }
   return null;
+}
+
+async function emitRepresentativeDeniedAudit(input: {
+  eventType: string;
+  action: string;
+  target: { type: string; id: string };
+  citizenId: string;
+  mandateHolderId: string;
+  denial: PublishDenial;
+  requestedScope: RequestedCommitmentScope;
+}): Promise<void> {
+  await emitAudit({
+    eventType: input.eventType,
+    action: input.action,
+    target: input.target,
+    data: {
+      citizenId: input.citizenId,
+      mandateHolderId: input.mandateHolderId,
+      denied: true,
+      reason: input.denial.reason,
+      error: input.denial.error,
+      field: input.denial.field ?? null,
+      requestedScope: input.requestedScope,
+    },
+  });
 }
 /**
  * Apply an approved (non-political) submission to the shared governance graph
@@ -701,8 +864,6 @@ export function contributionRoutes(db: DbClient): Route[] {
         const rawCitizen = req.headers['x-polis-citizen'];
         const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
         if (!citizenId) return result(401, { error: 'unauthenticated' });
-        const gate = await assertCanPublish(db, citizenId, params.id);
-        if (gate) return gate;
         const p = (body ?? {}) as {
           text?: string;
           claimType?: string;
@@ -760,6 +921,20 @@ export function contributionRoutes(db: DbClient): Route[] {
         }
         if (detail.length) {
           return result(400, { error: 'invalid_commitment_payload', detail });
+        }
+        const requestedScope = { jurisdictionId, processId };
+        const gate = await assertCanPublish(db, citizenId, params.id, requestedScope);
+        if (gate) {
+          await emitRepresentativeDeniedAudit({
+            eventType: 'representative.commitment.publish_denied',
+            action: 'publish_denied',
+            target: { type: 'mandate-holder', id: params.id },
+            citizenId,
+            mandateHolderId: params.id,
+            denial: gate.body,
+            requestedScope,
+          });
+          return gate.response;
         }
         let claimId = claimIdInput;
         if (claimId) {
@@ -832,6 +1007,14 @@ export function contributionRoutes(db: DbClient): Route[] {
           })
           .returning();
         const row = ins[0];
+        await persistRepresentativeEvidence({
+          db,
+          evidence: p.evidence,
+          claimId,
+          eventType: 'representative.commitment.evidence_attached',
+          target: { type: 'commitment', id: commitment.id },
+          auditData: { mandateHolderId: params.id, claimId, submissionId: row.id },
+        });
         await emitAudit({
           eventType: 'representative.commitment.published',
           action: 'publish',
@@ -853,14 +1036,33 @@ export function contributionRoutes(db: DbClient): Route[] {
         const citizenId = typeof rawCitizen === 'string' ? rawCitizen.trim() : '';
         if (!citizenId) return result(401, { error: 'unauthenticated' });
         const cRows = await db
-          .select({ mandateHolderId: schema.commitments.mandateHolderId })
+          .select({
+            mandateHolderId: schema.commitments.mandateHolderId,
+            jurisdictionId: schema.commitments.jurisdictionId,
+            processId: schema.commitments.processId,
+          })
           .from(schema.commitments)
           .where(eq(schema.commitments.id, params.id))
           .limit(1);
         const commitment = cRows[0];
         if (!commitment) return result(404, { error: 'not_found', id: params.id });
-        const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId);
-        if (gate) return gate;
+        const requestedScope = {
+          jurisdictionId: commitment.jurisdictionId ?? null,
+          processId: commitment.processId ?? null,
+        };
+        const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId, requestedScope);
+        if (gate) {
+          await emitRepresentativeDeniedAudit({
+            eventType: 'representative.commitment.resolution_denied',
+            action: 'resolution_denied',
+            target: { type: 'commitment', id: params.id },
+            citizenId,
+            mandateHolderId: commitment.mandateHolderId,
+            denial: gate.body,
+            requestedScope,
+          });
+          return gate.response;
+        }
         const p = (body ?? {}) as {
           status?: string;
           text?: string;
@@ -933,6 +1135,14 @@ export function contributionRoutes(db: DbClient): Route[] {
           })
           .returning();
         const row = ins[0];
+        await persistRepresentativeEvidence({
+          db,
+          evidence: p.evidence,
+          claimId: resolutionClaimId,
+          eventType: 'representative.commitment.resolution_evidence_attached',
+          target: { type: 'contribution', id: row.id },
+          auditData: { commitmentId: params.id, status: p.status, resolutionClaimId },
+        });
         await emitAudit({
           eventType: 'representative.commitment.resolution_filed',
           action: 'submit',

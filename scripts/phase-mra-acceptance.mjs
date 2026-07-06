@@ -75,6 +75,40 @@ function totalTerminalCount(scorecard) {
   return Number(t.delivered ?? 0) + Number(t.partial ?? 0) + Number(t.notDelivered ?? 0);
 }
 
+function commitmentCount(holder) {
+  return Array.isArray(holder.body?.commitments) ? holder.body.commitments.length : null;
+}
+
+function walk(value, visit) {
+  visit(value);
+  if (Array.isArray(value)) {
+    for (const item of value) walk(item, visit);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) walk(item, visit);
+  }
+}
+
+function restrictedEvidenceFindings(publicBody) {
+  const findings = { checked: 0, redacted: 0, leaks: [] };
+  walk(publicBody, (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const visibility = typeof value.visibility === 'string' ? value.visibility : '';
+    if (!['restricted', 'private'].includes(visibility)) return;
+    const hasEvidenceShape =
+      'locator' in value || 'quote' in value || 'paraphrase' in value || 'sourceHash' in value;
+    if (!hasEvidenceShape) return;
+    findings.checked++;
+    for (const field of ['locator', 'quote', 'paraphrase', 'sourceHash']) {
+      const fieldValue = value[field];
+      if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '[redacted]') {
+        findings.leaks.push(field);
+      }
+    }
+    if (findings.leaks.length === 0) findings.redacted++;
+  });
+  return findings;
+}
+
 console.log('[phase-mra] checking representative accountability read + adjudication path…');
 
 // ─── 1. Public read path ───
@@ -125,6 +159,40 @@ check(
 );
 
 if (auth) {
+  // ─── 3. Negative: charter scope must cover requested jurisdiction/process ───
+  const beforeDeniedHolder = await get(BFF, '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID);
+  const beforeDeniedCommitmentCount = commitmentCount(beforeDeniedHolder);
+  const deniedCommitment = await post(
+    BFF,
+    '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/commitments',
+    {
+      text: 'M-RA acceptance must reject non-covering charter scope ' + Date.now(),
+      successCriterion: 'This write must not create a commitment.',
+      jurisdictionId: 'mra-acceptance-non-covering-jurisdiction',
+      processId: 'mra-acceptance-non-covering-process',
+    },
+    auth,
+  );
+  check(
+    'non-covering jurisdiction/process commitment filing is denied with 403',
+    deniedCommitment.status === 403,
+    `status=${deniedCommitment.status} body=${JSON.stringify(deniedCommitment.body ?? {}).slice(0, 200)}`,
+  );
+  check(
+    'denied commitment response exposes no commitment id',
+    !extractCommitmentId(deniedCommitment),
+    `body=${JSON.stringify(deniedCommitment.body ?? {}).slice(0, 200)}`,
+  );
+  const afterDeniedHolder = await get(BFF, '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID);
+  const afterDeniedCommitmentCount = commitmentCount(afterDeniedHolder);
+  check(
+    'denied commitment attempt creates no publicly readable holder commitment',
+    beforeDeniedCommitmentCount !== null &&
+      afterDeniedCommitmentCount !== null &&
+      afterDeniedCommitmentCount === beforeDeniedCommitmentCount,
+    `before=${beforeDeniedCommitmentCount} after=${afterDeniedCommitmentCount}`,
+  );
+
   // ─── 3. Negative: terminal status cannot be self-declared during commitment filing ───
   const terminalCommitment = await post(
     BFF,
@@ -175,6 +243,55 @@ if (auth) {
     'filed commitment is non-terminal on publication',
     ['proposed', 'in_progress', 'overdue'].includes(filedCommitmentRead.body?.effectiveStatus),
     `effectiveStatus=${filedCommitmentRead.body?.effectiveStatus}`,
+  );
+
+  const restrictedEvidenceText = 'MRA_RESTRICTED_EVIDENCE_DO_NOT_LEAK_' + Date.now();
+  const restrictedEvidenceCommitment = await post(
+    BFF,
+    '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/commitments',
+    {
+      text: 'M-RA acceptance restricted evidence redaction probe ' + Date.now(),
+      successCriterion: 'Public reads must redact restricted evidence fields.',
+      evidence: [
+        {
+          visibility: 'restricted',
+          locator: { uri: 'urn:polis:mra-acceptance:restricted' },
+          quote: restrictedEvidenceText,
+          paraphrase: restrictedEvidenceText + '_PARAPHRASE',
+          sourceHash: 'sha256:' + restrictedEvidenceText,
+        },
+      ],
+    },
+    auth,
+  );
+  check(
+    'restricted-evidence probe commitment filing succeeds',
+    restrictedEvidenceCommitment.status === 201,
+    `status=${restrictedEvidenceCommitment.status} body=${JSON.stringify(restrictedEvidenceCommitment.body ?? {}).slice(0, 200)}`,
+  );
+  const restrictedEvidenceCommitmentId =
+    restrictedEvidenceCommitment.status === 201 ? extractCommitmentId(restrictedEvidenceCommitment) : '';
+  const restrictedEvidenceRead = restrictedEvidenceCommitmentId
+    ? await get(BFF, '/api/v1/commitments/' + restrictedEvidenceCommitmentId)
+    : { status: 0, body: null };
+  check(
+    'restricted-evidence probe commitment is publicly readable',
+    restrictedEvidenceRead.status === 200,
+    `id=${restrictedEvidenceCommitmentId} status=${restrictedEvidenceRead.status}`,
+  );
+  const restrictedEvidencePublicJson = JSON.stringify(restrictedEvidenceRead.body ?? {});
+  check(
+    'public read does not leak raw restricted evidence text',
+    !restrictedEvidencePublicJson.includes(restrictedEvidenceText),
+    `body=${restrictedEvidencePublicJson.slice(0, 200)}`,
+  );
+  const restrictedEvidence = restrictedEvidenceFindings(restrictedEvidenceRead.body);
+  check(
+    'public read exposes restricted/private evidence redacted placeholders',
+    restrictedEvidence.checked > 0 &&
+      restrictedEvidence.redacted === restrictedEvidence.checked &&
+      restrictedEvidence.leaks.length === 0,
+    `checked=${restrictedEvidence.checked} redacted=${restrictedEvidence.redacted} leaks=${restrictedEvidence.leaks.join(',')}`,
   );
 
   // ─── 5. File resolution; no terminal status is effective until review approval ───
