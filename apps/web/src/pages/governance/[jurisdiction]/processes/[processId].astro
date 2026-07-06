@@ -1,10 +1,11 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import Claim from '../../../../components/Claim.astro';
+import type { ConfidenceState, ReviewState } from '@polis/domain';
 
 type Evidence = { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null };
 type Source = { id: string; title: string; url: string | null; publisher: string | null };
-type Claim = { id: string; text: string; confidenceState: string; reviewState: string; evidence: Evidence[]; sources: Source[] };
+type Claim = { id: string; text: string; confidenceState: ConfidenceState; reviewState: ReviewState; evidence: Evidence[]; sources: Source[] };
 type Step = { id: string; ordinal: string | null; name: string; description: string | null };
 type FailureMode = { id: string; name: string; description: string | null };
 type Process = {

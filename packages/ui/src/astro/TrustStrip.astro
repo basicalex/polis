@@ -1,0 +1,77 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import ReviewStateBadge from './ReviewStateBadge.astro';
+import { t, type Locale } from '../messages/index.ts';
+import type { CheckStatus, ReviewState, VerdictTone } from '@polis/domain';
+
+interface Props {
+  signed?: CheckStatus;
+  timestamped?: CheckStatus;
+  sourced?: boolean;
+  reviewState?: ReviewState;
+  auditHref?: string;
+  proofHref?: string;
+  locale?: Locale;
+}
+
+const {
+  signed,
+  timestamped,
+  sourced,
+  reviewState,
+  auditHref,
+  proofHref,
+  locale = 'en',
+} = Astro.props as Props;
+
+const checkTone: Record<CheckStatus, VerdictTone> = {
+  pass: 'valid',
+  fail: 'invalid',
+  indeterminate: 'warning',
+  not_present: 'unknown',
+  not_checked: 'unknown',
+};
+---
+
+<div class="trust-strip">
+  {
+    signed !== undefined && (
+      <StatusBadge tone={checkTone[signed]} label={t('strip.signed', locale)} icon="pen" locale={locale} />
+    )
+  }
+  {
+    timestamped !== undefined && (
+      <StatusBadge
+        tone={checkTone[timestamped]}
+        label={t('strip.timestamped', locale)}
+        icon="clock"
+        locale={locale}
+      />
+    )
+  }
+  {
+    sourced !== undefined && (
+      <StatusBadge
+        tone={sourced ? 'valid' : 'warning'}
+        label={sourced ? t('strip.sourced', locale) : t('strip.unsourced', locale)}
+        icon="link"
+        locale={locale}
+      />
+    )
+  }
+  {reviewState !== undefined && <ReviewStateBadge state={reviewState} locale={locale} />}
+  {
+    auditHref && (
+      <a href={auditHref}>
+        <StatusBadge tone="unknown" label={t('strip.audited', locale)} icon="ledger" locale={locale} />
+      </a>
+    )
+  }
+  {
+    proofHref && (
+      <a href={proofHref}>
+        <StatusBadge tone="unknown" label={t('strip.proof', locale)} icon="link" locale={locale} />
+      </a>
+    )
+  }
+</div>

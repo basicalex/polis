@@ -1,0 +1,77 @@
+---
+import { t, type Locale } from '../messages/index.ts';
+import type { EvidenceLink } from '@polis/domain';
+
+type SourceInfo = { id: string; title?: string; url?: string; publisher?: string };
+
+interface Props {
+  evidence: EvidenceLink[];
+  sources?: SourceInfo[];
+  locale?: Locale;
+}
+
+const { evidence, sources = [], locale = 'en' } = Astro.props as Props;
+
+const sourceById = new Map(sources.map((s) => [s.id, s]));
+
+function locatorText(link: EvidenceLink): string | null {
+  const loc = link.locator;
+  if (!loc) return null;
+  const parts: string[] = [];
+  if (loc.page !== undefined) parts.push(`p. ${loc.page}`);
+  if (loc.lineStart !== undefined) {
+    parts.push(loc.lineEnd !== undefined ? `lines ${loc.lineStart}–${loc.lineEnd}` : `line ${loc.lineStart}`);
+  }
+  if (loc.tableCell) parts.push(`cell ${loc.tableCell}`);
+  if (loc.timestamp) parts.push(loc.timestamp);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+---
+
+<section class="panel source-panel">
+  <h2>{t('sources.title', locale)}</h2>
+  {
+    evidence.length === 0 ? (
+      <p class="muted">{t('sources.empty', locale)}</p>
+    ) : (
+      evidence.map((link) => {
+        const source = sourceById.get(link.sourceId);
+        const locator = locatorText(link);
+        return (
+          <div class="source-item">
+            <div>
+              {source?.url ? (
+                <a href={source.url} rel="noopener noreferrer">
+                  {source.title ?? link.sourceId}
+                  <span class="visually-hidden"> ({t('sources.external', locale)})</span>
+                </a>
+              ) : (
+                <strong>{source?.title ?? link.sourceId}</strong>
+              )}
+              {source?.publisher && <span class="muted"> — {source.publisher}</span>}
+            </div>
+            {link.quote && <blockquote class="source-quote">{link.quote}</blockquote>}
+            {link.paraphrase && !link.quote && <p class="muted">{link.paraphrase}</p>}
+            <span class="audit-meta">
+              {locator && (
+                <span>
+                  {t('sources.locator', locale)}: {locator}
+                </span>
+              )}
+              {link.retrievedAt && (
+                <span>
+                  {t('sources.retrieved', locale)}: <time datetime={link.retrievedAt}>{link.retrievedAt}</time>
+                </span>
+              )}
+              {link.sourceHash && (
+                <span class="hash-value">
+                  {t('sources.hash', locale)}: {link.sourceHash}
+                </span>
+              )}
+            </span>
+          </div>
+        );
+      })
+    )
+  }
+</section>

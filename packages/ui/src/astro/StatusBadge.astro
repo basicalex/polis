@@ -1,0 +1,31 @@
+---
+import TrustIcon, { type IconName } from '../icons/TrustIcon.astro';
+import { t, type Locale, type MessageKey } from '../messages/index.ts';
+import type { VerdictTone } from '@polis/domain';
+
+interface Props {
+  tone: VerdictTone;
+  labelKey?: MessageKey;
+  label?: string;
+  icon?: IconName;
+  locale?: Locale;
+  announce?: boolean;
+}
+
+const { tone, labelKey, label, icon, locale = 'en', announce = false } = Astro.props as Props;
+
+const toneIcons: Record<VerdictTone, IconName> = {
+  valid: 'check',
+  warning: 'alert',
+  invalid: 'cross',
+  unknown: 'question',
+  restricted: 'lock',
+};
+
+const text = label ?? (labelKey ? t(labelKey, locale) : tone);
+---
+
+<span class="trust-badge" data-tone={tone} role={announce ? 'status' : undefined}>
+  <TrustIcon name={icon ?? toneIcons[tone]} />
+  {text}
+</span>

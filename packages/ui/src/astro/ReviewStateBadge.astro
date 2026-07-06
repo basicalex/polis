@@ -1,0 +1,26 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import { type Locale } from '../messages/index.ts';
+import type { ReviewState, VerdictTone } from '@polis/domain';
+
+interface Props {
+  state: ReviewState;
+  locale?: Locale;
+}
+
+const { state, locale = 'en' } = Astro.props as Props;
+
+const tones: Record<ReviewState, VerdictTone> = {
+  draft: 'unknown',
+  submitted: 'unknown',
+  needs_revision: 'warning',
+  under_review: 'unknown',
+  approved: 'valid',
+  contested: 'warning',
+  deprecated: 'invalid',
+  rejected: 'invalid',
+  archived: 'unknown',
+};
+---
+
+<StatusBadge tone={tones[state]} labelKey={`review.${state}`} locale={locale} />

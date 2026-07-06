@@ -1,0 +1,52 @@
+---
+import { t, type Locale } from '../messages/index.ts';
+
+interface Props {
+  locale?: Locale;
+}
+
+const { locale = 'en' } = Astro.props as Props;
+
+const rows = [
+  { mechanism: 'mechanism.hash', proves: 'teach.hash.proves', not: 'teach.hash.not_proves' },
+  {
+    mechanism: 'mechanism.signature',
+    proves: 'teach.signature.proves',
+    not: 'teach.signature.not_proves',
+  },
+  {
+    mechanism: 'mechanism.timestamp',
+    proves: 'teach.timestamp.proves',
+    not: 'teach.timestamp.not_proves',
+  },
+  {
+    mechanism: 'mechanism.registry',
+    proves: 'teach.registry.proves',
+    not: 'teach.registry.not_proves',
+  },
+] as const;
+---
+
+<section class="panel">
+  <h2>{t('teach.title', locale)}</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col">{t('teach.proves', locale)}</th>
+        <th scope="col">{t('teach.not_proves', locale)}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((row) => (
+          <tr>
+            <th scope="row">{t(row.mechanism, locale)}</th>
+            <td>{t(row.proves, locale)}</td>
+            <td>{t(row.not, locale)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</section>

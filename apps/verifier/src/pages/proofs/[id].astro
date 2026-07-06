@@ -1,156 +1,90 @@
 ---
 import Base from '../../layouts/Base.astro';
+import ProofManifestView from '@polis/ui/astro/ProofManifestView.astro';
+import VerdictCard from '@polis/ui/astro/VerdictCard.astro';
+import TrustStrip from '@polis/ui/astro/TrustStrip.astro';
+import AuditTrail from '@polis/ui/astro/AuditTrail.astro';
+import {
+  composeVerificationVerdict,
+  type AuditEvent,
+  type DocumentProof,
+} from '@polis/domain';
 
-const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const { id } = Astro.params;
 
-type DocumentProof = {
-  id: string;
-  schemaVersion: string;
-  documentClass: string;
-  documentTypeId: string | null;
-  issuer: { id: string; name: string };
-  hashes: {
-    algorithm: string;
-    originalFileHash: string;
-    canonicalPdfHash: string | null;
-    ocrTextHash: string | null;
-    metadataHash: string | null;
-    manifestHash: string;
-  };
-  originalFilename: string | null;
-  originalMime: string | null;
-  originalBytes: number | null;
-  registryStatus: string;
-  contentVisibility: string;
-  proofVisibility: string;
-  createdAt: string;
-  createdByService: string | null;
-  signatures: {
-    id: string;
-    type: string;
-    standard: string;
-    signerRef: string;
-    certificateRef: string | null;
-    signatureValueRef: string;
-    signedHash: string;
-    signedAt: string | null;
-    validationStatus: string;
-    issuerId: string | null;
-  }[];
-  timestamps: {
-    id: string;
-    type: string;
-    timestampRef: string;
-    timestampedHash: string;
-    timestampedAt: string;
-    validationStatus: string;
-    tsa: string | null;
-    clockSource: string | null;
-  }[];
-  supersededBy: string | null;
-  supersededAt: string | null;
-};
+let proof: DocumentProof | null = null;
+let auditEvents: AuditEvent[] = [];
 
-async function fetchProof(path: string): Promise<DocumentProof | null> {
+try {
+  const res = await fetch(`${apiUrl}/api/v1/proofs/${encodeURIComponent(id ?? '')}`);
+  if (res.ok) {
+    proof = (await res.json()) as DocumentProof;
+  }
+} catch {
+  proof = null;
+}
+
+if (proof) {
   try {
-    const r = await fetch(API + path);
-    if (!r.ok) return null;
-    return (await r.json()) as DocumentProof;
+    const res = await fetch(`${apiUrl}/api/v1/proofs/${encodeURIComponent(id ?? '')}/audit`);
+    if (res.ok) {
+      const body = (await res.json()) as {
+        items?: Array<{ eventType: string; action: string; createdAt: string }>;
+      };
+      auditEvents = (body.items ?? []).map((item, index) => ({
+        id: `${id}-audit-${index}`,
+        service: item.eventType,
+        action: item.action,
+        subjectId: id ?? '',
+        visibility: 'public' as const,
+        createdAt: item.createdAt,
+        redacted: false,
+      }));
+    }
   } catch {
-    return null;
+    auditEvents = [];
   }
 }
 
-const id = Astro.params.id ?? '';
-const proof = await fetchProof('/api/v1/proofs/' + encodeURIComponent(id));
-const statusBadge = proof
-  ? proof.registryStatus === 'active'
-    ? 'badge badge-success'
-    : 'badge badge-danger'
-  : 'badge';
+const verdict = composeVerificationVerdict({ proof });
+if (!proof) Astro.response.status = 404;
+
+const signedCheck = verdict.checks.find((c) => c.mechanism === 'signature')?.status ?? 'not_checked';
+const timestampCheck =
+  verdict.checks.find((c) => c.mechanism === 'timestamp')?.status ?? 'not_checked';
 ---
 
-<Base title={`Proof · ${proof ? id.slice(0, 8) : 'not found'}`}>
-  {proof ? (
-    <section class="stack">
-      <p class="badge">§15.2 Proof manifest</p>
-      {proof.supersededBy ? (
-        <p class="badge badge-danger">Superseded by <a href={`/proofs/${proof.supersededBy}`}>{proof.supersededBy.slice(0, 12)}…</a></p>
-      ) : null}
-      <h1>Proof {proof.id.slice(0, 12)}…</h1>
-      <p><span class={statusBadge}>{proof.registryStatus}</span></p>
-
-      <article class="card stack">
-        <h2>Document</h2>
-        <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
-          <dt class="muted">document class</dt><dd>{proof.documentClass}</dd>
-          <dt class="muted">issuer</dt><dd>{proof.issuer.name} <span class="muted">({proof.issuer.id})</span></dd>
-          <dt class="muted">original filename</dt><dd>{proof.originalFilename ?? '—'}</dd>
-          <dt class="muted">mime</dt><dd>{proof.originalMime ?? '—'}</dd>
-          <dt class="muted">bytes</dt><dd>{proof.originalBytes ?? '—'}</dd>
-          <dt class="muted">created at</dt><dd>{new Date(proof.createdAt).toISOString()}</dd>
-          <dt class="muted">schema</dt><dd>{proof.schemaVersion}</dd>
-        </dl>
-      </article>
-
-      <article class="card stack">
-        <h2>Hashes ({proof.hashes.algorithm})</h2>
-        <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
-          <dt class="muted">original file</dt><dd>{proof.hashes.originalFileHash}</dd>
-          <dt class="muted">canonical pdf</dt><dd>{proof.hashes.canonicalPdfHash ?? '—'}</dd>
-          <dt class="muted">ocr text</dt><dd>{proof.hashes.ocrTextHash ?? '—'}</dd>
-          <dt class="muted">metadata</dt><dd>{proof.hashes.metadataHash ?? '—'}</dd>
-          <dt class="muted">manifest</dt><dd>{proof.hashes.manifestHash}</dd>
-        </dl>
-      </article>
-
-      <article class="card stack">
-        <h2>Timestamp</h2>
-        {proof.timestamps.length > 0 && proof.timestamps[0] ? (
-          <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
-            <dt class="muted">status</dt><dd><span class="badge badge-success">Timestamp: {proof.timestamps[0].validationStatus}</span></dd>
-            <dt class="muted">type</dt><dd>{proof.timestamps[0].type}</dd>
-            <dt class="muted">tsa</dt><dd>{proof.timestamps[0].tsa ?? '—'}</dd>
-            <dt class="muted">timestamped at</dt><dd>{proof.timestamps[0].timestampedAt ? new Date(proof.timestamps[0].timestampedAt).toISOString() : '—'}</dd>
-          </dl>
-        ) : (
-          <p><span class="badge">Timestamp: none</span></p>
-        )}
-      </article>
-
-      <article class="card stack">
-        <h2>Signature</h2>
-        {proof.signatures.length > 0 && proof.signatures[0] ? (
-          <dl class="hashes" style="display:grid;grid-template-columns:minmax(10rem,.4fr) 1fr;gap:.5rem 1rem;">
-            <dt class="muted">status</dt><dd><span class="badge badge-success">Signature: {proof.signatures[0].validationStatus}</span></dd>
-            <dt class="muted">standard</dt><dd>{proof.signatures[0].standard}</dd>
-            <dt class="muted">signer</dt><dd>{proof.signatures[0].signerRef}</dd>
-            <dt class="muted">signed at</dt><dd>{proof.signatures[0].signedAt ? new Date(proof.signatures[0].signedAt).toISOString() : '—'}</dd>
-          </dl>
-        ) : (
-          <p><span class="badge">Signature: none</span></p>
-        )}
-      </article>
-
-      <article class="panel stack">
-        <h2>Visibility</h2>
-        <p>
-          content: <span class="badge">{proof.contentVisibility}</span>
-          proof: <span class="badge">{proof.proofVisibility}</span>
-        </p>
-      </article>
-
-      <p class="muted">
-        <a href={`/api/v1/proofs/${encodeURIComponent(id)}/audit`}>View audit trail (JSON)</a>
-        · <a href="/verify">Verify a document</a>
-      </p>
-    </section>
-  ) : (
-    <section class="stack">
-      <p class="badge badge-danger">Not found</p>
-      <h1>Proof not found</h1>
-      <p class="muted">No proof manifest exists for id <code>{id}</code>.</p>
-      <p><a href="/verify">→ Verify a document instead</a></p>
-    </section>
-  )}
+<Base title={proof ? `Proof ${proof.id} · Polis Verifier` : 'Proof not found · Polis Verifier'}>
+  <div class="stack">
+    {
+      proof ? (
+        <>
+          <section class="hero">
+            <h1>Document proof</h1>
+            <p class="hash-value">{proof.id}</p>
+            <TrustStrip signed={signedCheck} timestamped={timestampCheck} auditHref="#audit" />
+          </section>
+          <ProofManifestView proof={proof} verdict={verdict} />
+          <div id="audit">
+            <AuditTrail events={auditEvents} />
+          </div>
+        </>
+      ) : (
+        <>
+          <section class="hero">
+            <h1>Proof not found</h1>
+            <p class="hash-value">{id}</p>
+          </section>
+          <VerdictCard verdict={verdict} />
+          <section class="panel">
+            <p class="muted">
+              Check the proof ID, or verify a file directly on the{' '}
+              <a href="/verify">verification page</a>.
+            </p>
+          </section>
+        </>
+      )
+    }
+  </div>
 </Base>

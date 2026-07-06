@@ -1,0 +1,90 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProofManifestView from '@polis/ui/astro/ProofManifestView.astro';
+import VerdictCard from '@polis/ui/astro/VerdictCard.astro';
+import TrustStrip from '@polis/ui/astro/TrustStrip.astro';
+import AuditTrail from '@polis/ui/astro/AuditTrail.astro';
+import {
+  composeVerificationVerdict,
+  type AuditEvent,
+  type DocumentProof,
+} from '@polis/domain';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const { id } = Astro.params;
+
+let proof: DocumentProof | null = null;
+let auditEvents: AuditEvent[] = [];
+
+try {
+  const res = await fetch(`${apiUrl}/api/v1/proofs/${encodeURIComponent(id ?? '')}`);
+  if (res.ok) {
+    proof = (await res.json()) as DocumentProof;
+  }
+} catch {
+  proof = null;
+}
+
+if (proof) {
+  try {
+    const res = await fetch(`${apiUrl}/api/v1/proofs/${encodeURIComponent(id ?? '')}/audit`);
+    if (res.ok) {
+      const body = (await res.json()) as {
+        items?: Array<{ eventType: string; action: string; createdAt: string }>;
+      };
+      auditEvents = (body.items ?? []).map((item, index) => ({
+        id: `${id}-audit-${index}`,
+        service: item.eventType,
+        action: item.action,
+        subjectId: id ?? '',
+        visibility: 'public' as const,
+        createdAt: item.createdAt,
+        redacted: false,
+      }));
+    }
+  } catch {
+    auditEvents = [];
+  }
+}
+
+const verdict = composeVerificationVerdict({ proof });
+if (!proof) Astro.response.status = 404;
+
+const signedCheck = verdict.checks.find((c) => c.mechanism === 'signature')?.status ?? 'not_checked';
+const timestampCheck =
+  verdict.checks.find((c) => c.mechanism === 'timestamp')?.status ?? 'not_checked';
+---
+
+<Base title={proof ? `Proof ${proof.id} — Polis Interface` : 'Proof not found — Polis Interface'}>
+  <div class="stack">
+    {
+      proof ? (
+        <>
+          <section class="hero">
+            <h1>Document proof</h1>
+            <p class="hash-value">{proof.id}</p>
+            <TrustStrip signed={signedCheck} timestamped={timestampCheck} auditHref="#audit" />
+          </section>
+          <ProofManifestView proof={proof} verdict={verdict} />
+          <div id="audit">
+            <AuditTrail events={auditEvents} />
+          </div>
+        </>
+      ) : (
+        <>
+          <section class="hero">
+            <h1>Proof not found</h1>
+            <p class="hash-value">{id}</p>
+          </section>
+          <VerdictCard verdict={verdict} />
+          <section class="panel">
+            <p class="muted">
+              Check the proof ID, or verify a file directly on the{' '}
+              <a href="/verify">verification page</a>.
+            </p>
+          </section>
+        </>
+      )
+    }
+  </div>
+</Base>

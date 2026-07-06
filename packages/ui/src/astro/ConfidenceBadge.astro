@@ -1,0 +1,26 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import { type Locale } from '../messages/index.ts';
+import type { ConfidenceState, VerdictTone } from '@polis/domain';
+
+interface Props {
+  state: ConfidenceState;
+  locale?: Locale;
+}
+
+const { state, locale = 'en' } = Astro.props as Props;
+
+const tones: Record<ConfidenceState, VerdictTone> = {
+  unsupported_draft: 'warning',
+  single_source: 'warning',
+  multi_source: 'valid',
+  official_source: 'valid',
+  official_confirmed: 'valid',
+  expert_reviewed: 'valid',
+  contested: 'warning',
+  outdated: 'warning',
+  superseded: 'invalid',
+};
+---
+
+<StatusBadge tone={tones[state]} labelKey={`confidence.${state}`} locale={locale} />

@@ -1,0 +1,21 @@
+/*
+ * Tailwind v4 theme mapping for apps that use Tailwind (apps/web).
+ * Import AFTER `@import 'tailwindcss'` and `@import '@polis/ui/styles/base.css'`.
+ * Maps the app's historical token names onto the shared @polis/ui vars so
+ * existing utility usage keeps working.
+ */
+
+@theme inline {
+  --color-bg: var(--polis-bg);
+  --color-surface: var(--polis-surface);
+  --color-primary: var(--polis-primary);
+  --color-accent: var(--polis-accent);
+  --color-text: var(--polis-text);
+  --color-muted: var(--polis-muted);
+  --color-success: var(--trust-valid-fg);
+  --color-warning: var(--trust-warning-fg);
+  --color-danger: var(--trust-invalid-fg);
+  --color-on-primary: var(--polis-on-primary);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}

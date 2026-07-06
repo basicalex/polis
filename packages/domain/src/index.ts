@@ -1,3 +1,5 @@
+export * from './verdict.js';
+
 export type ReviewState =
   | 'draft'
   | 'submitted'

@@ -1,0 +1,47 @@
+---
+// prettier-ignore
+export type IconName = 'check' | 'alert' | 'cross' | 'question' | 'lock' | 'link' | 'clock' | 'pen' | 'ledger';
+
+interface Props {
+  name: IconName;
+}
+
+const { name } = Astro.props as Props;
+
+const paths: Record<IconName, string> = {
+  // check-circle
+  check:
+    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.4-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7z',
+  // warning triangle
+  alert:
+    'M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10h2v5h-2v-5zm0 6h2v2h-2v-2z',
+  // cross octagon
+  cross:
+    'M8 1h8l7 7v8l-7 7H8l-7-7V8l7-7zm.9 2L3 8.9v6.2L8.9 21h6.2l5.9-5.9V8.9L15.1 3H8.9zm.6 4.1L12 9.6l2.5-2.5 1.4 1.4L13.4 11l2.5 2.5-1.4 1.4L12 12.4l-2.5 2.5-1.4-1.4L10.6 11 8.1 8.5l1.4-1.4z',
+  // question circle
+  question:
+    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-.9 11.5h1.8v1.8h-1.8v-1.8zM12 6.5c-1.9 0-3.3 1.2-3.5 3h1.8c.1-.8.8-1.3 1.7-1.3.9 0 1.6.5 1.6 1.3 0 .7-.4 1-1.2 1.6-.9.6-1.3 1.1-1.3 2.2v.4h1.8v-.3c0-.7.3-1 1.2-1.6.9-.7 1.4-1.3 1.4-2.4 0-1.7-1.5-2.9-3.5-2.9z',
+  // padlock
+  lock: 'M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 5a3 3 0 1 1 6 0v3H9V7zm-2 5h10v8H7v-8z',
+  // chain link
+  link: 'M10.6 13.4a1 1 0 0 0 1.4 1.4l4.8-4.8a3 3 0 0 0-4.2-4.2l-2.4 2.4 1.4 1.4 2.4-2.4a1 1 0 0 1 1.4 1.4l-4.8 4.8zm2.8-2.8a1 1 0 0 0-1.4-1.4l-4.8 4.8a3 3 0 0 0 4.2 4.2l2.4-2.4-1.4-1.4-2.4 2.4a1 1 0 0 1-1.4-1.4l4.8-4.8z',
+  // clock
+  clock:
+    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 3v6l4.5 2.7.9-1.5-3.6-2.1V7H11z',
+  // pen (signature)
+  pen: 'M17.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4L9 19H4v-5L17.7 2.3zM6 15.8V17h1.2l9.9-9.9-1.2-1.2L6 15.8zM3 21h18v2H3v-2z',
+  // ledger / list
+  ledger:
+    'M4 3h16v18H4V3zm2 2v14h12V5H6zm2 2h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z',
+};
+---
+
+<svg
+  class="trust-icon"
+  viewBox="0 0 24 24"
+  fill="currentColor"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={paths[name]}></path>
+</svg>

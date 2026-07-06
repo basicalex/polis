@@ -5,6 +5,7 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
 <Base title="Review queue">
+  <section class="panel">
   <h1>Contribution review queue</h1>
   <p class="muted">
     Pending submissions awaiting a reviewer decision (spec §19). Admin is
@@ -12,7 +13,7 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     decisions are exercised end-to-end by
     <code>scripts/phase6-acceptance.mjs</code>.
   </p>
-  <table>
+  <table class="data-table">
     <thead>
       <tr>
         <th>Submission</th>
@@ -26,6 +27,7 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     </thead>
     <tbody id="queue"></tbody>
   </table>
+  </section>
 
   <script is:inline define:vars={{ API }}>
     async function loadQueue() {

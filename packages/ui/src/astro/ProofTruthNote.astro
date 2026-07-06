@@ -1,0 +1,14 @@
+---
+import { t, type Locale } from '../messages/index.ts';
+
+interface Props {
+  compact?: boolean;
+  locale?: Locale;
+}
+
+const { compact = false, locale = 'en' } = Astro.props as Props;
+---
+
+<p class:list={['trust-note', { 'trust-note--compact': compact }]}>
+  {t('verdict.note.proof_not_truth', locale)}
+</p>

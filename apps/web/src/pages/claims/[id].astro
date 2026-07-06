@@ -1,0 +1,100 @@
+---
+import Base from '../../layouts/Base.astro';
+import ConfidenceBadge from '@polis/ui/astro/ConfidenceBadge.astro';
+import ReviewStateBadge from '@polis/ui/astro/ReviewStateBadge.astro';
+import SourcePanel from '@polis/ui/astro/SourcePanel.astro';
+import AuditTrail from '@polis/ui/astro/AuditTrail.astro';
+import AiLabel from '@polis/ui/astro/AiLabel.astro';
+import type { AuditEvent, ConfidenceState, EvidenceLink, ReviewState } from '@polis/domain';
+
+type ClaimWire = {
+  id: string;
+  text: string;
+  claimType: string;
+  subjectType: string;
+  subjectId: string;
+  confidenceState?: ConfidenceState;
+  reviewState: ReviewState;
+  evidence: EvidenceLink[];
+  sources?: Array<{ id: string; title?: string; url?: string; publisher?: string }>;
+  aiTraceId?: string;
+  createdAt?: string;
+};
+
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const { id } = Astro.params;
+
+let claim: ClaimWire | null = null;
+let auditEvents: AuditEvent[] = [];
+
+try {
+  const res = await fetch(`${apiUrl}/api/v1/claims/${encodeURIComponent(id ?? '')}`);
+  if (res.ok) claim = (await res.json()) as ClaimWire;
+} catch {
+  claim = null;
+}
+
+if (claim) {
+  try {
+    const res = await fetch(`${apiUrl}/api/v1/audit/claim/${encodeURIComponent(claim.id)}`);
+    if (res.ok) {
+      const body = (await res.json()) as {
+        items?: Array<{ eventType?: string; action?: string; createdAt: string }>;
+      };
+      auditEvents = (body.items ?? []).map((item, index) => ({
+        id: `${claim!.id}-audit-${index}`,
+        service: item.eventType ?? 'audit',
+        action: item.action ?? 'event',
+        subjectId: claim!.id,
+        visibility: 'public' as const,
+        createdAt: item.createdAt,
+        redacted: false,
+      }));
+    }
+  } catch {
+    auditEvents = [];
+  }
+}
+
+if (!claim) Astro.response.status = 404;
+---
+
+<Base title={claim ? `Claim ${claim.id} — Polis Interface` : 'Claim not found — Polis Interface'}>
+  <div class="stack">
+    {
+      claim ? (
+        <>
+          <section class="hero">
+            <h1>Claim</h1>
+            <p>{claim.text}</p>
+            <div class="trust-strip">
+              {claim.confidenceState && <ConfidenceBadge state={claim.confidenceState} />}
+              <ReviewStateBadge state={claim.reviewState} />
+              {claim.aiTraceId && <AiLabel traceId={claim.aiTraceId} />}
+            </div>
+            <p class="muted">
+              {claim.claimType} · {claim.subjectType}/{claim.subjectId}
+              {claim.createdAt && (
+                <>
+                  {' · '}
+                  <time datetime={claim.createdAt}>{claim.createdAt}</time>
+                </>
+              )}
+            </p>
+          </section>
+          <SourcePanel evidence={claim.evidence} sources={claim.sources ?? []} />
+          <AuditTrail events={auditEvents} />
+        </>
+      ) : (
+        <section class="hero">
+          <h1>Claim not found</h1>
+          <p class="hash-value">{id}</p>
+          <p class="muted">
+            The claim may have been removed, or the ID is wrong. Browse claims from the
+            <a href="/governance/jur-croatia-local"> governance map</a>.
+          </p>
+        </section>
+      )
+    }
+  </div>
+</Base>

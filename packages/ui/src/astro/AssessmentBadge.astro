@@ -1,0 +1,18 @@
+---
+import type { Assessment } from '@polis/domain';
+
+interface Props {
+  dimension: keyof Assessment['dimensions'];
+  score: number;
+  confidence: number;
+}
+
+const { dimension, score, confidence } = Astro.props as Props;
+const pct = Math.round(score * 100);
+const confPct = Math.round(confidence * 100);
+---
+
+<span class="trust-badge" data-tone={score >= 0.7 ? 'valid' : score >= 0.4 ? 'warning' : 'invalid'}>
+  {dimension}: {pct}%
+  <meter min="0" max="100" value={pct} title={`confidence ${confPct}%`}></meter>
+</span>

@@ -1,0 +1,45 @@
+---
+import TrustIcon from '../icons/TrustIcon.astro';
+import { t, type Locale } from '../messages/index.ts';
+import type { AuditEvent } from '@polis/domain';
+
+interface Props {
+  events: AuditEvent[];
+  title?: string;
+  locale?: Locale;
+}
+
+const { events, title, locale = 'en' } = Astro.props as Props;
+---
+
+<section class="panel">
+  <h2>{title ?? t('audit.title', locale)}</h2>
+  {
+    events.length === 0 ? (
+      <p class="muted">{t('audit.empty', locale)}</p>
+    ) : (
+      <ol class="audit-trail">
+        {events.map((event) => (
+          <li class:list={['audit-event', { 'audit-event--redacted': event.redacted }]}>
+            {event.redacted ? (
+              <span>{t('audit.redacted', locale)}</span>
+            ) : (
+              <span>
+                <strong>{event.action}</strong> — {event.service}
+              </span>
+            )}
+            <span class="audit-meta">
+              <time datetime={event.createdAt}>{event.createdAt}</time>
+              <span>{event.subjectId}</span>
+              {event.hashPrevious && (
+                <span>
+                  <TrustIcon name="link" /> {t('audit.chained', locale)}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+</section>

@@ -1,0 +1,19 @@
+---
+import { t, type Locale } from '../messages/index.ts';
+
+interface Props {
+  label?: string;
+  banner?: boolean;
+  locale?: Locale;
+}
+
+const { label, banner = false, locale = 'en' } = Astro.props as Props;
+---
+
+{
+  banner ? (
+    <div class="demo-banner" role="note">{label ?? t('demo.banner', locale)}</div>
+  ) : (
+    <span class="trust-badge" data-tone="warning">{label ?? 'demonstration'}</span>
+  )
+}

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "types": ["astro/client"]
   },

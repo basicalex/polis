@@ -9,5 +9,5 @@ export default defineConfig({
   integrations: [react()],
   adapter: node({ mode: 'standalone' }),
   server: { host: '0.0.0.0', port: 4321 },
-  vite: { plugins: [tailwindcss()] },
+  vite: { plugins: [tailwindcss()], ssr: { noExternal: ['@polis/ui'] } },
 });

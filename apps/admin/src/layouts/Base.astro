@@ -1,5 +1,43 @@
 ---
+import '../styles.css';
+import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+
 const { title = 'Reviewer Admin' } = Astro.props;
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>{title}</title><link rel="stylesheet" href="/styles.css"/></head><body><header><a href="/">Reviewer Admin</a><nav><a href="/drafting">Drafting</a><a href="/review">Review</a><a href="/governance">Governance</a><a href="/verify">Verify</a><a href="/deliberate">Deliberate</a><a href="/audit">Audit</a><a href="/assistant">Assistant</a><span id="auth-nav"></span></nav></header><main><slot /></main><footer>Source: https://github.com/basicalex/polis · AGPL-3.0-or-later · v0.1.0-v1</footer><script is:inline define:vars={{ apiUrl }}>window.__API_URL=apiUrl;const s=sessionStorage.getItem('admin_session');const n=document.getElementById('auth-nav');if(n)n.innerHTML=s?'<a href="/drafting">Drafting</a> · <a href="#" onclick="sessionStorage.removeItem(\'admin_session\');location.reload()">Logout</a>':'<a href="/login">Login</a>';</script></body></html>
+
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <DemoBadge banner />
+      <header class="site-header">
+        <a class="site-brand" href="/">Reviewer Admin</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/drafting">Drafting</a>
+          <a href="/review">Review</a>
+          <a href="/governance">Governance</a>
+          <a href="/verify">Verify</a>
+          <a href="/deliberate">Deliberate</a>
+          <a href="/audit">Audit</a>
+          <a href="/assistant">Assistant</a>
+          <span id="auth-nav"></span>
+        </nav>
+      </header>
+      <main class="site-main"><slot /></main>
+      <footer class="site-footer">
+        Source: https://github.com/basicalex/polis · AGPL-3.0-or-later · v0.1.0-v1
+      </footer>
+    </div>
+    <script is:inline define:vars={{ apiUrl }}>
+      window.__API_URL = apiUrl;
+      const s = sessionStorage.getItem('admin_session');
+      const n = document.getElementById('auth-nav');
+      if (n) n.innerHTML = s ? '<a href="/drafting">Drafting</a> · <a href="#" onclick="sessionStorage.removeItem(\'admin_session\');location.reload()">Logout</a>' : '<a href="/login">Login</a>';
+    </script>
+  </body>
+</html>

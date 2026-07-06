@@ -1,0 +1,15 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import { t, type Locale } from '../messages/index.ts';
+
+interface Props {
+  traceId?: string;
+  locale?: Locale;
+}
+
+const { traceId, locale = 'en' } = Astro.props as Props;
+---
+
+<span title={t('ai.explanation', locale)} data-ai-trace-id={traceId}>
+  <StatusBadge tone="unknown" labelKey="ai.label" icon="question" locale={locale} />
+</span>

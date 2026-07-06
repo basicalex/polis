@@ -49,6 +49,6 @@ const nodes = Object.values(nodeById);
   </section>
   <section class="panel stack">
     <h2>Graph explorer</h2>
-    {relationships ? <GraphExplorer client:load nodes={nodes} edges={edges} /> : <p class="muted">Data unavailable. Run the services to load relationships.</p>}
+    {relationships ? <GraphExplorer client:load nodes={nodes} edges={edges} jurisdiction={slug} /> : <p class="muted">Data unavailable. Run the services to load relationships.</p>}
   </section>
 </Base>

@@ -1,0 +1,164 @@
+---
+import VerdictCard from './VerdictCard.astro';
+import StatusBadge from './StatusBadge.astro';
+import { t, type Locale, type MessageKey } from '../messages/index.ts';
+import type { DocumentProof, VerificationVerdict, VerdictTone } from '@polis/domain';
+
+interface Props {
+  proof: DocumentProof;
+  verdict: VerificationVerdict;
+  locale?: Locale;
+}
+
+const { proof, verdict, locale = 'en' } = Astro.props as Props;
+
+const hashRows = (
+  [
+    ['manifest.hash.originalFileHash', proof.hashes.originalFileHash],
+    ['manifest.hash.canonicalPdfHash', proof.hashes.canonicalPdfHash],
+    ['manifest.hash.ocrTextHash', proof.hashes.ocrTextHash],
+    ['manifest.hash.metadataHash', proof.hashes.metadataHash],
+    ['manifest.hash.manifestHash', proof.hashes.manifestHash],
+  ] as Array<[MessageKey, string | null]>
+).filter(([, value]) => value !== null && value.length > 0);
+
+const validationTone: Record<string, VerdictTone> = {
+  valid: 'valid',
+  invalid: 'invalid',
+  indeterminate: 'warning',
+  not_checked: 'unknown',
+};
+---
+
+<div class="stack">
+  <VerdictCard verdict={verdict} locale={locale} />
+
+  <section class="panel">
+    <h2>{t('manifest.document', locale)}</h2>
+    <dl class="kv">
+      <dt>{t('manifest.class', locale)}</dt>
+      <dd>{proof.documentClass}</dd>
+      <dt>{t('manifest.issuer', locale)}</dt>
+      <dd>{proof.issuer.name}</dd>
+      {proof.originalFilename && <dt>{t('manifest.filename', locale)}</dt>}
+      {proof.originalFilename && <dd>{proof.originalFilename}</dd>}
+      {proof.originalMime && <dt>{t('manifest.mime', locale)}</dt>}
+      {proof.originalMime && <dd>{proof.originalMime}</dd>}
+      {proof.originalBytes !== null && <dt>{t('manifest.bytes', locale)}</dt>}
+      {proof.originalBytes !== null && <dd>{proof.originalBytes}</dd>}
+      <dt>{t('manifest.created', locale)}</dt>
+      <dd><time datetime={proof.createdAt}>{proof.createdAt}</time></dd>
+      <dt>{t('manifest.registry_status', locale)}</dt>
+      <dd>{t(`check.registry.${proof.registryStatus}` as MessageKey, locale)}</dd>
+      <dt>{t('manifest.content_visibility', locale)}</dt>
+      <dd>{proof.contentVisibility}</dd>
+      <dt>{t('manifest.proof_visibility', locale)}</dt>
+      <dd>{proof.proofVisibility}</dd>
+      {proof.supersededBy && <dt>{t('manifest.superseded_by', locale)}</dt>}
+      {
+        proof.supersededBy && (
+          <dd>
+            <a href={`/proofs/${proof.supersededBy}`}>{proof.supersededBy}</a>
+          </dd>
+        )
+      }
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>{t('manifest.hashes', locale)}</h2>
+    <dl class="kv">
+      {
+        hashRows.map(([key, value]) => (
+          <>
+            <dt>{t(key, locale)}</dt>
+            <dd class="hash-value">{value}</dd>
+          </>
+        ))
+      }
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>{t('manifest.signatures', locale)} ({proof.signatures.length})</h2>
+    {
+      proof.signatures.length === 0 ? (
+        <p class="muted">{t('check.signature.not_present', locale)}</p>
+      ) : (
+        <div class="stack">
+          {proof.signatures.map((sig) => (
+            <div class="card">
+              <div class="trust-strip">
+                <StatusBadge
+                  tone={validationTone[sig.validationStatus] ?? 'unknown'}
+                  label={`${t('manifest.validation', locale)}: ${sig.validationStatus}`}
+                  icon="pen"
+                  locale={locale}
+                />
+                {sig.standard === 'test-key' && (
+                  <StatusBadge
+                    tone="warning"
+                    labelKey="check.signature.test_key"
+                    locale={locale}
+                  />
+                )}
+              </div>
+              <dl class="kv">
+                <dt>{t('manifest.signer', locale)}</dt>
+                <dd>{sig.signerRef}</dd>
+                <dt>{t('manifest.standard', locale)}</dt>
+                <dd>
+                  {sig.type} / {sig.standard}
+                </dd>
+                {sig.signedAt && <dt>{t('manifest.signed_at', locale)}</dt>}
+                {sig.signedAt && (
+                  <dd>
+                    <time datetime={sig.signedAt}>{sig.signedAt}</time>
+                  </dd>
+                )}
+                <dt>{t('manifest.hashes', locale)}</dt>
+                <dd class="hash-value">{sig.signedHash}</dd>
+              </dl>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  </section>
+
+  <section class="panel">
+    <h2>{t('manifest.timestamps', locale)} ({proof.timestamps.length})</h2>
+    {
+      proof.timestamps.length === 0 ? (
+        <p class="muted">{t('check.timestamp.not_present', locale)}</p>
+      ) : (
+        <div class="stack">
+          {proof.timestamps.map((ts) => (
+            <div class="card">
+              <div class="trust-strip">
+                <StatusBadge
+                  tone={validationTone[ts.validationStatus] ?? 'unknown'}
+                  label={`${t('manifest.validation', locale)}: ${ts.validationStatus}`}
+                  icon="clock"
+                  locale={locale}
+                />
+              </div>
+              <dl class="kv">
+                <dt>{t('manifest.standard', locale)}</dt>
+                <dd>{ts.type}</dd>
+                {ts.tsa && <dt>{t('manifest.tsa', locale)}</dt>}
+                {ts.tsa && <dd>{ts.tsa}</dd>}
+                <dt>{t('manifest.timestamped_at', locale)}</dt>
+                <dd>
+                  <time datetime={ts.timestampedAt}>{ts.timestampedAt}</time>
+                </dd>
+                <dt>{t('manifest.hashes', locale)}</dt>
+                <dd class="hash-value">{ts.timestampedHash}</dd>
+              </dl>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  </section>
+</div>

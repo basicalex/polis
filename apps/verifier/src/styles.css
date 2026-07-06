@@ -1,0 +1,9 @@
+@import '@polis/ui/styles/base.css';
+
+pre {
+  padding: 1rem;
+  background: var(--polis-surface);
+  border: 1px solid var(--polis-border);
+  border-radius: 12px;
+  overflow: auto;
+}

@@ -1,116 +1,28 @@
 ---
 import Base from '../layouts/Base.astro';
+import MechanismTable from '@polis/ui/astro/MechanismTable.astro';
+import ProofTruthNote from '@polis/ui/astro/ProofTruthNote.astro';
+import { VerifierFlow } from '@polis/ui/react/VerifierFlow.tsx';
 
-const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
-<Base title="Document verifier · Polis Interface">
-  <section class="stack">
-    <p class="badge">§15.2 Document proof verifier</p>
-    <h1>Verify a document</h1>
-    <p class="muted">
-      Upload a file or paste its SHA-256 hash. The verifier checks the public proof registry
-      and returns VALID if a matching manifest exists, or NOT FOUND otherwise. This is the
-      local v1 stub pipeline (no production integrations are live).
-    </p>
-  </section>
+<Base title="Document verifier · Polis Verifier">
+  <div class="stack">
+    <section class="hero">
+      <p class="badge">§15.2 Document proof verifier</p>
+      <h1>Verify a document</h1>
+      <p>
+        Drop a file, paste its SHA-256 hash, or paste a proof link. Files are hashed on your
+        device — they are never uploaded. Only the hash is sent to the public proof registry.
+      </p>
+      <ProofTruthNote />
+    </section>
 
-  <section class="stack" data-api={API}>
-    <div class="card stack">
-      <div>
-        <label for="file">Document file</label>
-        <input id="file" type="file" />
-      </div>
-      <div>
-        <button id="verify-file" type="button">Verify file</button>
-      </div>
-    </div>
+    <section class="panel">
+      <VerifierFlow client:load apiUrl={apiUrl} proofBasePath="/proofs" />
+    </section>
 
-    <div class="card stack">
-      <div>
-        <label for="hash">Document SHA-256 hash (hex)</label>
-        <input id="hash" type="text" placeholder="e.g. 9f86d081884c7d65…" />
-      </div>
-      <div>
-        <button id="verify-hash" type="button">Verify hash</button>
-      </div>
-    </div>
-
-    <div id="result" class="result" style="display:none;"></div>
-  </section>
+    <MechanismTable />
+  </div>
 </Base>
-
-<script is:inline>
-  const root = document.querySelector('[data-api]');
-  const API = root ? root.getAttribute('data-api') : '';
-  const resultEl = document.getElementById('result');
-
-  function showResult(label, cls, body) {
-    resultEl.className = 'result ' + cls;
-    resultEl.style.display = 'block';
-    const pre = document.createElement('pre');
-    pre.textContent = label + '\n\n' + JSON.stringify(body, null, 2);
-    resultEl.innerHTML = '';
-    resultEl.appendChild(pre);
-  }
-
-  async function readFileB64(file) {
-    const buf = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsArrayBuffer(file);
-    });
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-  }
-
-  document.getElementById('verify-file').addEventListener('click', async () => {
-    const input = document.getElementById('file');
-    if (!input.files || !input.files[0]) {
-      showResult('Select a file first.', 'invalid', { error: 'no_file' });
-      return;
-    }
-    const contentBase64 = await readFileB64(input.files[0]);
-    try {
-      const res = await fetch(API + '/api/v1/verify/file', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contentBase64 }),
-      });
-      const body = await res.json();
-      if (body.status === 'valid') {
-        showResult('VALID — proof manifest found', 'valid', body.manifest);
-      } else {
-        showResult('NOT FOUND — no matching proof manifest', 'invalid', body);
-      }
-    } catch (err) {
-      showResult('Request failed', 'invalid', { error: String(err) });
-    }
-  });
-
-  document.getElementById('verify-hash').addEventListener('click', async () => {
-    const hash = document.getElementById('hash').value.trim();
-    if (!hash) {
-      showResult('Enter a hash first.', 'invalid', { error: 'no_hash' });
-      return;
-    }
-    try {
-      const res = await fetch(API + '/api/v1/verify/hash', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ hash }),
-      });
-      const body = await res.json();
-      if (body.status === 'valid') {
-        showResult('VALID — proof manifest found', 'valid', body.manifest);
-      } else {
-        showResult('NOT FOUND — no matching proof manifest', 'invalid', body);
-      }
-    } catch (err) {
-      showResult('Request failed', 'invalid', { error: String(err) });
-    }
-  });
-</script>

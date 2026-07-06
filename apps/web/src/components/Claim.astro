@@ -1,36 +1,53 @@
 ---
+import ConfidenceBadge from '@polis/ui/astro/ConfidenceBadge.astro';
+import ReviewStateBadge from '@polis/ui/astro/ReviewStateBadge.astro';
+import SourcePanel from '@polis/ui/astro/SourcePanel.astro';
+import AiLabel from '@polis/ui/astro/AiLabel.astro';
+import type { ConfidenceState, EvidenceLink, ReviewState } from '@polis/domain';
+
 export interface Props {
   claim: {
     id: string;
     text: string;
-    confidenceState: string;
-    reviewState: string;
-    evidence: { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null }[];
-    sources: { id: string; title: string; url: string | null; publisher: string | null }[];
+    confidenceState: ConfidenceState;
+    reviewState: ReviewState;
+    evidence: Array<{
+      sourceId: string;
+      quote: string | null;
+      sourceHash: string | null;
+      retrievedAt: string | null;
+    }>;
+    sources: Array<{ id: string; title: string; url: string | null; publisher: string | null }>;
+    aiTraceId?: string;
   };
 }
+
 const { claim } = Astro.props;
+
+const evidence: EvidenceLink[] = claim.evidence.map((item, index) => ({
+  id: `${claim.id}-ev-${index}`,
+  sourceId: item.sourceId,
+  quote: item.quote ?? undefined,
+  sourceHash: item.sourceHash ?? undefined,
+  retrievedAt: item.retrievedAt ?? undefined,
+  confidence: 0,
+}));
+
+const sources = claim.sources.map((source) => ({
+  id: source.id,
+  title: source.title,
+  url: source.url ?? undefined,
+  publisher: source.publisher ?? undefined,
+}));
 ---
 
 <article class="card stack">
   <p>{claim.text}</p>
-  <p><span class="badge">{claim.confidenceState}</span> <span class="badge">{claim.reviewState}</span></p>
-  {claim.evidence.length > 0 ? (
-    <ul>
-      {claim.evidence.map((evidence) => {
-        const source = claim.sources.find((item) => item.id === evidence.sourceId);
-        return (
-          <li>
-            {source?.url ? <a href={source.url}>{source.title}</a> : <span>{source?.title ?? evidence.sourceId}</span>}
-            {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
-            <p class="muted">hash {evidence.sourceHash ?? 'not recorded'} · retrieved {evidence.retrievedAt ?? 'not recorded'}</p>
-          </li>
-        );
-      })}
-    </ul>
-  ) : claim.confidenceState === 'unsupported_draft' ? (
-    <p><span class="badge badge-warning">unsupported_draft</span></p>
-  ) : (
-    <p class="muted">No evidence links returned.</p>
-  )}
+  <div class="trust-strip">
+    <ConfidenceBadge state={claim.confidenceState} />
+    <ReviewStateBadge state={claim.reviewState} />
+    {claim.aiTraceId && <AiLabel traceId={claim.aiTraceId} />}
+    <a href={`/claims/${encodeURIComponent(claim.id)}`}>Details</a>
+  </div>
+  <SourcePanel evidence={evidence} sources={sources} />
 </article>

@@ -1,0 +1,26 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import { type Locale } from '../messages/index.ts';
+import type { VerdictTone } from '@polis/domain';
+
+type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+interface Props {
+  level: RiskLevel;
+  rationale?: string;
+  locale?: Locale;
+}
+
+const { level, rationale, locale = 'en' } = Astro.props as Props;
+
+const tones: Record<RiskLevel, VerdictTone> = {
+  low: 'valid',
+  medium: 'warning',
+  high: 'invalid',
+  critical: 'invalid',
+};
+---
+
+<span title={rationale}>
+  <StatusBadge tone={tones[level]} labelKey={`risk.${level}`} locale={locale} />
+</span>

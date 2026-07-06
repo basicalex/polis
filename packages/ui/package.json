@@ -1,0 +1,29 @@
+{
+  "name": "@polis/ui",
+  "version": "0.1.0-v1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./styles/base.css": "./src/styles/base.css",
+    "./styles/tailwind.css": "./src/styles/tailwind.css",
+    "./astro/*": "./src/astro/*",
+    "./icons/*": "./src/icons/*",
+    "./react/*": "./src/react/*",
+    "./messages": "./src/messages/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test src/test/*.test.ts"
+  },
+  "dependencies": {
+    "@polis/domain": "workspace:*"
+  },
+  "peerDependencies": {
+    "astro": "^5.15.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.3"
+  }
+}
