@@ -327,51 +327,120 @@ test('pilot redaction allows project governance with reason (M9 §30.10)', () =>
     true,
   );
 });
-test('representative access allows verified_official with active mandate + accepted charter (M-RA)', () => {
-  assert.equal(
-    opaEval(
-      'representative/access.rego',
-      {
-        identity_level: 'verified_official',
-        mandate_holder: { status: 'active' },
-        charter: { status: 'accepted' },
-      },
-      'data.polis.representative.access.allow',
-    ),
-    true,
-  );
-  // charter pending → denied (charter required before publishing)
-  assert.equal(
-    opaEval(
-      'representative/access.rego',
-      {
-        identity_level: 'verified_official',
-        mandate_holder: { status: 'active' },
-        charter: { status: 'pending' },
-      },
-      'data.polis.representative.access.allow',
-    ),
-    false,
-  );
+test('representative access allows only verified active accepted in-scope officials (M-RA)', () => {
+  const query = 'data.polis.representative.access.allow';
+  const allowed = {
+    identity_level: 'verified_official',
+    mandate_holder: { status: 'active', scope: 'health' },
+    charter: { status: 'accepted' },
+    requested_scope: 'health',
+  };
+  assert.equal(opaEval('representative/access.rego', allowed, query), true);
+
+  for (const input of [
+    { ...allowed, identity_level: 'casual' },
+    { ...allowed, mandate_holder: { status: 'inactive', scope: 'health' } },
+    { ...allowed, charter: { status: 'pending' } },
+    { ...allowed, requested_scope: 'transport' },
+  ]) {
+    assert.equal(opaEval('representative/access.rego', input, query), false);
+  }
 });
 
-test('representative status allow_terminal requires an approved resolution review (M-RA)', () => {
+test('representative status terminal changes require approved resolution and no self-assignment (M-RA)', () => {
+  const query = 'data.polis.representative.status.allow_terminal';
   assert.equal(
     opaEval(
       'representative/status.rego',
-      { resolution_review_state: 'approved' },
-      'data.polis.representative.status.allow_terminal',
+      {
+        requested_status: 'delivered',
+        resolution_review_state: 'approved',
+        resolution_claim_id: 'claim-1',
+        caller_citizen_id: 'official-1',
+        decided_by: 'reviewer-1',
+        mandate_holder: { citizen_id: 'official-1' },
+      },
+      query,
     ),
     true,
   );
+
+  for (const input of [
+    {
+      requested_status: 'delivered',
+      resolution_review_state: 'draft',
+      resolution_claim_id: 'claim-1',
+      caller_citizen_id: 'official-1',
+      decided_by: 'reviewer-1',
+      mandate_holder: { citizen_id: 'official-1' },
+    },
+    {
+      requested_status: 'delivered',
+      resolution_review_state: 'approved',
+      resolution_claim_id: '',
+      caller_citizen_id: 'official-1',
+      decided_by: 'reviewer-1',
+      mandate_holder: { citizen_id: 'official-1' },
+    },
+    {
+      requested_status: 'delivered',
+      resolution_review_state: 'approved',
+      resolution_claim_id: 'claim-1',
+      caller_citizen_id: 'official-1',
+      decided_by: 'official-1',
+      mandate_holder: { citizen_id: 'official-1' },
+    },
+    {
+      requested_status: 'overdue',
+      resolution_review_state: 'approved',
+      resolution_claim_id: 'claim-1',
+      caller_citizen_id: 'official-1',
+      decided_by: 'reviewer-1',
+      mandate_holder: { citizen_id: 'official-1' },
+    },
+  ]) {
+    assert.equal(opaEval('representative/status.rego', input, query), false);
+  }
+});
+
+test('representative overdue status is system-derived only (M-RA)', () => {
+  const query = 'data.polis.representative.status.allow_overdue';
   assert.equal(
     opaEval(
       'representative/status.rego',
-      { resolution_review_state: 'draft' },
-      'data.polis.representative.status.allow_terminal',
+      {
+        system_derived: true,
+        latest_status: 'in_progress',
+        due_at: '2026-01-01T00:00:00Z',
+        now: '2026-01-02T00:00:00Z',
+      },
+      query,
     ),
-    false,
+    true,
   );
+
+  for (const input of [
+    {
+      system_derived: false,
+      latest_status: 'in_progress',
+      due_at: '2026-01-01T00:00:00Z',
+      now: '2026-01-02T00:00:00Z',
+    },
+    {
+      system_derived: true,
+      latest_status: 'delivered',
+      due_at: '2026-01-01T00:00:00Z',
+      now: '2026-01-02T00:00:00Z',
+    },
+    {
+      system_derived: true,
+      latest_status: 'in_progress',
+      due_at: '2026-01-03T00:00:00Z',
+      now: '2026-01-02T00:00:00Z',
+    },
+  ]) {
+    assert.equal(opaEval('representative/status.rego', input, query), false);
+  }
 });
 
 test('identity access allows stub mode and oidc with verified email (M10)', () => {

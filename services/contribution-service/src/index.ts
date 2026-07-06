@@ -61,6 +61,11 @@ const RESOLUTION_STATUSES: Record<string, true> = {
   not_delivered: true,
 };
 
+const NON_TERMINAL_COMMITMENT_STATUSES: Record<string, true> = {
+  proposed: true,
+  in_progress: true,
+};
+
 /** Return a trimmed non-empty string, or null for absent/non-string. */
 function optionalNonEmpty(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
@@ -271,48 +276,36 @@ async function applySubmission(db: DbClient, sub: SubmissionRow, reviewerId: str
     if (sub.type === 'claim' && sub.contributionClass === 'mandate_commitment') {
       const p = (sub.payload ?? {}) as {
         kind?: string;
-        mandateHolderId?: string;
-        claimId?: string;
-        successCriterion?: string;
-        dueAt?: string;
-        processId?: string;
-        jurisdictionId?: string;
         commitmentId?: string;
         status?: string;
         resolutionClaimId?: string;
       };
-      if (p.kind === 'commitment') {
-        await db.insert(schema.commitments).values({
-          id: sql`gen_random_uuid()::text`,
-          claimId: p.claimId ?? '',
-          mandateHolderId: p.mandateHolderId ?? '',
-          processId: p.processId ?? null,
-          jurisdictionId: p.jurisdictionId ?? null,
-          successCriterion: p.successCriterion ?? '',
-          dueAt: p.dueAt ? new Date(p.dueAt) : null,
-        });
-        await emitAudit({
-          eventType: 'mandate.commitment_applied',
-          action: 'apply',
-          target: { type: 'commitment', id: sub.id },
-          data: { mandateHolderId: p.mandateHolderId },
-        });
-        return true;
+      if (p.kind === 'resolution' && (!p.status || !(p.status in RESOLUTION_STATUSES) || !p.resolutionClaimId)) {
+        return false;
       }
       if (p.kind === 'resolution') {
+        const resolutionClaimId = p.resolutionClaimId ?? '';
+        await db
+          .update(schema.claims)
+          .set({ reviewState: 'approved' })
+          .where(eq(schema.claims.id, resolutionClaimId));
         await db.insert(schema.commitmentStatusEvents).values({
           id: sql`gen_random_uuid()::text`,
           commitmentId: p.commitmentId ?? '',
           status: p.status ?? 'delivered',
-          resolutionClaimId: p.resolutionClaimId ?? null,
+          resolutionClaimId,
           decidedBy: reviewerId, // status.rego: completion is adjudicated, never self-declared
           decidedAt: new Date(),
         });
         await emitAudit({
-          eventType: 'mandate.resolution_applied',
-          action: 'apply',
+          eventType: 'representative.commitment.status_changed',
+          action: 'status_changed',
           target: { type: 'commitment-status-event', id: sub.id },
-          data: { commitmentId: p.commitmentId },
+          data: {
+            commitmentId: p.commitmentId,
+            status: p.status,
+            resolutionClaimId,
+          },
         });
         return true;
       }
@@ -696,7 +689,7 @@ export function contributionRoutes(db: DbClient): Route[] {
       },
     },
 
-    // M-RA Phase 2 — file a commitment (mandate-holder authored, admin-reviewed).
+    // M-RA Phase 2 — publish a commitment (mandate-holder authored).
     // Citizen identity rides X-Polis-Citizen (set by the BFF). The mandate-holder
     // citizen is stored as contributor_id: submissions.contributor_id is NOT NULL
     // with no FK to contributors (the §19 contributors table is a separate
@@ -711,17 +704,35 @@ export function contributionRoutes(db: DbClient): Route[] {
         const gate = await assertCanPublish(db, citizenId, params.id);
         if (gate) return gate;
         const p = (body ?? {}) as {
+          text?: string;
+          claimType?: string;
           claimId?: string;
           successCriterion?: string;
           dueAt?: string;
           processId?: string;
           jurisdictionId?: string;
+          evidence?: unknown;
+          status?: string;
         };
         const detail: string[] = [];
-        const claimId = typeof p.claimId === 'string' ? p.claimId.trim() : '';
+        if (p.status && p.status in RESOLUTION_STATUSES) {
+          detail.push('terminal_status_not_allowed');
+        }
+        const claimIdInput = typeof p.claimId === 'string' ? p.claimId.trim() : '';
+        const text = typeof p.text === 'string' ? p.text.trim() : '';
+        const claimType =
+          typeof p.claimType === 'string' && p.claimType in CLAIM_TYPES
+            ? p.claimType
+            : 'proposal_assertion';
         const successCriterion =
           typeof p.successCriterion === 'string' ? p.successCriterion.trim() : '';
-        if (!claimId) detail.push('claim_required');
+        if (!claimIdInput && !text) detail.push('claim_text_required');
+        if (
+          p.claimType !== undefined &&
+          !(typeof p.claimType === 'string' && p.claimType in CLAIM_TYPES)
+        ) {
+          detail.push('invalid_claim_type');
+        }
         if (!successCriterion) detail.push('success_criterion_required');
         let dueAt: string | null = null;
         if (p.dueAt !== undefined && p.dueAt !== null) {
@@ -750,14 +761,63 @@ export function contributionRoutes(db: DbClient): Route[] {
         if (detail.length) {
           return result(400, { error: 'invalid_commitment_payload', detail });
         }
+        let claimId = claimIdInput;
+        if (claimId) {
+          const claimRows = await db
+            .select({ id: schema.claims.id })
+            .from(schema.claims)
+            .where(eq(schema.claims.id, claimId))
+            .limit(1);
+          if (!claimRows[0]) return result(404, { error: 'claim_not_found', id: claimId });
+        } else {
+          const claimIns = await db
+            .insert(schema.claims)
+            .values({
+              id: sql`gen_random_uuid()::text`,
+              text,
+              claimType,
+              subjectType: 'mandate_holder',
+              subjectId: params.id,
+              confidence: '0.5',
+              confidenceState: 'unsupported_draft',
+              reviewState: 'approved',
+              visibility: 'public',
+              methodVersion: 'm-ra-phase2',
+            })
+            .returning({ id: schema.claims.id });
+          claimId = claimIns[0].id;
+        }
+        const commitmentIns = await db
+          .insert(schema.commitments)
+          .values({
+            id: sql`gen_random_uuid()::text`,
+            claimId,
+            mandateHolderId: params.id,
+            processId,
+            jurisdictionId,
+            successCriterion,
+            dueAt: dueAt ? new Date(dueAt) : null,
+          })
+          .returning();
+        const commitment = commitmentIns[0];
+        await db.insert(schema.commitmentStatusEvents).values({
+          id: sql`gen_random_uuid()::text`,
+          commitmentId: commitment.id,
+          status: p.status && p.status in NON_TERMINAL_COMMITMENT_STATUSES ? p.status : 'proposed',
+          resolutionClaimId: null,
+          decidedBy: citizenId,
+          decidedAt: new Date(),
+        });
         const payload = {
           kind: 'commitment',
           mandateHolderId: params.id,
+          commitmentId: commitment.id,
           claimId,
           successCriterion,
           dueAt,
           processId,
           jurisdictionId,
+          evidence: p.evidence ?? null,
         };
         const ins = await db
           .insert(schema.submissions)
@@ -765,17 +825,18 @@ export function contributionRoutes(db: DbClient): Route[] {
             id: sql`gen_random_uuid()::text`,
             contributorId: citizenId,
             type: 'claim',
-            status: 'pending',
+            status: 'approved',
             contributionClass: 'mandate_commitment',
+            decidedAt: new Date(),
             payload,
           })
           .returning();
         const row = ins[0];
         await emitAudit({
-          eventType: 'mandate.commitment_filed',
-          action: 'submit',
-          target: { type: 'contribution', id: row.id },
-          data: { mandateHolderId: params.id, claimId },
+          eventType: 'representative.commitment.published',
+          action: 'publish',
+          target: { type: 'commitment', id: commitment.id },
+          data: { mandateHolderId: params.id, claimId, submissionId: row.id },
         });
         return result(201, submissionWire(row));
       },
@@ -800,23 +861,65 @@ export function contributionRoutes(db: DbClient): Route[] {
         if (!commitment) return result(404, { error: 'not_found', id: params.id });
         const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId);
         if (gate) return gate;
-        const p = (body ?? {}) as { status?: string; resolutionClaimId?: string };
+        const p = (body ?? {}) as {
+          status?: string;
+          text?: string;
+          claimType?: string;
+          evidence?: unknown;
+          resolutionClaimId?: string;
+        };
         if (!p.status || !(p.status in RESOLUTION_STATUSES)) {
           return result(400, { error: 'invalid_resolution_status' });
         }
-        const resolutionClaimId = optionalNonEmpty(p.resolutionClaimId);
+        const text = typeof p.text === 'string' ? p.text.trim() : '';
+        const claimType =
+          typeof p.claimType === 'string' && p.claimType in CLAIM_TYPES
+            ? p.claimType
+            : 'public_statement';
+        const resolutionClaimIdInput = optionalNonEmpty(p.resolutionClaimId);
         if (
-          p.resolutionClaimId !== undefined &&
-          p.resolutionClaimId !== null &&
-          resolutionClaimId === null
+          p.claimType !== undefined &&
+          !(typeof p.claimType === 'string' && p.claimType in CLAIM_TYPES)
         ) {
-          return result(400, { error: 'invalid_resolution_claim_id' });
+          return result(400, { error: 'invalid_claim_type' });
+        }
+        if (!resolutionClaimIdInput && !text) {
+          return result(400, { error: 'resolution_claim_text_required' });
+        }
+        let resolutionClaimId = resolutionClaimIdInput;
+        if (resolutionClaimId) {
+          const claimRows = await db
+            .select({ id: schema.claims.id })
+            .from(schema.claims)
+            .where(eq(schema.claims.id, resolutionClaimId))
+            .limit(1);
+          if (!claimRows[0]) {
+            return result(404, { error: 'claim_not_found', id: resolutionClaimId });
+          }
+        } else {
+          const claimIns = await db
+            .insert(schema.claims)
+            .values({
+              id: sql`gen_random_uuid()::text`,
+              text,
+              claimType,
+              subjectType: 'commitment',
+              subjectId: params.id,
+              confidence: '0.5',
+              confidenceState: 'unsupported_draft',
+              reviewState: 'draft',
+              visibility: 'public',
+              methodVersion: 'm-ra-phase2',
+            })
+            .returning({ id: schema.claims.id });
+          resolutionClaimId = claimIns[0].id;
         }
         const payload = {
           kind: 'resolution',
           commitmentId: params.id,
           status: p.status,
           resolutionClaimId,
+          evidence: p.evidence ?? null,
         };
         const ins = await db
           .insert(schema.submissions)
@@ -831,10 +934,10 @@ export function contributionRoutes(db: DbClient): Route[] {
           .returning();
         const row = ins[0];
         await emitAudit({
-          eventType: 'mandate.resolution_filed',
+          eventType: 'representative.commitment.resolution_filed',
           action: 'submit',
           target: { type: 'contribution', id: row.id },
-          data: { commitmentId: params.id, status: p.status },
+          data: { commitmentId: params.id, status: p.status, resolutionClaimId },
         });
         return result(201, submissionWire(row));
       },
