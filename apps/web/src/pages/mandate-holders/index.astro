@@ -41,6 +41,11 @@ const holders = res?.items ?? [];
     <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
   </section>
   <section class="stack">
+    <p class="muted">
+      <a href="/audit">audit trail</a> · <a href="/proofs">proofs</a> · <a href="/verify">verify</a>
+    </p>
+  </section>
+  <section class="stack">
     {holders.length > 0 ? (
       <div class="grid">
         {holders.map((holder) => (

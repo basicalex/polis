@@ -4,14 +4,19 @@ import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
-<Base title="Reviewer Admin — Drafting">
-<section class="panel">
-  <DemoBadge label="demonstration — dev identity, not production" />
-  <h1>Mandate drafting</h1>
+<Base title="Reviewer Admin — Official drafting">
+<section class="panel stack">
+  <DemoBadge label="demonstration — post-pilot official onboarding identity, not production" />
+  <h1>Official drafting</h1>
   <p class="muted">
-    A <strong>verified_official</strong> files commitments and answers citizen questions here.
-    Filings are submitted as pending contributions and applied to the governance graph only after a
-    reviewer approves them through <a href="/review">/review</a> (accountability, not self-declaration).
+    This demonstration surface lets a <strong>verified_official</strong> file accountability commitments,
+    resolution claims, and answers after the pilot onboarding path exists. The signed-in identity is a
+    demonstration identity only; submissions become public-read contributions only after review.
+  </p>
+  <p class="muted">
+    Commitments and resolutions are <strong>accountability, not endorsement</strong>: public-read,
+    verifiable records connected to <a href="/audit">/audit</a>, <a href="/proofs">/proofs</a>, and
+    <a href="/verify">/verify</a>. Reviewers set any terminal outcome; callers never set it.
   </p>
   <div id="gate" style="display:none">
     <p id="gate-msg" class="panel"></p>
@@ -26,6 +31,16 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 <script is:inline define:vars={{ API }}>
 function authHeader(session) { return { 'content-type': 'application/json', authorization: 'Bearer ' + session.token }; }
 function el(html) { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+function compactBody(entries) {
+  const body = {};
+  for (const [key, value] of Object.entries(entries)) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') body[key] = String(value).trim();
+  }
+  return body;
+}
 
 async function loadDrafting(session) {
   document.getElementById('who').textContent = session.email || session.citizenId;
@@ -50,18 +65,30 @@ async function loadDrafting(session) {
     return;
   }
   for (const mh of mine) {
+    const detailResp = await fetch(API + '/api/v1/mandate-holders/' + mh.id);
+    const detail = detailResp.ok ? await detailResp.json() : { commitments: [] };
+    const commitments = detail.commitments ?? [];
+    const claimOptions = claims.map((c) => '<option value="' + esc(c.id) + '">' + esc(c.text).slice(0, 80) + ' (' + esc(c.claimType) + ')</option>').join('');
     const card = el('<section class="card stack"></section>');
-    card.innerHTML = '<h2>' + mh.displayName + ' <span class="badge">' + mh.status + '</span></h2>' +
+    card.innerHTML = '<h2>' + esc(mh.displayName) + ' <span class="badge">' + esc(mh.status) + '</span></h2>' +
+      '<p class="muted">Demonstration official drafting: public-read, verifiable accountability records only after review.</p>' +
       '<h3>File a commitment</h3>' +
-      '<form class="stack" data-commitment data-mh="' + mh.id + '">' +
-        '<label>Promise claim <select name="claimId">' +
-          claims.map((c) => '<option value="' + c.id + '">' + c.text.slice(0, 80) + ' (' + c.claimType + ')</option>').join('') +
-        '</select></label>' +
+      '<form class="stack" data-commitment data-mh="' + esc(mh.id) + '">' +
+        '<label>Commitment type <select name="sourceType"><option value="text">Typed text commitment</option><option value="claim">Existing claim</option></select></label>' +
+        '<label>Commitment text <textarea name="text" rows="3" style="width:100%" placeholder="Plain-language commitment"></textarea></label>' +
+        '<label>Promise claim <select name="claimId"><option value="">Select an existing claim…</option>' + claimOptions + '</select></label>' +
+        '<label>Claim type <select name="claimType"><option value="">Default</option><option value="proposal_assertion">proposal_assertion</option><option value="public_statement">public_statement</option></select></label>' +
         '<label>Success criterion <textarea name="successCriterion" rows="2" style="width:100%"></textarea></label>' +
         '<label>Due at <input type="date" name="dueAt"/></label>' +
+        '<label>Process id <input name="processId" autocomplete="off"/></label>' +
+        '<label>Jurisdiction id <input name="jurisdictionId" autocomplete="off"/></label>' +
         '<button type="submit">File commitment</button>' +
+        '<p class="muted">The request body contains text or claimId, successCriterion, and optional dueAt/processId/jurisdictionId only.</p>' +
         '<p class="muted form-msg"></p>' +
       '</form>' +
+      '<h3>Commitment resolutions</h3>' +
+      '<p class="muted">File resolution claims for official commitments. Review sets any outcome; the caller only submits the resolution claim.</p>' +
+      '<div class="commitment-resolutions"></div>' +
       '<h3>Unanswered questions</h3>' +
       '<div class="pending-questions">Loading…</div>';
     root.appendChild(card);
@@ -70,8 +97,19 @@ async function loadDrafting(session) {
       e.preventDefault();
       const f = e.currentTarget;
       const msg = f.querySelector('.form-msg');
-      const body = { claimId: f.claimId.value, successCriterion: f.successCriterion.value.trim() };
-      if (f.dueAt.value) body.dueAt = f.dueAt.value;
+      const body = compactBody({
+        successCriterion: f.successCriterion.value,
+        dueAt: f.dueAt.value,
+        processId: f.processId.value,
+        jurisdictionId: f.jurisdictionId.value,
+      });
+      if (f.sourceType.value === 'claim') body.claimId = f.claimId.value;
+      else body.text = f.text.value;
+      if (f.claimType.value) body.claimType = f.claimType.value;
+      if (!body.successCriterion || (!body.text && !body.claimId)) {
+        msg.textContent = 'Commitment text or claim and success criterion are required.';
+        return;
+      }
       try {
         const r = await fetch(API + '/api/v1/mandate-holders/' + f.dataset.mh + '/commitments', {
           method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
@@ -84,21 +122,55 @@ async function loadDrafting(session) {
       } catch (err) { msg.textContent = String(err); }
     });
 
-    loadPendingQuestions(card.querySelector('.pending-questions'), mh, session);
+    renderResolutionForms(card.querySelector('.commitment-resolutions'), commitments, session);
+    loadPendingQuestions(card.querySelector('.pending-questions'), commitments, session);
   }
 }
 
-async function loadPendingQuestions(container, mh, session) {
-  // Load the mandate-holder detail (commitments), then each commitment's questions.
-  const detailResp = await fetch(API + '/api/v1/mandate-holders/' + mh.id);
-  const detail = detailResp.ok ? await detailResp.json() : { commitments: [] };
-  const commitments = detail.commitments ?? [];
+function renderResolutionForms(container, commitments, session) {
+  if (commitments.length === 0) {
+    container.innerHTML = '<p class="muted">No official commitments loaded from /api/v1/mandate-holders/:id.</p>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const commitment of commitments) {
+    const item = el('<div class="card stack"></div>');
+    item.innerHTML =
+      '<p class="muted">Commitment: ' + esc(commitment.successCriterion || commitment.text || commitment.claimId || commitment.id) + '</p>' +
+      '<form class="stack" data-resolution data-commitment="' + esc(commitment.id) + '">' +
+        '<label>Resolution claim <textarea name="claim" rows="2" style="width:100%" placeholder="Evidence-backed resolution claim"></textarea></label>' +
+        '<button type="submit">File resolution</button>' +
+        '<p class="muted">Reviewers set outcomes; this form posts only the resolution claim.</p>' +
+        '<p class="muted form-msg"></p>' +
+      '</form>';
+    container.appendChild(item);
+    item.querySelector('[data-resolution]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const msg = f.querySelector('.form-msg');
+      const body = compactBody({ claim: f.claim.value });
+      if (!body.claim) { msg.textContent = 'Resolution claim required.'; return; }
+      try {
+        const r = await fetch(API + '/api/v1/commitments/' + f.dataset.commitment + '/resolutions', {
+          method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
+        });
+        const b = await r.json();
+        if (r.status === 401) { location.href = '/login'; return; }
+        if (!r.ok) { msg.textContent = (b && b.error) || 'filing failed'; return; }
+        msg.textContent = 'Resolution filed — pending review.';
+        f.reset();
+      } catch (err) { msg.textContent = String(err); }
+    });
+  }
+}
+
+async function loadPendingQuestions(container, commitments, session) {
   const pending = [];
   for (const c of commitments) {
     const qr = await fetch(API + '/api/v1/commitments/' + c.id + '/questions');
     const qb = qr.ok ? await qr.json() : { items: [] };
     for (const q of (qb.items ?? [])) {
-      if (q.answer === null) pending.push({ commitment: c, question: q });
+      if (q.answer === null || q.answer === undefined) pending.push({ commitment: c, question: q });
     }
   }
   if (pending.length === 0) { container.innerHTML = '<p class="muted">No unanswered questions.</p>'; return; }
@@ -106,10 +178,10 @@ async function loadPendingQuestions(container, mh, session) {
   for (const { commitment, question } of pending) {
     const item = el('<div class="card stack"></div>');
     item.innerHTML =
-      '<p class="muted">Commitment: ' + commitment.successCriterion + '</p>' +
-      '<blockquote>' + question.body + '</blockquote>' +
-      '<form class="stack" data-answer data-q="' + question.id + '">' +
-        '<label>Answer <textarea name="body" rows="2" style="width:100%"></textarea></label>' +
+      '<p class="muted">Commitment: ' + esc(commitment.successCriterion || commitment.id) + '</p>' +
+      '<blockquote>' + esc(question.body || question.text || question.question || '') + '</blockquote>' +
+      '<form class="stack" data-answer data-commitment="' + esc(commitment.id) + '" data-question="' + esc(question.id) + '">' +
+        '<label>Answer <textarea name="answer" rows="2" style="width:100%"></textarea></label>' +
         '<button type="submit">File answer</button>' +
         '<p class="muted form-msg"></p>' +
       '</form>';
@@ -118,10 +190,10 @@ async function loadPendingQuestions(container, mh, session) {
       e.preventDefault();
       const f = e.currentTarget;
       const msg = f.querySelector('.form-msg');
-      const body = { body: f.body.value.trim() };
+      const body = compactBody({ body: f.answer.value });
       if (!body.body) { msg.textContent = 'Answer text required.'; return; }
       try {
-        const r = await fetch(API + '/api/v1/commitment-questions/' + f.dataset.q + '/answers', {
+        const r = await fetch(API + '/api/v1/commitment-questions/' + f.dataset.question + '/answers', {
           method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
         });
         const b = await r.json();

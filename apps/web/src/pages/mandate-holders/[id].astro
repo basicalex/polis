@@ -66,6 +66,7 @@ const statusFilter = Astro.url.searchParams.get('status');
 const filteredCommitments = statusFilter
   ? holder?.commitments.filter((c) => c.effectiveStatus === statusFilter) ?? []
   : holder?.commitments ?? [];
+const statusAnchor = (status: string) => `commitments-${status.replaceAll('_', '-')}`;
 ---
 
 <Base title={`Mandate-holder · ${holder?.displayName ?? id}`}>
@@ -84,24 +85,23 @@ const filteredCommitments = statusFilter
 
       {scorecard && (
         <section class="stack">
-          <h2>Scorecard</h2>
+          <h2>Commitment counts</h2>
           <p class="muted">
-            Counts of commitments by effective status. No grade, ranking, or comparative score is ever
-            produced — accountability is reported, not ranked.
+            Counts of commitments by effective status. This page reports accountability evidence only.
           </p>
           <div class="panel stack">
             <table class="data-table">
               <tbody>
-                <tr><th scope="row">delivered</th><td><a href="?status=delivered">{scorecard.totals.delivered}</a></td><th scope="row">in progress</th><td><a href="?status=in_progress">{scorecard.totals.inProgress}</a></td></tr>
-                <tr><th scope="row">proposed</th><td><a href="?status=proposed">{scorecard.totals.proposed}</a></td><th scope="row">partial</th><td><a href="?status=partial">{scorecard.totals.partial}</a></td></tr>
-                <tr><th scope="row">not delivered</th><td><a href="?status=not_delivered">{scorecard.totals.notDelivered}</a></td><th scope="row">overdue</th><td><a href="?status=overdue">{scorecard.totals.overdue}</a></td></tr>
+                <tr><th scope="row">delivered</th><td><a href={`?status=delivered#${statusAnchor('delivered')}`} aria-label="delivered commitments evidence and audit details">{scorecard.totals.delivered}</a></td><th scope="row">in progress</th><td><a href={`?status=in_progress#${statusAnchor('in_progress')}`} aria-label="in progress commitments evidence and audit details">{scorecard.totals.inProgress}</a></td></tr>
+                <tr><th scope="row">proposed</th><td><a href={`?status=proposed#${statusAnchor('proposed')}`} aria-label="proposed commitments evidence and audit details">{scorecard.totals.proposed}</a></td><th scope="row">partial</th><td><a href={`?status=partial#${statusAnchor('partial')}`} aria-label="partial commitments evidence and audit details">{scorecard.totals.partial}</a></td></tr>
+                <tr><th scope="row">not delivered</th><td><a href={`?status=not_delivered#${statusAnchor('not_delivered')}`} aria-label="not delivered commitments evidence and audit details">{scorecard.totals.notDelivered}</a></td><th scope="row">overdue</th><td><a href={`?status=overdue#${statusAnchor('overdue')}`} aria-label="overdue commitments evidence and audit details">{scorecard.totals.overdue}</a></td></tr>
               </tbody>
             </table>
           </div>
         </section>
       )}
 
-      <section class="stack">
+      <section class="stack" id={statusFilter ? statusAnchor(statusFilter) : 'commitments'}>
         <h2>Commitments{statusFilter && <span> (filtered: {statusFilter}) · <a href={Astro.url.pathname}>clear filter</a></span>}</h2>
         {filteredCommitments.length > 0 ? (
           <table class="data-table">
@@ -110,7 +110,7 @@ const filteredCommitments = statusFilter
             </thead>
             <tbody>
               {filteredCommitments.map((c) => (
-                <tr>
+                <tr id={`commitment-${c.effectiveStatus}-${c.id}`}>
                   <td>{c.successCriterion}</td>
                   <td><span class="badge">{c.effectiveStatus}</span></td>
                   <td>{c.dueAt ?? '—'}</td>
@@ -139,7 +139,7 @@ const filteredCommitments = statusFilter
 
       <section class="stack">
         <p class="muted">
-          <a href="/audit">audit trail</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
+          <a href="/audit">audit trail</a> · <a href="/proofs">proofs</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
         </p>
       </section>
     </Fragment>

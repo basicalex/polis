@@ -31,3 +31,35 @@ test('web verify page uses the client-side hashing flow', async () => {
   assert.doesNotMatch(verify, /verify\/file/);
   assert.doesNotMatch(verify, /contentBase64/);
 });
+
+test('M-RA web surfaces carry accountability markers and trust links', async () => {
+  const pages = [
+    'mandate-holders/index.astro',
+    join('mandate-holders', '[id].astro'),
+    join('commitments', '[id].astro'),
+  ];
+
+  for (const page of pages) {
+    const source = await readFile(new URL(page, root), 'utf8');
+    assert.match(source, /accountability, not endorsement/, page);
+    assert.match(source, /public-read/, page);
+    assert.match(source, /verifiable/, page);
+    assert.match(source, /href="\/audit"/, page);
+    assert.match(source, /href="\/proofs"/, page);
+    assert.match(source, /href="\/verify"/, page);
+  }
+});
+
+test('mandate-holder detail scorecard counts deep-link to status evidence anchors', async () => {
+  const source = await readFile(new URL(join('mandate-holders', '[id].astro'), root), 'utf8');
+  assert.match(source, /statusAnchor/);
+  assert.match(source, /\?status=delivered#\$\{statusAnchor\('delivered'\)\}/);
+  assert.match(source, /\?status=in_progress#\$\{statusAnchor\('in_progress'\)\}/);
+  assert.match(source, /\?status=proposed#\$\{statusAnchor\('proposed'\)\}/);
+  assert.match(source, /\?status=partial#\$\{statusAnchor\('partial'\)\}/);
+  assert.match(source, /\?status=not_delivered#\$\{statusAnchor\('not_delivered'\)\}/);
+  assert.match(source, /\?status=overdue#\$\{statusAnchor\('overdue'\)\}/);
+  assert.match(source, /id=\{statusFilter \? statusAnchor\(statusFilter\) : 'commitments'\}/);
+  assert.match(source, /id=\{`commitment-\$\{c\.effectiveStatus\}-\$\{c\.id\}`\}/);
+  assert.match(source, /evidence and audit details/);
+});
