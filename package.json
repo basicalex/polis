@@ -28,6 +28,7 @@
     "eslint": "^9.18.0",
     "globals": "^15.14.1",
     "prettier": "^3.4.2",
+    "ts7": "npm:typescript@7.0.1-rc",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.20.0"
   },

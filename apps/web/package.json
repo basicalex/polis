@@ -6,7 +6,7 @@
     "build": "astro build",
     "dev": "astro dev --port 4321 --host 0.0.0.0",
     "preview": "astro preview --port 4321",
-    "typecheck": "astro check || tsc -p tsconfig.json --noEmit",
+    "typecheck": "astro check || node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

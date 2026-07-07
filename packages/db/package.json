@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
     "test": "node --test dist/**/*.test.js",
     "db:generate": "drizzle-kit generate",
     "seed": "node dist/seed.js"
