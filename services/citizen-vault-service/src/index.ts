@@ -17,7 +17,7 @@ import type { IncomingMessage } from 'node:http';
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
 import { accessEventWire, accessGrantWire, vaultDocumentWire } from './serialize.js';
 
@@ -47,7 +47,7 @@ async function emitAudit(event: {
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,

@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 12 (M12) acceptance: exercises the real RFC 3161 timestamp + real CMS
 // e-seal proof path end-to-end against a running TIMESTAMP_MODE=real
 // SIGNATURE_MODE=real stack. Drives the ingestion gateway + public BFF — no
@@ -34,14 +36,14 @@ function check(label, cond, detail = '') {
 }
 
 async function get(base, path, headers = {}) {
-  const r = await fetch(base + path, { headers });
+  const r = await fetch(base + path, { headers: withInternalHeaders(path, headers) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 
 async function post(base, path, body, headers = {}) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };

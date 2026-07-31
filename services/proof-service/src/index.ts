@@ -10,6 +10,7 @@
  * `verify/file` reuses @polis/domain sha256Hex to compute the original-file
  * hash directly — a verify must never depend on the ingestion pipeline being up.
  */
+import { randomUUID } from 'node:crypto';
 import { getClient } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import {
@@ -21,6 +22,7 @@ import {
 import { and, desc, eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
+  internalHeaders,
   operationalRoutes,
   result,
   startService,
@@ -40,6 +42,11 @@ import {
 /** Stable 404 contract for detail endpoints. */
 const notFound = (id: string): HttpResult => result(404, { error: 'not_found', id });
 
+const MANIFEST_CREATOR_SERVICES: Record<string, true> = {
+  'document-ingestion-gateway': true,
+  'document-signing-service': true,
+};
+
 /**
  * Best-effort audit emit. Failures (audit-service unreachable) are logged and
  * never fail the originating request — matches platform-api + polis-bridge.
@@ -50,16 +57,17 @@ async function emitAudit(event: {
   target: { type: string; id: string };
   data: Record<string, unknown>;
   correlationId?: string;
+  visibility: 'public' | 'restricted';
 }): Promise<void> {
   const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,
-        visibility: 'public',
+        visibility: event.visibility,
         actor: { type: 'service', id: 'proof-service' },
         target: event.target,
         data: event.data,
@@ -77,27 +85,30 @@ async function emitAudit(event: {
   }
 }
 
-/** Latest active manifest for an original-file hash, or null. */
-async function findActiveByHash(db: DbClient, hash: string): Promise<DocumentProof | null> {
+/** Latest public manifest for an original-file hash, or null. */
+async function findLatestPublicByHash(
+  db: DbClient,
+  hash: string,
+): Promise<(typeof schema.proofManifests.$inferSelect) | null> {
   const rows = await db
     .select()
     .from(schema.proofManifests)
     .where(
       and(
         eq(schema.proofManifests.originalFileHash, hash),
-        eq(schema.proofManifests.registryStatus, 'active'),
+        eq(schema.proofManifests.proofVisibility, 'public'),
       ),
     )
     .orderBy(desc(schema.proofManifests.createdAt), desc(schema.proofManifests.id))
     .limit(1);
-  return rows[0] ? documentProofWire(rows[0], [], [], null, null) : null;
+  return rows[0]?.proofVisibility === 'public' ? rows[0] : null;
 }
 
 /** POST JSON to an internal service; throw on non-2xx so the caller can decide. */
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: internalHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -141,6 +152,21 @@ async function latestRevocation(db: DbClient, proofId: string): Promise<Revocati
     revokedAt: rows[0].createdAt.toISOString(),
     reason: rows[0].reason,
   };
+}
+
+const auditVisibility = (proofVisibility: string): 'public' | 'restricted' =>
+  proofVisibility === 'public' ? 'public' : 'restricted';
+
+async function proofAuditVisibility(
+  db: DbClient,
+  proofId: string,
+): Promise<'public' | 'restricted'> {
+  const rows = await db
+    .select({ proofVisibility: schema.proofManifests.proofVisibility })
+    .from(schema.proofManifests)
+    .where(eq(schema.proofManifests.id, proofId))
+    .limit(1);
+  return auditVisibility(rows[0]?.proofVisibility ?? 'restricted');
 }
 
 /** Read all signatures + timestamps for a proof as wire objects. */
@@ -192,7 +218,14 @@ export function proofRoutes(db: DbClient): Route[] {
           contentVisibility?: string;
           proofVisibility?: string;
           algorithm?: string;
+          createdByService?: string;
         };
+        if (
+          input.createdByService !== undefined &&
+          !Object.hasOwn(MANIFEST_CREATOR_SERVICES, input.createdByService)
+        ) {
+          return result(400, { error: 'invalid_created_by_service' });
+        }
         if (
           !input.originalFileHash ||
           !input.manifestHash ||
@@ -201,43 +234,43 @@ export function proofRoutes(db: DbClient): Route[] {
         ) {
           return result(400, { error: 'missing_required_fields' });
         }
+        const id = randomUUID();
+        const createdAt = new Date();
+        const values = {
+          id,
+          documentClass: input.documentClass,
+          documentTypeId: input.documentTypeId ?? null,
+          issuerId: input.issuerId,
+          issuerName: input.issuerName ?? '',
+          originalFileHash: input.originalFileHash,
+          canonicalPdfHash: input.canonicalPdfHash ?? null,
+          ocrTextHash: input.ocrTextHash ?? null,
+          metadataHash: input.metadataHash ?? null,
+          manifestHash: input.manifestHash,
+          originalFilename: input.originalFilename ?? null,
+          originalMime: input.originalMime ?? null,
+          originalBytes: input.originalBytes == null ? null : String(input.originalBytes),
+          algorithm: input.algorithm ?? 'sha256',
+          registryStatus: 'active',
+          contentVisibility: input.contentVisibility ?? 'public',
+          proofVisibility: input.proofVisibility ?? 'public',
+          createdAt,
+          createdByService: input.createdByService ?? 'document-ingestion-gateway',
+          auditCorrelationId: null,
+          manifestJson: null,
+        };
+        const base = documentProofWire(values, [], [], null, null);
         const inserted = await db
           .insert(schema.proofManifests)
-          .values({
-            id: sql`gen_random_uuid()::text`,
-            documentClass: input.documentClass,
-            documentTypeId: input.documentTypeId ?? null,
-            issuerId: input.issuerId,
-            issuerName: input.issuerName ?? '',
-            originalFileHash: input.originalFileHash,
-            canonicalPdfHash: input.canonicalPdfHash ?? null,
-            ocrTextHash: input.ocrTextHash ?? null,
-            metadataHash: input.metadataHash ?? null,
-            manifestHash: input.manifestHash,
-            originalFilename: input.originalFilename ?? null,
-            originalMime: input.originalMime ?? null,
-            originalBytes: input.originalBytes == null ? null : String(input.originalBytes),
-            algorithm: input.algorithm ?? 'sha256',
-            registryStatus: 'active',
-            contentVisibility: input.contentVisibility ?? 'public',
-            proofVisibility: input.proofVisibility ?? 'public',
-            createdByService: 'document-ingestion-gateway',
-          })
+          .values({ ...values, manifestJson: base })
           .returning();
         const row = inserted[0];
-        // Immutable base payload (hashes/issuer/document metadata only).
-        // Sig/ts/supersession state lives in child tables and is assembled
-        // onto every DocumentProof read by GET /api/v1/proofs/:id.
-        const base = documentProofWire(row, [], [], null, null);
-        await db
-          .update(schema.proofManifests)
-          .set({ manifestJson: base })
-          .where(eq(schema.proofManifests.id, row.id));
         await emitAudit({
           eventType: 'proof.manifest.created',
           action: 'create',
           target: { type: 'proof', id: row.id },
           data: { originalFileHash: row.originalFileHash, manifestHash: row.manifestHash },
+          visibility: auditVisibility(row.proofVisibility),
         });
         // §9.12 orchestration: await sig + ts so the 201 already carries them.
         // Failure is explicit (empty array + audit warning), never silently missing.
@@ -265,7 +298,8 @@ export function proofRoutes(db: DbClient): Route[] {
             eventType: 'proof.signature.missed',
             action: 'sign',
             target: { type: 'proof', id: row.id },
-            data: { reason: err instanceof Error ? err.message : 'unknown' },
+            data: { reason: 'signature_unavailable' },
+            visibility: auditVisibility(row.proofVisibility),
           });
         }
         try {
@@ -287,7 +321,8 @@ export function proofRoutes(db: DbClient): Route[] {
             eventType: 'proof.timestamp.missed',
             action: 'timestamp',
             target: { type: 'proof', id: row.id },
-            data: { reason: err instanceof Error ? err.message : 'unknown' },
+            data: { reason: 'timestamp_unavailable' },
+            visibility: auditVisibility(row.proofVisibility),
           });
         }
         return result(201, documentProofWire(row, signatures, timestamps, null, null));
@@ -302,15 +337,28 @@ export function proofRoutes(db: DbClient): Route[] {
         if (!input.contentBase64) return result(400, { error: 'missing_content' });
         const bytes = new Uint8Array(Buffer.from(input.contentBase64, 'base64'));
         const hash = await sha256Hex(bytes);
-        const manifest = await findActiveByHash(db, hash);
-        if (!manifest) return { status: 'not_found' as const, manifest: null };
+        const row = await findLatestPublicByHash(db, hash);
+        if (!row) return { status: 'not_found' as const, manifest: null };
+        const [state, supersession, revocation] = await Promise.all([
+          fetchProofState(db, row.id),
+          latestSupersession(db, row.id),
+          latestRevocation(db, row.id),
+        ]);
+        const manifest = documentProofWire(
+          row,
+          state.signatures,
+          state.timestamps,
+          supersession,
+          revocation,
+        );
         await emitAudit({
           eventType: 'proof.verified',
           action: 'verify',
           target: { type: 'proof', id: manifest.id },
-          data: { method: 'file', result: 'valid', originalFileHash: hash },
+          data: { method: 'file', result: manifest.registryStatus, originalFileHash: hash },
+          visibility: 'public',
         });
-        return { status: 'valid' as const, manifest };
+        return { status: manifest.registryStatus === 'active' ? 'valid' : manifest.registryStatus, manifest };
       },
     },
 
@@ -320,15 +368,29 @@ export function proofRoutes(db: DbClient): Route[] {
       handler: async (_req, body) => {
         const input = body as { hash?: string };
         if (!input.hash) return result(400, { error: 'missing_hash' });
-        const manifest = await findActiveByHash(db, input.hash);
-        if (!manifest) return { status: 'not_found' as const, manifest: null };
+        const row = await findLatestPublicByHash(db, input.hash);
+        if (!row) return { status: 'not_found' as const, manifest: null };
+        const [state, supersession, revocation] = await Promise.all([
+          fetchProofState(db, row.id),
+          latestSupersession(db, row.id),
+          latestRevocation(db, row.id),
+        ]);
+        const manifest = documentProofWire(
+          row,
+          state.signatures,
+          state.timestamps,
+          supersession,
+          revocation,
+        );
+        const status = manifest.registryStatus === 'active' ? 'valid' : manifest.registryStatus;
         await emitAudit({
           eventType: 'proof.verified',
           action: 'verify',
           target: { type: 'proof', id: manifest.id },
-          data: { method: 'hash', result: 'valid', originalFileHash: input.hash },
+          data: { method: 'hash', result: status, originalFileHash: input.hash },
+          visibility: 'public',
         });
-        return { status: 'valid' as const, manifest };
+        return { status, manifest };
       },
     },
 
@@ -341,11 +403,27 @@ export function proofRoutes(db: DbClient): Route[] {
         const rows = await db
           .select()
           .from(schema.proofManifests)
-          .where(eq(schema.proofManifests.manifestHash, input.manifestHash))
+          .where(
+            and(
+              eq(schema.proofManifests.manifestHash, input.manifestHash),
+              eq(schema.proofManifests.proofVisibility, 'public'),
+            ),
+          )
           .limit(1);
         const row = rows[0];
-        if (!row || row.registryStatus !== 'active') return { status: 'not_found' as const };
-        return { status: 'valid' as const };
+        if (!row || row.proofVisibility !== 'public') {
+          return { status: 'not_found' as const };
+        }
+        const [supersession, revocation] = await Promise.all([
+          latestSupersession(db, row.id),
+          latestRevocation(db, row.id),
+        ]);
+        const registryStatus = revocation
+          ? 'revoked'
+          : supersession
+            ? 'superseded'
+            : row.registryStatus;
+        return { status: registryStatus === 'active' ? 'valid' : registryStatus };
       },
     },
 
@@ -358,7 +436,7 @@ export function proofRoutes(db: DbClient): Route[] {
           .from(schema.proofManifests)
           .where(eq(schema.proofManifests.id, params.id))
           .limit(1);
-        if (!rows[0]) return notFound(params.id);
+        if (!rows[0] || rows[0].proofVisibility !== 'public') return notFound(params.id);
         const row = rows[0];
         const [state, supersession, revocation] = await Promise.all([
           fetchProofState(db, row.id),
@@ -382,7 +460,7 @@ export function proofRoutes(db: DbClient): Route[] {
           .from(schema.proofManifests)
           .where(eq(schema.proofManifests.id, params.id))
           .limit(1);
-        if (!rows[0]) return notFound(params.id);
+        if (!rows[0] || rows[0].proofVisibility !== 'public') return notFound(params.id);
         const stored = rows[0];
         const [supersession, revocation] = await Promise.all([
           latestSupersession(db, params.id),
@@ -405,6 +483,14 @@ export function proofRoutes(db: DbClient): Route[] {
       method: 'GET',
       path: '/api/v1/proofs/:id/audit',
       handler: async (_req, _body, params) => {
+        const proofRows = await db
+          .select({ proofVisibility: schema.proofManifests.proofVisibility })
+          .from(schema.proofManifests)
+          .where(eq(schema.proofManifests.id, params.id))
+          .limit(1);
+        if (!proofRows[0] || proofRows[0].proofVisibility !== 'public') {
+          return notFound(params.id);
+        }
         const rows = await db
           .select({
             eventType: schema.auditEvents.eventType,
@@ -488,6 +574,7 @@ export function proofRoutes(db: DbClient): Route[] {
           action: 'supersede',
           target: { type: 'proof', id: params.id },
           data: { supersededBy: input.supersedingProofId, reason: input.reason ?? null },
+          visibility: await proofAuditVisibility(db, params.id),
         });
         return result(201, {
           supersededProofId: params.id,
@@ -515,6 +602,7 @@ export function proofRoutes(db: DbClient): Route[] {
           action: 'revoke',
           target: { type: 'proof', id: params.id },
           data: { reason: input.reason ?? null, revokedBy: input.revokedBy ?? null },
+          visibility: await proofAuditVisibility(db, params.id),
         });
         return result(201, {
           proofId: params.id,

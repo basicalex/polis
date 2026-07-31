@@ -92,8 +92,8 @@ routes/types use `mandate-holder` / `mandate_holder`. This is **distinct from th
 |---|---|
 | `mandates` (legal basis) + `roles` (position in an institution under a mandate) + `institutions` + `jurisdictions` + `processes` | The office an office-holder occupies. `roles.mandateId` already links a role to its legal mandate. |
 | `claims` (`claimType`, `subjectType`, `subjectId`, `reviewState`, `confidenceState`, `visibility`) | A politician's **position** is a claim. No new table. |
-| `evidence_links` + `sources` + `documents` + `proof_manifests` | Evidence backing a position or a commitment's resolution. Hash-verifiable via `/verify`. |
-| `submissions` (`type` includes `'claim'`) + `reviews` (append-only, latest-wins) | The adjudication path: a position or resolution claim flows as a `'claim'` submission through the review queue. `contributionClass` is the policy hook (cf. ADR-007 `political_agreement`). |
+| `evidence_links` + `sources` + `documents` + `proof_manifests` | Evidence backing a position, a commitment's resolution, or a signed charter. Hash verification proves byte identity for the registered artifact, not signer identity. |
+| `submissions` (`type` includes `'claim'`) + `reviews` (append-only, latest-wins) | The adjudication path: a position or resolution claim flows as a `'claim'` submission through the review queue. `contributionClass` is the policy hook (cf. ADR-007 `political_agreement`). Review decisions require a staff session; the BFF discards any body-supplied reviewer identity and passes the trusted session actor. |
 | `citizens` (`identity_level` CHECK-constrained to `IDENTITY_AUTH_LEVELS` = `verified_resident` \| `verified_official`; office-holder = `verified_official`) | The office-holder's identity tier. |
 | `audit_events` (§26.3, hash-chained) + `audit_event_redactions` | Every commitment and status transition is audited; private constituent data is redacted (§26.4). |
 | `issues` / `conversations` (§13) | Public Q&A on a commitment. |
@@ -108,10 +108,11 @@ routes/types use `mandate-holder` / `mandate_holder`. This is **distinct from th
    `revoked`, CHECK-constrained, default `active`). It does **not** spread `universal()` —
    `universal()`'s generic `status` is a plain nullable column with no default/notNull, so it
    cannot carry the lifecycle; this mirrors `submissions`.
-2. **`mandate_holder_charters`** — an accepted charter must precede any commitment. Inlines its
-   own lifecycle `status` (`pending` | `accepted` | `withdrawn`) for the same reason as
-   `mandate_holders`. `charter_doc` (jsonb) carries the charter terms. Enforcement is in
-   `representative/access.rego` (tested skeleton now; wired into the write route in Phase 2).
+2. **`mandate_holder_charters`** — starts `pending` and carries the charter
+   terms in `charter_doc`. Migration `0013_documenso_signing_v0.sql` adds the
+   version, accepted signing request, signed artifact, proof manifest, signing
+   time, and supersession link. The service changes the status to `accepted`
+   only after it stores the exact signed PDF and registers a proof over it.
 3. **`commitments`** — the promise object. References a `claim_id` whose `claimType` is an
    **existing** `CLAIM_TYPES` value (`proposal_assertion` for a pledge, or `public_statement`) —
    no new `CLAIM_TYPES` value is introduced (a dedicated `commitment` type, if ever wanted, is a
@@ -131,6 +132,31 @@ routes/types use `mandate-holder` / `mandate_holder`. This is **distinct from th
 `commitments` spreads `universal()`; `mandate_holders` and `mandate_holder_charters` inline their
 lifecycle `status`; `commitment_status_events` is append-only (no `universal()`). All use
 `pkId()`, `enumCheck()`, and targeted indexes.
+
+### Signature-backed charter gate
+
+1. A charter starts `pending`; commitment publication still requires
+   `accepted`.
+2. The active `verified_official` who owns the mandate-holder starts
+   `POST /api/v1/mandate-holders/:id/charter-signing-requests` with a citizen
+   session and `Idempotency-Key`.
+3. `document-signing-service` renders a deterministic unsigned PDF, stores it
+   as a restricted immutable artifact, and distributes a stub or Documenso
+   signing envelope.
+4. Webhooks wake reconciliation. The service uses provider GET as the source of
+   truth; a bounded poll also checks non-terminal requests.
+5. On provider completion, the service downloads, hashes, and stores the exact
+   signed PDF. It sends those same bytes to Paperless on a best-effort path.
+6. The service registers a public proof whose file hashes equal the signed
+   artifact hash. Only then does one transaction complete the signing request,
+   accept the charter, and append `completed` and `accepted` events.
+7. The accepted, signature-backed charter unlocks commitment publication.
+   Signed content remains restricted; its hash, proof, and lifecycle status
+   are public.
+
+Completion is idempotent: an existing idempotency key returns its request,
+terminal requests return unchanged, stored artifacts and proof IDs are reused,
+and the final transaction accepts a pending charter once.
 
 ## Follow-through mechanism
 
@@ -208,6 +234,8 @@ evidentiary value. This firewall is a load-bearing wall, not a preference.
 - **Terminology:** `mandate-holder` (table `mandate_holders`; routes/types use `mandate-holder` /
   `mandate_holder`). Distinct from `mandates` (legal basis).
 - **Scope:** any `verified_official` (not local-council only).
-- **Charter enforcement:** an accepted `mandate_holder_charters` row must precede any commitment
-  (publish-requires-charter). Phase 1 seeds it accepted; `representative/access.rego` ships as a
-  tested skeleton wired into the write route in Phase 2.
+- **Charter enforcement:** an accepted, signature-backed
+  `mandate_holder_charters` row must precede any commitment. Migration
+  `0013_documenso_signing_v0.sql` resets old accepted fixtures to `pending`;
+  acceptance records the signing request, exact signed artifact, public proof,
+  and signing time.

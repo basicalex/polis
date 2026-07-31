@@ -377,10 +377,29 @@ export function graphRoutes(db: DbClient): Route[] {
         if (!row) return notFound(params.id);
 
         const charterRows = await db
-          .select()
+          .select({
+            status: schema.mandateHolderCharters.status,
+            version: schema.mandateHolderCharters.version,
+            signedAt: schema.mandateHolderCharters.signedAt,
+            proofManifestId: schema.mandateHolderCharters.proofManifestId,
+            signedArtifactId: schema.mandateHolderCharters.signedArtifactId,
+          })
           .from(schema.mandateHolderCharters)
-          .where(eq(schema.mandateHolderCharters.mandateHolderId, params.id));
+          .where(eq(schema.mandateHolderCharters.mandateHolderId, params.id))
+          .orderBy(
+            desc(schema.mandateHolderCharters.version),
+            desc(schema.mandateHolderCharters.updatedAt),
+          )
+          .limit(1);
         const charter = charterRows[0] ?? null;
+        const artifactRows = charter?.signedArtifactId
+          ? await db
+              .select({ sha256: schema.documentArtifacts.sha256 })
+              .from(schema.documentArtifacts)
+              .where(eq(schema.documentArtifacts.id, charter.signedArtifactId))
+              .limit(1)
+          : [];
+        const signedArtifact = artifactRows[0] ?? null;
 
         const commitmentRows = await db
           .select()
@@ -412,6 +431,11 @@ export function graphRoutes(db: DbClient): Route[] {
         return {
           ...mandateHolderWire(row),
           charterAccepted: charter?.status === 'accepted',
+          charterStatus: charter?.status ?? null,
+          charterVersion: charter?.version ?? null,
+          charterSignedAt: charter?.signedAt?.toISOString() ?? null,
+          charterProofId: charter?.proofManifestId ?? null,
+          charterSignedDocumentHash: signedArtifact?.sha256 ?? null,
           commitments,
           answeredQuestionCount: await answeredQuestionCount(db, params.id),
         };

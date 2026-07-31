@@ -27,8 +27,9 @@ services:
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
-    ports:
-      - '8100:8100'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8100'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8100/healthz']
       interval: 10s
@@ -50,8 +51,9 @@ services:
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
-    ports:
-      - '8600:8600'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8600'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8600/healthz']
       interval: 10s
@@ -77,8 +79,9 @@ services:
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
       POLIS_MODE: stub
-    ports:
-      - '8200:8200'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8200'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8200/healthz']
       interval: 10s
@@ -102,8 +105,9 @@ services:
       PAPERLESS_MODE: ${PAPERLESS_MODE:-stub}
       PAPERLESS_BASE_URL: ${PAPERLESS_BASE_URL:-http://paperless:8000}
       PAPERLESS_API_TOKEN: ${PAPERLESS_API_TOKEN:-polis-paperless-dev-token}
-    ports:
-      - '8300:8300'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8300'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8300/healthz']
       interval: 10s
@@ -125,8 +129,9 @@ services:
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
-    ports:
-      - '8500:8500'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8500'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8500/healthz']
       interval: 10s
@@ -152,8 +157,9 @@ services:
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
       SIGNATURE_MODE: ${SIGNATURE_MODE:-stub}
-    ports:
-      - '8900:8900'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8900'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8900/healthz']
       interval: 10s
@@ -181,8 +187,9 @@ services:
       TIMESTAMP_MODE: ${TIMESTAMP_MODE:-stub}
       TSA_URL: ${TSA_URL:-http://tsa:3000/api/v1/timestamp}
       TSA_CERTCHAIN_URL: ${TSA_CERTCHAIN_URL:-http://tsa:3000/api/v1/timestamp/certchain}
-    ports:
-      - '8800:8800'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8800'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8800/healthz']
       interval: 10s
@@ -213,8 +220,9 @@ services:
       AUDIT_INTERNAL_URL: http://audit-service:8600
       SIGNATURE_INTERNAL_URL: http://signature-service:8900
       TIMESTAMP_INTERNAL_URL: http://timestamp-service:8800
-    ports:
-      - '8700:8700'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8700'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8700/healthz']
       interval: 10s
@@ -243,8 +251,9 @@ services:
       CANONICALIZATION_INTERNAL_URL: http://canonicalization-service:8500
       PROOF_INTERNAL_URL: http://proof-service:8700
       AUDIT_INTERNAL_URL: http://audit-service:8600
-    ports:
-      - '8400:8400'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8400'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8400/healthz']
       interval: 10s
@@ -270,8 +279,9 @@ services:
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
       REWARDS_INTERNAL_URL: http://rewards-service:8460
-    ports:
-      - '8450:8450'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8450'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8450/healthz']
       interval: 10s
@@ -296,8 +306,9 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
-    ports:
-      - '8460:8460'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8460'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8460/healthz']
       interval: 10s
@@ -329,8 +340,9 @@ services:
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-polis-web}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-polis-web-dev-secret}
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:4321/login/callback}
-    ports:
-      - '8650:8650'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8650'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8650/healthz']
       interval: 10s
@@ -357,8 +369,9 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
-    ports:
-      - '8750:8750'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8750'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8750/healthz']
       interval: 10s
@@ -383,10 +396,57 @@ services:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
       AUDIT_INTERNAL_URL: http://audit-service:8600
-    ports:
-      - '8950:8950'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8950'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8950/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - polis
+
+  document-signing-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: document-signing-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+      proof-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      PROOF_INTERNAL_URL: http://proof-service:8700
+      PAPERLESS_INTERNAL_URL: http://paperless-adapter:8300
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+      SIGNING_PROVIDER: ${SIGNING_PROVIDER:-stub}
+      ARTIFACT_STORE_MODE: ${ARTIFACT_STORE_MODE:-database}
+      DOCUMENSO_API_URL: ${DOCUMENSO_API_URL:-}
+      DOCUMENSO_API_TOKEN: ${DOCUMENSO_API_TOKEN:-}
+      DOCUMENSO_WEBHOOK_SECRET: ${DOCUMENSO_WEBHOOK_SECRET:-}
+      SIGNING_RECONCILE_INTERVAL_MS: ${SIGNING_RECONCILE_INTERVAL_MS:-30000}
+      # Only read when ARTIFACT_STORE_MODE=s3; the service fails fast if any is missing.
+      S3_ARTIFACT_ENDPOINT: ${S3_ARTIFACT_ENDPOINT:-}
+      S3_ARTIFACT_REGION: ${S3_ARTIFACT_REGION:-}
+      S3_ARTIFACT_BUCKET: ${S3_ARTIFACT_BUCKET:-}
+      S3_ARTIFACT_ACCESS_KEY_ID: ${S3_ARTIFACT_ACCESS_KEY_ID:-}
+      S3_ARTIFACT_SECRET_ACCESS_KEY: ${S3_ARTIFACT_SECRET_ACCESS_KEY:-}
+      S3_ARTIFACT_PATH_STYLE: ${S3_ARTIFACT_PATH_STYLE:-true}
+      S3_ARTIFACT_PREFIX: ${S3_ARTIFACT_PREFIX:-}
+      S3_ARTIFACT_SERVER_SIDE_ENCRYPTION: ${S3_ARTIFACT_SERVER_SIDE_ENCRYPTION:-}
+    expose:
+      - '8960'
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:8960/healthz']
       interval: 10s
       timeout: 3s
       retries: 10
@@ -421,6 +481,8 @@ services:
         condition: service_healthy
       vc-issuer-service:
         condition: service_healthy
+      document-signing-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://polis:polis@postgres:5432/polis
       NODE_ENV: production
@@ -435,6 +497,8 @@ services:
       IDENTITY_INTERNAL_URL: http://citizen-identity-service:8650
       VAULT_INTERNAL_URL: http://citizen-vault-service:8750
       VC_ISSUER_INTERNAL_URL: http://vc-issuer-service:8950
+      SIGNING_INTERNAL_URL: http://document-signing-service:8960
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
       BUILD_TIME: ${BUILD_TIME:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/basicalex/polis}
     ports:
@@ -468,8 +532,9 @@ services:
       AI_PROVIDER_BASE_URL: ${AI_PROVIDER_BASE_URL:-}
       AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
       AI_PROVIDER_MODEL: ${AI_PROVIDER_MODEL:-stub}
-    ports:
-      - '8550:8550'
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-polis-internal-dev-token}
+    expose:
+      - '8550'
     healthcheck:
       test: ['CMD', 'curl', '-sf', 'http://localhost:8550/healthz']
       interval: 10s
@@ -601,6 +666,118 @@ services:
       - '3002:3000'
     networks:
       - polis
+
+  governance-graph-api-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8100,fork,reuseaddr', 'tcp-connect:governance-graph-api:8100']
+    ports: ['8100:8100']
+    networks: [polis]
+
+  audit-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8600,fork,reuseaddr', 'tcp-connect:audit-service:8600']
+    ports: ['8600:8600']
+    networks: [polis]
+
+  polis-bridge-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8200,fork,reuseaddr', 'tcp-connect:polis-bridge-service:8200']
+    ports: ['8200:8200']
+    networks: [polis]
+
+  paperless-adapter-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8300,fork,reuseaddr', 'tcp-connect:paperless-adapter:8300']
+    ports: ['8300:8300']
+    networks: [polis]
+
+  canonicalization-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8500,fork,reuseaddr', 'tcp-connect:canonicalization-service:8500']
+    ports: ['8500:8500']
+    networks: [polis]
+
+  signature-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8900,fork,reuseaddr', 'tcp-connect:signature-service:8900']
+    ports: ['8900:8900']
+    networks: [polis]
+
+  timestamp-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8800,fork,reuseaddr', 'tcp-connect:timestamp-service:8800']
+    ports: ['8800:8800']
+    networks: [polis]
+
+  proof-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8700,fork,reuseaddr', 'tcp-connect:proof-service:8700']
+    ports: ['8700:8700']
+    networks: [polis]
+
+  document-ingestion-gateway-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8400,fork,reuseaddr', 'tcp-connect:document-ingestion-gateway:8400']
+    ports: ['8400:8400']
+    networks: [polis]
+
+  contribution-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8450,fork,reuseaddr', 'tcp-connect:contribution-service:8450']
+    ports: ['8450:8450']
+    networks: [polis]
+
+  rewards-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8460,fork,reuseaddr', 'tcp-connect:rewards-service:8460']
+    ports: ['8460:8460']
+    networks: [polis]
+
+  citizen-identity-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8650,fork,reuseaddr', 'tcp-connect:citizen-identity-service:8650']
+    ports: ['8650:8650']
+    networks: [polis]
+
+  citizen-vault-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8750,fork,reuseaddr', 'tcp-connect:citizen-vault-service:8750']
+    ports: ['8750:8750']
+    networks: [polis]
+
+  vc-issuer-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8950,fork,reuseaddr', 'tcp-connect:vc-issuer-service:8950']
+    ports: ['8950:8950']
+    networks: [polis]
+
+  ai-gateway-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8550,fork,reuseaddr', 'tcp-connect:ai-gateway:8550']
+    ports: ['8550:8550']
+    networks: [polis]
+
+  document-signing-service-debug:
+    image: alpine/socat:1.8.0.3
+    profiles: [debug]
+    command: ['tcp-listen:8960,fork,reuseaddr', 'tcp-connect:document-signing-service:8960']
+    ports: ['8960:8960']
+    networks: [polis]
 
 networks:
   polis:

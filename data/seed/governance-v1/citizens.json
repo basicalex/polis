@@ -4,5 +4,11 @@
     "email": "mandate-holder-demo@polis.local",
     "display_name": "Ana Demo",
     "identity_level": "verified_official"
+  },
+  {
+    "id": "reviewer-demo",
+    "email": "reviewer-demo@polis.local",
+    "display_name": "Staff Reviewer",
+    "identity_level": "staff"
   }
 ]

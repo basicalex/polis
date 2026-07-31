@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 2 (M2) acceptance: exercises the §13 + §30.3 Polis deliberation contract
 // end-to-end against a running stack (polis-bridge-service :8200, audit-service
 // :8600, platform-api BFF :8080, seeded Postgres). Creates a conversation via the
@@ -18,13 +20,13 @@ function check(label, cond, detail = '') {
   }
 }
 async function get(base, path) {
-  const r = await fetch(base + path);
+  const r = await fetch(base + path, { headers: withInternalHeaders(path) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 async function post(base, path, body) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };

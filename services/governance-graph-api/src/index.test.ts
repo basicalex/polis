@@ -37,6 +37,7 @@ const queuedDb = (selectRows: unknown[][]) => {
   const selectChain = (rows: unknown[]) => {
     const chain = {
       from: () => chain,
+      innerJoin: () => chain,
       where: () => chain,
       orderBy: () => chain,
       limit: () => chain,
@@ -248,4 +249,67 @@ test('public commitment resolution keeps restricted evidence identity but redact
   assert.equal('ranking' in out, false);
   assert.equal('grade' in resolution, false);
   assert.equal('ranking' in resolution, false);
+});
+
+test('mandate-holder detail returns only safe evidence from the latest signed charter', async () => {
+  const holder = {
+    id: 'holder-1',
+    citizenId: 'citizen-1',
+    roleId: 'role-1',
+    jurisdictionId: 'jurisdiction-1',
+    displayName: 'Official One',
+    startsAt: new Date('2026-01-01T00:00:00Z'),
+    endsAt: null,
+    status: 'active',
+  };
+  const route = graphRoutes(
+    queuedDb([
+      [holder],
+      [
+        {
+          id: 'charter-v2',
+          status: 'accepted',
+          version: 2,
+          signedAt: new Date('2026-02-03T04:05:06Z'),
+          proofManifestId: 'proof-2',
+          signedArtifactId: 'artifact-2',
+          providerEnvelopeId: 'must-not-leak',
+          recipients: ['must-not-leak@example.test'],
+        },
+      ],
+      [
+        {
+          sha256: 'signed-document-hash',
+          storageRef: 'must-not-leak',
+          content: new Uint8Array([1, 2, 3]),
+        },
+      ],
+      [],
+      [{ n: 0 }],
+    ]) as never,
+  ).find((r) => r.method === 'GET' && r.path === '/api/v1/mandate-holders/:id');
+  assert.ok(route);
+
+  const out = asRecord(
+    await route.handler(requestUrl('/api/v1/mandate-holders/holder-1'), {}, { id: 'holder-1' }),
+  );
+  assert.equal(out.charterAccepted, true);
+  assert.equal(out.charterStatus, 'accepted');
+  assert.equal(out.charterVersion, 2);
+  assert.equal(out.charterSignedAt, '2026-02-03T04:05:06.000Z');
+  assert.equal(out.charterProofId, 'proof-2');
+  assert.equal(out.charterSignedDocumentHash, 'signed-document-hash');
+  for (const restricted of [
+    'providerEnvelopeId',
+    'recipients',
+    'storageRef',
+    'content',
+    'charterDoc',
+    'signedArtifactId',
+  ]) {
+    assert.equal(restricted in out, false, `${restricted} must not be public`);
+  }
+  const serialized = JSON.stringify(out);
+  assert.equal(serialized.includes('must-not-leak'), false);
+  assert.equal(serialized.includes('must-not-leak@example.test'), false);
 });

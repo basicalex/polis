@@ -1,8 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
 import { createHash } from 'node:crypto';
+import { startService } from '@polis/service-runtime';
 import { signatureRoutes } from './index.js';
 import { StubSignerClient, DssSignerClient, createSignerClient } from './signer-client.js';
+
+async function withSignatureServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
+  const previousToken = process.env.INTERNAL_API_TOKEN;
+  process.env.INTERNAL_API_TOKEN = 'signature-test-token';
+  const server = startService('signature-service', 0, signatureRoutes({} as never, {} as never));
+  try {
+    await once(server, 'listening');
+    const address = server.address() as AddressInfo;
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+    if (previousToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = previousToken;
+  }
+}
 
 test('signature-service exposes §9.13 signature routes', () => {
   const paths = signatureRoutes({} as never, {} as never).map((r) => `${r.method} ${r.path}`);
@@ -15,6 +35,17 @@ test('signature-service exposes §9.13 signature routes', () => {
     assert.ok(paths.includes(p), `missing ${p}`);
   }
 });
+test('signature-service rejects unauthenticated internal HTTP access', async () => {
+  await withSignatureServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/internal/signatures/proof-1`);
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), {
+      error: 'internal_auth_required',
+      service: 'signature-service',
+    });
+  });
+});
+
 
 // ── createSignerClient mode resolution ────────────────────────────────────
 // Env is saved/restored around every case so the suite is order-independent.

@@ -9,10 +9,12 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
   <h1>Contribution review queue</h1>
   <p class="muted">
     Pending submissions awaiting a reviewer decision (spec §19). Admin is
-    static-hosted, so the queue is fetched live in the browser. Approve/reject
-    decisions are exercised end-to-end by
+    static-hosted, so the queue is fetched live in the browser. The queue and
+    every decision need a staff session; the signed-in reviewer is recorded
+    server-side. Approve/reject decisions are exercised end-to-end by
     <code>scripts/phase6-acceptance.mjs</code>.
   </p>
+  <p id="review-msg" class="trust-note" style="display:none"></p>
   <table class="data-table">
     <thead>
       <tr>
@@ -30,10 +32,29 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
   </section>
 
   <script is:inline define:vars={{ API }}>
+    const raw = sessionStorage.getItem('admin_session');
+    let session = null;
+    try { session = raw ? JSON.parse(raw) : null; } catch { session = null; }
+    if (!session || !session.token) location.href = '/login';
+
+    function authHeader() {
+      return { 'content-type': 'application/json', authorization: 'Bearer ' + session.token };
+    }
+    function showMessage(text) {
+      const box = document.getElementById('review-msg');
+      box.textContent = text;
+      box.style.display = text ? 'block' : 'none';
+    }
     async function loadQueue() {
       const tbody = document.getElementById('queue');
       try {
-        const r = await fetch(API + '/api/v1/review/queue');
+        const r = await fetch(API + '/api/v1/review/queue', { headers: authHeader() });
+        if (r.status === 401 || r.status === 403) {
+          showMessage('Staff session required. Sign in with a staff account to review submissions.');
+          tbody.innerHTML = '<tr><td colspan="7">Queue hidden.</td></tr>';
+          return;
+        }
+        showMessage('');
         const data = r.ok ? await r.json() : { items: [] };
         const items = data.items ?? [];
         if (items.length === 0) {
@@ -76,19 +97,29 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
       }
     }
     async function decide(id, decision) {
-      await fetch(API + '/api/v1/review/' + id + '/decide', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          reviewerId: 'reviewer-demo',
-          reviewerRole: 'reviewer',
-          decision: decision,
-          notes: '',
-        }),
-      });
+      try {
+        const r = await fetch(API + '/api/v1/review/' + id + '/decide', {
+          method: 'POST',
+          headers: authHeader(),
+          body: JSON.stringify({ decision: decision, notes: '' }),
+        });
+        if (r.status === 401 || r.status === 403) {
+          showMessage('Staff session required. This decision was not recorded.');
+          return;
+        }
+        if (!r.ok) {
+          const b = await r.json().catch(() => null);
+          showMessage('Decision failed: ' + ((b && b.error) || r.status));
+          return;
+        }
+        showMessage('');
+      } catch (err) {
+        showMessage('Decision failed: ' + String(err));
+        return;
+      }
       loadQueue();
     }
     window.decide = decide;
-    loadQueue();
+    if (session && session.token) loadQueue();
   </script>
 </Base>

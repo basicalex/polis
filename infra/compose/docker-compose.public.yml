@@ -12,8 +12,11 @@
 #   longer surfaced. Defense-in-depth: even if an operator forgets this, the
 #   BFF dev-tokens proxy route is 405 under PUBLIC_EDGE=true.
 #
-# Base docker-compose.yml is intentionally unchanged: dev-services and
-# scripts/phase8-acceptance.mjs (lines 63-76) rely on dev-tokens → 200.
+# - Documenso webhook ingress terminates at the platform-api BFF only. Never
+#   publish document-signing-service or route webhooks to it directly.
+#
+# Base docker-compose.yml keeps dev identity tokens enabled; this override
+# hardens the public edge.
 services:
   platform-api:
     environment:

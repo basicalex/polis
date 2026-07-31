@@ -1,3 +1,5 @@
+import { loginCitizen } from './dev-login.mjs';
+
 // M-RA Phase 3 acceptance: commitment-scoped Q&A + scorecard deep-links.
 // Exercises the Phase 3 critical path end-to-end against a running stack
 // (platform-api BFF :8080 + citizen-identity-service :8650 + contribution-service
@@ -40,44 +42,35 @@ async function post(base, path, body, headers = {}) {
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 
-// magic-link → dev-token → exchange. Returns { auth, citizen } or { error }.
-// Requires IDENTITY_DEV_TOKENS=true on identity-service.
-async function citizenLogin(email) {
-  const ml = await post(BFF, '/api/v1/identity/magic-link', { email });
-  if (ml.status !== 200) return { error: `magic-link ${ml.status}` };
-  const dt = await get(BFF, '/api/v1/identity/dev-tokens');
-  const token = dt.body?.tokens?.[email];
-  if (typeof token !== 'string') return { error: 'no dev token' };
-  const ex = await post(BFF, '/api/v1/identity/exchange', { email, token });
-  if (ex.status !== 200) return { error: `exchange ${ex.status}` };
-  return {
-    auth: { authorization: 'Bearer ' + ex.body.sessionToken },
-    citizen: ex.body.citizen,
-  };
-}
 
 console.log('[phase-mra3] checking M-RA Phase 3 commitment-scoped Q&A + scorecard deep-links…');
 
 // ─── 1-2. Logins ───
 const MH_EMAIL = 'mandate-holder-demo@polis.local';
-const mhLogin = await citizenLogin(MH_EMAIL);
+const mhLogin = await loginCitizen(BFF, MH_EMAIL);
 check('mandate-holder magic-link + exchange → 200', !mhLogin.error, mhLogin.error ?? '');
 check(
   'mandate-holder identityLevel === verified_official',
   mhLogin.citizen?.identityLevel === 'verified_official',
   `level=${mhLogin.citizen?.identityLevel ?? mhLogin.error}`,
 );
-const mhAuth = mhLogin.auth;
+const mhAuth = { authorization: 'Bearer ' + mhLogin.sessionToken };
 
 const residentEmail = 'ra-' + Date.now() + '@test.local';
-const resLogin = await citizenLogin(residentEmail);
+const resLogin = await loginCitizen(BFF, residentEmail);
 check('resident magic-link + exchange → 200', !resLogin.error, resLogin.error ?? '');
 check(
   'resident identityLevel === verified_resident',
   resLogin.citizen?.identityLevel === 'verified_resident',
   `level=${resLogin.citizen?.identityLevel ?? resLogin.error}`,
 );
-const residentAuth = resLogin.auth;
+const residentAuth = { authorization: 'Bearer ' + resLogin.sessionToken };
+const reviewerLogin = await loginCitizen(BFF, 'reviewer-demo@polis.local');
+check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error ?? '');
+check('reviewer identityLevel === staff', reviewerLogin.citizen?.identityLevel === 'staff');
+const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
+const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
+check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
 
 // ─── 3. Citizen ask on c-mh-2 ───
 const ask = await post(
@@ -127,11 +120,12 @@ check(
 const sub = answer.body?.id;
 
 // ─── 7. Admin approve answer ───
-const approve = await post(BFF, '/api/v1/review/' + sub + '/decide', {
-  reviewerRole: 'reviewer',
-  reviewerId: 'reviewer-demo',
-  decision: 'approve',
-});
+const approve = await post(
+  BFF,
+  '/api/v1/review/' + sub + '/decide',
+  { decision: 'approve', notes: 'M-RA3 answer approval' },
+  reviewerAuth,
+);
 check('POST /review/:id/decide → 201', approve.status === 201, `status=${approve.status}`);
 check('answer applied === true', approve.body?.applied === true, `applied=${approve.body?.applied}`);
 

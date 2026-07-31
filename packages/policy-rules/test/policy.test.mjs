@@ -332,7 +332,18 @@ test('representative access allows only verified active accepted in-scope offici
   const allowed = {
     identity_level: 'verified_official',
     mandate_holder: { status: 'active', scope: 'health' },
-    charter: { status: 'accepted' },
+    charter: {
+      status: 'accepted',
+      accepted_signing_request_id: 'request-1',
+      signed_artifact_id: 'artifact-1',
+      proof_manifest_id: 'proof-1',
+    },
+    signing_request: {
+      id: 'request-1',
+      status: 'completed',
+      signed_artifact_id: 'artifact-1',
+      proof_manifest_id: 'proof-1',
+    },
     requested_scope: 'health',
   };
   assert.equal(opaEval('representative/access.rego', allowed, query), true);
@@ -354,6 +365,7 @@ test('representative access allows only verified active accepted in-scope offici
     { ...allowed, mandate_holder: { status: 'active', scope: 'health', ended_at: '2026-01-01T00:00:00.000Z' } },
     { ...allowed, charter: { status: 'pending' } },
     { ...allowed, charter: undefined },
+    { ...allowed, charter: { status: 'accepted' } },
     { ...allowed, requested_scope: 'transport' },
   ]) {
     assert.equal(opaEval('representative/access.rego', input, query), false);
@@ -367,10 +379,19 @@ test('representative access enforces charter jurisdiction and process coverage (
     mandate_holder: { status: 'active', scope: 'all' },
     charter: {
       status: 'accepted',
+      accepted_signing_request_id: 'request-1',
+      signed_artifact_id: 'artifact-1',
+      proof_manifest_id: 'proof-1',
       scope: {
         jurisdictions: ['jurisdiction-covered'],
         processes: ['process-covered'],
       },
+    },
+    signing_request: {
+      id: 'request-1',
+      status: 'completed',
+      signed_artifact_id: 'artifact-1',
+      proof_manifest_id: 'proof-1',
     },
     commitment: {
       jurisdiction: 'jurisdiction-covered',
@@ -397,7 +418,13 @@ test('representative access enforces charter jurisdiction and process coverage (
   assert.equal(
     opaEval(
       'representative/access.rego',
-      { ...allowed, charter: { status: 'accepted', scope: { jurisdictions: ['all'], processes: ['all'] } } },
+      {
+        ...allowed,
+        charter: {
+          ...allowed.charter,
+          scope: { jurisdictions: ['all'], processes: ['all'] },
+        },
+      },
       query,
     ),
     true,

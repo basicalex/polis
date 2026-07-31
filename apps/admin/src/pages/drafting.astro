@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const WEB = import.meta.env.PUBLIC_WEB_URL ?? 'http://localhost:4321';
 ---
 <Base title="Reviewer Admin — Official drafting">
 <section class="panel stack">
@@ -16,7 +17,10 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
   <p class="muted">
     Commitments and resolutions are <strong>accountability, not endorsement</strong>: public-read,
     verifiable records connected to <a href="/audit">/audit</a>, <a href="/proofs">/proofs</a>, and
-    <a href="/verify">/verify</a>. Reviewers set any terminal outcome; callers never set it.
+    <a href="/verify">/verify</a>. You propose an outcome; review decides whether it publishes.
+  </p>
+  <p class="muted">
+    Filing needs a signed charter. Sign the charter first, then the forms below open.
   </p>
   <div id="gate" style="display:none">
     <p id="gate-msg" class="panel"></p>
@@ -28,12 +32,47 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     <p class="muted">Filed-but-pending submissions appear in the <a href="/review">review queue</a>.</p>
   </div>
 </section>
-<script is:inline define:vars={{ API }}>
+<script is:inline define:vars={{ API, WEB }}>
 function authHeader(session) { return { 'content-type': 'application/json', authorization: 'Bearer ' + session.token }; }
 function el(html) { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 }
+const SIGNING_STATE_TEXT = {
+  created: 'Signing request created.',
+  distributed: 'Charter sent for signature.',
+  awaiting_signatures: 'Waiting for your signature.',
+  completed: 'Signed. Polis is storing the document and registering the proof.',
+  declined: 'Signing declined. Start a new request to try again.',
+  expired: 'Signing request expired. Start a new request.',
+  voided: 'Signing request cancelled. Start a new request.',
+  failed: 'Signing failed. Start a new request.',
+};
+const SIGNING_IN_FLIGHT = { created: true, distributed: true, awaiting_signatures: true, completed: true };
+
+function shortHash(value) {
+  const hash = String(value ?? '');
+  return hash.length > 20 ? hash.slice(0, 12) + '…' + hash.slice(-6) : hash;
+}
+
+function hashBlock(hash) {
+  return '<code class="hash-value" title="' + esc(hash) + '">' + esc(shortHash(hash)) + '</code>' +
+    '<details><summary class="muted">full hash</summary><p class="hash-value">' + esc(hash) + '</p></details>';
+}
+
+function charterScopeText(detail) {
+  const doc = detail && typeof detail.charterDoc === 'object' ? detail.charterDoc : null;
+  const scope = doc && typeof doc.scope === 'object' ? doc.scope : null;
+  if (scope) {
+    const jurisdictions = Array.isArray(scope.jurisdictions) ? scope.jurisdictions.join(', ') : '';
+    const processes = Array.isArray(scope.processes) ? scope.processes.join(', ') : '';
+    if (jurisdictions || processes) {
+      return 'jurisdictions: ' + (jurisdictions || 'none') + ' · processes: ' + (processes || 'none');
+    }
+  }
+  return 'jurisdiction ' + (detail && detail.jurisdictionId ? detail.jurisdictionId : 'not recorded');
+}
+
 function compactBody(entries) {
   const body = {};
   for (const [key, value] of Object.entries(entries)) {
@@ -72,6 +111,9 @@ async function loadDrafting(session) {
     const card = el('<section class="card stack"></section>');
     card.innerHTML = '<h2>' + esc(mh.displayName) + ' <span class="badge">' + esc(mh.status) + '</span></h2>' +
       '<p class="muted">Demonstration official drafting: public-read, verifiable accountability records only after review.</p>' +
+      '<section class="panel stack charter-panel"><p class="muted">Loading charter…</p></section>' +
+      '<div class="charter-gated stack">' +
+      '<p class="trust-note gate-note">Filing is closed until this charter is signed and accepted.</p>' +
       '<h3>File a commitment</h3>' +
       '<form class="stack" data-commitment data-mh="' + esc(mh.id) + '">' +
         '<label>Commitment type <select name="sourceType"><option value="text">Typed text commitment</option><option value="claim">Existing claim</option></select></label>' +
@@ -87,11 +129,13 @@ async function loadDrafting(session) {
         '<p class="muted form-msg"></p>' +
       '</form>' +
       '<h3>Commitment resolutions</h3>' +
-      '<p class="muted">File resolution claims for official commitments. Review sets any outcome; the caller only submits the resolution claim.</p>' +
+      '<p class="muted">Propose an outcome and the claim that backs it. Review decides whether it publishes.</p>' +
       '<div class="commitment-resolutions"></div>' +
       '<h3>Unanswered questions</h3>' +
-      '<div class="pending-questions">Loading…</div>';
+      '<div class="pending-questions">Loading…</div>' +
+      '</div>';
     root.appendChild(card);
+    applyCharterGate(card, false);
 
     card.querySelector('[data-commitment]').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -123,8 +167,133 @@ async function loadDrafting(session) {
     });
 
     renderResolutionForms(card.querySelector('.commitment-resolutions'), commitments, session);
-    loadPendingQuestions(card.querySelector('.pending-questions'), commitments, session);
+    await loadPendingQuestions(card.querySelector('.pending-questions'), commitments, session);
+    await refreshCharter(card, mh.id, session, detail);
   }
+}
+
+function applyCharterGate(card, accepted) {
+  const gated = card.querySelector('.charter-gated');
+  for (const control of gated.querySelectorAll('input, textarea, select, button')) control.disabled = !accepted;
+  gated.querySelector('.gate-note').style.display = accepted ? 'none' : 'block';
+}
+
+/** Reload the charter projection + latest signing request, then repaint the panel. */
+async function refreshCharter(card, mandateHolderId, session, preloadedDetail) {
+  const panel = card.querySelector('.charter-panel');
+  let detail = preloadedDetail;
+  if (!detail) {
+    const r = await fetch(API + '/api/v1/mandate-holders/' + mandateHolderId);
+    detail = r.ok ? await r.json() : {};
+  }
+  let signing = null;
+  const sr = await fetch(API + '/api/v1/mandate-holders/' + mandateHolderId + '/charter-signing-status', {
+    headers: authHeader(session),
+  });
+  if (sr.status === 401) { location.href = '/login'; return; }
+  if (sr.ok) signing = await sr.json();
+  renderCharterPanel(panel, card, mandateHolderId, session, detail, signing);
+  applyCharterGate(card, detail.charterStatus === 'accepted');
+}
+
+function renderCharterPanel(panel, card, mandateHolderId, session, detail, signing) {
+  const status = detail.charterStatus || 'none';
+  const accepted = status === 'accepted';
+  const inFlight = signing && SIGNING_IN_FLIGHT[signing.status] === true;
+  const tone = accepted ? 'valid' : status === 'none' ? 'unknown' : 'warning';
+  let html = '<h3>Charter</h3>' +
+    '<p><span class="trust-badge" data-tone="' + tone + '">charter ' + esc(status) + '</span>' +
+    (detail.charterVersion ? ' <span class="badge">version ' + esc(detail.charterVersion) + '</span>' : '') + '</p>' +
+    '<p class="muted">Scope on file — ' + esc(charterScopeText(detail)) + '</p>';
+
+  if (status === 'none') {
+    html += '<p class="trust-note">No charter on file for this mandate. An administrator files one before you can sign.</p>';
+  } else if (accepted) {
+    html += '<dl class="kv">' +
+      '<dt>Signed</dt><dd>' + esc(detail.charterSignedAt || 'not recorded') + '</dd>' +
+      '<dt>Signed document hash</dt><dd>' + (detail.charterSignedDocumentHash ? hashBlock(detail.charterSignedDocumentHash) : 'not recorded') + '</dd>' +
+      '</dl>' +
+      (detail.charterProofId
+        ? '<p><a href="' + esc(WEB) + '/proofs/' + encodeURIComponent(detail.charterProofId) + '">public proof for the signed charter →</a></p>'
+        : '<p class="muted">No public proof registered yet.</p>') +
+      '<p class="muted">Next: file commitments, resolutions, and answers below.</p>';
+  } else if (inFlight) {
+    html += '<p>' + esc(SIGNING_STATE_TEXT[signing.status] || signing.status) + '</p>' +
+      '<p class="muted">Signing state: <code>' + esc(signing.status) + '</code></p>' +
+      '<p><button type="button" data-charter-refresh>Refresh signing status</button>' +
+      (signing.provider === 'stub'
+        ? ' <button type="button" data-charter-stub>Complete signing (local stub)</button>'
+        : '') + '</p>' +
+      (signing.provider === 'stub'
+        ? '<p class="trust-note trust-note--compact">Test only: the local stub provider signs on your behalf. A real provider never offers this.</p>'
+        : '');
+  } else {
+    html += (signing ? '<p>' + esc(SIGNING_STATE_TEXT[signing.status] || signing.status) + '</p>' : '') +
+      '<p class="muted">Next: start the signing ceremony. Polis stores the signed PDF and registers a proof over its bytes before the charter is accepted.</p>' +
+      '<p><button type="button" data-charter-initiate>Initiate charter signing</button></p>';
+  }
+  html += '<p class="muted charter-msg"></p>';
+  panel.innerHTML = html;
+
+  const msg = panel.querySelector('.charter-msg');
+  const initiate = panel.querySelector('[data-charter-initiate]');
+  if (initiate) {
+    initiate.addEventListener('click', async () => {
+      initiate.disabled = true;
+      msg.textContent = 'Starting signing…';
+      try {
+        const r = await fetch(API + '/api/v1/mandate-holders/' + mandateHolderId + '/charter-signing-requests', {
+          method: 'POST',
+          headers: Object.assign({ 'idempotency-key': crypto.randomUUID() }, authHeader(session)),
+        });
+        if (r.status === 401) { location.href = '/login'; return; }
+        const b = await r.json().catch(() => null);
+        if (!r.ok) { msg.textContent = (b && b.error) || 'signing request failed'; initiate.disabled = false; return; }
+        await pollCharter(card, mandateHolderId, session);
+      } catch (err) {
+        msg.textContent = String(err);
+        initiate.disabled = false;
+      }
+    });
+  }
+  const stub = panel.querySelector('[data-charter-stub]');
+  if (stub && signing) {
+    stub.addEventListener('click', async () => {
+      stub.disabled = true;
+      msg.textContent = 'Completing the stub signature…';
+      try {
+        const r = await fetch(API + '/api/v1/signing-requests/' + signing.id + '/stub-complete', {
+          method: 'POST',
+          headers: authHeader(session),
+        });
+        if (r.status === 401) { location.href = '/login'; return; }
+        const b = await r.json().catch(() => null);
+        if (!r.ok) { msg.textContent = (b && b.error) || 'stub completion failed'; stub.disabled = false; return; }
+        await pollCharter(card, mandateHolderId, session);
+      } catch (err) {
+        msg.textContent = String(err);
+        stub.disabled = false;
+      }
+    });
+  }
+  const refresh = panel.querySelector('[data-charter-refresh]');
+  if (refresh) {
+    refresh.addEventListener('click', async () => {
+      refresh.disabled = true;
+      await refreshCharter(card, mandateHolderId, session, null);
+    });
+  }
+}
+
+/** Reconciliation is asynchronous, so re-read the charter a few times before giving up. */
+async function pollCharter(card, mandateHolderId, session) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await refreshCharter(card, mandateHolderId, session, null);
+    const badge = card.querySelector('.charter-panel .trust-badge');
+    if (badge && badge.textContent.trim() === 'charter accepted') return;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  await refreshCharter(card, mandateHolderId, session, null);
 }
 
 function renderResolutionForms(container, commitments, session) {
@@ -138,9 +307,15 @@ function renderResolutionForms(container, commitments, session) {
     item.innerHTML =
       '<p class="muted">Commitment: ' + esc(commitment.successCriterion || commitment.text || commitment.claimId || commitment.id) + '</p>' +
       '<form class="stack" data-resolution data-commitment="' + esc(commitment.id) + '">' +
-        '<label>Resolution claim <textarea name="claim" rows="2" style="width:100%" placeholder="Evidence-backed resolution claim"></textarea></label>' +
+        '<label>Outcome <select name="status">' +
+          '<option value="">Select an outcome…</option>' +
+          '<option value="delivered">delivered</option>' +
+          '<option value="partial">partial</option>' +
+          '<option value="not_delivered">not_delivered</option>' +
+        '</select></label>' +
+        '<label>Resolution claim <textarea name="text" rows="2" style="width:100%" placeholder="Evidence-backed resolution claim"></textarea></label>' +
         '<button type="submit">File resolution</button>' +
-        '<p class="muted">Reviewers set outcomes; this form posts only the resolution claim.</p>' +
+        '<p class="muted">Review adjudicates the outcome you propose before it publishes.</p>' +
         '<p class="muted form-msg"></p>' +
       '</form>';
     container.appendChild(item);
@@ -148,11 +323,12 @@ function renderResolutionForms(container, commitments, session) {
       e.preventDefault();
       const f = e.currentTarget;
       const msg = f.querySelector('.form-msg');
-      const body = compactBody({ claim: f.claim.value });
-      if (!body.claim) { msg.textContent = 'Resolution claim required.'; return; }
+      const payload = compactBody({ status: f.elements.status.value, text: f.elements.text.value });
+      if (!payload.status) { msg.textContent = 'Select an outcome.'; return; }
+      if (!payload.text) { msg.textContent = 'Resolution claim required.'; return; }
       try {
         const r = await fetch(API + '/api/v1/commitments/' + f.dataset.commitment + '/resolutions', {
-          method: 'POST', headers: authHeader(session), body: JSON.stringify(body),
+          method: 'POST', headers: authHeader(session), body: JSON.stringify(payload),
         });
         const b = await r.json();
         if (r.status === 401) { location.href = '/login'; return; }

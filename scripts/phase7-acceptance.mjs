@@ -1,3 +1,6 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+import { loginCitizen } from './dev-login.mjs';
+
 // Phase 7 (M7) acceptance: exercises the §30.8 civic-rewards prototype
 // end-to-end against a running stack (rewards-service :8460, contribution-service
 // :8450, platform-api BFF :8080, seeded Postgres).
@@ -27,14 +30,14 @@ function check(label, cond, detail = '') {
     console.log(`  ok  ${label}`);
   }
 }
-async function get(base, path) {
-  const r = await fetch(base + path);
+async function get(base, path, headers = {}) {
+  const r = await fetch(base + path, { headers: withInternalHeaders(path, headers) });
   return { status: r.status, body: r.ok ? await r.json() : null, text: r.ok ? '' : '' };
 }
-async function post(base, path, body) {
+async function post(base, path, body, headers = {}) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };
@@ -58,16 +61,23 @@ async function submitAndApproveCivic(opts) {
   if (sub.status !== 201) return null;
   const id = sub.body.id;
   const cid = sub.body.contributorId;
-  const decide = await post(CONTRIB, '/internal/review/' + id + '/decide', {
-    reviewerRole: 'reviewer',
-    reviewerId: 'rev-m7',
-    decision: 'approve',
-  });
+  const decide = await post(
+    BFF,
+    '/api/v1/review/' + id + '/decide',
+    { decision: 'approve', notes: 'Phase 7 civic reward approval' },
+    reviewerAuth,
+  );
   if (decide.status !== 201) return null;
   return { submissionId: id, contributorId: cid, approved: decide.body };
 }
 
 console.log('[phase7] checking §30.8 civic-rewards prototype…');
+const reviewerLogin = await loginCitizen(BFF, 'reviewer-demo@polis.local');
+check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error ?? '');
+check('reviewer identityLevel is staff', reviewerLogin.citizen?.identityLevel === 'staff');
+const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
+const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
+check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
 
 // 6. Reward rules (read first so the cap loop tracks the configured cap).
 const rules = await get(BFF, '/api/v1/rewards/rules');
@@ -201,11 +211,12 @@ check(
   `status=${polSub.status}`,
 );
 const polDecide = polId
-  ? await post(CONTRIB, '/internal/review/' + polId + '/decide', {
-      reviewerRole: 'reviewer',
-      reviewerId: 'rev-m7',
-      decision: 'approve',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + polId + '/decide',
+      { decision: 'approve', notes: 'Phase 7 political agreement review' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check(
   'political approve → 201 (held, applied false)',

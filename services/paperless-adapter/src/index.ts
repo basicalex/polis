@@ -7,6 +7,7 @@
  * adapter share one contract.
  */
 import {
+  binaryResult,
   operationalRoutes,
   result,
   startService,
@@ -23,14 +24,26 @@ import {
 /** Stable 404 contract for detail endpoints. */
 const notFound = (id: string): HttpResult => result(404, { error: 'not_found', id });
 
+const DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
 /** Build the §23.9 route table bound to a Paperless adapter. */
 export function paperlessRoutes(client: PaperlessClient): Route[] {
+  const configuredMax = Number(
+    process.env.DOCUMENT_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_UPLOAD_BYTES,
+  );
+  const maxUploadBytes =
+    Number.isSafeInteger(configuredMax) && configuredMax > 0
+      ? configuredMax
+      : DEFAULT_MAX_UPLOAD_BYTES;
+  const maxBodyBytes = Math.ceil(maxUploadBytes / 3) * 4 + 16 * 1024;
+
   return [
     ...operationalRoutes('paperless-adapter'),
 
     {
       method: 'POST',
       path: '/internal/paperless/consume',
+      maxBodyBytes,
       handler: async (_req, body) => {
         const input = body as {
           contentBase64?: string;
@@ -74,9 +87,9 @@ export function paperlessRoutes(client: PaperlessClient): Route[] {
       method: 'GET',
       path: '/internal/paperless/documents/:id/archive',
       handler: async (_req, _body, params) => {
-        const doc = await client.fetchDocument(params.id);
-        if (!doc) return notFound(params.id);
-        return { documentId: params.id, archiveRef: doc.archiveRef };
+        const archive = await client.fetchArchive(params.id);
+        if (!archive) return notFound(params.id);
+        return binaryResult(200, archive.bytes, archive.mime);
       },
     },
 

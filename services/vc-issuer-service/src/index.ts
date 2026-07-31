@@ -15,7 +15,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { eq } from 'drizzle-orm';
-import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
 /** HMAC key for VC signing. Dev default; operators override via env. */
 const VC_HMAC_KEY = process.env.VC_HMAC_KEY ?? 'polis-vault-v1-test-key';
@@ -55,7 +55,7 @@ async function emitAudit(event: {
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,

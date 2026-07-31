@@ -24,9 +24,61 @@ export type PaperlessDocument = {
   metadata: Record<string, unknown>;
 };
 
+export type PaperlessArchive = {
+  bytes: Uint8Array;
+  mime: string;
+};
+
+const DEFAULT_MAX_ARCHIVE_BYTES = 25 * 1024 * 1024;
+
+export class PaperlessArchiveTooLargeError extends Error {
+  readonly code = 'paperless_archive_too_large';
+
+  constructor(readonly maxBytes: number) {
+    super(`Paperless archive exceeds ${maxBytes} bytes`);
+    this.name = 'PaperlessArchiveTooLargeError';
+  }
+}
+
+async function readBoundedArchive(res: Response, maxBytes: number): Promise<Uint8Array> {
+  const contentLength = Number(res.headers.get('content-length'));
+  if (Number.isSafeInteger(contentLength) && contentLength > maxBytes) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new PaperlessArchiveTooLargeError(maxBytes);
+  }
+  if (!res.body) return new Uint8Array();
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new PaperlessArchiveTooLargeError(maxBytes);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (chunks.length === 1) return chunks[0]!;
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 export interface PaperlessClient {
   consume(input: PaperlessConsumeInput): Promise<PaperlessDocument>;
   fetchDocument(id: string): Promise<PaperlessDocument | null>;
+  fetchArchive(id: string): Promise<PaperlessArchive | null>;
 }
 
 const stubId = (contentBase64: string): string =>
@@ -57,9 +109,14 @@ const deterministicAsn = (contentBase64: string): number =>
  * consumed-at timestamp + a `source:'stub'` marker.
  */
 export class StubPaperlessClient implements PaperlessClient {
+  private readonly archives = new Map<string, PaperlessArchive>();
   async consume(input: PaperlessConsumeInput): Promise<PaperlessDocument> {
     const bytes = Buffer.from(input.contentBase64, 'base64');
     const id = stubId(input.contentBase64);
+    this.archives.set(id, {
+      bytes,
+      mime: guessMime(input.filename) ?? 'application/octet-stream',
+    });
     return {
       id,
       originalMime: guessMime(input.filename),
@@ -86,6 +143,10 @@ export class StubPaperlessClient implements PaperlessClient {
       metadata: { source: 'stub', refetchedAt: new Date().toISOString() },
     };
   }
+
+  async fetchArchive(id: string): Promise<PaperlessArchive | null> {
+    return this.archives.get(id) ?? null;
+  }
 }
 
 /**
@@ -109,7 +170,7 @@ export class HttpPaperlessClient implements PaperlessClient {
   private readonly token: string;
   private readonly pollIntervalMs: number;
   private readonly pollTimeoutMs: number;
-
+  private readonly maxArchiveBytes: number;
   constructor() {
     const baseUrl = process.env.PAPERLESS_BASE_URL ?? 'http://paperless:8000';
     const token = process.env.PAPERLESS_API_TOKEN;
@@ -120,6 +181,13 @@ export class HttpPaperlessClient implements PaperlessClient {
     this.token = token;
     this.pollIntervalMs = Number(process.env.PAPERLESS_POLL_INTERVAL_MS ?? 2000);
     this.pollTimeoutMs = Number(process.env.PAPERLESS_POLL_TIMEOUT_MS ?? 60000);
+    const configuredMax = Number(
+      process.env.DOCUMENT_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_ARCHIVE_BYTES,
+    );
+    this.maxArchiveBytes =
+      Number.isSafeInteger(configuredMax) && configuredMax > 0
+        ? configuredMax
+        : DEFAULT_MAX_ARCHIVE_BYTES;
   }
 
   private authHeaders(): Record<string, string> {
@@ -166,6 +234,18 @@ export class HttpPaperlessClient implements PaperlessClient {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`paperless_fetch_${res.status}`);
     return this.mapFetchedDoc((await res.json()) as Record<string, unknown>);
+  }
+
+  async fetchArchive(id: string): Promise<PaperlessArchive | null> {
+    const res = await fetch(`${this.baseUrl}/api/documents/${encodeURIComponent(id)}/download/`, {
+      headers: this.authHeaders(),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`paperless_archive_fetch_${res.status}`);
+    return {
+      bytes: await readBoundedArchive(res, this.maxArchiveBytes),
+      mime: res.headers.get('content-type') ?? 'application/octet-stream',
+    };
   }
 
   /** Resolve a raw doc by ASN, or null. Paperless returns results in `results[]`. */

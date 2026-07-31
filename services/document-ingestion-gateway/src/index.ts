@@ -9,23 +9,53 @@
  * operator can see exactly where the pipeline broke. No DB of its own —
  * persistence lives in proof-service.
  */
-import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  type Route,
+} from '@polis/service-runtime';
 
 type IngestionInput = {
   contentBase64?: string;
   filename?: string | null;
+  mime?: string | null;
   documentClass?: string | null;
   issuerId?: string | null;
   issuerName?: string | null;
+  contentVisibility?: string | null;
+  proofVisibility?: string | null;
 };
 
 type StageName = 'paperless' | 'canonicalization' | 'proof';
+
+const ALLOWED_MIME: Record<string, true> = {
+  'application/pdf': true,
+  'image/png': true,
+  'image/jpeg': true,
+};
+const CONTENT_VISIBILITIES: Record<string, true> = {
+  public: true,
+  private: true,
+  restricted: true,
+  redacted: true,
+  sealed: true,
+};
+const PROOF_VISIBILITIES: Record<string, true> = {
+  public: true,
+  restricted: true,
+  private: true,
+  commitment_only: true,
+};
+const DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_FILENAME_BYTES = 255;
 
 /** POST JSON to an internal service; throw on non-2xx so the caller can map to 502. */
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: internalHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -52,7 +82,7 @@ async function emitAudit(event: {
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,
@@ -70,16 +100,68 @@ async function emitAudit(event: {
 
 /** Build the §14.3 route table. No DB binding — reads upstream URLs from env. */
 export function ingestionRoutes(): Route[] {
+  const configuredMax = Number(process.env.DOCUMENT_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_UPLOAD_BYTES);
+  const maxUploadBytes =
+    Number.isSafeInteger(configuredMax) && configuredMax > 0
+      ? configuredMax
+      : DEFAULT_MAX_UPLOAD_BYTES;
+  const maxBodyBytes = Math.ceil(maxUploadBytes / 3) * 4 + 16 * 1024;
+
   return [
     ...operationalRoutes('document-ingestion-gateway'),
 
     {
       method: 'POST',
       path: '/internal/ingestion/documents',
+      maxBodyBytes,
       handler: async (_req, body) => {
         const input = body as IngestionInput;
-        if (!input.contentBase64) return result(400, { error: 'missing_content' });
-
+        if (typeof input.contentBase64 !== 'string' || input.contentBase64.length === 0) {
+          return result(400, { error: 'missing_content' });
+        }
+        if (
+          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+            input.contentBase64,
+          )
+        ) {
+          return result(400, { error: 'invalid_base64' });
+        }
+        const bytes = Buffer.from(input.contentBase64, 'base64');
+        if (bytes.toString('base64') !== input.contentBase64) {
+          return result(400, { error: 'invalid_base64' });
+        }
+        if (bytes.byteLength > maxUploadBytes) {
+          return result(400, { error: 'upload_too_large' });
+        }
+        if (
+          input.filename != null &&
+          (typeof input.filename !== 'string' ||
+            input.filename.length === 0 ||
+            Buffer.byteLength(input.filename) > MAX_FILENAME_BYTES ||
+            /[/\\\u0000-\u001f\u007f]/.test(input.filename))
+        ) {
+          return result(400, { error: 'unsafe_filename' });
+        }
+        if (typeof input.mime !== 'string' || !Object.hasOwn(ALLOWED_MIME, input.mime)) {
+          return result(400, { error: 'invalid_mime' });
+        }
+        const magicMatches =
+          (input.mime === 'application/pdf' &&
+            bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) ||
+          (input.mime === 'image/png' &&
+            bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) ||
+          (input.mime === 'image/jpeg' &&
+            bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255])));
+        if (!magicMatches) return result(400, { error: 'mime_mismatch' });
+        if (input.contentVisibility == null || input.proofVisibility == null) {
+          return result(400, { error: 'missing_visibility' });
+        }
+        if (!Object.hasOwn(CONTENT_VISIBILITIES, input.contentVisibility)) {
+          return result(400, { error: 'invalid_content_visibility' });
+        }
+        if (!Object.hasOwn(PROOF_VISIBILITIES, input.proofVisibility)) {
+          return result(400, { error: 'invalid_proof_visibility' });
+        }
         const paperlessUrl = process.env.PAPERLESS_INTERNAL_URL ?? 'http://localhost:8300';
         const canonicalizationUrl =
           process.env.CANONICALIZATION_INTERNAL_URL ?? 'http://localhost:8500';
@@ -144,10 +226,10 @@ export function ingestionRoutes(): Route[] {
             issuerId,
             issuerName,
             originalFilename: filename,
-            originalMime: paperless.originalMime,
+            originalMime: input.mime,
             originalBytes: paperless.originalBytes,
-            contentVisibility: 'public',
-            proofVisibility: 'public',
+            contentVisibility: input.contentVisibility,
+            proofVisibility: input.proofVisibility,
             algorithm: hashes.algorithm,
           });
           return result(201, manifest);

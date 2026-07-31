@@ -8,16 +8,18 @@ synchronous psycopg safe. Each request gets a fresh ``request_id`` /
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sys
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from polis_core import (
     AssistantAnswer,
@@ -33,6 +35,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.responses import Response
 
 from polis_aigateway.audit import emit_audit
 from polis_aigateway.db import get_conn
@@ -364,6 +367,26 @@ FROM ai_outputs o
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def require_internal_auth(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    if request.url.path.startswith("/internal/"):
+        expected_token = os.environ.get("INTERNAL_API_TOKEN")
+        request_token = request.headers.get("X-Polis-Internal-Token")
+        if (
+            not expected_token
+            or not request_token
+            or not hmac.compare_digest(request_token, expected_token)
+        ):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "internal_auth_required"},
+            )
+    return await call_next(request)
 
 
 @app.get("/healthz")

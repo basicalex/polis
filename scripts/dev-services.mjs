@@ -1,6 +1,5 @@
-// Dev orchestrator: launches the TS services and waits until each is healthy.
-// Order: governance-graph-api + audit-service first, then platform-api (which
-// proxies to them). platform-api also runs DB migrations at boot.
+// Dev orchestrator: launches the TS services in dependency order and waits
+// until each is healthy. platform-api runs DB migrations at boot.
 import { spawn } from 'node:child_process';
 
 const services = [
@@ -9,11 +8,17 @@ const services = [
   { name: 'paperless-adapter', filter: '@polis/paperless-adapter', port: 8300 },
   { name: 'canonicalization-service', filter: '@polis/canonicalization-service', port: 8500 },
   { name: 'proof-service', filter: '@polis/proof-service', port: 8700 },
+  {
+    name: 'document-signing-service',
+    filter: '@polis/document-signing-service',
+    port: 8960,
+  },
   { name: 'citizen-identity-service', filter: '@polis/citizen-identity-service', port: 8650 },
   { name: 'citizen-vault-service', filter: '@polis/citizen-vault-service', port: 8750 },
   { name: 'vc-issuer-service', filter: '@polis/vc-issuer-service', port: 8950 },
   { name: 'rewards-service', filter: '@polis/rewards-service', port: 8460 },
   { name: 'contribution-service', filter: '@polis/contribution-service', port: 8450 },
+  { name: 'polis-bridge-service', filter: '@polis/polis-bridge-service', port: 8200 },
   { name: 'platform-api', filter: '@polis/platform-api', port: 8080 },
 ];
 
@@ -61,6 +66,7 @@ for (const svc of services) {
     env: {
       ...process.env,
       PORT: String(port),
+      INTERNAL_API_TOKEN: process.env.INTERNAL_API_TOKEN ?? 'polis-internal-dev-token',
       GRAPH_INTERNAL_URL: process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100',
       AUDIT_INTERNAL_URL: process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
       POLIS_INTERNAL_URL: process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200',
@@ -75,8 +81,11 @@ for (const svc of services) {
       IDENTITY_DEV_TOKENS: 'true',
       IDENTITY_MODE: process.env.IDENTITY_MODE ?? 'stub',
       PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
+      SIGNING_INTERNAL_URL: process.env.SIGNING_INTERNAL_URL ?? 'http://localhost:8960',
       CONTRIBUTION_INTERNAL_URL: process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450',
       PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',
+      SIGNING_PROVIDER: process.env.SIGNING_PROVIDER ?? 'stub',
+      ARTIFACT_STORE_MODE: process.env.ARTIFACT_STORE_MODE ?? 'database',
     },
   });
   child.on('exit', (code) => {

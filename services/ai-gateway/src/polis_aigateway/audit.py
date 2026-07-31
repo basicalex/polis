@@ -31,6 +31,13 @@ def emit_audit(
       - ``ai.answer.requested`` → ``target:{type:'ai-trace', id:traceId}``
     """
     base = os.environ.get("AUDIT_INTERNAL_URL", "http://localhost:8600")
+    token = os.environ.get("INTERNAL_API_TOKEN")
+    if not token:
+        print(
+            "[audit] emit failed: INTERNAL_API_TOKEN is not configured",
+            file=sys.stderr,
+        )
+        return
     body = {
         "eventType": event_type,
         "action": action,
@@ -44,7 +51,10 @@ def emit_audit(
         req = urllib.request.Request(
             base + "/internal/audit/events",
             data=json.dumps(body).encode(),
-            headers={"content-type": "application/json"},
+            headers={
+                "content-type": "application/json",
+                "X-Polis-Internal-Token": token,
+            },
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)  # noqa: S310 — internal URL

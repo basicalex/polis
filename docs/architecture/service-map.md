@@ -53,6 +53,10 @@ Node services using `packages/service-runtime` expose:
 | GET | `/api/v1/assistant/traces/:id` | Returns one assistant trace and its outputs. |
 | GET | `/api/v1/assistant/outputs/:id` | Returns one assistant output with effective review state and review history. |
 | POST | `/api/v1/assistant/outputs/:id/review` | Appends an approved/rejected human review decision and returns effective state. |
+| POST | `/api/v1/mandate-holders/:id/charter-signing-requests` | Requires a citizen session and `Idempotency-Key`; starts signing for the caller's pending charter. |
+| GET | `/api/v1/mandate-holders/:id/charter-signing-status` | Requires a citizen session; returns the latest signing request for the mandate-holder. |
+| POST | `/api/v1/signing-requests/:id/stub-complete` | Requires the signer citizen's session; completes and reconciles a stub request. |
+| POST | `/webhooks/documenso` | Forwards the raw body and `X-Documenso-Secret` to the signing service. |
 
 ## Service roles and health
 
@@ -69,8 +73,18 @@ Node services using `packages/service-runtime` expose:
 | `proof-service` | 8700 | Proof registry plus public verification/detail/status API. | `GET /healthz` |
 | `timestamp-service` | 8800 | Internal RFC3161-stub timestamp issuer for proof hashes. | `GET /healthz` |
 | `signature-service` | 8900 | Internal test-key signature issuer and issuer registry reader. | `GET /healthz` |
+| `document-signing-service` | 8960 | Internal charter PDF rendering, provider orchestration, restricted artifact storage, proof registration, and charter acceptance. | `GET /healthz` |
+
+`document-signing-service` depends on Postgres, `proof-service`,
+`paperless-adapter`, and `audit-service`. Proof registration blocks charter
+acceptance. Paperless archival and audit emission are best-effort.
 
 ## Internal service routes
+
+Every `/internal/*` route requires `X-Polis-Internal-Token`. The shared runtime
+returns `401 internal_auth_required` when `INTERNAL_API_TOKEN` is missing or the
+header does not match. The public BFF injects this header for service calls. The
+Documenso webhook also requires `X-Documenso-Secret`.
 
 | Service | Port | Method | Path | Current behavior |
 | --- | ---: | --- | --- | --- |
@@ -98,11 +112,33 @@ Node services using `packages/service-runtime` expose:
 | `signature-service` | 8900 | POST | `/internal/signatures` | Upserts a local issuer and persists a test-key signature for a proof/hash. |
 | `signature-service` | 8900 | GET | `/internal/signatures/:proofId` | Lists signatures for a proof. |
 | `signature-service` | 8900 | GET | `/internal/issuers/:id` | Reads an internal issuer row. |
+| `document-signing-service` | 8960 | POST | `/internal/signing/charter-requests` | Renders and stores a pending charter PDF, then creates and distributes a provider envelope. |
+| `document-signing-service` | 8960 | GET | `/internal/signing/charter-status/:mandateHolderId` | Returns the holder's latest signing request. |
+| `document-signing-service` | 8960 | GET | `/internal/signing/requests/:id` | Returns one signing request. |
+| `document-signing-service` | 8960 | POST | `/internal/signing/requests/:id/reconcile` | Reads the provider envelope and advances local state. |
+| `document-signing-service` | 8960 | POST | `/internal/signing/requests/:id/stub-complete` | In stub mode, completes the signing recipient's test envelope and reconciles it. |
+| `document-signing-service` | 8960 | GET | `/internal/signing/artifacts/:id/content` | Downloads restricted artifact bytes with private, no-store caching. |
+| `document-signing-service` | 8960 | POST | `/internal/signing/webhooks/documenso` | Deduplicates a secret-authenticated wake-up event and schedules reconciliation. |
 
 ## Local ports
 
-`infra/compose/docker-compose.yml` defines Postgres `5432`, platform API `8080`, governance graph `8100`, Polis bridge `8200`, Paperless adapter `8300`, document-ingestion gateway `8400`, canonicalization `8500`, AI gateway `8550`, audit service `8600`, proof service `8700`, timestamp service `8800`, and signature service `8900`. `scripts/dev-services.mjs` launches the TypeScript services currently listed in that script: governance graph `8100`, audit service `8600`, Paperless adapter `8300`, canonicalization `8500`, proof service `8700`, document-ingestion gateway `8400`, and platform API `8080`.
+`infra/compose/docker-compose.yml` publishes only `platform-api` at host port
+`8080`. Postgres and internal services use `expose`, so their ports are
+available only on the Compose network: governance graph `8100`, Polis bridge
+`8200`, Paperless adapter `8300`, document-ingestion gateway `8400`,
+canonicalization `8500`, AI gateway `8550`, audit `8600`, proof `8700`,
+timestamp `8800`, signature `8900`, and document signing `8960`.
+`scripts/dev-services.mjs` launches `document-signing-service` at `8960` and
+wires the BFF to it at `http://localhost:8960`.
 
 ## Integration warning
 
-These endpoints prove local contract shape only. They do not prove production Paperless, upstream Polis, identity, payment, trusted timestamp authority, digital signature provider, external AI model provider, or government connectivity. The current AI v0 path is deterministic local RAG over approved public sources with heuristic injection handling and append-only review state; the signature/timestamp paths use local test/stub providers.
+These endpoints prove local contract shape only. They do not prove production
+Paperless, upstream Polis, identity, payment, trusted timestamp authority,
+electronic-signature provider, external AI model provider, or government
+connectivity. The current AI v0 path is deterministic local RAG over approved
+public sources with heuristic injection handling and append-only review state.
+Provider completion does not make the human signature advanced or qualified.
+The local Polis seal and timestamp use test/stub material. See
+[Document Trust: Verification](../document-trust/verification.md) and the
+[charter signing operator guide](../document-trust/charter-signing.md).

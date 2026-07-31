@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
+import { startService } from '@polis/service-runtime';
 import { contributionRoutes } from './index.js';
 
 test('contribution-service exposes §19 contribution + M-RA filing routes', () => {
@@ -20,8 +23,52 @@ test('contribution-service exposes §19 contribution + M-RA filing routes', () =
 });
 
 
+async function withServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
+  const server = startService('contribution-service', 0, contributionRoutes({} as never));
+  try {
+    await once(server, 'listening');
+    const address = server.address() as AddressInfo;
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
+async function withInternalToken<T>(token: string, run: () => Promise<T>): Promise<T> {
+  const previous = process.env.INTERNAL_API_TOKEN;
+  process.env.INTERNAL_API_TOKEN = token;
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = previous;
+  }
+}
+
+test('contribution internal routes reject unauthenticated HTTP requests', async () => {
+  await withInternalToken('contribution-test-token', async () => {
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/internal/review/queue`);
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), {
+        error: 'internal_auth_required',
+        service: 'contribution-service',
+      });
+    });
+  });
+});
+
 const reqWithCitizen = (citizenId: string) =>
   ({ headers: { 'x-polis-citizen': citizenId } }) as never;
+const reqWithActor = (citizenId: string, identityLevel: string) =>
+  ({
+    headers: {
+      'x-polis-citizen': citizenId,
+      'x-polis-identity-level': identityLevel,
+    },
+  }) as never;
 
 const httpStatus = (value: unknown): number | undefined => {
   if (value && typeof value === 'object' && 'status' in value && typeof value.status === 'number') {
@@ -68,7 +115,10 @@ const queuedDb = (selectRows: unknown[][]) => {
       return {
         id: `review-${inserts.length}`,
         submissionId: 'submission-resolution-1',
-        reviewerId: 'reviewer-1',
+        reviewerId:
+          values && typeof values === 'object' && 'reviewerId' in values
+            ? String(values.reviewerId)
+            : '',
         decision: values.decision,
         notes: null,
         decidedAt: new Date('2026-01-01T00:00:00Z'),
@@ -119,6 +169,75 @@ const queuedDb = (selectRows: unknown[][]) => {
   };
 };
 
+const acceptedSignedCharter = {
+  id: 'charter-1',
+  status: 'accepted',
+  acceptedSigningRequestId: 'signing-request-1',
+  signedArtifactId: 'signed-artifact-1',
+  proofManifestId: 'proof-manifest-1',
+};
+const completedSigningRequest = {
+  id: 'signing-request-1',
+  charterId: 'charter-1',
+  mandateHolderId: 'holder-1',
+  status: 'completed',
+  signedArtifactId: 'signed-artifact-1',
+  proofManifestId: 'proof-manifest-1',
+};
+const signedArtifact = { id: 'signed-artifact-1', kind: 'charter_signed' };
+const proofManifest = { id: 'proof-manifest-1', registryStatus: 'active' };
+
+const invalidSignatureEvidenceCases: Array<[string, unknown[][]]> = [
+  [
+    'wrong-kind signed artifact',
+    [
+      [{ id: 'signed-artifact-1', kind: 'uploaded_document' }],
+      [proofManifest],
+      [],
+      [],
+    ],
+  ],
+  [
+    'revoked charter proof',
+    [[signedArtifact], [proofManifest], [{ id: 'revocation-1' }], []],
+  ],
+  [
+    'superseded charter proof',
+    [[signedArtifact], [proofManifest], [], [{ id: 'supersession-1' }]],
+  ],
+];
+
+for (const [name, evidenceRows] of invalidSignatureEvidenceCases) {
+  test(`commitment filing rejects ${name}`, async () => {
+    const { db, inserts } = queuedDb([
+      [{ identityLevel: 'verified_official' }],
+      [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+      [acceptedSignedCharter],
+      [completedSigningRequest],
+      ...evidenceRows,
+    ]);
+    const route = contributionRoutes(db as never).find(
+      (candidate) =>
+        candidate.method === 'POST' &&
+        candidate.path === '/internal/mandate-holders/:id/commitments',
+    );
+    assert.ok(route);
+    const output = await route.handler(
+      reqWithCitizen('citizen-1'),
+      { text: 'Open the clinic', successCriterion: 'Clinic is open' },
+      { id: 'holder-1' },
+    );
+    assert.equal(httpStatus(output), 403);
+    assert.ok(output && typeof output === 'object' && 'body' in output);
+    assert.deepEqual(output.body, {
+      error: 'charter_signature_required',
+      reason: 'signature_backed_charter_required',
+      field: 'charter',
+    });
+    assert.equal(inserts.length, 0);
+  });
+}
+
 test('commitment filing rejects direct terminal status instead of self-adjudicating', async () => {
   const { db, inserts } = queuedDb([
     [{ identityLevel: 'verified_official' }],
@@ -145,11 +264,46 @@ test('commitment filing rejects direct terminal status instead of self-adjudicat
   assert.equal(inserts.length, 0, 'terminal self-assignment must not create a submission');
 });
 
+test('commitment filing denies an accepted charter without signing evidence', async () => {
+  const { db, inserts } = queuedDb([
+    [{ identityLevel: 'verified_official' }],
+    [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
+    [{ id: 'charter-unsigned', status: 'accepted' }],
+  ]);
+  const route = contributionRoutes(db as never).find(
+    (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
+  );
+  assert.ok(route);
+  const out = await route.handler(
+    reqWithCitizen('citizen-1'),
+    { text: 'Open the clinic', successCriterion: 'Clinic is open' },
+    { id: 'holder-1' },
+  );
+  assert.equal(httpStatus(out), 403);
+  assert.ok(out && typeof out === 'object' && 'body' in out);
+  assert.deepEqual(out.body, {
+    error: 'charter_signature_required',
+    reason: 'signature_backed_charter_required',
+    field: 'charter',
+  });
+  assert.equal(inserts.length, 0);
+});
+
 test('commitment filing rejects non-covering charter scope before inserts', async () => {
   const { db, inserts } = queuedDb([
     [{ identityLevel: 'verified_official' }],
     [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
-    [{ status: 'accepted', charterDoc: { scope: { jurisdictions: ['jurisdiction-b'] } } }],
+    [
+      {
+        ...acceptedSignedCharter,
+        charterDoc: { scope: { jurisdictions: ['jurisdiction-b'] } },
+      },
+    ],
+    [completedSigningRequest],
+    [signedArtifact],
+    [proofManifest],
+    [],
+    [],
   ]);
   const route = contributionRoutes(db as never).find(
     (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
@@ -182,10 +336,15 @@ test('commitment filing allows covering charter scope', async () => {
     [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
     [
       {
-        status: 'accepted',
+        ...acceptedSignedCharter,
         charterDoc: { scope: { jurisdictions: ['jurisdiction-a'], processes: ['process-1'] } },
       },
     ],
+    [completedSigningRequest],
+    [signedArtifact],
+    [proofManifest],
+    [],
+    [],
   ]);
   const route = contributionRoutes(db as never).find(
     (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
@@ -225,7 +384,17 @@ test('commitment filing persists restricted evidence with restricted default vis
   const { db, inserts } = queuedDb([
     [{ identityLevel: 'verified_official' }],
     [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
-    [{ status: 'accepted', charterDoc: { scope: { jurisdictions: ['jurisdiction-a'] } } }],
+    [
+      {
+        ...acceptedSignedCharter,
+        charterDoc: { scope: { jurisdictions: ['jurisdiction-a'] } },
+      },
+    ],
+    [completedSigningRequest],
+    [signedArtifact],
+    [proofManifest],
+    [],
+    [],
   ]);
   const route = contributionRoutes(db as never).find(
     (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
@@ -259,7 +428,17 @@ test('commitment filing rejects requested jurisdiction when object scope omits j
   const { db, inserts } = queuedDb([
     [{ identityLevel: 'verified_official' }],
     [{ citizenId: 'citizen-1', status: 'active', jurisdictionId: 'jurisdiction-a' }],
-    [{ status: 'accepted', charterDoc: { scope: { processes: ['process-1'] } } }],
+    [
+      {
+        ...acceptedSignedCharter,
+        charterDoc: { scope: { processes: ['process-1'] } },
+      },
+    ],
+    [completedSigningRequest],
+    [signedArtifact],
+    [proofManifest],
+    [],
+    [],
   ]);
   const route = contributionRoutes(db as never).find(
     (r) => r.method === 'POST' && r.path === '/internal/mandate-holders/:id/commitments',
@@ -291,7 +470,12 @@ test('resolution filing records requested terminal status as a pending claim onl
     [{ mandateHolderId: 'holder-1' }],
     [{ identityLevel: 'verified_official' }],
     [{ citizenId: 'citizen-1', status: 'active' }],
-    [{ status: 'accepted' }],
+    [acceptedSignedCharter],
+    [completedSigningRequest],
+    [signedArtifact],
+    [proofManifest],
+    [],
+    [],
     [{ id: 'claim-resolution-1' }],
   ]);
   const route = contributionRoutes(db as never).find(
@@ -317,6 +501,26 @@ test('resolution filing records requested terminal status as a pending claim onl
     resolutionClaimId: 'claim-resolution-1',
     evidence: null,
   });
+});
+
+test('internal review handlers reject actors who are missing or non-staff', async () => {
+  const { db } = queuedDb([]);
+  const routes = contributionRoutes(db as never);
+  const queue = routes.find(
+    (r) => r.method === 'GET' && r.path === '/internal/review/queue',
+  );
+  const decide = routes.find(
+    (r) => r.method === 'POST' && r.path === '/internal/review/:id/decide',
+  );
+  assert.ok(queue);
+  assert.ok(decide);
+  for (const out of [
+    await queue.handler({ headers: {} } as never, {}, {}),
+    await queue.handler(reqWithActor('citizen-1', 'verified'), {}, {}),
+    await decide.handler(reqWithActor('citizen-1', 'verified'), { decision: 'approve' }, { id: 'submission-1' }),
+  ]) {
+    assert.equal(httpStatus(out), 403);
+  }
 });
 
 test('approved resolution review marks the referenced claim approved before status event is exposed', async () => {
@@ -347,12 +551,27 @@ test('approved resolution review marks the referenced claim approved before stat
   assert.ok(route);
 
   const out = await route.handler(
-    {} as never,
-    { reviewerId: 'reviewer-1', reviewerRole: 'reviewer', decision: 'approve' },
+    reqWithActor('staff-reviewer', 'staff'),
+    {
+      reviewerId: 'forged-reviewer',
+      reviewerRole: 'reviewer',
+      decision: 'approve',
+    },
     { id: 'submission-resolution-1' },
   );
 
   assert.equal(httpStatus(out), 201);
+  const reviewInsert = inserts.find((entry) => {
+    const values = entry.values;
+    return values !== null && typeof values === 'object' && 'decision' in values;
+  });
+  assert.ok(reviewInsert);
+  assert.ok(
+    reviewInsert.values &&
+      typeof reviewInsert.values === 'object' &&
+      'reviewerId' in reviewInsert.values,
+  );
+  assert.equal(reviewInsert.values.reviewerId, 'staff-reviewer');
   assert.ok(
     inserts.some((entry) => {
       const values = entry.values as { commitmentId?: string; status?: string; resolutionClaimId?: string };

@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 3 (M3) acceptance: exercises the §14.3 + §30.4 document-proof contract
 // end-to-end against a running stack (document-ingestion-gateway :8400,
 // proof-service :8700, platform-api BFF :8080, seeded Postgres). Uploads a
@@ -20,13 +22,13 @@ function check(label, cond, detail = '') {
   }
 }
 async function get(base, path) {
-  const r = await fetch(base + path);
+  const r = await fetch(base + path, { headers: withInternalHeaders(path) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 async function post(base, path, body) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };

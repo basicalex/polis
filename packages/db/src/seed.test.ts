@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RELATIONSHIP_TYPES } from './schema.js';
+import { CHARTER_STATUSES, IDENTITY_AUTH_LEVELS, RELATIONSHIP_TYPES } from './schema.js';
 
 type JsonRow = Record<string, unknown>;
 
@@ -27,6 +27,8 @@ const seedFiles = [
   'claims.json',
   'evidence_links.json',
   'relationships.json',
+  'citizens.json',
+  'mandate_holder_charters.json',
   'commitment_questions.json',
   'commitment_answers.json',
 ] as const;
@@ -90,5 +92,33 @@ describe('governance v1 seed data', () => {
         `${String(relationship.id)} uses unknown relationship_type ${String(relationshipType)}`,
       );
     }
+  });
+
+  it('contains a pending normalized charter and staff reviewer', async () => {
+    const citizens = await load('citizens.json');
+    const charters = await load('mandate_holder_charters.json');
+
+    assert.ok(
+      citizens.some(
+        (citizen) =>
+          citizen.id === 'reviewer-demo' &&
+          citizen.identity_level === 'staff' &&
+          IDENTITY_AUTH_LEVELS.some((level) => level === citizen.identity_level),
+      ),
+      'expected reviewer-demo staff citizen',
+    );
+
+    const charter = charters.find((row) => row.id === 'charter-mh-demo');
+    assert.ok(charter, 'expected charter-mh-demo');
+    assert.ok(CHARTER_STATUSES.some((status) => status === charter.status));
+    assert.equal(charter.version, 1);
+    assert.deepEqual((charter.charter_doc as JsonRow).scope, {
+      jurisdictions: ['jur-croatia-local'],
+      processes: ['all'],
+    });
+    assert.equal(charter.accepted_signing_request_id, null);
+    assert.equal(charter.signed_artifact_id, null);
+    assert.equal(charter.proof_manifest_id, null);
+    assert.equal(charter.signed_at, null);
   });
 });

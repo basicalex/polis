@@ -1,3 +1,6 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+import { loginCitizen } from './dev-login.mjs';
+
 // Phase 6 (M6) acceptance: exercises the §30.7 contribution + review v0 contract
 // end-to-end against a running stack (contribution-service :8450, platform-api
 // BFF :8080, seeded Postgres).
@@ -27,20 +30,26 @@ function check(label, cond, detail = '') {
     console.log(`  ok  ${label}`);
   }
 }
-async function get(base, path) {
-  const r = await fetch(base + path);
+async function get(base, path, headers = {}) {
+  const r = await fetch(base + path, { headers: withInternalHeaders(path, headers) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
-async function post(base, path, body) {
+async function post(base, path, body, headers = {}) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 
 console.log('[phase6] checking §30.7 contribution + review v0 contract…');
+const reviewerLogin = await loginCitizen(BFF, 'reviewer-demo@polis.local');
+check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error ?? '');
+check('reviewer identityLevel is staff', reviewerLogin.citizen?.identityLevel === 'staff');
+const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
+const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
+check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
 
 // 1. Submit evidence → 201 pending.
 const evidenceText = 'M6 acceptance: registry office accepts digital residence proof.';
@@ -82,14 +91,15 @@ check('anonymous submit → 403 identity_required', anon.status === 403, `status
 
 // 3. Reviewer approves.
 const approve = evidenceId
-  ? await post(CONTRIB, '/internal/review/' + evidenceId + '/decide', {
-      reviewerId: 'reviewer-demo',
-      reviewerRole: 'reviewer',
-      decision: 'approve',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + evidenceId + '/decide',
+      { decision: 'approve', notes: 'Phase 6 approval' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check(
-  'POST /internal/review/:id/decide approve → 201',
+  'POST /api/v1/review/:id/decide approve → 201',
   approve.status === 201,
   `status=${approve.status}`,
 );
@@ -101,21 +111,23 @@ check(
 
 // 4. Invalid decision rejected.
 const badDecision = evidenceId
-  ? await post(CONTRIB, '/internal/review/' + evidenceId + '/decide', {
-      reviewerId: 'reviewer-demo',
-      reviewerRole: 'reviewer',
-      decision: 'maybe',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + evidenceId + '/decide',
+      { decision: 'maybe', notes: 'Phase 6 invalid decision check' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check('invalid decision → 400', badDecision.status === 400, `status=${badDecision.status}`);
 
 // 5. Already-decided guarded.
 const alreadyDecided = evidenceId
-  ? await post(CONTRIB, '/internal/review/' + evidenceId + '/decide', {
-      reviewerId: 'reviewer-demo',
-      reviewerRole: 'reviewer',
-      decision: 'reject',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + evidenceId + '/decide',
+      { decision: 'reject', notes: 'Phase 6 duplicate decision check' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check('already-decided → 409', alreadyDecided.status === 409, `status=${alreadyDecided.status}`);
 
@@ -160,11 +172,12 @@ const rejectedSub = await post(BFF, '/api/v1/contribute/evidence', {
 });
 const rejectedId = rejectedSub.body?.id ?? '';
 const rejectDecision = rejectedId
-  ? await post(CONTRIB, '/internal/review/' + rejectedId + '/decide', {
-      reviewerId: 'reviewer-demo',
-      reviewerRole: 'reviewer',
-      decision: 'reject',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + rejectedId + '/decide',
+      { decision: 'reject', notes: 'Phase 6 rejection' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check('reject decision → 201', rejectDecision.status === 201, `status=${rejectDecision.status}`);
 check(
@@ -202,11 +215,12 @@ const graphEditId = graphEdit.body?.id ?? '';
 const proposalId = graphEdit.body?.proposal?.id ?? '';
 check('graph-edit returns proposal id', typeof proposalId === 'string' && proposalId.length > 0);
 const graphApprove = graphEditId
-  ? await post(CONTRIB, '/internal/review/' + graphEditId + '/decide', {
-      reviewerId: 'reviewer-demo',
-      reviewerRole: 'reviewer',
-      decision: 'approve',
-    })
+  ? await post(
+      BFF,
+      '/api/v1/review/' + graphEditId + '/decide',
+      { decision: 'approve', notes: 'Phase 6 graph edit approval' },
+      reviewerAuth,
+    )
   : { status: 0, body: null };
 check('graph-edit approve → 201', graphApprove.status === 201, `status=${graphApprove.status}`);
 check(

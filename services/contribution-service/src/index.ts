@@ -16,6 +16,7 @@ import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
+  internalHeaders,
   operationalRoutes,
   result,
   startService,
@@ -88,7 +89,7 @@ async function emitAudit(event: {
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,
@@ -191,7 +192,7 @@ async function emitRewardEligibility(input: {
   try {
     await fetch(base + '/internal/rewards/eligibility', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         submissionId: input.submissionId,
         contributorId: input.contributorId,
@@ -259,11 +260,9 @@ function charterScopeCovers(scope: unknown, requested: RequestedCommitmentScope)
 }
 
 /**
- * M-RA publish gate. TS-mirror of the authoritative
- * representative/access.rego: a mandate-holder may publish only when their
  * citizen identity is verified_official, the matching mandate_holder row is
- * active, they hold an accepted charter, and that charter covers the requested
- * commitment jurisdiction/process.
+ * active, their latest effective charter is accepted and signature-backed,
+ * and that charter covers the requested commitment jurisdiction/process.
  */
 async function assertCanPublish(
   db: DbClient,
@@ -301,21 +300,84 @@ async function assertCanPublish(
   }
   const charterRows = await db
     .select({
+      id: schema.mandateHolderCharters.id,
       status: schema.mandateHolderCharters.status,
       charterDoc: schema.mandateHolderCharters.charterDoc,
+      acceptedSigningRequestId: schema.mandateHolderCharters.acceptedSigningRequestId,
+      signedArtifactId: schema.mandateHolderCharters.signedArtifactId,
+      proofManifestId: schema.mandateHolderCharters.proofManifestId,
     })
     .from(schema.mandateHolderCharters)
-    .where(
-      and(
-        eq(schema.mandateHolderCharters.mandateHolderId, mandateHolderId),
-        eq(schema.mandateHolderCharters.status, 'accepted'),
-      ),
+    .where(eq(schema.mandateHolderCharters.mandateHolderId, mandateHolderId))
+    .orderBy(
+      desc(schema.mandateHolderCharters.version),
+      desc(schema.mandateHolderCharters.updatedAt),
     )
-    .orderBy(desc(schema.mandateHolderCharters.updatedAt))
     .limit(1);
   const charter = charterRows[0];
   if (!charter || charter.status !== 'accepted') {
     const body = { error: 'charter_required', reason: 'accepted_charter_required', field: 'charter' };
+    return { denied: true, body, response: result(403, body) };
+  }
+  let signatureBacked = false;
+  if (charter.acceptedSigningRequestId && charter.signedArtifactId && charter.proofManifestId) {
+    const requestRows = await db
+      .select({
+        id: schema.signingRequests.id,
+        charterId: schema.signingRequests.charterId,
+        mandateHolderId: schema.signingRequests.mandateHolderId,
+        status: schema.signingRequests.status,
+        signedArtifactId: schema.signingRequests.signedArtifactId,
+        proofManifestId: schema.signingRequests.proofManifestId,
+      })
+      .from(schema.signingRequests)
+      .where(eq(schema.signingRequests.id, charter.acceptedSigningRequestId))
+      .limit(1);
+    const signingRequest = requestRows[0];
+    if (
+      signingRequest?.status === 'completed' &&
+      signingRequest.charterId === charter.id &&
+      signingRequest.mandateHolderId === mandateHolderId &&
+      signingRequest.signedArtifactId === charter.signedArtifactId &&
+      signingRequest.proofManifestId === charter.proofManifestId
+    ) {
+      const artifactRows = await db
+        .select({ id: schema.documentArtifacts.id, kind: schema.documentArtifacts.kind })
+        .from(schema.documentArtifacts)
+        .where(eq(schema.documentArtifacts.id, charter.signedArtifactId))
+        .limit(1);
+      const proofRows = await db
+        .select({ id: schema.proofManifests.id, registryStatus: schema.proofManifests.registryStatus })
+        .from(schema.proofManifests)
+        .where(eq(schema.proofManifests.id, charter.proofManifestId))
+        .limit(1);
+      const revocationRows = await db
+        .select({ id: schema.proofRevocations.id })
+        .from(schema.proofRevocations)
+        .where(eq(schema.proofRevocations.proofId, charter.proofManifestId))
+        .limit(1);
+      const supersessionRows = await db
+        .select({ id: schema.proofSupersessions.id })
+        .from(schema.proofSupersessions)
+        .where(eq(schema.proofSupersessions.supersededProofId, charter.proofManifestId))
+        .limit(1);
+      const proof = proofRows[0];
+      signatureBacked = Boolean(
+        artifactRows[0]?.kind === 'charter_signed' &&
+          proof &&
+          proof.registryStatus !== 'revoked' &&
+          proof.registryStatus !== 'superseded' &&
+          !revocationRows[0] &&
+          !supersessionRows[0],
+      );
+    }
+  }
+  if (!signatureBacked) {
+    const body = {
+      error: 'charter_signature_required',
+      reason: 'signature_backed_charter_required',
+      field: 'charter',
+    };
     return { denied: true, body, response: result(403, body) };
   }
   const charterScope =
@@ -737,11 +799,20 @@ export function contributionRoutes(db: DbClient): Route[] {
       },
     },
 
-    // §19 internal review queue — pending + in_review, oldest first.
+    // §19 internal review queue — staff actor required; pending + in_review, oldest first.
     {
       method: 'GET',
       path: '/internal/review/queue',
-      handler: async () => {
+      handler: async (req) => {
+        const reviewerId = req.headers['x-polis-citizen'];
+        const identityLevel = req.headers['x-polis-identity-level'];
+        if (
+          typeof reviewerId !== 'string' ||
+          !reviewerId.trim() ||
+          identityLevel !== 'staff'
+        ) {
+          return result(403, { error: 'staff_required' });
+        }
         const rows = await db
           .select()
           .from(schema.submissions)
@@ -765,17 +836,17 @@ export function contributionRoutes(db: DbClient): Route[] {
     {
       method: 'POST',
       path: '/internal/review/:id/decide',
-      handler: async (_req, body, params) => {
-        const input = body as {
-          reviewerId?: string;
-          reviewerRole?: string;
-          decision?: string;
-          notes?: string;
-        };
-        if (input.reviewerRole !== 'reviewer') {
-          return result(403, { error: 'reviewer_role_required' });
+      handler: async (req, body, params) => {
+        const reviewerId = req.headers['x-polis-citizen'];
+        const identityLevel = req.headers['x-polis-identity-level'];
+        if (
+          typeof reviewerId !== 'string' ||
+          !reviewerId.trim() ||
+          identityLevel !== 'staff'
+        ) {
+          return result(403, { error: 'staff_required' });
         }
-        if (!input.reviewerId) return result(400, { error: 'reviewer_id_required' });
+        const input = body as { decision?: string; notes?: string };
         if (!input.decision || !(input.decision in DECISION_INPUTS)) {
           return result(400, { error: 'invalid_decision' });
         }
@@ -795,7 +866,7 @@ export function contributionRoutes(db: DbClient): Route[] {
           .values({
             id: sql`gen_random_uuid()::text`,
             submissionId: params.id,
-            reviewerId: input.reviewerId,
+            reviewerId,
             decision,
             notes: input.notes ?? null,
             decidedAt: new Date(),
@@ -816,13 +887,13 @@ export function contributionRoutes(db: DbClient): Route[] {
               data: { reason: 'political_agreement_not_auto_publishable' },
             });
           } else {
-            applied = await applySubmission(db, sub, input.reviewerId);
+            applied = await applySubmission(db, sub, reviewerId);
           }
           await emitAudit({
             eventType: 'contribution.approved',
             action: 'approve',
             target: { type: 'contribution', id: params.id },
-            data: { reviewerId: input.reviewerId, applied },
+            data: { reviewerId, applied },
           });
           if (sub.contributionClass !== 'political_agreement' && sub.contributionClass !== 'mandate_commitment' && sub.contributionClass !== 'mandate_answer') {
             await emitRewardEligibility({
@@ -836,7 +907,7 @@ export function contributionRoutes(db: DbClient): Route[] {
             eventType: 'contribution.rejected',
             action: 'reject',
             target: { type: 'contribution', id: params.id },
-            data: { reviewerId: input.reviewerId },
+            data: { reviewerId },
           });
         }
         const updated = await db
@@ -1215,7 +1286,9 @@ export function contributionRoutes(db: DbClient): Route[] {
         const commitment = cRows[0];
         if (!commitment) return result(404, { error: 'not_found', id: question.commitmentId });
         const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId);
-        if (gate) return gate;
+        // Return the gate's HTTP response, not the wrapper: returning `gate`
+        // serialized the denial as a 200 and made this route fail open.
+        if (gate) return gate.response;
         const input = (body ?? {}) as { body?: string };
         const answerText = typeof input.body === 'string' ? input.body.trim() : '';
         if (!answerText) return result(400, { error: 'invalid_answer_payload', detail: ['body_required'] });

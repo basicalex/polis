@@ -46,6 +46,37 @@ export type RelationshipType =
 export type IssueStatus = 'open' | 'deliberating' | 'resolved' | 'archived';
 export type ConversationStatus = 'draft' | 'active' | 'closed' | 'reported' | 'archived'; // §13.5 verbatim
 export type ParticipationMode = 'open' | 'pseudonymous' | 'verified' | 'partner_restricted'; // §13.5 verbatim
+export type SigningProvider = 'stub' | 'documenso';
+export type SigningRequestStatus =
+  | 'created'
+  | 'distributed'
+  | 'awaiting_signatures'
+  | 'completed'
+  | 'declined'
+  | 'expired'
+  | 'voided'
+  | 'failed';
+
+export type CharterSigningArtifactSummary = {
+  id: string;
+  sha256: string;
+  mimeType: string;
+  byteCount: number;
+  filename: string | null;
+  proofManifestId: string | null;
+};
+
+// Public-safe lifecycle and proof metadata only. Provider identifiers,
+// recipient details, payloads, storage references, and document bytes stay private.
+export type CharterSigningSummary = {
+  charterId: string;
+  mandateHolderId: string;
+  charterVersion: number;
+  charterStatus: 'pending' | 'accepted' | 'withdrawn';
+  signingStatus: SigningRequestStatus | null;
+  signedAt: string | null;
+  signedArtifact: CharterSigningArtifactSummary | null;
+};
 
 export type Issue = {
   id: string;

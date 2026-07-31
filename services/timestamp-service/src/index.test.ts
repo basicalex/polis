@@ -1,11 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
+import { startService } from '@polis/service-runtime';
 import { timestampRoutes } from './index.js';
 import {
   StubTimestampClient,
   Rfc3161TimestampClient,
   createTimestampClient,
 } from './timestamp-client.js';
+async function withTimestampServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
+  const previousToken = process.env.INTERNAL_API_TOKEN;
+  process.env.INTERNAL_API_TOKEN = 'timestamp-test-token';
+  const server = startService('timestamp-service', 0, timestampRoutes({} as never, {} as never));
+  try {
+    await once(server, 'listening');
+    const address = server.address() as AddressInfo;
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+    if (previousToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = previousToken;
+  }
+}
+
 
 test('timestamp-service exposes §9.14 timestamp routes', () => {
   const paths = timestampRoutes({} as never, {} as never).map((r) => `${r.method} ${r.path}`);
@@ -17,6 +37,17 @@ test('timestamp-service exposes §9.14 timestamp routes', () => {
     assert.ok(paths.includes(p), `missing ${p}`);
   }
 });
+test('timestamp-service rejects unauthenticated internal HTTP access', async () => {
+  await withTimestampServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/internal/timestamps/proof-1`);
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), {
+      error: 'internal_auth_required',
+      service: 'timestamp-service',
+    });
+  });
+});
+
 
 // ── createTimestampClient mode resolution ─────────────────────────────────
 // Env is saved/restored around every case so the suite is order-independent.

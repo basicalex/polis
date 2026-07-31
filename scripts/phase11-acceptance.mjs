@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 11 (M11) acceptance: exercises the real Paperless-ngx upload→verify
 // path end-to-end against a running PAPERLESS_MODE=http stack. Drives the
 // ingestion gateway directly — the upload surface is internal-only by design
@@ -30,13 +32,13 @@ function check(label, cond, detail = '') {
   }
 }
 async function get(base, path, headers = {}) {
-  const r = await fetch(base + path, { headers });
+  const r = await fetch(base + path, { headers: withInternalHeaders(path, headers) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 async function post(base, path, body, headers = {}) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };

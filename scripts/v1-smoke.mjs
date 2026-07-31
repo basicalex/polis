@@ -1,35 +1,39 @@
-// v1 smoke test: asserts status + body shape on the §23 public BFF paths.
-// Self-builds the workspace if platform-api's dist is missing, then starts the
-// service in fixture mode (no DB required) and exits non-zero on any mismatch.
+// v1 smoke test: asserts status + body shape on the §23 public BFF paths and
+// verifies that document-signing-service exposes its operational health route.
+// Self-builds the workspace when either service dist is missing, then starts
+// both route tables in fixture mode and exits non-zero on any mismatch.
 import { existsSync } from 'node:fs';
 import { execSync, spawn } from 'node:child_process';
 
 const PORT = Number(process.env.PLATFORM_API_PORT ?? 8080);
 const BASE = `http://127.0.0.1:${PORT}`;
 const DIST = 'services/platform-api/dist/index.js';
+const SIGNING_PORT = Number(process.env.DOCUMENT_SIGNING_SERVICE_PORT ?? 8960);
+const SIGNING_BASE = `http://127.0.0.1:${SIGNING_PORT}`;
+const SIGNING_DIST = 'services/document-signing-service/dist/index.js';
 
 function assert(label, cond, detail = '') {
   if (!cond) throw new Error(`smoke failed: ${label} ${detail}`.trim());
   console.log(`  ok  ${label}`);
 }
 
-async function poll(timeoutMs = 20_000) {
+async function poll(base, label, timeoutMs = 20_000) {
   const start = Date.now();
   for (;;) {
     try {
-      const r = await fetch(`${BASE}/healthz`);
+      const r = await fetch(`${base}/healthz`);
       if (r.ok) return;
     } catch {
       /* not up yet */
     }
-    if (Date.now() - start > timeoutMs) throw new Error('platform-api did not become ready');
+    if (Date.now() - start > timeoutMs) throw new Error(`${label} did not become ready`);
     await new Promise((r) => setTimeout(r, 300));
   }
 }
 
-if (!existsSync(DIST)) {
+if (!existsSync(DIST) || !existsSync(SIGNING_DIST)) {
   console.log('[v1-smoke] dist missing — building workspace…');
-  execSync('pnpm -r build', { stdio: 'inherit' });
+  execSync('bun run build', { stdio: 'inherit' });
 }
 
 // Fixture mode: no DATABASE_URL → runMigrationsOnce is caught, fixtures served.
@@ -37,13 +41,34 @@ const svc = spawn('node', [DIST], { stdio: ['ignore', 'pipe', 'pipe'] });
 svc.stdout.on('data', (d) => process.stderr.write(d));
 svc.stderr.on('data', (d) => process.stderr.write(d));
 
+// The signing route table can serve operational routes without a database.
+// Bind it with inert dependencies so this smoke remains hermetic.
+const [{ signingRoutes }, { startService }] = await Promise.all([
+  import('../services/document-signing-service/dist/index.js'),
+  import('../packages/service-runtime/dist/index.js'),
+]);
+const signingSvc = startService(
+  'document-signing-service',
+  SIGNING_PORT,
+  signingRoutes({}),
+);
+
 let failed = false;
 try {
-  await poll();
+  await Promise.all([
+    poll(BASE, 'platform-api'),
+    poll(SIGNING_BASE, 'document-signing-service'),
+  ]);
   console.log('[v1-smoke] checking §23 contract…');
 
   const hz = await (await fetch(`${BASE}/healthz`)).json();
   assert('GET /healthz → status=ok', hz.status === 'ok', JSON.stringify(hz));
+  const signingHealth = await (await fetch(`${SIGNING_BASE}/healthz`)).json();
+  assert(
+    'document-signing-service GET /healthz → status=ok',
+    signingHealth.status === 'ok',
+    JSON.stringify(signingHealth),
+  );
 
   const ver = await (await fetch(`${BASE}/version`)).json();
   assert(
@@ -94,6 +119,7 @@ try {
       }
     }
   }
+  await new Promise((resolve) => signingSvc.close(resolve));
 }
 
 if (failed) process.exit(1);

@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 5 (M5) acceptance: exercises the §30.6 AI assistant v0 contract
 // end-to-end against a running stack (ai-gateway :8550, platform-api BFF :8080,
 // seeded Postgres with approved public claims).
@@ -30,13 +32,13 @@ function check(label, cond, detail = '') {
   }
 }
 async function get(base, path) {
-  const r = await fetch(base + path);
+  const r = await fetch(base + path, { headers: withInternalHeaders(path) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 async function post(base, path, body) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };

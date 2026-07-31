@@ -9,16 +9,28 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { runMigrationsOnce } from '@polis/db';
-import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  trustedActorHeaders,
+  type Route,
+} from '@polis/service-runtime';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
+
+interface AuthenticatedActor {
+  citizenId: string;
+  identityLevel: string;
+}
 async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Promise<unknown> {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const hasBody = req.method !== 'GET' && body !== undefined;
     const upstream = await fetch(base + url.pathname + url.search, {
       method: req.method,
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: hasBody ? JSON.stringify(body) : undefined,
     });
 
@@ -46,7 +58,7 @@ async function proxyToPath(
     const hasBody = method !== 'GET' && body !== undefined;
     const upstream = await fetch(base + path, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: hasBody ? JSON.stringify(body) : undefined,
     });
     if (!upstream.ok) {
@@ -105,31 +117,27 @@ const proofVerifyPaths = [
   '/api/v1/verify/hash',
   '/api/v1/verify/manifest',
 ] as const;
-/**
- * Verify a session token against citizen-identity-service. Returns the
- * citizenId on success, or null on any failure. Called by requireCitizen.
- */
-async function verifySession(sessionToken: string): Promise<string | null> {
+/** Verify a session token against citizen-identity-service. Fail closed. */
+async function verifySession(sessionToken: string): Promise<AuthenticatedActor | null> {
   const base = process.env.IDENTITY_INTERNAL_URL ?? 'http://localhost:8650';
   try {
     const r = await fetch(base + '/internal/identity/verify-session', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({ sessionToken }),
     });
     if (!r.ok) return null;
-    const body = (await r.json()) as { citizenId?: string };
-    return typeof body.citizenId === 'string' ? body.citizenId : null;
+    const body = (await r.json()) as { citizenId?: unknown; identityLevel?: unknown };
+    return typeof body.citizenId === 'string' && typeof body.identityLevel === 'string'
+      ? { citizenId: body.citizenId, identityLevel: body.identityLevel }
+      : null;
   } catch {
     return null;
   }
 }
 
-/**
- * Read the session token from Authorization header, verify with identity-service,
- * and return the citizenId. Returns null if unauthenticated (handler should 401).
- */
-async function requireCitizen(req: IncomingMessage): Promise<string | null> {
+/** Read and verify the bearer session, returning the full trusted actor. */
+async function requireCitizen(req: IncomingMessage): Promise<AuthenticatedActor | null> {
   const auth = req.headers['authorization'];
   if (typeof auth !== 'string') return null;
   const [scheme, token] = auth.split(' ', 2);
@@ -147,17 +155,14 @@ async function proxyToPathWithCitizen(
   base: string,
   method: string,
   internalPath: string,
-  citizenId: string,
+  actor: AuthenticatedActor,
   body?: unknown,
 ): Promise<unknown> {
   try {
     const hasBody = method !== 'GET' && body !== undefined;
     const upstream = await fetch(base + internalPath, {
       method,
-      headers: {
-        'content-type': 'application/json',
-        'x-polis-citizen': citizenId,
-      },
+      headers: trustedActorHeaders(actor),
       body: hasBody ? JSON.stringify(body) : undefined,
     });
     if (!upstream.ok) {
@@ -209,6 +214,10 @@ const PUBLIC_EDGE_BLOCKED = new Set<string>([
   'GET /api/v1/identity/authorize',
   'POST /api/v1/identity/callback',
   'GET /api/v1/identity/dev-tokens',
+  'POST /api/v1/mandate-holders/:id/charter-signing-requests',
+  'GET /api/v1/mandate-holders/:id/charter-signing-status',
+  'POST /api/v1/signing-requests/:id/stub-complete',
+  'POST /webhooks/documenso',
   'POST /api/v1/vault/documents',
   'POST /api/v1/vault/grants',
   'POST /api/v1/vault/verify',
@@ -266,6 +275,7 @@ export function platformRoutes(): Route[] {
   const vaultBase = process.env.VAULT_INTERNAL_URL ?? 'http://localhost:8750';
   const vcIssuerBase = process.env.VC_ISSUER_INTERNAL_URL ?? 'http://localhost:8950';
 
+  const signingBase = process.env.SIGNING_INTERNAL_URL ?? 'http://localhost:8960';
   return [
     ...operationalRoutes('platform-api'),
     ...graphReadPaths.map((path) => ({
@@ -343,17 +353,36 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/contributors/:id',
       handler: async (req: IncomingMessage, body: unknown) => proxyTo(contributionBase, req, body),
     },
-    // Admin review routes — map public path → internal path (mirrors assistant outputs review).
+    // Staff-only review routes. Reviewer identity comes only from the trusted actor.
     {
       method: 'GET',
       path: '/api/v1/review/queue',
-      handler: async () => proxyToPath(contributionBase, 'GET', '/internal/review/queue'),
+      handler: async (req: IncomingMessage) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        if (actor.identityLevel !== 'staff') return result(403, { error: 'staff_required' });
+        return proxyToPathWithCitizen(contributionBase, 'GET', '/internal/review/queue', actor);
+      },
     },
     {
       method: 'POST',
       path: '/api/v1/review/:id/decide',
-      handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
-        proxyToPath(contributionBase, 'POST', '/internal/review/' + params.id + '/decide', body),
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        if (actor.identityLevel !== 'staff') return result(403, { error: 'staff_required' });
+        const input = (body ?? {}) as { decision?: unknown; notes?: unknown };
+        const forwarded: { decision?: unknown; notes?: unknown } = {};
+        if ('decision' in input) forwarded.decision = input.decision;
+        if ('notes' in input) forwarded.notes = input.notes;
+        return proxyToPathWithCitizen(
+          contributionBase,
+          'POST',
+          '/internal/review/' + params.id + '/decide',
+          actor,
+          forwarded,
+        );
+      },
     },
     // §30.8 public rewards routes — same-path proxy (rewards-service serves these paths).
     // Payout details stay private: NO public /api/v1/rewards/payouts* route exists
@@ -546,6 +575,80 @@ export function platformRoutes(): Route[] {
           citizenId,
           body,
         );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/mandate-holders/:id/charter-signing-requests',
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        const idempotencyKey = req.headers['idempotency-key'];
+        if (typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
+          return result(400, { error: 'idempotency_key_required' });
+        }
+        return proxyToPathWithCitizen(
+          signingBase,
+          'POST',
+          '/internal/signing/charter-requests',
+          actor,
+          { mandateHolderId: params.id, idempotencyKey },
+        );
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/mandate-holders/:id/charter-signing-status',
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          signingBase,
+          'GET',
+          '/internal/signing/charter-status/' + params.id,
+          actor,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/signing-requests/:id/stub-complete',
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          signingBase,
+          'POST',
+          '/internal/signing/requests/' + params.id + '/stub-complete',
+          actor,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/webhooks/documenso',
+      bodyMode: 'raw',
+      maxBodyBytes: 1_000_000,
+      handler: async (req: IncomingMessage, body: unknown) => {
+        try {
+          const secret = req.headers['x-documenso-secret'];
+          const headers =
+            typeof secret === 'string'
+              ? internalHeaders({ 'x-documenso-secret': secret })
+              : internalHeaders();
+          const upstream = await fetch(signingBase + '/internal/signing/webhooks/documenso', {
+            method: 'POST',
+            headers,
+            body: Buffer.from(body instanceof Uint8Array ? body : new Uint8Array()),
+          });
+          return result(
+            upstream.status,
+            await upstream.json().catch(() => ({ error: 'upstream_error' })),
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'unknown';
+          return result(502, { error: 'bad_gateway', detail: message });
+        }
       },
     },
     // M9 — pilot charter + results (static JSON files, no upstream service).

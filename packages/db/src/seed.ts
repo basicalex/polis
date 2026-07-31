@@ -22,6 +22,7 @@ const timestampColumns = new Set([
   'ends_at',
   'due_at',
   'decided_at',
+  'signed_at',
 ]);
 
 function camelizeKey(key: string): string {
@@ -302,7 +303,17 @@ async function main(): Promise<void> {
     'mandate_holder_charters',
     schema.mandateHolderCharters,
     'mandate_holder_charters.json',
-    ['mandate_holder_id', 'charter_doc', 'status'],
+    [
+      'mandate_holder_id',
+      'charter_doc',
+      'version',
+      'accepted_signing_request_id',
+      'signed_artifact_id',
+      'proof_manifest_id',
+      'signed_at',
+      'supersedes_charter_id',
+      'status',
+    ],
   );
   await upsert('commitments', schema.commitments, 'commitments.json', [
     'claim_id',

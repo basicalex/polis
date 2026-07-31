@@ -13,7 +13,7 @@
 import { getClient } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { eq, sql } from 'drizzle-orm';
-import { operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
 
 import { schema } from '@polis/db';
 import { createTimestampClient, type TimestampClient } from './timestamp-client.js';
@@ -34,7 +34,7 @@ async function emitAudit(event: {
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: internalHeaders(),
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,

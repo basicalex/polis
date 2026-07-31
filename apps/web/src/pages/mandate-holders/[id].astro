@@ -28,6 +28,11 @@ type MandateHolderDetail = {
   endsAt: string | null;
   status: string;
   charterAccepted: boolean;
+  charterStatus: string | null;
+  charterVersion: number | null;
+  charterSignedAt: string | null;
+  charterProofId: string | null;
+  charterSignedDocumentHash: string | null;
   commitments: Commitment[];
 } | null;
 
@@ -67,6 +72,9 @@ const filteredCommitments = statusFilter
   ? holder?.commitments.filter((c) => c.effectiveStatus === statusFilter) ?? []
   : holder?.commitments ?? [];
 const statusAnchor = (status: string) => `commitments-${status.replaceAll('_', '-')}`;
+const charterStatus = holder?.charterStatus ?? (holder?.charterAccepted ? 'accepted' : null);
+const charterHash = holder?.charterSignedDocumentHash ?? null;
+const charterTone = charterStatus === 'accepted' ? 'valid' : charterStatus ? 'warning' : 'unknown';
 ---
 
 <Base title={`Mandate-holder · ${holder?.displayName ?? id}`}>
@@ -78,9 +86,39 @@ const statusAnchor = (status: string) => `commitments-${status.replaceAll('_', '
         <p class="muted">Jurisdiction: {holder.jurisdictionId ?? 'not recorded'}</p>
         <p>
           <span class="badge">{holder.status}</span>
-          {holder.charterAccepted && <span class="badge">charter accepted</span>}
         </p>
         <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
+      </section>
+
+      <section class="stack">
+        <h2>Charter signature</h2>
+        <div class="panel stack">
+          <p>
+            <span class="trust-badge" data-tone={charterTone}>
+              charter {charterStatus ?? 'not on file'}
+            </span>
+            {holder.charterVersion !== null && <span class="badge">version {holder.charterVersion}</span>}
+          </p>
+          <dl class="kv">
+            <dt>Signed</dt>
+            <dd>{holder.charterSignedAt ?? 'not signed'}</dd>
+            <dt>Signed document hash</dt>
+            <dd>{charterHash ? <span class="hash-value">{charterHash}</span> : 'not recorded'}</dd>
+            <dt>Proof</dt>
+            <dd>
+              {holder.charterProofId ? (
+                <a href={`/proofs/${holder.charterProofId}`}>proof for the signed charter</a>
+              ) : (
+                'not published'
+              )}
+            </dd>
+          </dl>
+          <p class="trust-note">
+            This shows that a named person completed a signing ceremony on the charter PDF, and that
+            Polis registered a proof over the exact signed bytes. It is not a qualified electronic
+            signature, and it does not show that the charter's contents are true.
+          </p>
+        </div>
       </section>
 
       {scorecard && (

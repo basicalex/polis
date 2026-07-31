@@ -2,10 +2,19 @@
   {
     "id": "charter-mh-demo",
     "mandate_holder_id": "mh-demo",
-    "status": "accepted",
+    "version": 1,
+    "accepted_signing_request_id": null,
+    "signed_artifact_id": null,
+    "proof_manifest_id": null,
+    "signed_at": null,
+    "supersedes_charter_id": null,
+    "status": "pending",
     "charter_doc": {
       "purpose": "demo",
-      "scope": "jur-croatia-local",
+      "scope": {
+        "jurisdictions": ["jur-croatia-local"],
+        "processes": ["all"]
+      },
       "data_categories": [],
       "retention": "",
       "review_roles": [],

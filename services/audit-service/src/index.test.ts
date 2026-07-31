@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -7,6 +9,35 @@ import {
   canonicalAuditJson,
   computeAuditHash,
 } from './index.js';
+import { startService, type Route } from '@polis/service-runtime';
+
+async function withInternalToken(
+  token: string | undefined,
+  run: () => Promise<void>,
+): Promise<void> {
+  const previous = process.env.INTERNAL_API_TOKEN;
+  if (token === undefined) delete process.env.INTERNAL_API_TOKEN;
+  else process.env.INTERNAL_API_TOKEN = token;
+  try {
+    await run();
+  } finally {
+    if (previous === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = previous;
+  }
+}
+
+async function withServer(routes: Route[], run: (baseUrl: string) => Promise<void>): Promise<void> {
+  const server = startService('audit-service', 0, routes);
+  try {
+    await once(server, 'listening');
+    const address = server.address() as AddressInfo;
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
 
 test('computeAuditHash hashes previous hash plus canonical event JSON', () => {
   const canonicalJson =
@@ -38,4 +69,22 @@ test('auditRoutes exposes append and public target read paths', () => {
 
   assert.ok(paths.includes('POST /internal/audit/events'));
   assert.ok(paths.includes('GET /api/v1/audit/:objectType/:objectId'));
+});
+
+test('audit-service rejects unauthenticated internal audit event requests', async () => {
+  await withInternalToken('audit-test-token', async () => {
+    await withServer(auditRoutes({} as never), async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/internal/audit/events`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), {
+        error: 'internal_auth_required',
+        service: 'audit-service',
+      });
+    });
+  });
 });

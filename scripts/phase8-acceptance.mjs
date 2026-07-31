@@ -1,3 +1,5 @@
+import { withInternalHeaders } from './internal-headers.mjs';
+
 // Phase 8 (M8) acceptance: exercises the §30.9 citizen vault v1 contract
 // end-to-end against a running stack (citizen-identity-service :8650,
 // citizen-vault-service :8750, vc-issuer-service :8950, platform-api BFF
@@ -29,13 +31,13 @@ function check(label, cond, detail = '') {
   }
 }
 async function get(base, path, headers = {}) {
-  const r = await fetch(base + path, { headers });
+  const r = await fetch(base + path, { headers: withInternalHeaders(path, headers) });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 async function post(base, path, body, headers = {}) {
   const r = await fetch(base + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };
@@ -43,7 +45,7 @@ async function post(base, path, body, headers = {}) {
 async function del(base, path, headers = {}) {
   const r = await fetch(base + path, {
     method: 'DELETE',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: withInternalHeaders(path, { 'content-type': 'application/json', ...headers }),
   });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }

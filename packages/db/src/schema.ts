@@ -15,7 +15,9 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  customType,
   index,
+  integer,
   jsonb,
   numeric,
   pgTable,
@@ -163,7 +165,7 @@ export const GRAPH_PROPOSAL_OPS = ['insert', 'update', 'delete'] as const;
 export const REVIEW_DECISIONS = ['approved', 'rejected'] as const;
 export const REWARD_ELIGIBILITY_OUTCOMES = ['eligible', 'denied'] as const;
 export const PAYOUT_STATUSES = ['pending', 'paid'] as const;
-export const IDENTITY_AUTH_LEVELS = ['verified_resident', 'verified_official'] as const; // §21.1 vault-eligible tiers (v1)
+export const IDENTITY_AUTH_LEVELS = ['verified_resident', 'verified_official', 'staff'] as const; // §21.1 vault-eligible tiers (v1)
 export const ACCESS_GRANT_SCOPES = [
   'proof_only',
   'metadata',
@@ -184,6 +186,40 @@ export const COMMITMENT_STATUSES = [
   'overdue',
 ] as const;
 export const CHARTER_STATUSES = ['pending', 'accepted', 'withdrawn'] as const;
+export const DOCUMENT_ARTIFACT_KINDS = [
+  'charter_unsigned',
+  'charter_signed',
+  'provider_receipt',
+] as const;
+export const DOCUMENT_ARTIFACT_STORAGE_MODES = ['database', 's3'] as const;
+export const SIGNING_PROVIDERS = ['stub', 'documenso'] as const;
+export const SIGNING_REQUEST_STATUSES = [
+  'created',
+  'distributed',
+  'awaiting_signatures',
+  'completed',
+  'declined',
+  'expired',
+  'voided',
+  'failed',
+] as const;
+export const SIGNING_RECIPIENT_ROLES = ['signer', 'approver', 'witness'] as const;
+export const SIGNING_RECIPIENT_STATUSES = [
+  'pending',
+  'sent',
+  'opened',
+  'signed',
+  'declined',
+] as const;
+export const MANDATE_HOLDER_CHARTER_EVENTS = [
+  'initiated',
+  'distributed',
+  'completed',
+  'accepted',
+  'declined',
+  'expired',
+  'withdrawn',
+] as const;
 
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
@@ -206,6 +242,10 @@ const universal = () => ({
   updatedByUserId: text('updated_by_user_id'),
   status: text('status'),
   auditCorrelationId: text('audit_correlation_id'),
+});
+
+const bytea = customType<{ data: Buffer }>({
+  dataType: () => 'bytea',
 });
 
 /* ------------------------------------------------------------------ */
@@ -1043,6 +1083,163 @@ export const verifiableCredentials = pgTable(
   ],
 );
 /* ------------------------------------------------------------------ */
+/* Provider-neutral charter signing                                    */
+/* ------------------------------------------------------------------ */
+
+// Immutable artifact metadata. Content is stored separately so public proof
+// queries cannot accidentally select restricted signed charter bytes.
+export const documentArtifacts = pgTable(
+  'document_artifacts',
+  {
+    id: pkId(),
+    subjectType: text('subject_type').notNull(),
+    subjectId: text('subject_id').notNull(),
+    kind: text('kind').notNull(),
+    version: integer('version').notNull(),
+    derivedFromArtifactId: text('derived_from_artifact_id'),
+    sha256: text('sha256').notNull(),
+    mimeType: text('mime_type').notNull(),
+    byteCount: integer('byte_count').notNull(),
+    filename: text('filename'),
+    visibility: text('visibility').notNull(),
+    storageMode: text('storage_mode').notNull(),
+    storageRef: text('storage_ref').notNull(),
+    provenance: jsonb('provenance'),
+    createdByService: text('created_by_service').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    uniqueIndex('document_artifacts_subject_kind_version_idx').on(
+      t.subjectType,
+      t.subjectId,
+      t.kind,
+      t.version,
+    ),
+    index('document_artifacts_sha256_idx').on(t.sha256),
+    index('document_artifacts_derived_from_idx').on(t.derivedFromArtifactId),
+    enumCheck('ck_document_artifacts_kind', 'kind', DOCUMENT_ARTIFACT_KINDS),
+    enumCheck('ck_document_artifacts_visibility', 'visibility', VISIBILITIES),
+    enumCheck('ck_document_artifacts_storage_mode', 'storage_mode', DOCUMENT_ARTIFACT_STORAGE_MODES),
+    check('ck_document_artifacts_version', sql`version > 0`),
+    check('ck_document_artifacts_byte_count', sql`byte_count >= 0`),
+  ],
+);
+
+export const documentArtifactBlobs = pgTable('document_artifact_blobs', {
+  artifactId: text('artifact_id').primaryKey(),
+  content: bytea('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const signingRequests = pgTable(
+  'signing_requests',
+  {
+    id: pkId(),
+    provider: text('provider').notNull(),
+    charterId: text('charter_id').notNull(),
+    mandateHolderId: text('mandate_holder_id').notNull(),
+    unsignedArtifactId: text('unsigned_artifact_id').notNull(),
+    signedArtifactId: text('signed_artifact_id'),
+    proofManifestId: text('proof_manifest_id'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    providerEnvelopeId: text('provider_envelope_id'),
+    status: text('status').notNull().default('created'),
+    lastReconciledAt: timestamp('last_reconciled_at', { withTimezone: true }),
+    reconcileAttempts: integer('reconcile_attempts').notNull().default(0),
+    providerCompletedAt: timestamp('provider_completed_at', { withTimezone: true }),
+    failureCode: text('failure_code'),
+    failureDetailRedacted: text('failure_detail_redacted'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    uniqueIndex('signing_requests_idempotency_idx').on(t.idempotencyKey),
+    uniqueIndex('signing_requests_provider_envelope_idx').on(t.provider, t.providerEnvelopeId),
+    index('signing_requests_charter_idx').on(t.charterId),
+    index('signing_requests_holder_idx').on(t.mandateHolderId),
+    index('signing_requests_status_idx').on(t.status),
+    enumCheck('ck_signing_requests_provider', 'provider', SIGNING_PROVIDERS),
+    enumCheck('ck_signing_requests_status', 'status', SIGNING_REQUEST_STATUSES),
+    check('ck_signing_requests_reconcile_attempts', sql`reconcile_attempts >= 0`),
+  ],
+);
+
+export const signingRecipients = pgTable(
+  'signing_recipients',
+  {
+    id: pkId(),
+    signingRequestId: text('signing_request_id').notNull(),
+    citizenId: text('citizen_id').notNull(),
+    role: text('role').notNull(),
+    signingOrder: integer('signing_order').notNull(),
+    providerRecipientId: text('provider_recipient_id'),
+    status: text('status').notNull().default('pending'),
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('signing_recipients_request_citizen_role_idx').on(
+      t.signingRequestId,
+      t.citizenId,
+      t.role,
+    ),
+    uniqueIndex('signing_recipients_request_provider_recipient_idx').on(
+      t.signingRequestId,
+      t.providerRecipientId,
+    ),
+    index('signing_recipients_request_idx').on(t.signingRequestId),
+    enumCheck('ck_signing_recipients_role', 'role', SIGNING_RECIPIENT_ROLES),
+    enumCheck('ck_signing_recipients_status', 'status', SIGNING_RECIPIENT_STATUSES),
+    check('ck_signing_recipients_order', sql`signing_order > 0`),
+  ],
+);
+
+export const signingProviderEvents = pgTable(
+  'signing_provider_events',
+  {
+    id: pkId(),
+    provider: text('provider').notNull(),
+    signingRequestId: text('signing_request_id'),
+    eventName: text('event_name').notNull(),
+    eventFingerprint: text('event_fingerprint').notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    redactedData: jsonb('redacted_data'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('signing_provider_events_dedupe_idx').on(t.provider, t.eventFingerprint),
+    index('signing_provider_events_request_idx').on(t.signingRequestId),
+    enumCheck('ck_signing_provider_events_provider', 'provider', SIGNING_PROVIDERS),
+  ],
+);
+
+export const mandateHolderCharterEvents = pgTable(
+  'mandate_holder_charter_events',
+  {
+    id: pkId(),
+    charterId: text('charter_id').notNull(),
+    signingRequestId: text('signing_request_id'),
+    event: text('event').notNull(),
+    actorId: text('actor_id'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    index('mandate_holder_charter_events_charter_idx').on(t.charterId, t.occurredAt),
+    index('mandate_holder_charter_events_request_idx').on(t.signingRequestId),
+    enumCheck(
+      'ck_mandate_holder_charter_events_event',
+      'event',
+      MANDATE_HOLDER_CHARTER_EVENTS,
+    ),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
 /* Representative accountability (M-RA) v0                              */
 /* ------------------------------------------------------------------ */
 
@@ -1073,16 +1270,20 @@ export const mandateHolders = pgTable(
   ],
 );
 
-// M-RA accepted charter: a mandate-holder must have an accepted charter before
-// publishing any commitment (enforced in representative/access.rego, Phase 2).
-// Inlines lifecycle `status` (pending|accepted|withdrawn) — same rationale as
-// mandate_holders.
+// M-RA charter lifecycle. A charter remains pending until a completed signing
+// request is accepted; signed content stays in restricted document artifacts.
 export const mandateHolderCharters = pgTable(
   'mandate_holder_charters',
   {
     id: pkId(),
     mandateHolderId: text('mandate_holder_id').notNull(),
     charterDoc: jsonb('charter_doc'),
+    version: integer('version').notNull().default(1),
+    acceptedSigningRequestId: text('accepted_signing_request_id'),
+    signedArtifactId: text('signed_artifact_id'),
+    proofManifestId: text('proof_manifest_id'),
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    supersedesCharterId: text('supersedes_charter_id'),
     status: text('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -1090,7 +1291,12 @@ export const mandateHolderCharters = pgTable(
   },
   (t) => [
     enumCheck('ck_mandate_holder_charters_status', 'status', CHARTER_STATUSES),
-    index('mandate_holder_charters_holder_idx').on(t.mandateHolderId),
+    check('ck_mandate_holder_charters_version', sql`version > 0`),
+    uniqueIndex('mandate_holder_charters_holder_version_idx').on(t.mandateHolderId, t.version),
+    uniqueIndex('mandate_holder_charters_signing_request_idx').on(t.acceptedSigningRequestId),
+    uniqueIndex('mandate_holder_charters_signed_artifact_idx').on(t.signedArtifactId),
+    uniqueIndex('mandate_holder_charters_proof_manifest_idx').on(t.proofManifestId),
+    index('mandate_holder_charters_supersedes_idx').on(t.supersedesCharterId),
   ],
 );
 
@@ -1199,6 +1405,11 @@ export const schema = {
   conversations,
   conversationResults,
   proofManifests,
+  documentArtifacts,
+  documentArtifactBlobs,
+  signingRequests,
+  signingRecipients,
+  signingProviderEvents,
   proofIssuers,
   proofSignatures,
   proofTimestamps,
@@ -1220,6 +1431,7 @@ export const schema = {
   accessEvents,
   mandateHolders,
   mandateHolderCharters,
+  mandateHolderCharterEvents,
   commitments,
   commitmentStatusEvents,
   commitmentQuestions,
