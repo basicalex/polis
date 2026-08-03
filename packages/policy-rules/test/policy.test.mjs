@@ -350,7 +350,10 @@ test('representative access allows only verified active accepted in-scope offici
   assert.equal(
     opaEval(
       'representative/access.rego',
-      { ...allowed, mandate_holder: { status: 'active', scope: 'health', revoked_at: null, ended_at: null } },
+      {
+        ...allowed,
+        mandate_holder: { status: 'active', scope: 'health', revoked_at: null, ended_at: null },
+      },
       query,
     ),
     true,
@@ -361,8 +364,14 @@ test('representative access allows only verified active accepted in-scope offici
     { ...allowed, mandate_holder: { status: 'inactive', scope: 'health' } },
     { ...allowed, mandate_holder: { status: 'revoked', scope: 'health' } },
     { ...allowed, mandate_holder: { status: 'ended', scope: 'health' } },
-    { ...allowed, mandate_holder: { status: 'active', scope: 'health', revoked_at: '2026-01-01T00:00:00.000Z' } },
-    { ...allowed, mandate_holder: { status: 'active', scope: 'health', ended_at: '2026-01-01T00:00:00.000Z' } },
+    {
+      ...allowed,
+      mandate_holder: { status: 'active', scope: 'health', revoked_at: '2026-01-01T00:00:00.000Z' },
+    },
+    {
+      ...allowed,
+      mandate_holder: { status: 'active', scope: 'health', ended_at: '2026-01-01T00:00:00.000Z' },
+    },
     { ...allowed, charter: { status: 'pending' } },
     { ...allowed, charter: undefined },
     { ...allowed, charter: { status: 'accepted' } },
@@ -533,11 +542,224 @@ test('identity access allows stub mode and oidc with verified email (M10)', () =
     true,
   );
   assert.equal(
-    opaEval('identity/access.rego', { mode: 'oidc', email_verified: true }, 'data.polis.identity.access.allow'),
+    opaEval(
+      'identity/access.rego',
+      { mode: 'oidc', email_verified: true },
+      'data.polis.identity.access.allow',
+    ),
     true,
   );
   assert.equal(
-    opaEval('identity/access.rego', { mode: 'oidc', email_verified: false }, 'data.polis.identity.access.allow'),
+    opaEval(
+      'identity/access.rego',
+      { mode: 'oidc', email_verified: false },
+      'data.polis.identity.access.allow',
+    ),
     false,
   );
+});
+
+const complaintQuery = 'data.polis.complaints.allow';
+const complaint = {
+  resident_citizen_id: 'resident-1',
+  status: 'assigned',
+  assigned_mandate_holder_id: 'holder-initial',
+};
+const complaintStaff = {
+  citizen_id: 'officer-1',
+  identity_level: 'staff',
+  mandate_holder_id: 'holder-initial',
+  mandate_holder_status: 'active',
+  jurisdiction_id: 'jur-croatia-local',
+  institution_id: 'inst-complaints-office',
+  rights: ['decide_complaint'],
+};
+
+test('complaints permits verified creation and owner reads but denies owner mismatch', () => {
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      {
+        action: 'create',
+        actor: { citizen_id: 'resident-1', identity_level: 'verified_resident' },
+      },
+      complaintQuery,
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      { action: 'read_detail', actor: { citizen_id: 'resident-1' }, complaint },
+      complaintQuery,
+    ),
+    true,
+  );
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      { action: 'read_detail', actor: { citizen_id: 'resident-2' }, complaint },
+      complaintQuery,
+    ),
+    false,
+  );
+});
+
+test('complaints staff reads require active in-jurisdiction decision authority', () => {
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      { action: 'read_queue', actor: complaintStaff, complaint },
+      complaintQuery,
+    ),
+    true,
+  );
+  for (const actor of [
+    { ...complaintStaff, rights: [] },
+    { ...complaintStaff, jurisdiction_id: 'jur-other' },
+    { ...complaintStaff, mandate_holder_status: 'ended' },
+    {
+      citizen_id: 'plain-staff',
+      identity_level: 'staff',
+      rights: ['decide_complaint'],
+    },
+  ]) {
+    assert.equal(
+      opaEval('complaints/access.rego', { action: 'read_queue', actor, complaint }, complaintQuery),
+      false,
+    );
+  }
+});
+
+test('complaints assignment requires intake authority and a valid initial-decision target', () => {
+  const intake = {
+    ...complaintStaff,
+    mandate_holder_id: 'holder-intake',
+    rights: ['route_case_to_sector_office'],
+  };
+  const submitted = { ...complaint, status: 'submitted' };
+  const target = {
+    mandate_holder_status: 'active',
+    jurisdiction_id: 'jur-croatia-local',
+    institution_id: 'inst-complaints-office',
+    rights: ['decide_complaint'],
+  };
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      { action: 'assign', actor: intake, complaint: submitted, target },
+      complaintQuery,
+    ),
+    true,
+  );
+  for (const input of [
+    { action: 'assign', actor: { ...intake, rights: [] }, complaint: submitted, target },
+    {
+      action: 'assign',
+      actor: intake,
+      complaint: submitted,
+      target: { ...target, jurisdiction_id: 'jur-other' },
+    },
+    {
+      action: 'assign',
+      actor: intake,
+      complaint: submitted,
+      target: { ...target, rights: [] },
+    },
+  ]) {
+    assert.equal(opaEval('complaints/access.rego', input, complaintQuery), false);
+  }
+});
+
+test('complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider', () => {
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      {
+        action: 'decide_initial',
+        actor: complaintStaff,
+        complaint,
+        pending_information_request: false,
+        initial_decision_exists: false,
+      },
+      complaintQuery,
+    ),
+    true,
+  );
+  for (const input of [
+    {
+      action: 'decide_initial',
+      actor: complaintStaff,
+      complaint,
+      pending_information_request: true,
+      initial_decision_exists: false,
+    },
+    {
+      action: 'decide_initial',
+      actor: complaintStaff,
+      complaint,
+      pending_information_request: false,
+      initial_decision_exists: true,
+    },
+    {
+      action: 'decide_initial',
+      actor: complaintStaff,
+      complaint: { ...complaint, status: 'closed' },
+      pending_information_request: false,
+      initial_decision_exists: false,
+    },
+  ]) {
+    assert.equal(opaEval('complaints/access.rego', input, complaintQuery), false);
+  }
+
+  const appealStaff = {
+    ...complaintStaff,
+    citizen_id: 'appeal-officer',
+    mandate_holder_id: 'holder-appeal',
+    rights: ['decide_complaint_appeal'],
+  };
+  const appealed = { ...complaint, status: 'appealed' };
+  assert.equal(
+    opaEval(
+      'complaints/access.rego',
+      {
+        action: 'decide_appeal',
+        actor: appealStaff,
+        complaint: appealed,
+        appeal_matches: true,
+        appeal_status: 'filed',
+        appeal_decision_exists: false,
+        initial_decider: {
+          citizen_id: 'officer-1',
+          mandate_holder_id: 'holder-initial',
+        },
+      },
+      complaintQuery,
+    ),
+    true,
+  );
+  for (const actor of [
+    { ...appealStaff, citizen_id: 'officer-1' },
+    { ...appealStaff, mandate_holder_id: 'holder-initial' },
+  ]) {
+    assert.equal(
+      opaEval(
+        'complaints/access.rego',
+        {
+          action: 'decide_appeal',
+          actor,
+          complaint: appealed,
+          appeal_matches: true,
+          appeal_status: 'filed',
+          appeal_decision_exists: false,
+          initial_decider: {
+            citizen_id: 'officer-1',
+            mandate_holder_id: 'holder-initial',
+          },
+        },
+        complaintQuery,
+      ),
+      false,
+    );
+  }
 });

@@ -26,32 +26,164 @@ async function fetchJson(path: string) {
 const charter = (await fetchJson('/api/v1/pilot/charter')) as Charter | null;
 ---
 
-<Base title="Pilot Partners">
+<Base title="Simulated charter">
   <section class="stack">
-    <p class="badge">§30.10 Pilot</p>
-    <h1>{charter?.partner ?? 'Partner'}</h1>
-    <p class="muted">{charter?.purpose ?? 'Pilot charter loading…'}</p>
+    <h1>Simulated charter</h1>
+    <p class="muted">
+      {charter?.purpose ?? 'Demonstrator charter data are unavailable. Return to the process map or try again when local fixtures are available.'}
+    </p>
   </section>
+
+  <aside class="demonstrator-note" aria-labelledby="demonstrator-title">
+    <h2 id="demonstrator-title">How to read this charter</h2>
+    <p>
+      This is a <strong>simulated complaints-process demonstrator</strong>. Its charter content is
+      <strong>development trust material</strong> built from <strong>synthetic fixtures</strong>; there is
+      <strong>no government integration</strong>.
+    </p>
+    <dl>
+      <div>
+        <dt>implemented locally</dt>
+        <dd>The interface and local development flow shown on this site.</dd>
+      </div>
+      <div>
+        <dt>mocked</dt>
+        <dd>The charter entries and complaints-process content shown below.</dd>
+      </div>
+      <div>
+        <dt>operationally accepted</dt>
+        <dd>No part of this demonstrator is operationally accepted.</dd>
+      </div>
+    </dl>
+  </aside>
+
   {charter && (
-    <section class="stack">
+    <section class="stack charter-material" aria-label="Charter development trust material">
+      <p class="material-label">development trust material</p>
       <h2>Scope</h2>
       <p>{charter.scope}</p>
       <h2>Jurisdiction</h2>
       <p>{charter.jurisdictionName}</p>
       <h2>Sunset</h2>
       <p>{new Date(charter.sunsetDate).toLocaleDateString()}</p>
-      <h2>Success Metrics</h2>
+      <h2>Success metrics</h2>
+      <p class="material-label">synthetic fixtures</p>
       <ul>{charter.successMetrics.map((m) => <li>{m}</li>)}</ul>
-      <h2>Redaction Policy</h2>
+      <h2>Redaction policy</h2>
       <p>{charter.redactionPolicy}</p>
-      <h2>Implementation Status</h2>
-      <p><strong>Live:</strong> {charter.implementationStatus.live.join(', ')}</p>
-      <p><strong>Mocked:</strong> {charter.implementationStatus.mocked.join(', ')}</p>
-      <h2>Exit Plan</h2>
+      <h2>Implementation status</h2>
+      <dl class="implementation-status">
+        <div>
+          <dt>implemented locally</dt>
+          <dd>{charter.implementationStatus.live.join(', ') || 'Demonstrator data are unavailable for this field.'}</dd>
+        </div>
+        <div>
+          <dt>mocked</dt>
+          <dd>{charter.implementationStatus.mocked.join(', ') || 'Demonstrator data are unavailable for this field.'}</dd>
+        </div>
+        <div>
+          <dt>operationally accepted</dt>
+          <dd>Not represented by this demonstrator.</dd>
+        </div>
+      </dl>
+      <h2>Exit plan</h2>
       <p>{charter.exitPlan}</p>
     </section>
   )}
-  <section class="stack">
-    <p><a href="/pilot/results">View results report</a> · <a href="/issues">Live issue map</a></p>
-  </section>
+
+  {!charter && (
+    <section class="stack charter-material" aria-live="polite">
+      <h2>Demonstrator charter data are unavailable</h2>
+      <p>Return to the <a href="/governance/jur-croatia-local">process map</a> or try again when local fixtures are available.</p>
+    </section>
+  )}
+
+  <nav class="resource-links" aria-label="Demonstrator resources">
+    <a href="/governance/jur-croatia-local">Process map</a>
+    <a href="/transparency">Transparency</a>
+    <a href="/verify">Verify</a>
+    <a href="/partners">Charter</a>
+    <a href="/pilot/results">Results</a>
+  </nav>
 </Base>
+
+<style>
+  .demonstrator-note,
+  .charter-material {
+    max-width: 75ch;
+  }
+
+  .demonstrator-note {
+    margin-block: 1.5rem;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    border-radius: var(--polis-radius-md, 0.5rem);
+    background: rgba(18, 25, 35, 0.78);
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .demonstrator-note h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+
+  .demonstrator-note p,
+  .demonstrator-note dd {
+    margin: 0;
+  }
+
+  .demonstrator-note dl,
+  .implementation-status {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 0;
+  }
+
+  .demonstrator-note dl > div,
+  .implementation-status > div {
+    min-width: 0;
+  }
+
+  .demonstrator-note dt,
+  .implementation-status dt,
+  .material-label {
+    color: var(--polis-primary, #38bdf8);
+    font-weight: 700;
+  }
+
+  .demonstrator-note dd,
+  .implementation-status dd {
+    margin: 0.35rem 0 0;
+    color: var(--polis-muted, #9ca3af);
+  }
+
+  .material-label {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .resource-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-block: 1.5rem;
+  }
+
+  .resource-links a {
+    text-underline-offset: 0.2em;
+  }
+
+  .resource-links a:focus-visible {
+    outline: 3px solid var(--polis-primary, #38bdf8);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 44rem) {
+    .demonstrator-note dl,
+    .implementation-status {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+</style>

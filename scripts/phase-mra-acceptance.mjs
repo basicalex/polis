@@ -118,18 +118,28 @@ const holderItems = Array.isArray(holders.body?.items) ? holders.body.items : []
 check(
   'mandate-holder list includes configured holder',
   holderItems.some((h) => h?.id === MANDATE_HOLDER_ID),
-  `ids=${holderItems.map((h) => h?.id).filter(Boolean).join(',')}`,
+  `ids=${holderItems
+    .map((h) => h?.id)
+    .filter(Boolean)
+    .join(',')}`,
 );
 
 const holderDetail = await get(BFF, '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID);
-check('GET /api/v1/mandate-holders/:id → 200', holderDetail.status === 200, `status=${holderDetail.status}`);
+check(
+  'GET /api/v1/mandate-holders/:id → 200',
+  holderDetail.status === 200,
+  `status=${holderDetail.status}`,
+);
 check(
   'holder detail has commitments array',
   Array.isArray(holderDetail.body?.commitments),
   `keys=${holderDetail.body ? Object.keys(holderDetail.body).join(',') : 'null'}`,
 );
 
-const beforeScorecard = await get(BFF, '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/scorecard');
+const beforeScorecard = await get(
+  BFF,
+  '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/scorecard',
+);
 check(
   'GET /api/v1/mandate-holders/:id/scorecard → 200',
   beforeScorecard.status === 200,
@@ -143,10 +153,15 @@ check(
 const terminalBefore = totalTerminalCount(beforeScorecard);
 
 const seededCommitment = await get(BFF, '/api/v1/commitments/' + RESOLUTION_COMMITMENT_ID);
-check('GET /api/v1/commitments/:id → 200', seededCommitment.status === 200, `status=${seededCommitment.status}`);
+check(
+  'GET /api/v1/commitments/:id → 200',
+  seededCommitment.status === 200,
+  `status=${seededCommitment.status}`,
+);
 check(
   'commitment detail has effectiveStatus + statusTimeline',
-  typeof seededCommitment.body?.effectiveStatus === 'string' && Array.isArray(seededCommitment.body?.statusTimeline),
+  typeof seededCommitment.body?.effectiveStatus === 'string' &&
+    Array.isArray(seededCommitment.body?.statusTimeline),
   `body=${JSON.stringify(seededCommitment.body ?? {}).slice(0, 200)}`,
 );
 
@@ -228,8 +243,13 @@ if (auth) {
     filedCommitment.status === 201,
     `status=${filedCommitment.status} body=${JSON.stringify(filedCommitment.body ?? {}).slice(0, 200)}`,
   );
-  const filedCommitmentId = filedCommitment.status === 201 ? extractCommitmentId(filedCommitment) : '';
-  check('filed commitment response has id', !!filedCommitmentId, `body=${JSON.stringify(filedCommitment.body ?? {}).slice(0, 200)}`);
+  const filedCommitmentId =
+    filedCommitment.status === 201 ? extractCommitmentId(filedCommitment) : '';
+  check(
+    'filed commitment response has id',
+    !!filedCommitmentId,
+    `body=${JSON.stringify(filedCommitment.body ?? {}).slice(0, 200)}`,
+  );
 
   const filedCommitmentRead = filedCommitmentId
     ? await get(BFF, '/api/v1/commitments/' + filedCommitmentId)
@@ -270,7 +290,9 @@ if (auth) {
     `status=${restrictedEvidenceCommitment.status} body=${JSON.stringify(restrictedEvidenceCommitment.body ?? {}).slice(0, 200)}`,
   );
   const restrictedEvidenceCommitmentId =
-    restrictedEvidenceCommitment.status === 201 ? extractCommitmentId(restrictedEvidenceCommitment) : '';
+    restrictedEvidenceCommitment.status === 201
+      ? extractCommitmentId(restrictedEvidenceCommitment)
+      : '';
   const restrictedEvidenceRead = restrictedEvidenceCommitmentId
     ? await get(BFF, '/api/v1/commitments/' + restrictedEvidenceCommitmentId)
     : { status: 0, body: null };
@@ -295,7 +317,8 @@ if (auth) {
   );
 
   // ─── 5. File resolution; no terminal status is effective until review approval ───
-  const resolutionTargetId = filedCommitmentRead.status === 200 ? filedCommitmentId : RESOLUTION_COMMITMENT_ID;
+  const resolutionTargetId =
+    filedCommitmentRead.status === 200 ? filedCommitmentId : RESOLUTION_COMMITMENT_ID;
   const beforeResolution = await get(BFF, '/api/v1/commitments/' + resolutionTargetId);
   const beforeResolutionStatus = beforeResolution.body?.effectiveStatus;
   const filedResolution = await post(
@@ -310,7 +333,11 @@ if (auth) {
     `status=${filedResolution.status} body=${JSON.stringify(filedResolution.body ?? {}).slice(0, 200)}`,
   );
   const resolutionSubmissionId = extractSubmissionId(filedResolution);
-  check('filed resolution response has review submission id', !!resolutionSubmissionId, `body=${JSON.stringify(filedResolution.body ?? {}).slice(0, 200)}`);
+  check(
+    'filed resolution response has review submission id',
+    !!resolutionSubmissionId,
+    `body=${JSON.stringify(filedResolution.body ?? {}).slice(0, 200)}`,
+  );
 
   const afterResolutionBeforeReview = await get(BFF, '/api/v1/commitments/' + resolutionTargetId);
   check(
@@ -332,10 +359,18 @@ if (auth) {
     approveResolution.status === 201,
     `status=${approveResolution.status} body=${JSON.stringify(approveResolution.body ?? {}).slice(0, 200)}`,
   );
-  check('approved resolution applied === true', approveResolution.body?.applied === true, `applied=${approveResolution.body?.applied}`);
+  check(
+    'approved resolution applied === true',
+    approveResolution.body?.applied === true,
+    `applied=${approveResolution.body?.applied}`,
+  );
 
   const afterResolutionApproval = await get(BFF, '/api/v1/commitments/' + resolutionTargetId);
-  check('GET approved commitment detail → 200', afterResolutionApproval.status === 200, `status=${afterResolutionApproval.status}`);
+  check(
+    'GET approved commitment detail → 200',
+    afterResolutionApproval.status === 200,
+    `status=${afterResolutionApproval.status}`,
+  );
   check(
     'effective status changed to delivered after review approval',
     afterResolutionApproval.body?.effectiveStatus === 'delivered',
@@ -349,8 +384,15 @@ if (auth) {
   );
 
   // ─── 7. Scorecard counts reflect approved terminal status ───
-  const afterScorecard = await get(BFF, '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/scorecard');
-  check('GET scorecard after approval → 200', afterScorecard.status === 200, `status=${afterScorecard.status}`);
+  const afterScorecard = await get(
+    BFF,
+    '/api/v1/mandate-holders/' + MANDATE_HOLDER_ID + '/scorecard',
+  );
+  check(
+    'GET scorecard after approval → 200',
+    afterScorecard.status === 200,
+    `status=${afterScorecard.status}`,
+  );
   check(
     'scorecard terminal count increased',
     totalTerminalCount(afterScorecard) > terminalBefore,

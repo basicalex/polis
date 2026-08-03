@@ -12,7 +12,7 @@ Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator
 - `packages/db`: Drizzle schema, migrations, and idempotent seed data for civic graph, document proofs, proof signatures/timestamps, AI traces, review state, and audit events.
 - `packages/service-runtime`: shared Node HTTP runtime, operational routes, CORS, route matching, and JSON helpers.
 - `packages/policy-rules`: Rego policy files for access, AI, and rewards rules.
-- `services/platform-api`: public BFF on :8080; proxies graph/audit/Polis/proof/assistant reads and writes.
+- `services/platform-api`: public BFF on :8080; proxies graph/audit/Polis/proof/assistant reads and writes plus authenticated complaint lifecycle routes to `complaints-service`.
 - `services/governance-graph-api`: internal graph read API on :8100 backed by Postgres.
 - `services/polis-bridge-service`: internal stub Polis bridge on :8200.
 - `services/paperless-adapter`: internal stub document intake adapter on :8300.
@@ -23,13 +23,14 @@ Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator
 - `services/proof-service`: proof registry and public verifier API on :8700 backed by Postgres.
 - `services/timestamp-service`: internal RFC3161-stub timestamp service on :8800.
 - `services/signature-service`: internal test-key signature service on :8900.
+- `services/complaints-service`: private complaint-case lifecycle service on :8970; accepts only trusted internal callers, emits best-effort audit events, and never exposes resident identifiers or audit correlation identifiers in response shapes.
 - `scripts/dev-services.mjs`: local launcher for the TypeScript v1 service set.
 - `infra/compose/docker-compose.yml`: compose stack for Postgres plus Node/Python services.
 - `scripts/v1-smoke.mjs`: smoke test for the documented local API contract.
 
 ## Runtime model
 
-The current services are deterministic and Postgres-backed after `pnpm db:seed`. They return seeded jurisdictions, institutions, roles, processes, document types, laws, budget lines, failure modes, controls, claims with evidence/sources, graph relationships, public audit rows, local proof-verification results, proof manifests with test-key signatures and RFC3161-stub timestamps, and assistant traces/outputs grounded in approved local public sources.
+The current services are deterministic and Postgres-backed after `bun run db:seed`. They return seeded jurisdictions, institutions, roles, processes, document types, laws, budget lines, failure modes, controls, claims with evidence/sources, graph relationships, public audit rows, local proof-verification results, proof manifests with test-key signatures and RFC3161-stub timestamps, and assistant traces/outputs grounded in approved local public sources.
 
 Node services using `packages/service-runtime` expose:
 
@@ -53,6 +54,7 @@ Node services using `packages/service-runtime` expose:
 - trusted timestamp authority
 - digital signature provider
 - government registers or case-management systems
+- the private complaints lifecycle; the isolated public-read pilot Compose intentionally omits `complaints-service` and its upstream configuration
 
 ## Data and evidence flow
 
@@ -65,7 +67,8 @@ Node services using `packages/service-runtime` expose:
 7. Proof status resolves local append-only state with precedence `revoked > superseded > stored registryStatus`.
 8. Assistant pages call `platform-api`, which proxies to `ai-gateway`; `ai-gateway` retrieves approved public sources, applies deterministic prompt-injection heuristics, persists traces/outputs/review decisions, and emits best-effort audit events.
 9. `POST /internal/audit/events` appends canonical, hash-chained audit rows; public reads return only `visibility: "public"` target rows.
+10. `complaints-service` accepts private, trusted-actor complaint lifecycle calls, persists owner-scoped cases and decisions, and emits best-effort audit events. It remains outside the isolated public-read pilot profile.
 
 ## Design constraint
 
-The architecture intentionally keeps public claims, private documents, proof manifests, signatures/timestamps, AI review state, and audit events separate. A production cutover must replace mock/test adapters without weakening that separation.
+The architecture intentionally keeps public claims, private documents, private complaint case data, proof manifests, signatures/timestamps, AI review state, and audit events separate. A production cutover must replace mock/test adapters without weakening that separation.

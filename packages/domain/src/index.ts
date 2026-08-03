@@ -57,6 +57,114 @@ export type SigningRequestStatus =
   | 'voided'
   | 'failed';
 
+/** Lifecycle values persisted by the private municipal complaints vertical. */
+export const COMPLAINT_STATUSES = [
+  'submitted',
+  'assigned',
+  'awaiting_information',
+  'decided',
+  'appealed',
+  'closed',
+] as const;
+export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
+
+export const COMPLAINT_EVENT_TYPES = [
+  'submitted',
+  'assigned',
+  'information_requested',
+  'information_received',
+  'decided',
+  'appealed',
+  'appeal_decided',
+  'closed',
+] as const;
+export type ComplaintEventType = (typeof COMPLAINT_EVENT_TYPES)[number];
+
+export const COMPLAINT_DECISION_KINDS = ['initial', 'appeal'] as const;
+export type ComplaintDecisionKind = (typeof COMPLAINT_DECISION_KINDS)[number];
+
+export const COMPLAINT_APPEAL_STATUSES = ['filed', 'decided'] as const;
+export type ComplaintAppealStatus = (typeof COMPLAINT_APPEAL_STATUSES)[number];
+
+export type ComplaintEventActorType = 'user' | 'service' | 'system' | 'partner';
+
+// Owner/staff wire shape: case routing metadata without resident identity or
+// internal audit correlation identifiers.
+export type ComplaintSummary = {
+  id: string;
+  caseNumber: string;
+  subject: string;
+  status: ComplaintStatus;
+  institutionId: string;
+  processId: string;
+  jurisdictionId: string;
+  assignedMandateHolderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+};
+
+export type ComplaintInformationRequest = {
+  id: string;
+  complaintId: string;
+  requestedBy: string;
+  question: string;
+  dueAt: string | null;
+  respondedBy: string | null;
+  response: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+};
+
+export type ComplaintDecision = {
+  id: string;
+  complaintId: string;
+  appealId: string | null;
+  kind: ComplaintDecisionKind;
+  outcome: string;
+  reason: string;
+  decidedBy: string;
+  decidedAt: string;
+};
+
+export type ComplaintAppeal = {
+  id: string;
+  complaintId: string;
+  initialDecisionId: string;
+  grounds: string;
+  status: ComplaintAppealStatus;
+  filedAt: string;
+  decidedAt: string | null;
+};
+
+// Event payloads carry references only. Narrative, response text, and decision
+// rationale belong to their private records, never the append-only timeline.
+export type ComplaintEventData = {
+  informationRequestId?: string;
+  decisionId?: string;
+  appealId?: string;
+};
+
+export type ComplaintEvent = {
+  id: string;
+  complaintId: string;
+  eventType: ComplaintEventType;
+  actorId: string;
+  actorType: ComplaintEventActorType;
+  fromStatus: ComplaintStatus | null;
+  toStatus: ComplaintStatus;
+  data: ComplaintEventData;
+  occurredAt: string;
+};
+
+export type ComplaintDetail = ComplaintSummary & {
+  narrative: string;
+  informationRequests: ComplaintInformationRequest[];
+  decisions: ComplaintDecision[];
+  appeal: ComplaintAppeal | null;
+  events: ComplaintEvent[];
+};
+
 export type CharterSigningArtifactSummary = {
   id: string;
   sha256: string;
@@ -394,12 +502,7 @@ export const demoClaims: Claim[] = [
 
 export type MandateHolderStatus = 'active' | 'ended' | 'revoked';
 export type CommitmentStatus =
-  | 'proposed'
-  | 'in_progress'
-  | 'delivered'
-  | 'partial'
-  | 'not_delivered'
-  | 'overdue';
+  'proposed' | 'in_progress' | 'delivered' | 'partial' | 'not_delivered' | 'overdue';
 export type CharterStatus = 'pending' | 'accepted' | 'withdrawn';
 
 export type MandateHolder = {

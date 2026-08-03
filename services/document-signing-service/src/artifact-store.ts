@@ -42,7 +42,10 @@ export class DatabaseArtifactStore implements ArtifactStore {
   async put(bytes: Uint8Array, metadata: ArtifactPutMetadata): Promise<string> {
     assertHash(bytes, metadata.sha256);
     const content = Buffer.from(bytes);
-    await this.db.insert(schema.documentArtifactBlobs).values({ artifactId: metadata.artifactId, content }).onConflictDoNothing();
+    await this.db
+      .insert(schema.documentArtifactBlobs)
+      .values({ artifactId: metadata.artifactId, content })
+      .onConflictDoNothing();
     const ref = databaseRef(metadata.artifactId, metadata.sha256);
     const stored = await this.get(ref);
     assertHash(stored, metadata.sha256);
@@ -51,7 +54,11 @@ export class DatabaseArtifactStore implements ArtifactStore {
 
   async get(storageRef: string): Promise<Uint8Array> {
     const parsed = parseDatabaseRef(storageRef);
-    const rows = await this.db.select({ content: schema.documentArtifactBlobs.content }).from(schema.documentArtifactBlobs).where(eq(schema.documentArtifactBlobs.artifactId, parsed.artifactId)).limit(1);
+    const rows = await this.db
+      .select({ content: schema.documentArtifactBlobs.content })
+      .from(schema.documentArtifactBlobs)
+      .where(eq(schema.documentArtifactBlobs.artifactId, parsed.artifactId))
+      .limit(1);
     const content = rows[0]?.content;
     if (content === undefined) throw new Error('artifact_content_not_found');
     const bytes = Uint8Array.from(content);
@@ -61,7 +68,11 @@ export class DatabaseArtifactStore implements ArtifactStore {
 
   async exists(storageRef: string): Promise<boolean> {
     const parsed = parseDatabaseRef(storageRef);
-    const rows = await this.db.select({ artifactId: schema.documentArtifactBlobs.artifactId }).from(schema.documentArtifactBlobs).where(eq(schema.documentArtifactBlobs.artifactId, parsed.artifactId)).limit(1);
+    const rows = await this.db
+      .select({ artifactId: schema.documentArtifactBlobs.artifactId })
+      .from(schema.documentArtifactBlobs)
+      .where(eq(schema.documentArtifactBlobs.artifactId, parsed.artifactId))
+      .limit(1);
     return rows.length === 1;
   }
 }
@@ -123,9 +134,15 @@ export class S3ArtifactStore implements ArtifactStore {
 
   constructor(config: S3ArtifactStoreConfig) {
     let endpoint: URL;
-    try { endpoint = new URL(config.endpoint); } catch { throw new Error('S3_ARTIFACT_ENDPOINT is invalid'); }
-    if (!['http:', 'https:'].includes(endpoint.protocol)) throw new Error('S3_ARTIFACT_ENDPOINT is invalid');
-    if (!config.region || !config.bucket || !config.accessKeyId || !config.secretAccessKey) throw new Error('S3 artifact configuration is incomplete');
+    try {
+      endpoint = new URL(config.endpoint);
+    } catch {
+      throw new Error('S3_ARTIFACT_ENDPOINT is invalid');
+    }
+    if (!['http:', 'https:'].includes(endpoint.protocol))
+      throw new Error('S3_ARTIFACT_ENDPOINT is invalid');
+    if (!config.region || !config.bucket || !config.accessKeyId || !config.secretAccessKey)
+      throw new Error('S3 artifact configuration is incomplete');
     this.#endpoint = endpoint;
     this.#region = config.region;
     this.#bucket = config.bucket;
@@ -135,7 +152,8 @@ export class S3ArtifactStore implements ArtifactStore {
     this.#prefix = (config.prefix ?? 'document-artifacts').replace(/^\/+|\/+$/g, '');
     this.#serverSideEncryption = config.serverSideEncryption;
     this.#maxDownloadBytes = config.maxDownloadBytes ?? 50 * 1024 * 1024;
-    if (!Number.isSafeInteger(this.#maxDownloadBytes) || this.#maxDownloadBytes <= 0) throw new Error('S3 artifact download limit is invalid');
+    if (!Number.isSafeInteger(this.#maxDownloadBytes) || this.#maxDownloadBytes <= 0)
+      throw new Error('S3 artifact download limit is invalid');
     this.#fetch = config.fetch ?? globalThis.fetch;
     this.#now = config.now ?? (() => new Date());
   }
@@ -143,8 +161,11 @@ export class S3ArtifactStore implements ArtifactStore {
   async put(bytes: Uint8Array, metadata: ArtifactPutMetadata): Promise<string> {
     assertHash(bytes, metadata.sha256);
     const key = `${this.#prefix}/${metadata.artifactId}`;
-    const headers: Record<string, string> = { 'content-type': metadata.mimeType ?? 'application/octet-stream' };
-    if (this.#serverSideEncryption) headers['x-amz-server-side-encryption'] = this.#serverSideEncryption;
+    const headers: Record<string, string> = {
+      'content-type': metadata.mimeType ?? 'application/octet-stream',
+    };
+    if (this.#serverSideEncryption)
+      headers['x-amz-server-side-encryption'] = this.#serverSideEncryption;
     const response = await this.#request('PUT', key, metadata.sha256, headers, bytes);
     if (!response.ok) throw new Error(`s3_put_failed:${response.status}`);
     return s3Ref(key, metadata.sha256);
@@ -180,7 +201,10 @@ export class S3ArtifactStore implements ArtifactStore {
     }
     const bytes = new Uint8Array(total);
     let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
     assertHash(bytes, parsed.sha256);
     return bytes;
   }
@@ -193,7 +217,13 @@ export class S3ArtifactStore implements ArtifactStore {
     return true;
   }
 
-  async #request(method: string, key: string, payloadHash: string, extraHeaders: Record<string, string> = {}, body?: Uint8Array): Promise<Response> {
+  async #request(
+    method: string,
+    key: string,
+    payloadHash: string,
+    extraHeaders: Record<string, string> = {},
+    body?: Uint8Array,
+  ): Promise<Response> {
     const now = this.#now();
     const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
     const date = amzDate.slice(0, 8);
@@ -211,12 +241,28 @@ export class S3ArtifactStore implements ArtifactStore {
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate,
     };
-    const canonicalHeaderNames = Object.keys(headers).map((name) => name.toLowerCase()).sort();
-    const canonicalHeaders = canonicalHeaderNames.map((name) => `${name}:${headers[name]?.trim().replace(/\s+/g, ' ') ?? ''}\n`).join('');
+    const canonicalHeaderNames = Object.keys(headers)
+      .map((name) => name.toLowerCase())
+      .sort();
+    const canonicalHeaders = canonicalHeaderNames
+      .map((name) => `${name}:${headers[name]?.trim().replace(/\s+/g, ' ') ?? ''}\n`)
+      .join('');
     const signedHeaders = canonicalHeaderNames.join(';');
-    const canonicalRequest = [method, url.pathname, url.searchParams.toString(), canonicalHeaders, signedHeaders, payloadHash].join('\n');
+    const canonicalRequest = [
+      method,
+      url.pathname,
+      url.searchParams.toString(),
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join('\n');
     const scope = `${date}/${this.#region}/s3/aws4_request`;
-    const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      scope,
+      createHash('sha256').update(canonicalRequest).digest('hex'),
+    ].join('\n');
     const dateKey = hmac(`AWS4${this.#secretAccessKey}`, date);
     const regionKey = hmac(dateKey, this.#region);
     const serviceKey = hmac(regionKey, 's3');
@@ -239,12 +285,22 @@ export interface ArtifactStoreEnvironment {
   S3_ARTIFACT_SERVER_SIDE_ENCRYPTION?: string;
 }
 
-export function createArtifactStore(db: DbClient, env: ArtifactStoreEnvironment = process.env): ArtifactStore {
+export function createArtifactStore(
+  db: DbClient,
+  env: ArtifactStoreEnvironment = process.env,
+): ArtifactStore {
   const mode = env.ARTIFACT_STORE_MODE ?? 'database';
   if (mode === 'database') return new DatabaseArtifactStore(db);
   if (mode !== 's3') throw new Error(`Unsupported ARTIFACT_STORE_MODE: ${mode}`);
-  const required = [env.S3_ARTIFACT_ENDPOINT, env.S3_ARTIFACT_REGION, env.S3_ARTIFACT_BUCKET, env.S3_ARTIFACT_ACCESS_KEY_ID, env.S3_ARTIFACT_SECRET_ACCESS_KEY];
-  if (required.some((value) => !value?.trim())) throw new Error('S3 artifact configuration is incomplete');
+  const required = [
+    env.S3_ARTIFACT_ENDPOINT,
+    env.S3_ARTIFACT_REGION,
+    env.S3_ARTIFACT_BUCKET,
+    env.S3_ARTIFACT_ACCESS_KEY_ID,
+    env.S3_ARTIFACT_SECRET_ACCESS_KEY,
+  ];
+  if (required.some((value) => !value?.trim()))
+    throw new Error('S3 artifact configuration is incomplete');
   return new S3ArtifactStore({
     endpoint: env.S3_ARTIFACT_ENDPOINT!,
     region: env.S3_ARTIFACT_REGION!,

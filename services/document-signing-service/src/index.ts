@@ -63,16 +63,27 @@ export interface SelectedSigningProvider {
   webhookSecret?: string;
 }
 
-export function createSigningProvider(env: SigningServiceEnvironment = process.env, fetchImplementation: FetchImplementation = globalThis.fetch): SelectedSigningProvider {
+export function createSigningProvider(
+  env: SigningServiceEnvironment = process.env,
+  fetchImplementation: FetchImplementation = globalThis.fetch,
+): SelectedSigningProvider {
   const mode = env.SIGNING_PROVIDER ?? 'stub';
   if (mode === 'stub') return { name: 'stub', provider: new StubSigningProvider() };
   if (mode !== 'documenso') throw new Error(`Unsupported SIGNING_PROVIDER: ${mode}`);
-  if (!env.DOCUMENSO_API_URL?.trim() || !env.DOCUMENSO_API_TOKEN?.trim() || !env.DOCUMENSO_WEBHOOK_SECRET?.trim()) {
+  if (
+    !env.DOCUMENSO_API_URL?.trim() ||
+    !env.DOCUMENSO_API_TOKEN?.trim() ||
+    !env.DOCUMENSO_WEBHOOK_SECRET?.trim()
+  ) {
     throw new Error('Documenso configuration is incomplete');
   }
   return {
     name: 'documenso',
-    provider: new DocumensoClient({ baseUrl: env.DOCUMENSO_API_URL, apiToken: env.DOCUMENSO_API_TOKEN, fetch: fetchImplementation }),
+    provider: new DocumensoClient({
+      baseUrl: env.DOCUMENSO_API_URL,
+      apiToken: env.DOCUMENSO_API_TOKEN,
+      fetch: fetchImplementation,
+    }),
     webhookSecret: env.DOCUMENSO_WEBHOOK_SECRET,
   };
 }
@@ -95,7 +106,9 @@ function safeRequest(request: SigningRequestRecord | null): Record<string, unkno
   };
 }
 
-function actorCitizenId(headers: Readonly<Record<string, string | string[] | undefined>>): string | null {
+function actorCitizenId(
+  headers: Readonly<Record<string, string | string[] | undefined>>,
+): string | null {
   const value = headers['x-polis-citizen'];
   return typeof value === 'string' && value.trim() ? value : null;
 }
@@ -108,7 +121,7 @@ async function canReadSigningState(
   const actor = actorCitizenId(req.headers);
   if (!actor) return false;
   if (req.headers['x-polis-identity-level'] === 'staff') return true;
-  return await repository.getMandateHolderCitizenId(mandateHolderId) === actor;
+  return (await repository.getMandateHolderCitizenId(mandateHolderId)) === actor;
 }
 
 function lifecycleFailure(error: unknown) {
@@ -116,12 +129,20 @@ function lifecycleFailure(error: unknown) {
   throw error;
 }
 
-function secretMatches(supplied: string | string[] | undefined, expected: string | undefined): boolean {
+function secretMatches(
+  supplied: string | string[] | undefined,
+  expected: string | undefined,
+): boolean {
   if (typeof supplied !== 'string' || !expected) return false;
   const expectedBytes = Buffer.from(expected);
   const suppliedBytes = Buffer.from(supplied);
-  const comparable = suppliedBytes.length === expectedBytes.length ? suppliedBytes : Buffer.alloc(expectedBytes.length);
-  return timingSafeEqual(expectedBytes, comparable) && suppliedBytes.length === expectedBytes.length;
+  const comparable =
+    suppliedBytes.length === expectedBytes.length
+      ? suppliedBytes
+      : Buffer.alloc(expectedBytes.length);
+  return (
+    timingSafeEqual(expectedBytes, comparable) && suppliedBytes.length === expectedBytes.length
+  );
 }
 
 function eventName(rawBody: Uint8Array): string {
@@ -157,11 +178,18 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
         const actor = actorCitizenId(req.headers);
         if (!actor) return result(401, { error: 'trusted_actor_required' });
         const input = body as { mandateHolderId?: unknown; idempotencyKey?: unknown };
-        if (typeof input.mandateHolderId !== 'string' || typeof input.idempotencyKey !== 'string') return result(400, { error: 'invalid_request' });
+        if (typeof input.mandateHolderId !== 'string' || typeof input.idempotencyKey !== 'string')
+          return result(400, { error: 'invalid_request' });
         try {
-          const request = await lifecycle.initiateCharterSigning({ mandateHolderId: input.mandateHolderId, actorCitizenId: actor, idempotencyKey: input.idempotencyKey });
+          const request = await lifecycle.initiateCharterSigning({
+            mandateHolderId: input.mandateHolderId,
+            actorCitizenId: actor,
+            idempotencyKey: input.idempotencyKey,
+          });
           return result(201, safeRequest(request));
-        } catch (error) { return lifecycleFailure(error); }
+        } catch (error) {
+          return lifecycleFailure(error);
+        }
       },
     },
     {
@@ -169,7 +197,7 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
       path: '/internal/signing/charter-status/:mandateHolderId',
       handler: async (req, _body, params) => {
         const mandateHolderId = params.mandateHolderId ?? '';
-        if (!await canReadSigningState(req, repository, mandateHolderId)) {
+        if (!(await canReadSigningState(req, repository, mandateHolderId))) {
           return result(403, { error: 'signing_state_forbidden' });
         }
         const request = await repository.getLatestSigningRequestForHolder(mandateHolderId);
@@ -182,7 +210,7 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
       handler: async (req, _body, params) => {
         const request = await repository.getSigningRequest(params.id ?? '');
         if (!request) return result(404, { error: 'signing_request_not_found' });
-        if (!await canReadSigningState(req, repository, request.mandateHolderId)) {
+        if (!(await canReadSigningState(req, repository, request.mandateHolderId))) {
           return result(403, { error: 'signing_state_forbidden' });
         }
         return safeRequest(request);
@@ -192,29 +220,45 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
       method: 'POST',
       path: '/internal/signing/requests/:id/reconcile',
       handler: async (_req, _body, params) => {
-        try { return safeRequest(await lifecycle.reconcile(params.id ?? '')); } catch (error) { return lifecycleFailure(error); }
+        try {
+          return safeRequest(await lifecycle.reconcile(params.id ?? ''));
+        } catch (error) {
+          return lifecycleFailure(error);
+        }
       },
     },
     ...(providerName === 'stub' &&
     provider instanceof StubSigningProvider &&
     dependencies.allowStubCompletion !== false
-      ? [{
-          method: 'POST' as const,
-          path: '/internal/signing/requests/:id/stub-complete',
-          handler: async (req: Parameters<Route['handler']>[0], _body: unknown, params: Record<string, string>) => {
-            const actor = actorCitizenId(req.headers);
-            if (!actor) return result(401, { error: 'trusted_actor_required' });
-            const request = await repository.getSigningRequest(params.id ?? '');
-            if (!request || request.provider !== 'stub' || !request.providerEnvelopeId) return result(404, { error: 'signing_request_not_found' });
-            const recipients = await repository.listRecipients(request.id);
-            if (!recipients.some((recipient) => recipient.citizenId === actor)) return result(403, { error: 'signing_recipient_required' });
-            // Already-terminal requests are returned as-is: a repeated completion
-            // must not create a second artifact, proof, or charter acceptance.
-            if (TERMINAL_SIGNING_STATUSES.includes(request.status)) return safeRequest(request);
-            provider.completeForTest(request.providerEnvelopeId);
-            try { return safeRequest(await lifecycle.reconcile(request.id)); } catch (error) { return lifecycleFailure(error); }
+      ? [
+          {
+            method: 'POST' as const,
+            path: '/internal/signing/requests/:id/stub-complete',
+            handler: async (
+              req: Parameters<Route['handler']>[0],
+              _body: unknown,
+              params: Record<string, string>,
+            ) => {
+              const actor = actorCitizenId(req.headers);
+              if (!actor) return result(401, { error: 'trusted_actor_required' });
+              const request = await repository.getSigningRequest(params.id ?? '');
+              if (!request || request.provider !== 'stub' || !request.providerEnvelopeId)
+                return result(404, { error: 'signing_request_not_found' });
+              const recipients = await repository.listRecipients(request.id);
+              if (!recipients.some((recipient) => recipient.citizenId === actor))
+                return result(403, { error: 'signing_recipient_required' });
+              // Already-terminal requests are returned as-is: a repeated completion
+              // must not create a second artifact, proof, or charter acceptance.
+              if (TERMINAL_SIGNING_STATUSES.includes(request.status)) return safeRequest(request);
+              provider.completeForTest(request.providerEnvelopeId);
+              try {
+                return safeRequest(await lifecycle.reconcile(request.id));
+              } catch (error) {
+                return lifecycleFailure(error);
+              }
+            },
           },
-        }]
+        ]
       : []),
     {
       method: 'GET',
@@ -236,9 +280,14 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
       bodyMode: 'raw',
       maxBodyBytes: 1_000_000,
       handler: async (req, body) => {
-        if (!secretMatches(req.headers['x-documenso-secret'], dependencies.webhookSecret)) return result(401, { error: 'invalid_webhook_secret' });
+        if (!secretMatches(req.headers['x-documenso-secret'], dependencies.webhookSecret))
+          return result(401, { error: 'invalid_webhook_secret' });
         const rawBody = body instanceof Uint8Array ? body : new Uint8Array();
-        const isNew = await lifecycle.recordProviderEvent(rawBody, eventName(rawBody), dependencies.maxUnresolvedWebhookReceipts);
+        const isNew = await lifecycle.recordProviderEvent(
+          rawBody,
+          eventName(rawBody),
+          dependencies.maxUnresolvedWebhookReceipts,
+        );
         if (isNew) queueMicrotask(() => dependencies.scheduleReconciliation?.());
         return result(202, { accepted: true, duplicate: !isNew });
       },
@@ -247,29 +296,62 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
 }
 
 class HttpProofRegistrar implements ProofRegistrar {
-  constructor(private readonly baseUrl: string, private readonly fetchImplementation: FetchImplementation) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly fetchImplementation: FetchImplementation,
+  ) {}
   async register(input: Parameters<ProofRegistrar['register']>[0]): Promise<{ id: string }> {
-    const response = await this.fetchImplementation(`${this.baseUrl}/internal/proofs/manifests`, { method: 'POST', headers: internalHeaders(), body: JSON.stringify(input) });
+    const response = await this.fetchImplementation(`${this.baseUrl}/internal/proofs/manifests`, {
+      method: 'POST',
+      headers: internalHeaders(),
+      body: JSON.stringify(input),
+    });
     if (!response.ok) throw new Error(`proof_registration_failed:${response.status}`);
-    const value = await response.json() as { id?: unknown };
+    const value = (await response.json()) as { id?: unknown };
     if (typeof value.id !== 'string') throw new Error('proof_registration_invalid_response');
     return { id: value.id };
   }
 }
 
 class HttpPaperlessArchiver implements PaperlessArchiver {
-  constructor(private readonly baseUrl: string, private readonly fetchImplementation: FetchImplementation) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly fetchImplementation: FetchImplementation,
+  ) {}
   async archive(input: Parameters<PaperlessArchiver['archive']>[0]): Promise<void> {
-    const response = await this.fetchImplementation(`${this.baseUrl}/internal/paperless/consume`, { method: 'POST', headers: internalHeaders(), body: JSON.stringify({ contentBase64: Buffer.from(input.bytes).toString('base64'), filename: input.filename, documentClass: input.documentClass }) });
+    const response = await this.fetchImplementation(`${this.baseUrl}/internal/paperless/consume`, {
+      method: 'POST',
+      headers: internalHeaders(),
+      body: JSON.stringify({
+        contentBase64: Buffer.from(input.bytes).toString('base64'),
+        filename: input.filename,
+        documentClass: input.documentClass,
+      }),
+    });
     if (!response.ok) throw new Error(`paperless_archive_failed:${response.status}`);
   }
 }
 
 class HttpAuditEmitter implements SigningAuditEmitter {
-  constructor(private readonly baseUrl: string, private readonly fetchImplementation: FetchImplementation) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly fetchImplementation: FetchImplementation,
+  ) {}
   async emit(input: Parameters<SigningAuditEmitter['emit']>[0]): Promise<void> {
     const response = await this.fetchImplementation(`${this.baseUrl}/internal/audit/events`, {
-      method: 'POST', headers: internalHeaders(), body: JSON.stringify({ eventType: `document_signing.${input.lifecycle}`, actor: { type: 'service', id: 'document-signing-service' }, target: { type: 'signing_request', id: input.requestId ?? input.charterId ?? input.mandateHolderId ?? 'unknown' }, action: input.lifecycle, visibility: 'restricted', data: input }),
+      method: 'POST',
+      headers: internalHeaders(),
+      body: JSON.stringify({
+        eventType: `document_signing.${input.lifecycle}`,
+        actor: { type: 'service', id: 'document-signing-service' },
+        target: {
+          type: 'signing_request',
+          id: input.requestId ?? input.charterId ?? input.mandateHolderId ?? 'unknown',
+        },
+        action: input.lifecycle,
+        visibility: 'restricted',
+        data: input,
+      }),
     });
     if (!response.ok) throw new Error(`audit_emit_failed:${response.status}`);
   }
@@ -301,7 +383,10 @@ export function createReconcileDue(
           await lifecycle.reconcile(request.id);
         } catch {
           try {
-            await repository.updateSigningRequest(request.id, { reconciled: true, failureCode: 'reconcile_error' });
+            await repository.updateSigningRequest(request.id, {
+              reconciled: true,
+              failureCode: 'reconcile_error',
+            });
           } catch {
             // A database outage can also prevent recording the failed attempt.
           }
@@ -313,7 +398,11 @@ export function createReconcileDue(
   };
 }
 
-export function createSigningService(db: DbClient, env: SigningServiceEnvironment = process.env, fetchImplementation: FetchImplementation = globalThis.fetch): SigningService {
+export function createSigningService(
+  db: DbClient,
+  env: SigningServiceEnvironment = process.env,
+  fetchImplementation: FetchImplementation = globalThis.fetch,
+): SigningService {
   const repository = new DrizzleSigningRepository(db);
   const artifactStore = createArtifactStore(db, env);
   const selected = createSigningProvider(env, fetchImplementation);
@@ -322,19 +411,35 @@ export function createSigningService(db: DbClient, env: SigningServiceEnvironmen
     provider: selected.provider,
     providerName: selected.name,
     artifactStore,
-    proofRegistrar: new HttpProofRegistrar(env.PROOF_INTERNAL_URL ?? 'http://localhost:8700', fetchImplementation),
-    paperlessArchiver: new HttpPaperlessArchiver(env.PAPERLESS_INTERNAL_URL ?? 'http://localhost:8300', fetchImplementation),
-    audit: new HttpAuditEmitter(env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600', fetchImplementation),
+    proofRegistrar: new HttpProofRegistrar(
+      env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
+      fetchImplementation,
+    ),
+    paperlessArchiver: new HttpPaperlessArchiver(
+      env.PAPERLESS_INTERNAL_URL ?? 'http://localhost:8300',
+      fetchImplementation,
+    ),
+    audit: new HttpAuditEmitter(
+      env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
+      fetchImplementation,
+    ),
   });
   const batchSize = Number(env.SIGNING_RECONCILE_BATCH_SIZE ?? 25);
-  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 100) throw new Error('SIGNING_RECONCILE_BATCH_SIZE is invalid');
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 100)
+    throw new Error('SIGNING_RECONCILE_BATCH_SIZE is invalid');
   const maxAttempts = Number(env.SIGNING_RECONCILE_MAX_ATTEMPTS ?? 10);
-  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 1_000) throw new Error('SIGNING_RECONCILE_MAX_ATTEMPTS is invalid');
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 1_000)
+    throw new Error('SIGNING_RECONCILE_MAX_ATTEMPTS is invalid');
   const maxUnresolvedWebhookReceipts = Number(env.SIGNING_WEBHOOK_MAX_UNRESOLVED_RECEIPTS ?? 100);
-  if (!Number.isSafeInteger(maxUnresolvedWebhookReceipts) || maxUnresolvedWebhookReceipts < 0 || maxUnresolvedWebhookReceipts > 10_000) {
+  if (
+    !Number.isSafeInteger(maxUnresolvedWebhookReceipts) ||
+    maxUnresolvedWebhookReceipts < 0 ||
+    maxUnresolvedWebhookReceipts > 10_000
+  ) {
     throw new Error('SIGNING_WEBHOOK_MAX_UNRESOLVED_RECEIPTS is invalid');
   }
-  const allowStubCompletion = selected.name !== 'stub' ||
+  const allowStubCompletion =
+    selected.name !== 'stub' ||
     env.NODE_ENV !== 'production' ||
     env.SIGNING_ALLOW_STUB_COMPLETION === 'true';
   const reconcileDue = createReconcileDue(repository, lifecycle, batchSize, maxAttempts);
@@ -345,7 +450,9 @@ export function createSigningService(db: DbClient, env: SigningServiceEnvironmen
     provider: selected.provider,
     providerName: selected.name,
     webhookSecret: selected.webhookSecret,
-    scheduleReconciliation: () => { void reconcileDue(); },
+    scheduleReconciliation: () => {
+      void reconcileDue();
+    },
     allowStubCompletion,
     maxUnresolvedWebhookReceipts,
   });
@@ -358,8 +465,12 @@ export async function main(): Promise<void> {
   const port = Number(env.PORT ?? env.DOCUMENT_SIGNING_SERVICE_PORT ?? 8960);
   startService('document-signing-service', port, service.routes);
   const interval = Number(env.SIGNING_RECONCILE_INTERVAL_MS ?? 60_000);
-  if (!Number.isFinite(interval) || interval < 0) throw new Error('SIGNING_RECONCILE_INTERVAL_MS is invalid');
-  if (interval > 0) setInterval(() => { void service.reconcileDue(); }, interval).unref();
+  if (!Number.isFinite(interval) || interval < 0)
+    throw new Error('SIGNING_RECONCILE_INTERVAL_MS is invalid');
+  if (interval > 0)
+    setInterval(() => {
+      void service.reconcileDue();
+    }, interval).unref();
 }
 
 const invokedDirectly = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;

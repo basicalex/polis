@@ -8,30 +8,52 @@
  * accounts, hashed credentials) without an external IdP; it upgrades cleanly to
  * OIDC later (swap the login provider, keep the citizens row + session contract).
  *
- * No SMTP in v1: the magic token is surfaced via a NODE_ENV!=='production'
- * /internal/identity/dev-tokens route + stdout log so local demo + the
- * acceptance harness can complete login. The exchange + session-token contract
- * is production-shaped; only delivery is stubbed.
+ * No SMTP in v1: the magic token is surfaced only by the explicitly enabled
+ * non-production stub /internal/identity/dev-tokens route. The exchange +
+ * session-token contract is production-shaped; only delivery is stubbed.
  */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, eq, sql } from 'drizzle-orm';
-import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  type Route,
+} from '@polis/service-runtime';
 
 import { citizenWire } from './serialize.js';
 import { createIdentityProvider } from './identity-provider.js';
 
-/** HMAC key for session-token signing. Dev default; operators override via env. */
-const IDENTITY_HMAC_KEY = process.env.IDENTITY_HMAC_KEY ?? 'polis-identity-v1-dev-key';
+const MIN_IDENTITY_HMAC_KEY_BYTES = 32;
 const MAGIC_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
 
-/** In-memory dev token log (NODE_ENV!=='production' only) — never populated in prod. */
+/** In-memory dev token store — populated only by the explicitly enabled non-production stub. */
 const devTokens = new Map<string, string>();
 
+function identityHmacKey(): string {
+  const key = process.env.IDENTITY_HMAC_KEY;
+  if (!key || Buffer.byteLength(key, 'utf8') < MIN_IDENTITY_HMAC_KEY_BYTES) {
+    throw new Error(
+      `IDENTITY_HMAC_KEY must be set to at least ${MIN_IDENTITY_HMAC_KEY_BYTES} bytes`,
+    );
+  }
+  return key;
+}
+
+function devTokensEnabled(): boolean {
+  return (
+    process.env.IDENTITY_DEV_TOKENS === 'true' &&
+    process.env.IDENTITY_MODE === 'stub' &&
+    process.env.NODE_ENV !== 'production'
+  );
+}
+
 function sha256(value: string): string {
-  return createHmac('sha256', IDENTITY_HMAC_KEY).update(value).digest('hex');
+  return createHmac('sha256', identityHmacKey()).update(value).digest('hex');
 }
 
 /** Constant-time string equality (hashed values only). */
@@ -47,7 +69,7 @@ function safeEqualHex(a: string, b: string): boolean {
 /** Sign {citizenId, exp} → "payload.sig" (both base64url). */
 function signSession(citizenId: string): string {
   const payload = Buffer.from(JSON.stringify({ citizenId, exp: Date.now() + SESSION_TTL_MS }));
-  const sig = createHmac('sha256', IDENTITY_HMAC_KEY).update(payload).digest();
+  const sig = createHmac('sha256', identityHmacKey()).update(payload).digest();
   return `${payload.toString('base64url')}.${sig.toString('base64url')}`;
 }
 
@@ -58,7 +80,7 @@ function verifySession(sessionToken: string): string | null {
   const payloadB64 = sessionToken.slice(0, dot);
   const sigB64 = sessionToken.slice(dot + 1);
   const payload = Buffer.from(payloadB64, 'base64url');
-  const expected = createHmac('sha256', IDENTITY_HMAC_KEY).update(payload).digest();
+  const expected = createHmac('sha256', identityHmacKey()).update(payload).digest();
   const provided = Buffer.from(sigB64, 'base64url');
   if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) return null;
   let parsed: { citizenId?: string; exp?: number };
@@ -80,6 +102,7 @@ async function emitAudit(event: {
   action: string;
   target: { type: string; id: string };
   data: Record<string, unknown>;
+  visibility: 'public' | 'restricted';
 }): Promise<void> {
   const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   try {
@@ -89,7 +112,7 @@ async function emitAudit(event: {
       body: JSON.stringify({
         eventType: event.eventType,
         action: event.action,
-        visibility: 'public',
+        visibility: event.visibility,
         actor: { type: 'service', id: 'citizen-identity-service' },
         target: event.target,
         data: event.data,
@@ -131,37 +154,28 @@ export function identityRoutes(db: DbClient): Route[] {
           .from(schema.citizens)
           .where(eq(schema.citizens.email, email))
           .limit(1);
+        const citizenId = existing[0]?.id ?? `cit-${randomBytes(8).toString('hex')}`;
         if (existing[0]) {
           await db
             .update(schema.citizens)
             .set({ magicTokenHash: tokenHash, magicTokenExpiresAt: expiresAt })
-            .where(eq(schema.citizens.id, existing[0].id));
+            .where(eq(schema.citizens.id, citizenId));
         } else {
           await db.insert(schema.citizens).values({
-            id: `cit-${randomBytes(8).toString('hex')}`,
+            id: citizenId,
             email,
             displayName: email.split('@')[0],
             magicTokenHash: tokenHash,
             magicTokenExpiresAt: expiresAt,
           });
         }
-        // Explicit flag for token surfacing (acceptance + local demo; never in prod by default).
-        if (process.env.IDENTITY_DEV_TOKENS === 'true') {
-          devTokens.set(email, rawToken);
-          console.log(
-            JSON.stringify({
-              service: 'citizen-identity-service',
-              stage: 'magic-link',
-              email,
-              token: rawToken,
-            }),
-          );
-        }
+        if (devTokensEnabled()) devTokens.set(email, rawToken);
         await emitAudit({
           eventType: 'identity.magic_link.issued',
           action: 'magic-link',
-          target: { type: 'citizen', id: email },
+          target: { type: 'citizen', id: citizenId },
           data: { ttlMs: MAGIC_TOKEN_TTL_MS },
+          visibility: 'restricted',
         });
         return result(200, { sent: true });
       },
@@ -202,12 +216,13 @@ export function identityRoutes(db: DbClient): Route[] {
             .set({ magicTokenHash: null, magicTokenExpiresAt: null })
             .where(eq(schema.citizens.id, citizen.id));
         }
-        if (process.env.IDENTITY_DEV_TOKENS === 'true') devTokens.delete(email);
+        devTokens.delete(email);
         await emitAudit({
           eventType: 'identity.session.exchanged',
           action: 'exchange',
           target: { type: 'citizen', id: citizen.id },
           data: { identityLevel: citizen.identityLevel },
+          visibility: 'restricted',
         });
         return result(200, {
           sessionToken: signSession(citizen.id),
@@ -338,10 +353,7 @@ export function identityRoutes(db: DbClient): Route[] {
               subject: resolved.subject,
             })
             .onConflictDoNothing({
-              target: [
-                schema.externalIdentities.provider,
-                schema.externalIdentities.subject,
-              ],
+              target: [schema.externalIdentities.provider, schema.externalIdentities.subject],
             })
             .returning({ citizenId: schema.externalIdentities.citizenId });
           if (linked.length === 0) {
@@ -371,11 +383,7 @@ export function identityRoutes(db: DbClient): Route[] {
         }
 
         const cRow = (
-          await db
-            .select()
-            .from(schema.citizens)
-            .where(eq(schema.citizens.id, citizenId))
-            .limit(1)
+          await db.select().from(schema.citizens).where(eq(schema.citizens.id, citizenId)).limit(1)
         )[0];
         if (!cRow) return result(500, { error: 'citizen_resolution_failed' });
         await emitAudit({
@@ -383,6 +391,7 @@ export function identityRoutes(db: DbClient): Route[] {
           action: 'exchange',
           target: { type: 'citizen', id: citizenId },
           data: { provider: resolved.provider, subject: resolved.subject },
+          visibility: 'restricted',
         });
         return result(200, {
           sessionToken: signSession(citizenId),
@@ -391,13 +400,13 @@ export function identityRoutes(db: DbClient): Route[] {
       },
     },
 
-    // Gated by IDENTITY_DEV_TOKENS=true: surfaces the latest magic token per email
-    // so local demo + acceptance harness can complete login without SMTP. 404 otherwise.
+    // Explicit non-production stub escape hatch for local demos and acceptance tests.
+    // Returns 404 unless all three dev-token configuration gates are satisfied.
     {
       method: 'GET',
       path: '/internal/identity/dev-tokens',
       handler: async () => {
-        if ((process.env.IDENTITY_MODE ?? 'stub') === 'oidc' || process.env.IDENTITY_DEV_TOKENS !== 'true') return result(404, { error: 'not_found' });
+        if (!devTokensEnabled()) return result(404, { error: 'not_found' });
         return result(200, { tokens: Object.fromEntries(devTokens) });
       },
     },
@@ -405,6 +414,7 @@ export function identityRoutes(db: DbClient): Route[] {
 }
 
 async function main(): Promise<void> {
+  identityHmacKey();
   const port = Number(process.env.PORT ?? 8650);
   const db = getClient();
   startService('citizen-identity-service', port, identityRoutes(db));

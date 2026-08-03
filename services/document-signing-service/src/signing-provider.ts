@@ -1,10 +1,5 @@
 export type SigningProviderState =
-  | 'draft'
-  | 'pending'
-  | 'completed'
-  | 'rejected'
-  | 'cancelled'
-  | 'expired';
+  'draft' | 'pending' | 'completed' | 'rejected' | 'cancelled' | 'expired';
 
 export type SigningRecipientState = 'pending' | 'completed' | 'rejected';
 

@@ -221,6 +221,26 @@ export const MANDATE_HOLDER_CHARTER_EVENTS = [
   'withdrawn',
 ] as const;
 
+export const COMPLAINT_STATUSES = [
+  'submitted',
+  'assigned',
+  'awaiting_information',
+  'decided',
+  'appealed',
+  'closed',
+] as const;
+export const COMPLAINT_EVENT_TYPES = [
+  'submitted',
+  'assigned',
+  'information_requested',
+  'information_received',
+  'decided',
+  'appealed',
+  'appeal_decided',
+  'closed',
+] as const;
+export const COMPLAINT_DECISION_KINDS = ['initial', 'appeal'] as const;
+export const COMPLAINT_APPEAL_STATUSES = ['filed', 'decided'] as const;
 /** Build a CHECK constraint restricting `column` to the given value set. */
 function enumCheck(name: string, column: string, values: readonly string[]) {
   const list = values.map((v) => `'${v}'`).join(',');
@@ -516,20 +536,22 @@ export const claims = pgTable(
   ],
 );
 
-export const evidenceLinks = pgTable('evidence_links', {
-  id: pkId(),
-  claimId: text('claim_id').notNull(),
-  sourceId: text('source_id').notNull(),
-  locator: jsonb('locator'), // {page?, lineStart?, lineEnd?, xpath?, tableCell?, timestamp?}
-  quote: text('quote'),
-  paraphrase: text('paraphrase'),
-  sourceHash: text('source_hash'),
-  retrievedAt: timestamp('retrieved_at', { withTimezone: true }),
-  confidence: numeric('confidence').notNull(),
-  visibility: text('visibility').default('public').notNull(),
-}, () => [
-  enumCheck('ck_evidence_links_visibility', 'visibility', EVIDENCE_LINK_VISIBILITIES),
-]);
+export const evidenceLinks = pgTable(
+  'evidence_links',
+  {
+    id: pkId(),
+    claimId: text('claim_id').notNull(),
+    sourceId: text('source_id').notNull(),
+    locator: jsonb('locator'), // {page?, lineStart?, lineEnd?, xpath?, tableCell?, timestamp?}
+    quote: text('quote'),
+    paraphrase: text('paraphrase'),
+    sourceHash: text('source_hash'),
+    retrievedAt: timestamp('retrieved_at', { withTimezone: true }),
+    confidence: numeric('confidence').notNull(),
+    visibility: text('visibility').default('public').notNull(),
+  },
+  () => [enumCheck('ck_evidence_links_visibility', 'visibility', EVIDENCE_LINK_VISIBILITIES)],
+);
 
 export const reviewRecords = pgTable('review_records', {
   id: pkId(),
@@ -1120,7 +1142,11 @@ export const documentArtifacts = pgTable(
     index('document_artifacts_derived_from_idx').on(t.derivedFromArtifactId),
     enumCheck('ck_document_artifacts_kind', 'kind', DOCUMENT_ARTIFACT_KINDS),
     enumCheck('ck_document_artifacts_visibility', 'visibility', VISIBILITIES),
-    enumCheck('ck_document_artifacts_storage_mode', 'storage_mode', DOCUMENT_ARTIFACT_STORAGE_MODES),
+    enumCheck(
+      'ck_document_artifacts_storage_mode',
+      'storage_mode',
+      DOCUMENT_ARTIFACT_STORAGE_MODES,
+    ),
     check('ck_document_artifacts_version', sql`version > 0`),
     check('ck_document_artifacts_byte_count', sql`byte_count >= 0`),
   ],
@@ -1231,11 +1257,7 @@ export const mandateHolderCharterEvents = pgTable(
   (t) => [
     index('mandate_holder_charter_events_charter_idx').on(t.charterId, t.occurredAt),
     index('mandate_holder_charter_events_request_idx').on(t.signingRequestId),
-    enumCheck(
-      'ck_mandate_holder_charter_events_event',
-      'event',
-      MANDATE_HOLDER_CHARTER_EVENTS,
-    ),
+    enumCheck('ck_mandate_holder_charter_events_event', 'event', MANDATE_HOLDER_CHARTER_EVENTS),
   ],
 );
 
@@ -1374,6 +1396,142 @@ export const commitmentAnswers = pgTable(
   (t) => [index('commitment_answers_question_idx').on(t.questionId)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Private municipal complaint cases                                   */
+/* ------------------------------------------------------------------ */
+
+export const complaintCases = pgTable(
+  'complaint_cases',
+  {
+    id: pkId(),
+    caseNumber: text('case_number').notNull(),
+    residentCitizenId: text('resident_citizen_id').notNull(),
+    institutionId: text('institution_id').notNull(),
+    processId: text('process_id').notNull(),
+    jurisdictionId: text('jurisdiction_id').notNull(),
+    subject: text('subject').notNull(),
+    narrative: text('narrative').notNull(),
+    status: text('status').notNull().default('submitted'),
+    assignedMandateHolderId: text('assigned_mandate_holder_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    uniqueIndex('complaint_cases_case_number_idx').on(t.caseNumber),
+    index('complaint_cases_resident_created_idx').on(t.residentCitizenId, t.createdAt),
+    index('complaint_cases_status_created_idx').on(t.status, t.createdAt),
+    index('complaint_cases_assigned_holder_idx').on(t.assignedMandateHolderId),
+    enumCheck('ck_complaint_cases_status', 'status', COMPLAINT_STATUSES),
+    check('ck_complaint_cases_case_number_nonempty', sql`btrim(case_number) <> ''`),
+    check('ck_complaint_cases_subject_nonempty', sql`btrim(subject) <> ''`),
+    check('ck_complaint_cases_narrative_nonempty', sql`btrim(narrative) <> ''`),
+  ],
+);
+
+export const complaintInformationRequests = pgTable(
+  'complaint_information_requests',
+  {
+    id: pkId(),
+    complaintId: text('complaint_id').notNull(),
+    requestedBy: text('requested_by').notNull(),
+    question: text('question').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    respondedBy: text('responded_by'),
+    response: text('response'),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('complaint_information_requests_complaint_created_idx').on(t.complaintId, t.createdAt),
+    check('ck_complaint_information_requests_question_nonempty', sql`btrim(question) <> ''`),
+    check(
+      'ck_complaint_information_requests_response_nonempty',
+      sql`response is null or btrim(response) <> ''`,
+    ),
+  ],
+);
+
+export const complaintDecisions = pgTable(
+  'complaint_decisions',
+  {
+    id: pkId(),
+    complaintId: text('complaint_id').notNull(),
+    appealId: text('appeal_id'),
+    kind: text('kind').notNull(),
+    outcome: text('outcome').notNull(),
+    reason: text('reason').notNull(),
+    decidedBy: text('decided_by').notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    uniqueIndex('complaint_decisions_complaint_kind_idx').on(t.complaintId, t.kind),
+    index('complaint_decisions_complaint_decided_idx').on(t.complaintId, t.decidedAt),
+    enumCheck('ck_complaint_decisions_kind', 'kind', COMPLAINT_DECISION_KINDS),
+    check('ck_complaint_decisions_outcome_nonempty', sql`btrim(outcome) <> ''`),
+    check('ck_complaint_decisions_reason_nonempty', sql`btrim(reason) <> ''`),
+  ],
+);
+
+export const complaintAppeals = pgTable(
+  'complaint_appeals',
+  {
+    id: pkId(),
+    complaintId: text('complaint_id').notNull(),
+    residentCitizenId: text('resident_citizen_id').notNull(),
+    initialDecisionId: text('initial_decision_id').notNull(),
+    grounds: text('grounds').notNull(),
+    status: text('status').notNull().default('filed'),
+    filedAt: timestamp('filed_at', { withTimezone: true }).defaultNow().notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('complaint_appeals_complaint_idx').on(t.complaintId),
+    enumCheck('ck_complaint_appeals_status', 'status', COMPLAINT_APPEAL_STATUSES),
+    check('ck_complaint_appeals_grounds_nonempty', sql`btrim(grounds) <> ''`),
+  ],
+);
+
+// Append-only case timeline. `data` may contain reference ids only; it must
+// never contain complaint narrative, resident response text, or decision rationale.
+export const complaintCaseEvents = pgTable(
+  'complaint_case_events',
+  {
+    id: pkId(),
+    complaintId: text('complaint_id').notNull(),
+    eventType: text('event_type').notNull(),
+    actorId: text('actor_id').notNull(),
+    actorType: text('actor_type').notNull(),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    data: jsonb('data')
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+    auditCorrelationId: text('audit_correlation_id'),
+  },
+  (t) => [
+    index('complaint_case_events_complaint_occurred_id_idx').on(t.complaintId, t.occurredAt, t.id),
+    enumCheck('ck_complaint_case_events_event_type', 'event_type', COMPLAINT_EVENT_TYPES),
+    enumCheck('ck_complaint_case_events_actor_type', 'actor_type', ACTOR_TYPES),
+    enumCheck('ck_complaint_case_events_from_status', 'from_status', COMPLAINT_STATUSES),
+    enumCheck('ck_complaint_case_events_to_status', 'to_status', COMPLAINT_STATUSES),
+    check(
+      'ck_complaint_case_events_transition',
+      sql`(from_status is null and to_status = 'submitted')
+        or (from_status = 'submitted' and to_status = 'assigned')
+        or (from_status = 'assigned' and to_status = 'awaiting_information')
+        or (from_status = 'awaiting_information' and to_status = 'assigned')
+        or (from_status = 'assigned' and to_status = 'decided')
+        or (from_status = 'decided' and to_status = 'appealed')
+        or (from_status = 'decided' and to_status = 'closed')
+        or (from_status = 'appealed' and to_status = 'closed')`,
+    ),
+  ],
+);
+
 export const schema = {
   appMeta,
 
@@ -1436,5 +1594,10 @@ export const schema = {
   commitmentStatusEvents,
   commitmentQuestions,
   commitmentAnswers,
+  complaintCases,
+  complaintInformationRequests,
+  complaintDecisions,
+  complaintAppeals,
+  complaintCaseEvents,
   verifiableCredentials,
 };

@@ -64,9 +64,7 @@ test('create uses raw authorization and multipart payload/files on the v2 endpoi
       assert.equal(payloadPart.type, 'application/json');
       assert.deepEqual(JSON.parse(await payloadPart.text()), {
         title: 'Polis Charter',
-        recipients: [
-          { id: 1, name: 'Ada Chair', email: 'ada@example.test', role: 'SIGNER' },
-        ],
+        recipients: [{ id: 1, name: 'Ada Chair', email: 'ada@example.test', role: 'SIGNER' }],
         fields: [
           {
             recipientId: 1,
@@ -178,16 +176,13 @@ test('signed download rejects wrong MIME and declared or streamed oversize bodie
       apiToken: 'token',
       maxDownloadBytes,
       fetch: async (request) =>
-        String(request).endsWith('/envelope/env-1')
-          ? jsonResponse(envelope())
-          : downloadResponse,
+        String(request).endsWith('/envelope/env-1') ? jsonResponse(envelope()) : downloadResponse,
     });
 
   await assert.rejects(
-    makeClient(new Response('not pdf', { headers: { 'Content-Type': 'text/plain' } })).downloadSignedItem(
-      'env-1',
-      'item-1',
-    ),
+    makeClient(
+      new Response('not pdf', { headers: { 'Content-Type': 'text/plain' } }),
+    ).downloadSignedItem('env-1', 'item-1'),
     (error: unknown) =>
       error instanceof SigningProviderError && error.code === 'invalid_content_type',
   );

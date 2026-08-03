@@ -8,5 +8,35 @@
     "starts_at": "2025-01-01T00:00:00Z",
     "ends_at": null,
     "status": "active"
+  },
+  {
+    "id": "mh-complaint-decision-officer-demo",
+    "citizen_id": "citizen-complaint-decision-officer-demo",
+    "role_id": "role-complaint-decision-officer",
+    "jurisdiction_id": "jur-croatia-local",
+    "display_name": "Ivana Initial Decision",
+    "starts_at": "2025-01-01T00:00:00Z",
+    "ends_at": null,
+    "status": "active"
+  },
+  {
+    "id": "mh-complaint-appeal-officer-demo",
+    "citizen_id": "citizen-complaint-appeal-officer-demo",
+    "role_id": "role-complaint-appeal-officer",
+    "jurisdiction_id": "jur-croatia-local",
+    "display_name": "Marko Appeal Decision",
+    "starts_at": "2025-01-01T00:00:00Z",
+    "ends_at": null,
+    "status": "active"
+  },
+  {
+    "id": "mh-complaint-intake-officer-demo",
+    "citizen_id": "citizen-complaint-intake-officer-demo",
+    "role_id": "role-complaints-intake-officer",
+    "jurisdiction_id": "jur-croatia-local",
+    "display_name": "Petra Complaint Intake",
+    "starts_at": "2025-01-01T00:00:00Z",
+    "ends_at": null,
+    "status": "active"
   }
 ]

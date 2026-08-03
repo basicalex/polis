@@ -47,18 +47,11 @@ const [{ signingRoutes }, { startService }] = await Promise.all([
   import('../services/document-signing-service/dist/index.js'),
   import('../packages/service-runtime/dist/index.js'),
 ]);
-const signingSvc = startService(
-  'document-signing-service',
-  SIGNING_PORT,
-  signingRoutes({}),
-);
+const signingSvc = startService('document-signing-service', SIGNING_PORT, signingRoutes({}));
 
 let failed = false;
 try {
-  await Promise.all([
-    poll(BASE, 'platform-api'),
-    poll(SIGNING_BASE, 'document-signing-service'),
-  ]);
+  await Promise.all([poll(BASE, 'platform-api'), poll(SIGNING_BASE, 'document-signing-service')]);
   console.log('[v1-smoke] checking §23 contract…');
 
   const hz = await (await fetch(`${BASE}/healthz`)).json();

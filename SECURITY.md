@@ -15,6 +15,8 @@ Include:
 
 Local v1 is not hardened for production. `.env.example` contains `CHANGE_ME` secrets and `MOCK_EXTERNALS=true`. Do not deploy it publicly without replacing secrets, adding production auth, configuring storage, reviewing policy rules, and connecting real audit/proof infrastructure.
 
+The standalone [isolated public-read pilot](docs/operations/isolated-pilot-runbook.md) is narrower than local v1: it permits only seeded synthetic/public data and is not a production, writable, private-document, or real-person-data deployment.
+
 ## Private-document handling
 
 - Do not commit private documents, filled `.env` files, production exports, or partner datasets.

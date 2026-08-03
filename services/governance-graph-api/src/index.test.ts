@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { graphRoutes } from './index.js';
+import { databaseReadiness, graphRoutes } from './index.js';
 
 test('governance-graph-api exposes §23.1 institutions + roles + processes + traverse', () => {
   const paths = graphRoutes({} as never).map((r) => `${r.method} ${r.path}`);
@@ -22,6 +22,15 @@ test('governance-graph-api exposes §23.1 institutions + roles + processes + tra
   }
 });
 
+test('governance-graph-api readiness reports only database failures', async () => {
+  assert.deepEqual(await databaseReadiness(async () => undefined), { ready: true });
+  assert.deepEqual(
+    await databaseReadiness(async () => {
+      throw new Error('postgres://credentials@db.internal/polis');
+    }),
+    { ready: false, dependency: 'database' },
+  );
+});
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   assert.ok(value && typeof value === 'object');
@@ -77,7 +86,11 @@ test('scorecard counts read-derived overdue without grades or rankings', async (
   ).find((r) => r.method === 'GET' && r.path === '/api/v1/mandate-holders/:id/scorecard');
   assert.ok(route);
 
-  const out = await route.handler(requestUrl('/api/v1/mandate-holders/holder-1/scorecard'), {}, { id: 'holder-1' });
+  const out = await route.handler(
+    requestUrl('/api/v1/mandate-holders/holder-1/scorecard'),
+    {},
+    { id: 'holder-1' },
+  );
 
   assert.deepEqual(out, {
     mandateHolderId: 'holder-1',
@@ -97,11 +110,7 @@ test('scorecard counts read-derived overdue without grades or rankings', async (
 
 test('commitment detail derives overdue at read time without a status event', async () => {
   const route = graphRoutes(
-    queuedDb([
-      [commitment('commitment-1', new Date('2000-01-01T00:00:00Z'))],
-      [],
-      [],
-    ]) as never,
+    queuedDb([[commitment('commitment-1', new Date('2000-01-01T00:00:00Z'))], [], []]) as never,
   ).find((r) => r.method === 'GET' && r.path === '/api/v1/commitments/:id');
   assert.ok(route);
 
@@ -169,7 +178,6 @@ test('commitment detail includes public claim evidence projection with restricte
   assert.equal(JSON.stringify(out).includes('commitment restricted quote'), false);
   assert.equal(JSON.stringify(out).includes('private.example'), false);
 });
-
 
 test('public commitment resolution keeps restricted evidence identity but redacts sensitive fields', async () => {
   const restrictedEvidence = {

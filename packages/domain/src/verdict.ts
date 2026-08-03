@@ -111,9 +111,7 @@ function buildChecks(input: {
       : `check.signature.${signatureStatus}`,
     detail:
       proof.signatures.length > 0
-        ? proof.signatures
-            .map((s) => `${s.type}:${s.standard}:${s.signerRef}`)
-            .join('; ')
+        ? proof.signatures.map((s) => `${s.type}:${s.standard}:${s.signerRef}`).join('; ')
         : undefined,
   };
 
@@ -161,8 +159,7 @@ function buildChecks(input: {
 
 function unavailableChecks(state: 'not_found' | 'private_or_restricted'): VerdictCheck[] {
   const mechanisms: Mechanism[] = ['hash', 'signature', 'timestamp', 'registry', 'issuer'];
-  const labelKey =
-    state === 'not_found' ? 'check.generic.not_found' : 'check.generic.restricted';
+  const labelKey = state === 'not_found' ? 'check.generic.not_found' : 'check.generic.restricted';
   return mechanisms.map((mechanism) => ({
     mechanism,
     status: 'not_checked' as const,

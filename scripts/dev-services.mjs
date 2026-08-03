@@ -19,6 +19,7 @@ const services = [
   { name: 'rewards-service', filter: '@polis/rewards-service', port: 8460 },
   { name: 'contribution-service', filter: '@polis/contribution-service', port: 8450 },
   { name: 'polis-bridge-service', filter: '@polis/polis-bridge-service', port: 8200 },
+  { name: 'complaints-service', filter: '@polis/complaints-service', port: 8970 },
   { name: 'platform-api', filter: '@polis/platform-api', port: 8080 },
 ];
 
@@ -61,11 +62,28 @@ process.on('SIGTERM', () => {
 
 for (const svc of services) {
   const port = portOf(svc.name);
-  const child = spawn('pnpm', ['--filter', svc.filter, 'start'], {
+  const child = spawn('bun', ['run', '--filter', svc.filter, 'start'], {
     stdio: 'inherit',
     env: {
       ...process.env,
       PORT: String(port),
+      DEPLOYMENT_PROFILE: process.env.DEPLOYMENT_PROFILE ?? 'dev',
+      CORS_ALLOWED_ORIGINS:
+        process.env.CORS_ALLOWED_ORIGINS ??
+        [
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'http://localhost:5173',
+          'http://127.0.0.1:5173',
+          'http://localhost:8080',
+          'http://127.0.0.1:8080',
+          'http://localhost:4321',
+          'http://127.0.0.1:4321',
+          'http://localhost:4324',
+          'http://127.0.0.1:4324',
+        ].join(','),
+      IDENTITY_HMAC_KEY:
+        process.env.IDENTITY_HMAC_KEY ?? 'local-dev-only-identity-hmac-key-never-use-outside-local',
       INTERNAL_API_TOKEN: process.env.INTERNAL_API_TOKEN ?? 'polis-internal-dev-token',
       GRAPH_INTERNAL_URL: process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100',
       AUDIT_INTERNAL_URL: process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
@@ -83,6 +101,7 @@ for (const svc of services) {
       PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
       SIGNING_INTERNAL_URL: process.env.SIGNING_INTERNAL_URL ?? 'http://localhost:8960',
       CONTRIBUTION_INTERNAL_URL: process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450',
+      COMPLAINTS_INTERNAL_URL: process.env.COMPLAINTS_INTERNAL_URL ?? 'http://localhost:8970',
       PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',
       SIGNING_PROVIDER: process.env.SIGNING_PROVIDER ?? 'stub',
       ARTIFACT_STORE_MODE: process.env.ARTIFACT_STORE_MODE ?? 'database',
@@ -93,7 +112,7 @@ for (const svc of services) {
   });
   children.push({ name: svc.name, child });
   try {
-    await pollReady(`http://127.0.0.1:${port}/healthz`);
+    await pollReady(`http://127.0.0.1:${port}/readyz`);
     console.log(`[dev-services] ${svc.name} ready at :${port}`);
   } catch (err) {
     console.error(`[dev-services] ${svc.name} ${err.message}`);

@@ -1,0 +1,201 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="My private development cases">
+  <div class="stack">
+    <section class="hero stack">
+    <h1>My private development cases</h1>
+    <p>
+      File and follow a complaint in this local development workflow. This is not a live government
+      service and it does not connect to government systems.
+    </p>
+    <p class="privacy-note">Your case details are private to your signed-in session and authorised case workers.</p>
+  </section>
+
+  <section class="stack" aria-labelledby="new-case-heading">
+    <div>
+      <h2 id="new-case-heading">File a new complaint</h2>
+      <p class="muted">Describe the matter in your own words. The case scope is set by this development service.</p>
+    </div>
+    <div id="complaints-auth" class="panel muted" role="status">Checking your session…</div>
+    <form id="complaint-form" class="panel stack" hidden>
+      <label for="complaint-subject">Subject</label>
+      <input id="complaint-subject" name="subject" type="text" maxlength="200" required />
+      <p class="muted">Up to 200 characters.</p>
+      <label for="complaint-narrative">What happened?</label>
+      <textarea id="complaint-narrative" name="narrative" rows="8" maxlength="10000" required></textarea>
+      <p class="muted">Up to 10,000 characters. Do not include information you would not want recorded in this development case.</p>
+      <button id="complaint-submit" type="submit">File complaint</button>
+      <p id="complaint-form-message" class="muted" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section class="stack" aria-labelledby="case-list-heading">
+    <div>
+      <h2 id="case-list-heading">Your cases</h2>
+      <p class="muted">Case activity is shown only after you sign in.</p>
+    </div>
+    <div id="complaints-state" class="panel muted" role="status" aria-live="polite">Loading cases…</div>
+    <div id="complaint-list" class="stack"></div>
+    <p id="complaints-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
+  </section>
+
+  </div>
+
+  <script is:inline>
+    window.addEventListener('DOMContentLoaded', function () {
+      var API = window.__API_URL;
+      var auth = document.getElementById('complaints-auth');
+      var form = document.getElementById('complaint-form');
+      var state = document.getElementById('complaints-state');
+      var list = document.getElementById('complaint-list');
+      var announcement = document.getElementById('complaints-announcement');
+      var message = document.getElementById('complaint-form-message');
+      var submit = document.getElementById('complaint-submit');
+      var subject = document.getElementById('complaint-subject');
+      var narrative = document.getElementById('complaint-narrative');
+      var session;
+
+      function textElement(tag, value, className) {
+        var element = document.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = String(value == null ? '' : value);
+        return element;
+      }
+
+      function clearState() {
+        state.hidden = true;
+        state.textContent = '';
+      }
+
+      function showState(value) {
+        state.hidden = false;
+        state.textContent = value;
+      }
+
+      function friendlyDate(value) {
+        var date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value == null ? 'Date unavailable' : value) : date.toLocaleString();
+      }
+
+      function renderCases(items) {
+        var rows = [];
+        items.forEach(function (item) {
+          var article = document.createElement('article');
+          article.className = 'card stack';
+          var heading = document.createElement('h3');
+          var link = document.createElement('a');
+          link.href = '/complaints/' + encodeURIComponent(String(item.id == null ? '' : item.id));
+          link.textContent = String(item.caseNumber == null ? 'Case' : item.caseNumber);
+          heading.append(link);
+          var subjectLine = textElement('p', item.subject == null ? 'No subject recorded.' : item.subject);
+          var meta = document.createElement('p');
+          meta.className = 'muted';
+          var badge = textElement('span', item.status == null ? 'unknown' : item.status, 'badge');
+          var updated = document.createTextNode(' · updated ' + friendlyDate(item.updatedAt));
+          meta.append(badge, updated);
+          article.append(heading, subjectLine, meta);
+          rows.push(article);
+        });
+        list.replaceChildren.apply(list, rows);
+      }
+
+      function responseError(response, fallback) {
+        return response
+          .json()
+          .then(function (body) {
+            return body && typeof body.error === 'string' ? body.error : fallback;
+          })
+          .catch(function () {
+            return fallback;
+          });
+      }
+
+      try {
+        var raw = sessionStorage.getItem('web_session');
+        session = raw ? JSON.parse(raw) : null;
+      } catch (_error) {
+        session = null;
+      }
+
+      if (!session || typeof session.token !== 'string' || !session.token) {
+        var signIn = document.createElement('a');
+        signIn.href = '/login';
+        signIn.textContent = 'Sign in';
+        auth.replaceChildren(document.createTextNode('You need to '), signIn, document.createTextNode(' to file or view private development cases.'));
+        showState('Sign in to view your private cases.');
+        return;
+      }
+
+      auth.hidden = true;
+      form.hidden = false;
+
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var subjectValue = subject.value.trim();
+        var narrativeValue = narrative.value.trim();
+        if (!subjectValue || !narrativeValue) {
+          message.textContent = 'Add a subject and a narrative before filing.';
+          return;
+        }
+        submit.disabled = true;
+        message.textContent = 'Filing your complaint…';
+        try {
+          var response = await fetch(API + '/api/v1/complaints', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+            body: JSON.stringify({ subject: subjectValue, narrative: narrativeValue }),
+          });
+          if (response.status === 401) {
+            location.href = '/login';
+            return;
+          }
+          if (!response.ok) {
+            message.textContent = await responseError(response, 'The complaint could not be filed. Try again.');
+            return;
+          }
+          var created = await response.json();
+          if (!created || typeof created.id !== 'string') {
+            message.textContent = 'The complaint was filed, but its case link was unavailable. Refresh to view it.';
+            return;
+          }
+          location.href = '/complaints/' + encodeURIComponent(created.id);
+        } catch (_error) {
+          message.textContent = 'The complaint could not be filed. Check your connection and try again.';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      fetch(API + '/api/v1/complaints/mine', {
+        headers: { authorization: 'Bearer ' + session.token },
+      })
+        .then(async function (response) {
+          if (response.status === 401) {
+            location.href = '/login';
+            return null;
+          }
+          if (!response.ok) throw new Error(await responseError(response, 'Cases could not be loaded.'));
+          return response.json();
+        })
+        .then(function (body) {
+          if (!body) return;
+          var items = Array.isArray(body.items) ? body.items : [];
+          if (items.length === 0) {
+            list.replaceChildren();
+            announcement.textContent = 'No cases loaded.';
+            showState('You have not filed any cases yet.');
+            return;
+          }
+          clearState();
+          renderCases(items);
+          announcement.textContent = items.length + (items.length === 1 ? ' case loaded.' : ' cases loaded.');
+        })
+        .catch(function (error) {
+          list.replaceChildren();
+          showState(error && error.message ? error.message : 'Cases could not be loaded. Try again.');
+        });
+    });
+  </script>
+</Base>

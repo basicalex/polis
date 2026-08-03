@@ -138,11 +138,7 @@ for (const scope of ['proof_only', 'metadata'] as const) {
     const previousFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response('{}', { status: 200 });
     try {
-      const output = (await route.handler(
-        {} as never,
-        { grantId: 'grant-1' },
-        {},
-      )) as HttpResult;
+      const output = (await route.handler({} as never, { grantId: 'grant-1' }, {})) as HttpResult;
       assert.equal(output.status, 200);
       assert.deepEqual(output.body, {
         verdict: 'valid',

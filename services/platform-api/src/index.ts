@@ -8,17 +8,126 @@ import type { IncomingMessage } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { runMigrationsOnce } from '@polis/db';
+import { checkDatabase, runMigrationsOnce } from '@polis/db';
 import {
+  FetchTimeoutError,
+  MAX_FETCH_TIMEOUT_MS,
+  fetchWithTimeout,
   internalHeaders,
   operationalRoutes,
+  parseDeploymentProfile,
   result,
   startService,
   trustedActorHeaders,
+  type ReadinessStatus,
   type Route,
 } from '@polis/service-runtime';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
+
+const DEFAULT_INTERNAL_FETCH_TIMEOUT_MS = 5_000;
+const MIN_DATABASE_CHECK_TIMEOUT_MS = 100;
+const MAX_DATABASE_CHECK_TIMEOUT_MS = 10_000;
+
+export function parseInternalFetchTimeoutMs(value = process.env.INTERNAL_FETCH_TIMEOUT_MS): number {
+  const timeoutMs =
+    value === undefined || value.trim() === '' ? DEFAULT_INTERNAL_FETCH_TIMEOUT_MS : Number(value);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_FETCH_TIMEOUT_MS) {
+    throw new RangeError(
+      `INTERNAL_FETCH_TIMEOUT_MS must be an integer between 1 and ${MAX_FETCH_TIMEOUT_MS}`,
+    );
+  }
+  return timeoutMs;
+}
+
+function upstreamFailure(error: unknown): unknown {
+  return error instanceof FetchTimeoutError
+    ? result(504, { error: 'upstream_timeout' })
+    : result(502, { error: 'bad_gateway' });
+}
+
+type DatabaseCheck = (url: string | undefined, timeoutMs: number) => Promise<unknown>;
+type TimedFetch = typeof fetchWithTimeout;
+
+export interface PlatformReadinessOptions {
+  env?: NodeJS.ProcessEnv;
+  databaseCheck?: DatabaseCheck;
+  timedFetch?: TimedFetch;
+  readinessHeaders?: () => Record<string, string>;
+}
+
+export async function checkPlatformReadiness(
+  options: PlatformReadinessOptions = {},
+): Promise<ReadinessStatus> {
+  const env = options.env ?? process.env;
+  const timeoutMs = parseInternalFetchTimeoutMs(env.INTERNAL_FETCH_TIMEOUT_MS);
+  const databaseTimeoutMs = Math.max(
+    MIN_DATABASE_CHECK_TIMEOUT_MS,
+    Math.min(timeoutMs, MAX_DATABASE_CHECK_TIMEOUT_MS),
+  );
+
+  try {
+    await (options.databaseCheck ?? checkDatabase)(env.DATABASE_URL, databaseTimeoutMs);
+  } catch {
+    return { ready: false, dependency: 'database' };
+  }
+
+  const requiresPilotUpstreams =
+    env.PUBLIC_EDGE === 'true' || parseDeploymentProfile(env.DEPLOYMENT_PROFILE) === 'pilot';
+  const dependencies: Array<{ label: string; url: string }> = [];
+  if (requiresPilotUpstreams) {
+    dependencies.push(
+      {
+        label: 'governance_graph',
+        url: (env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100') + '/readyz',
+      },
+      { label: 'audit', url: (env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600') + '/readyz' },
+      { label: 'proof', url: (env.PROOF_INTERNAL_URL ?? 'http://localhost:8700') + '/readyz' },
+      { label: 'polis', url: (env.POLIS_INTERNAL_URL ?? 'http://localhost:8200') + '/readyz' },
+    );
+  }
+  if (env.PUBLIC_EDGE !== 'true') {
+    dependencies.push({
+      label: 'complaints',
+      url: (env.COMPLAINTS_INTERNAL_URL ?? 'http://localhost:8970') + '/readyz',
+    });
+  }
+  const timedFetch = options.timedFetch ?? fetchWithTimeout;
+  const readinessHeaders = options.readinessHeaders ?? internalHeaders;
+  const statuses = await Promise.all(
+    dependencies.map(async ({ url }) => {
+      try {
+        const response = await timedFetch(url, { headers: readinessHeaders() }, timeoutMs);
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  const failedIndex = statuses.indexOf(false);
+  return failedIndex === -1
+    ? { ready: true }
+    : { ready: false, dependency: dependencies[failedIndex]!.label };
+}
+
+export interface PlatformMigrationOptions {
+  env?: NodeJS.ProcessEnv;
+  migrate?: () => Promise<void>;
+  warn?: (message: string) => void;
+}
+
+export async function runPlatformMigrations(options: PlatformMigrationOptions = {}): Promise<void> {
+  const profile = parseDeploymentProfile((options.env ?? process.env).DEPLOYMENT_PROFILE);
+  try {
+    await (options.migrate ?? runMigrationsOnce)();
+  } catch (error) {
+    if (profile === 'pilot') throw error;
+    const message = error instanceof Error ? error.message : 'unknown';
+    (options.warn ?? console.error)(
+      JSON.stringify({ service: 'platform-api', stage: 'db-migrate', warning: message }),
+    );
+  }
+}
 
 interface AuthenticatedActor {
   citizenId: string;
@@ -28,11 +137,15 @@ async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Prom
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const hasBody = req.method !== 'GET' && body !== undefined;
-    const upstream = await fetch(base + url.pathname + url.search, {
-      method: req.method,
-      headers: internalHeaders(),
-      body: hasBody ? JSON.stringify(body) : undefined,
-    });
+    const upstream = await fetchWithTimeout(
+      base + url.pathname + url.search,
+      {
+        method: req.method,
+        headers: internalHeaders(),
+        body: hasBody ? JSON.stringify(body) : undefined,
+      },
+      parseInternalFetchTimeoutMs(),
+    );
 
     if (!upstream.ok) {
       return result(
@@ -42,9 +155,8 @@ async function proxyTo(base: string, req: IncomingMessage, body?: unknown): Prom
     }
 
     return result(upstream.status, await upstream.json());
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown';
-    return result(502, { error: 'bad_gateway', detail: message });
+  } catch (error) {
+    return upstreamFailure(error);
   }
 }
 
@@ -56,11 +168,15 @@ async function proxyToPath(
 ): Promise<unknown> {
   try {
     const hasBody = method !== 'GET' && body !== undefined;
-    const upstream = await fetch(base + path, {
-      method,
-      headers: internalHeaders(),
-      body: hasBody ? JSON.stringify(body) : undefined,
-    });
+    const upstream = await fetchWithTimeout(
+      base + path,
+      {
+        method,
+        headers: internalHeaders(),
+        body: hasBody ? JSON.stringify(body) : undefined,
+      },
+      parseInternalFetchTimeoutMs(),
+    );
     if (!upstream.ok) {
       return result(
         upstream.status,
@@ -68,9 +184,8 @@ async function proxyToPath(
       );
     }
     return result(upstream.status, await upstream.json());
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown';
-    return result(502, { error: 'bad_gateway', detail: message });
+  } catch (error) {
+    return upstreamFailure(error);
   }
 }
 
@@ -121,11 +236,15 @@ const proofVerifyPaths = [
 async function verifySession(sessionToken: string): Promise<AuthenticatedActor | null> {
   const base = process.env.IDENTITY_INTERNAL_URL ?? 'http://localhost:8650';
   try {
-    const r = await fetch(base + '/internal/identity/verify-session', {
-      method: 'POST',
-      headers: internalHeaders(),
-      body: JSON.stringify({ sessionToken }),
-    });
+    const r = await fetchWithTimeout(
+      base + '/internal/identity/verify-session',
+      {
+        method: 'POST',
+        headers: internalHeaders(),
+        body: JSON.stringify({ sessionToken }),
+      },
+      parseInternalFetchTimeoutMs(),
+    );
     if (!r.ok) return null;
     const body = (await r.json()) as { citizenId?: unknown; identityLevel?: unknown };
     return typeof body.citizenId === 'string' && typeof body.identityLevel === 'string'
@@ -145,6 +264,22 @@ async function requireCitizen(req: IncomingMessage): Promise<AuthenticatedActor 
   return verifySession(token);
 }
 
+async function requireStaff(req: IncomingMessage): Promise<AuthenticatedActor | unknown> {
+  const actor = await requireCitizen(req);
+  if (!actor) return result(401, { error: 'unauthenticated' });
+  if (actor.identityLevel !== 'staff') return result(403, { error: 'staff_required' });
+  return actor;
+}
+
+function isAuthenticatedActor(value: unknown): value is AuthenticatedActor {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as AuthenticatedActor).citizenId === 'string' &&
+    typeof (value as AuthenticatedActor).identityLevel === 'string'
+  );
+}
+
 /**
  * Proxy to an explicit internal path with X-Polis-Citizen header injected.
  * Maps BFF public paths to service internal paths (e.g. /api/v1/vault/...
@@ -160,11 +295,15 @@ async function proxyToPathWithCitizen(
 ): Promise<unknown> {
   try {
     const hasBody = method !== 'GET' && body !== undefined;
-    const upstream = await fetch(base + internalPath, {
-      method,
-      headers: trustedActorHeaders(actor),
-      body: hasBody ? JSON.stringify(body) : undefined,
-    });
+    const upstream = await fetchWithTimeout(
+      base + internalPath,
+      {
+        method,
+        headers: trustedActorHeaders(actor),
+        body: hasBody ? JSON.stringify(body) : undefined,
+      },
+      parseInternalFetchTimeoutMs(),
+    );
     if (!upstream.ok) {
       return result(
         upstream.status,
@@ -172,9 +311,8 @@ async function proxyToPathWithCitizen(
       );
     }
     return result(upstream.status, await upstream.json());
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown';
-    return result(502, { error: 'bad_gateway', detail: message });
+  } catch (error) {
+    return upstreamFailure(error);
   }
 }
 
@@ -183,7 +321,7 @@ async function proxyToPathWithCitizen(
  * + stateless self-verification (verify/hash|file|manifest), blocks every
  * write/login/participation route + the dev-token route, and rate-limits by IP.
  * When PUBLIC_EDGE is unset (dev), withPublicEdge is the identity function,
- * so behaviour is byte-identical to today and pnpm verify is unaffected.
+ * so behaviour is byte-identical to today and bun run verify is unaffected.
  */
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT = Number(process.env.PUBLIC_EDGE_RATE_LIMIT_PER_MIN ?? 60);
@@ -226,6 +364,17 @@ const PUBLIC_EDGE_BLOCKED = new Set<string>([
   'POST /api/v1/commitments/:id/resolutions',
   'POST /api/v1/commitments/:id/questions',
   'POST /api/v1/commitment-questions/:id/answers',
+  'POST /api/v1/complaints',
+  'GET /api/v1/complaints/mine',
+  'GET /api/v1/complaints/queue',
+  'GET /api/v1/complaints/:id',
+  'POST /api/v1/complaints/:id/assign',
+  'POST /api/v1/complaints/:id/information-requests',
+  'POST /api/v1/complaints/:id/information-requests/:requestId/respond',
+  'POST /api/v1/complaints/:id/decisions',
+  'POST /api/v1/complaints/:id/appeals',
+  'POST /api/v1/complaints/:id/appeals/:appealId/decisions',
+  'POST /api/v1/complaints/:id/close',
 ]);
 
 /** Operational routes exempt from rate-limiting so health checks pass. */
@@ -274,8 +423,8 @@ export function platformRoutes(): Route[] {
   const identityBase = process.env.IDENTITY_INTERNAL_URL ?? 'http://localhost:8650';
   const vaultBase = process.env.VAULT_INTERNAL_URL ?? 'http://localhost:8750';
   const vcIssuerBase = process.env.VC_ISSUER_INTERNAL_URL ?? 'http://localhost:8950';
-
   const signingBase = process.env.SIGNING_INTERNAL_URL ?? 'http://localhost:8960';
+  const complaintsBase = process.env.COMPLAINTS_INTERNAL_URL ?? 'http://localhost:8970';
   return [
     ...operationalRoutes('platform-api'),
     ...graphReadPaths.map((path) => ({
@@ -312,25 +461,51 @@ export function platformRoutes(): Route[] {
     {
       method: 'GET',
       path: '/api/v1/assistant/traces',
-      handler: async () => proxyToPath(aiBase, 'GET', '/internal/ai/traces'),
+      handler: async (req: IncomingMessage) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(aiBase, 'GET', '/internal/ai/traces', actor);
+      },
     },
     {
       method: 'GET',
       path: '/api/v1/assistant/traces/:id',
-      handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
-        proxyToPath(aiBase, 'GET', '/internal/ai/traces/' + params.id),
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(aiBase, 'GET', '/internal/ai/traces/' + params.id, actor);
+      },
     },
     {
       method: 'GET',
       path: '/api/v1/assistant/outputs/:id',
-      handler: async (_req: IncomingMessage, _body: unknown, params: Record<string, string>) =>
-        proxyToPath(aiBase, 'GET', '/internal/ai/outputs/' + params.id),
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(aiBase, 'GET', '/internal/ai/outputs/' + params.id, actor);
+      },
     },
     {
       method: 'POST',
       path: '/api/v1/assistant/outputs/:id/review',
-      handler: async (_req: IncomingMessage, body: unknown, params: Record<string, string>) =>
-        proxyToPath(aiBase, 'POST', '/internal/ai/outputs/' + params.id + '/review', body),
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        const staffActor = actor;
+        const input = (body ?? {}) as { decision?: unknown; notes?: unknown };
+        const forwarded: { decision?: unknown; notes?: unknown; reviewerId: string } = {
+          reviewerId: staffActor.citizenId,
+        };
+        if ('decision' in input) forwarded.decision = input.decision;
+        if ('notes' in input) forwarded.notes = input.notes;
+        return proxyToPathWithCitizen(
+          aiBase,
+          'POST',
+          '/internal/ai/outputs/' + params.id + '/review',
+          staffActor,
+          forwarded,
+        );
+      },
     },
     // Public contribution routes — same-path proxy (contribution-service serves these paths).
     {
@@ -381,6 +556,157 @@ export function platformRoutes(): Route[] {
           '/internal/review/' + params.id + '/decide',
           actor,
           forwarded,
+        );
+      },
+    },
+    // Authenticated complaints routes. Trusted actor headers come only from the verified session.
+    {
+      method: 'POST',
+      path: '/api/v1/complaints',
+      handler: async (req: IncomingMessage, body: unknown) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(complaintsBase, 'POST', '/internal/complaints', actor, body);
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/complaints/mine',
+      handler: async (req: IncomingMessage) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(complaintsBase, 'GET', '/internal/complaints/mine', actor);
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/complaints/queue',
+      handler: async (req: IncomingMessage) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(complaintsBase, 'GET', '/internal/complaints/queue', actor);
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/complaints/:id',
+      handler: async (req: IncomingMessage, _body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'GET',
+          '/internal/complaints/' + params.id,
+          actor,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/assign',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/assign',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/information-requests',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/information-requests',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/information-requests/:requestId/respond',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' +
+            params.id +
+            '/information-requests/' +
+            params.requestId +
+            '/respond',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/decisions',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/decisions',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/appeals',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireCitizen(req);
+        if (!actor) return result(401, { error: 'unauthenticated' });
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/appeals',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/appeals/:appealId/decisions',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/appeals/' + params.appealId + '/decisions',
+          actor,
+          body,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/complaints/:id/close',
+      handler: async (req: IncomingMessage, body: unknown, params: Record<string, string>) => {
+        const actor = await requireStaff(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        return proxyToPathWithCitizen(
+          complaintsBase,
+          'POST',
+          '/internal/complaints/' + params.id + '/close',
+          actor,
+          body,
         );
       },
     },
@@ -636,18 +962,21 @@ export function platformRoutes(): Route[] {
             typeof secret === 'string'
               ? internalHeaders({ 'x-documenso-secret': secret })
               : internalHeaders();
-          const upstream = await fetch(signingBase + '/internal/signing/webhooks/documenso', {
-            method: 'POST',
-            headers,
-            body: Buffer.from(body instanceof Uint8Array ? body : new Uint8Array()),
-          });
+          const upstream = await fetchWithTimeout(
+            signingBase + '/internal/signing/webhooks/documenso',
+            {
+              method: 'POST',
+              headers,
+              body: Buffer.from(body instanceof Uint8Array ? body : new Uint8Array()),
+            },
+            parseInternalFetchTimeoutMs(),
+          );
           return result(
             upstream.status,
             await upstream.json().catch(() => ({ error: 'upstream_error' })),
           );
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'unknown';
-          return result(502, { error: 'bad_gateway', detail: message });
+        } catch (error) {
+          return upstreamFailure(error);
         }
       },
     },
@@ -673,16 +1002,13 @@ export function platformRoutes(): Route[] {
 
 async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.PLATFORM_API_PORT ?? 8080);
-  // Keep a missing development database non-fatal while still migrating when available.
-  try {
-    await runMigrationsOnce();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown';
-    console.error(
-      JSON.stringify({ service: 'platform-api', stage: 'db-migrate', warning: message }),
-    );
-  }
-  startService('platform-api', port, withPublicEdge(platformRoutes()));
+  await runPlatformMigrations();
+  startService('platform-api', port, withPublicEdge(platformRoutes()), {
+    readiness: checkPlatformReadiness,
+    validateConfig: () => {
+      parseInternalFetchTimeoutMs();
+    },
+  });
   console.log(JSON.stringify({ service: 'platform-api', port, status: 'listening' }));
 }
 

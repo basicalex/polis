@@ -15,6 +15,8 @@ from typing import Any
 
 _ACTOR: dict[str, str] = {"type": "service", "id": "ai-gateway"}
 
+_AUDIT_HTTP_TIMEOUT_SECONDS = 5
+
 
 def emit_audit(
     *,
@@ -57,6 +59,9 @@ def emit_audit(
             },
             method="POST",
         )
-        urllib.request.urlopen(req, timeout=5)  # noqa: S310 — internal URL
+        with urllib.request.urlopen(  # noqa: S310 — internal URL
+            req, timeout=_AUDIT_HTTP_TIMEOUT_SECONDS
+        ) as response:
+            response.read()
     except (urllib.error.URLError, OSError, TimeoutError) as exc:
         print(f"[audit] emit failed: {exc}", file=sys.stderr)

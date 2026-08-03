@@ -5,20 +5,29 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
-    "build": "pnpm -r --workspace-concurrency=4 build",
-    "test": "pnpm -r --workspace-concurrency=4 test",
-    "typecheck": "pnpm -r --workspace-concurrency=4 typecheck",
+    "build": "bun run --filter @polis/domain build && bun run --filter @polis/db build && bun run --filter @polis/service-runtime build && bun run --filter @polis/policy-rules build && bun run --filter './services/*' --sequential --if-present build && bun run --filter './apps/*' --sequential --if-present build",
+    "test": "bun run --workspaces --sequential --if-present test",
+    "typecheck": "bun run --workspaces --sequential --if-present typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm v1:smoke",
-    "dev:web": "pnpm --filter @polis/apps-web dev -- --host 0.0.0.0",
-    "dev:verifier": "pnpm --filter @polis/apps-verifier dev -- --host 0.0.0.0",
-    "dev:services": "node scripts/dev-services.mjs",
-    "v1:smoke": "node scripts/v1-smoke.mjs",
-    "db:generate": "pnpm --filter @polis/db db:generate",
-    "db:seed": "pnpm --filter @polis/db seed"
+    "verify": "bun run build && bun run typecheck && bun run test && bun run v1:smoke",
+    "dev:web": "bun run --filter @polis/apps-web dev -- --host 0.0.0.0",
+    "dev:verifier": "bun run --filter @polis/apps-verifier dev -- --host 0.0.0.0",
+    "dev:services": "bun scripts/dev-services.mjs",
+    "v1:smoke": "bun scripts/v1-smoke.mjs",
+    "db:generate": "bun run --filter @polis/db db:generate",
+    "db:seed": "bun run --filter @polis/db seed",
+    "ops:backup": "bash scripts/ops/backup.sh",
+    "ops:restore-verify": "bash scripts/ops/restore-verify.sh",
+    "ops:verify-audit": "node scripts/ops/verify-audit-chain.mjs",
+    "ops:test": "bash scripts/ops/test-backup-restore.sh"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
@@ -32,12 +41,10 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.20.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp"
-    ]
-  },
+  "trustedDependencies": [
+    "esbuild",
+    "sharp"
+  ],
   "dependencies": {
     "zod": "^4.4.3"
   }

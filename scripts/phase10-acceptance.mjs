@@ -42,7 +42,8 @@ async function post(base, path, body, headers = {}) {
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 
-const cookieHeader = (jar) => (jar.length ? { cookie: jar.map((c) => c.split(';')[0]).join('; ') } : {});
+const cookieHeader = (jar) =>
+  jar.length ? { cookie: jar.map((c) => c.split(';')[0]).join('; ') } : {};
 
 // GET the Keycloak login page, following internal redirects and accumulating
 // Set-Cookie into the jar (Keycloak ties the form POST to the authorize session).
@@ -83,7 +84,11 @@ const authorize = await get(
   BFF,
   '/api/v1/identity/authorize?redirect_uri=' + encodeURIComponent(REDIRECT_URI),
 );
-check('GET /identity/authorize → 200', authorize.status === 200, `status=${authorize.status} body=${JSON.stringify(authorize.body)}`);
+check(
+  'GET /identity/authorize → 200',
+  authorize.status === 200,
+  `status=${authorize.status} body=${JSON.stringify(authorize.body)}`,
+);
 check(
   'authorizationUrl targets the polis realm OIDC auth endpoint',
   typeof authorize.body?.authorizationUrl === 'string' &&
@@ -110,14 +115,22 @@ if (authorize.body?.authorizationUrl) {
       redirect: 'manual',
     });
     const loc = loginRes.headers.get('location');
-    check('Keycloak login POST → 3xx', loginRes.status >= 300 && loginRes.status < 400, `status=${loginRes.status}`);
+    check(
+      'Keycloak login POST → 3xx',
+      loginRes.status >= 300 && loginRes.status < 400,
+      `status=${loginRes.status}`,
+    );
     check('redirect Location present', !!loc, `loc=${loc ?? ''}`);
     if (loc) {
       const cb = new URL(loc);
       code = cb.searchParams.get('code');
       returnedState = cb.searchParams.get('state');
       check('redirect carries an auth code', !!code, `loc=${loc}`);
-      check('redirect state echoes the issued state', returnedState === issuedState, `issued=${issuedState} returned=${returnedState}`);
+      check(
+        'redirect state echoes the issued state',
+        returnedState === issuedState,
+        `issued=${issuedState} returned=${returnedState}`,
+      );
     }
   }
 }
@@ -128,14 +141,26 @@ const callback = await post(BFF, '/api/v1/identity/callback', {
   state: returnedState,
   redirectUri: REDIRECT_URI,
 });
-check('POST /identity/callback → 200', callback.status === 200, `status=${callback.status} body=${JSON.stringify(callback.body)}`);
+check(
+  'POST /identity/callback → 200',
+  callback.status === 200,
+  `status=${callback.status} body=${JSON.stringify(callback.body)}`,
+);
 check(
   'callback returns a session token',
   typeof callback.body?.sessionToken === 'string' && callback.body.sessionToken.length > 0,
   '',
 );
-check('citizen email matches the IdP user', callback.body?.citizen?.email === OIDC_USER, `email=${callback.body?.citizen?.email ?? ''}`);
-check('citizen identityLevel === verified_resident', callback.body?.citizen?.identityLevel === 'verified_resident', `level=${callback.body?.citizen?.identityLevel ?? ''}`);
+check(
+  'citizen email matches the IdP user',
+  callback.body?.citizen?.email === OIDC_USER,
+  `email=${callback.body?.citizen?.email ?? ''}`,
+);
+check(
+  'citizen identityLevel === verified_resident',
+  callback.body?.citizen?.identityLevel === 'verified_resident',
+  `level=${callback.body?.citizen?.identityLevel ?? ''}`,
+);
 const sessionToken = callback.body?.sessionToken;
 const auth = sessionToken ? { authorization: 'Bearer ' + sessionToken } : {};
 
@@ -145,11 +170,19 @@ check('GET /vault/documents with session → 200', vault.status === 200, `status
 
 // ─── 6. dev-tokens are stub-only → 404 in OIDC (real-identity) mode ───
 const devTokens = await get(BFF, '/api/v1/identity/dev-tokens');
-check('GET /identity/dev-tokens → 404 (stub-only)', devTokens.status === 404, `status=${devTokens.status}`);
+check(
+  'GET /identity/dev-tokens → 404 (stub-only)',
+  devTokens.status === 404,
+  `status=${devTokens.status}`,
+);
 
 // ─── 7. regression: public reads unaffected by IDENTITY_MODE ───
 const holders = await get(BFF, '/api/v1/mandate-holders');
-check('GET /mandate-holders (public read) → 200', holders.status === 200, `status=${holders.status}`);
+check(
+  'GET /mandate-holders (public read) → 200',
+  holders.status === 200,
+  `status=${holders.status}`,
+);
 
 console.log(`[phase10] ${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -2,39 +2,6 @@
 import Base from '../layouts/Base.astro';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
-
-type OutputView = {
-  outputId: string;
-  confidenceState: string;
-  published: boolean;
-  effectivePublished: boolean;
-  effectiveReviewState: string;
-  reviewState: string;
-};
-
-type TraceItem = {
-  traceId: string;
-  workflowType: string;
-  userId: string | null;
-  modelName: string;
-  riskFlags: string[] | null;
-  createdAt: string | null;
-  outputs: OutputView[];
-};
-
-type TracesResponse = { items: TraceItem[] };
-
-async function fetchTraces(): Promise<TraceItem[]> {
-  try {
-    const r = await fetch(API + '/api/v1/assistant/traces');
-    if (!r.ok) return [];
-    return ((await r.json()) as TracesResponse).items ?? [];
-  } catch {
-    return [];
-  }
-}
-
-const traces = await fetchTraces();
 ---
 
 <Base title="AI traces">
@@ -44,10 +11,9 @@ const traces = await fetchTraces();
     request with its effective output state. Approve/reject decisions are made
     via the internal API and exercised by <code>scripts/phase5-acceptance.mjs</code>.
   </p>
-  {traces.length === 0 ? (
-    <p class="muted">No traces yet.</p>
-  ) : (
-    <table>
+  <section class="panel" aria-live="polite">
+    <p id="trace-status" class="muted">Loading assistant traces…</p>
+    <table id="trace-table" hidden>
       <thead>
         <tr>
           <th>Trace</th>
@@ -58,21 +24,86 @@ const traces = await fetchTraces();
           <th>Created</th>
         </tr>
       </thead>
-      <tbody>
-        {traces.map((t) => {
-          const out = t.outputs[0];
-          return (
-            <tr>
-              <td><code>{t.traceId.slice(0, 8)}</code></td>
-              <td>{out?.confidenceState ?? '—'}</td>
-              <td>{out?.effectivePublished ? 'yes' : 'no'}</td>
-              <td>{out?.effectiveReviewState ?? '—'}</td>
-              <td>{(t.riskFlags && t.riskFlags.length > 0) ? t.riskFlags.join(', ') : '—'}</td>
-              <td>{t.createdAt ?? '—'}</td>
-            </tr>
-          );
-        })}
-      </tbody>
+      <tbody id="trace-rows"></tbody>
     </table>
-  )}
+  </section>
+
+  <script is:inline define:vars={{ API }}>
+    const status = document.getElementById('trace-status');
+    const table = document.getElementById('trace-table');
+    const rows = document.getElementById('trace-rows');
+
+    const setStatus = (message) => {
+      if (status) status.textContent = message;
+      if (table) table.hidden = true;
+    };
+
+    const sessionJson = window.sessionStorage.getItem('admin_session');
+    if (!sessionJson) {
+      setStatus('Staff access required. Sign in with a staff account to view assistant traces.');
+    } else {
+      let token = '';
+      try {
+        token = JSON.parse(sessionJson)?.token ?? '';
+      } catch {
+        token = '';
+      }
+
+      if (!token) {
+        setStatus('Staff access required. Sign in with a staff account to view assistant traces.');
+      } else {
+        fetch(API + '/api/v1/assistant/traces', {
+          headers: { Authorization: 'Bearer ' + token },
+        })
+          .then((response) => {
+            if (response.status === 401 || response.status === 403) {
+              setStatus('Staff access required. Your session is not authorized to view assistant traces.');
+              return null;
+            }
+            if (!response.ok) {
+              setStatus('Assistant traces could not be loaded. Try again later.');
+              return null;
+            }
+            return response.json();
+          })
+          .then((body) => {
+            if (!body || !rows || !table || !status) return;
+            const traces = Array.isArray(body.items) ? body.items : [];
+            rows.replaceChildren();
+
+            if (traces.length === 0) {
+              setStatus('No traces yet.');
+              return;
+            }
+
+            for (const trace of traces) {
+              const output = Array.isArray(trace.outputs) ? trace.outputs[0] : null;
+              const tr = document.createElement('tr');
+              const cells = [
+                (trace.traceId ?? '').slice(0, 8) || '—',
+                output?.confidenceState ?? '—',
+                output?.effectivePublished ? 'yes' : 'no',
+                output?.effectiveReviewState ?? '—',
+                Array.isArray(trace.riskFlags) && trace.riskFlags.length > 0 ? trace.riskFlags.join(', ') : '—',
+                trace.createdAt ?? '—',
+              ];
+
+              for (const value of cells) {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.append(td);
+              }
+
+              rows.append(tr);
+            }
+
+            status.textContent = '';
+            table.hidden = false;
+          })
+          .catch(() => {
+            setStatus('Assistant traces could not be loaded. Try again later.');
+          });
+      }
+    }
+  </script>
 </Base>

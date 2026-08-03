@@ -26,7 +26,6 @@ async function withTimestampServer(run: (baseUrl: string) => Promise<void>): Pro
   }
 }
 
-
 test('timestamp-service exposes §9.14 timestamp routes', () => {
   const paths = timestampRoutes({} as never, {} as never).map((r) => `${r.method} ${r.path}`);
   for (const p of [
@@ -47,7 +46,6 @@ test('timestamp-service rejects unauthenticated internal HTTP access', async () 
     });
   });
 });
-
 
 // ── createTimestampClient mode resolution ─────────────────────────────────
 // Env is saved/restored around every case so the suite is order-independent.

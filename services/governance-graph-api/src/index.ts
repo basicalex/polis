@@ -5,10 +5,10 @@
  * the governance + evidence + graph tables. platform-api proxies these paths
  * as the public BFF edge. Wire objects are camelCase (see ./serialize.ts).
  */
-import { getClient, schema } from '@polis/db';
+import { checkDatabase, getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import type { IncomingMessage } from 'node:http';
-import { and, asc, countDistinct, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, countDistinct, desc, eq, inArray } from 'drizzle-orm';
 import {
   operationalRoutes,
   result,
@@ -45,6 +45,18 @@ import {
 } from './serialize.js';
 
 type EvidenceLinkRow = (typeof schema.evidenceLinks)['$inferSelect'] & { visibility: string };
+
+/** Bounded database readiness without exposing database failure details. */
+export async function databaseReadiness(
+  check: () => Promise<unknown> = checkDatabase,
+): Promise<{ ready: true } | { ready: false; dependency: 'database' }> {
+  try {
+    await check();
+    return { ready: true };
+  } catch {
+    return { ready: false, dependency: 'database' };
+  }
+}
 
 /** Query params from an IncomingMessage URL. Used across every list handler. */
 function query(req: IncomingMessage): URLSearchParams {
@@ -524,7 +536,11 @@ export function graphRoutes(db: DbClient): Route[] {
           const sources = sourceIds.length
             ? await db.select().from(schema.sources).where(inArray(schema.sources.id, sourceIds))
             : [];
-          claim = claimWire(commitmentClaim, evidenceRows.map(evidenceLinkWire), sources.map(sourceWire));
+          claim = claimWire(
+            commitmentClaim,
+            evidenceRows.map(evidenceLinkWire),
+            sources.map(sourceWire),
+          );
         }
 
         return {
@@ -652,7 +668,7 @@ async function answeredQuestionCount(db: DbClient, mandateHolderId: string): Pro
 async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.GOVERNANCE_GRAPH_API_PORT ?? 8100);
   const db = getClient();
-  startService('governance-graph-api', port, graphRoutes(db));
+  startService('governance-graph-api', port, graphRoutes(db), { readiness: databaseReadiness });
   console.log(JSON.stringify({ service: 'governance-graph-api', port, status: 'listening' }));
 }
 

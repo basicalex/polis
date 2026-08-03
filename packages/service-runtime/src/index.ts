@@ -8,8 +8,12 @@
  * only routes every service gets for free; domain routes are composed by the
  * service via {@link operationalRoutes} + its own `Route[]`.
  */
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { validateRuntimeConfig, type RuntimeConfig } from './config.js';
+
+export * from './config.js';
+export * from './http-client.js';
 
 export type BodyMode = 'json' | 'raw' | 'none';
 
@@ -85,7 +89,9 @@ function configuredInternalToken(): string {
 }
 
 /** Headers for authenticated service-to-service JSON requests. */
-export function internalHeaders(extra: Readonly<Record<string, string>> = {}): Record<string, string> {
+export function internalHeaders(
+  extra: Readonly<Record<string, string>> = {},
+): Record<string, string> {
   return {
     ...extra,
     'content-type': 'application/json',
@@ -111,8 +117,12 @@ function hasValidInternalToken(value: string | string[] | undefined): boolean {
   const expectedBytes = Buffer.from(expected);
   const suppliedBytes = Buffer.from(value);
   const comparable =
-    suppliedBytes.length === expectedBytes.length ? suppliedBytes : Buffer.alloc(expectedBytes.length);
-  return timingSafeEqual(expectedBytes, comparable) && suppliedBytes.length === expectedBytes.length;
+    suppliedBytes.length === expectedBytes.length
+      ? suppliedBytes
+      : Buffer.alloc(expectedBytes.length);
+  return (
+    timingSafeEqual(expectedBytes, comparable) && suppliedBytes.length === expectedBytes.length
+  );
 }
 
 /** Build metadata exposed at `/version` (spec §27 source/build transparency). */
@@ -138,13 +148,44 @@ export function versionMeta(service: string): VersionMeta {
   };
 }
 
-/** Send a JSON response with permissive CORS (public read API). */
-export const json = (res: ServerResponse, status: number, value: unknown): void => {
+export interface ResponseOptions {
+  requestOrigin?: string;
+  corsAllowedOrigins?: readonly string[];
+}
+
+const SAFE_RESPONSE_HEADERS: Readonly<Record<string, string>> = {
+  'cache-control': 'no-store',
+  'referrer-policy': 'no-referrer',
+  'x-content-type-options': 'nosniff',
+};
+
+function responseHeaders(options: ResponseOptions = {}): Record<string, string> {
+  const origins =
+    options.corsAllowedOrigins ?? validateRuntimeConfig(process.env).corsAllowedOrigins;
+  const headers: Record<string, string> = { ...SAFE_RESPONSE_HEADERS };
+  if (origins.length === 1 && origins[0] === '*') {
+    headers['access-control-allow-origin'] = '*';
+  } else {
+    headers.vary = 'Origin';
+    if (options.requestOrigin && origins.includes(options.requestOrigin)) {
+      headers['access-control-allow-origin'] = options.requestOrigin;
+    }
+  }
+  return headers;
+}
+
+/** Send a JSON response with safe defaults and the configured CORS policy. */
+export const json = (
+  res: ServerResponse,
+  status: number,
+  value: unknown,
+  options: ResponseOptions = {},
+): void => {
   const text = JSON.stringify(value);
   res.writeHead(status, {
+    ...responseHeaders(options),
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(text),
-    'access-control-allow-origin': '*',
   });
   res.end(text);
 };
@@ -178,6 +219,7 @@ export const readBody = (
       size += bytes.byteLength;
       if (size > maxBodyBytes) {
         settled = true;
+        req.pause();
         reject(new BodyTooLargeError(maxBodyBytes));
         return;
       }
@@ -204,8 +246,65 @@ export const readBody = (
   });
 };
 
+export interface ReadinessStatus {
+  ready: boolean;
+  dependency?: string;
+}
+
+export type ReadinessCheck = () => boolean | ReadinessStatus | Promise<boolean | ReadinessStatus>;
+export type ReadinessSource = ReadinessController | ReadinessCheck;
+
+function safeDependencyLabel(label: string | undefined): string {
+  return label && /^[a-zA-Z0-9_.-]{1,64}$/.test(label) ? label : 'dependency';
+}
+
+export class ReadinessController {
+  #status: ReadinessStatus;
+
+  constructor(ready = true, dependency?: string) {
+    this.#status = ready
+      ? { ready: true }
+      : { ready: false, dependency: safeDependencyLabel(dependency) };
+  }
+
+  setReady(): void {
+    this.#status = { ready: true };
+  }
+
+  setNotReady(dependency = 'dependency'): void {
+    this.#status = { ready: false, dependency: safeDependencyLabel(dependency) };
+  }
+
+  check(): ReadinessStatus {
+    return { ...this.#status };
+  }
+}
+
+async function readinessStatus(source: ReadinessSource): Promise<ReadinessStatus> {
+  try {
+    const value = source instanceof ReadinessController ? source.check() : await source();
+    if (typeof value === 'boolean') {
+      return value ? { ready: true } : { ready: false, dependency: 'dependency' };
+    }
+    return value.ready
+      ? { ready: true }
+      : { ready: false, dependency: safeDependencyLabel(value.dependency) };
+  } catch {
+    return { ready: false, dependency: 'dependency' };
+  }
+}
+
+const ALWAYS_READY: ReadinessCheck = () => true;
+const REQUEST_READINESS: unique symbol = Symbol('polis.requestReadiness');
+interface RuntimeIncomingMessage extends IncomingMessage {
+  [REQUEST_READINESS]?: ReadinessSource;
+}
+
 /** The four operational routes every service exposes. */
-export function operationalRoutes(service: string): Route[] {
+export function operationalRoutes(
+  service: string,
+  readiness: ReadinessSource = ALWAYS_READY,
+): Route[] {
   return [
     {
       method: 'GET',
@@ -215,12 +314,29 @@ export function operationalRoutes(service: string): Route[] {
     {
       method: 'GET',
       path: '/readyz',
-      handler: () => ({ status: 'ready', service }),
+      handler: async (req) => {
+        const requestReadiness = (req as RuntimeIncomingMessage)[REQUEST_READINESS];
+        const status = await readinessStatus(requestReadiness ?? readiness);
+        return status.ready
+          ? result(200, { status: 'ready', service })
+          : result(503, {
+              status: 'not_ready',
+              service,
+              dependency: safeDependencyLabel(status.dependency),
+            });
+      },
     },
     {
       method: 'GET',
       path: '/metrics',
-      handler: () => `polis_service_up{service="${service}"} 1\n`,
+      handler: async (req) => {
+        const requestReadiness = (req as RuntimeIncomingMessage)[REQUEST_READINESS];
+        const status = await readinessStatus(requestReadiness ?? readiness);
+        return (
+          `polis_service_up{service="${service}"} 1\n` +
+          `polis_service_ready{service="${service}"} ${status.ready ? 1 : 0}\n`
+        );
+      },
     },
     {
       method: 'GET',
@@ -245,27 +361,158 @@ function matchPath(routePath: string, actualPath: string): Record<string, string
   return params;
 }
 
-const CORS_HEADERS: Record<string, string> = {
-  'access-control-allow-origin': '*',
+const CORS_PREFLIGHT_HEADERS: Readonly<Record<string, string>> = {
   'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
   'access-control-allow-headers': 'content-type,authorization,idempotency-key',
 };
+
+export interface StartServiceOptions {
+  readiness?: ReadinessSource;
+  requestTimeoutMs?: number;
+  headersTimeoutMs?: number;
+  keepAliveTimeoutMs?: number;
+  maxRequestsPerSocket?: number;
+  shutdownGraceMs?: number;
+  validateConfig?: () => void;
+}
+
+interface ManagedServer {
+  server: Server;
+  readiness: ReadinessSource | undefined;
+  shutdownGraceMs: number;
+  draining: boolean;
+  forceCloseTimer?: NodeJS.Timeout;
+}
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_HEADERS_TIMEOUT_MS = 10_000;
+const DEFAULT_KEEP_ALIVE_TIMEOUT_MS = 5_000;
+const DEFAULT_MAX_REQUESTS_PER_SOCKET = 1_000;
+const DEFAULT_SHUTDOWN_GRACE_MS = 10_000;
+const MAX_SERVER_TIMEOUT_MS = 300_000;
+const managedServers = new Set<ManagedServer>();
+let signalHandlersInstalled = false;
+
+function checkedInteger(name: string, value: number, maximum: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > maximum) {
+    throw new RangeError(`${name} must be an integer between 1 and ${maximum}`);
+  }
+  return value;
+}
+
+function beginDrain(managed: ManagedServer): void {
+  if (managed.draining) {
+    managed.server.closeAllConnections();
+    return;
+  }
+  managed.draining = true;
+  if (managed.readiness instanceof ReadinessController) {
+    managed.readiness.setNotReady('shutdown');
+  }
+  managed.server.close();
+  managed.server.closeIdleConnections();
+  managed.forceCloseTimer = setTimeout(() => {
+    managed.server.closeAllConnections();
+  }, managed.shutdownGraceMs);
+  managed.forceCloseTimer.unref();
+}
+
+function drainAllServers(): void {
+  for (const managed of managedServers) beginDrain(managed);
+}
+
+function installSignalHandlers(): void {
+  if (signalHandlersInstalled) return;
+  process.on('SIGTERM', drainAllServers);
+  process.on('SIGINT', drainAllServers);
+  signalHandlersInstalled = true;
+}
+
+function removeSignalHandlersIfUnused(): void {
+  if (!signalHandlersInstalled || managedServers.size !== 0) return;
+  process.off('SIGTERM', drainAllServers);
+  process.off('SIGINT', drainAllServers);
+  signalHandlersInstalled = false;
+}
+
+function manageServer(
+  server: Server,
+  readiness: ReadinessSource | undefined,
+  shutdownGraceMs: number,
+): void {
+  const managed: ManagedServer = { server, readiness, shutdownGraceMs, draining: false };
+  managedServers.add(managed);
+  installSignalHandlers();
+  server.once('close', () => {
+    clearTimeout(managed.forceCloseTimer);
+    managedServers.delete(managed);
+    removeSignalHandlersIfUnused();
+  });
+}
+
+function requestResponseOptions(req: IncomingMessage, config: RuntimeConfig): ResponseOptions {
+  const requestOrigin = req.headers.origin;
+  return {
+    corsAllowedOrigins: config.corsAllowedOrigins,
+    ...(typeof requestOrigin === 'string' ? { requestOrigin } : {}),
+  };
+}
 
 /**
  * Start an HTTP service. `routes` is the full route table; callers compose
  * {@link operationalRoutes} with their domain routes.
  */
-export function startService(service: string, port: number, routes: Route[]): Server {
+export function startService(
+  service: string,
+  port: number,
+  routes: Route[],
+  options: StartServiceOptions = {},
+): Server {
+  const config = validateRuntimeConfig(process.env);
+  options.validateConfig?.();
+  const requestTimeoutMs = checkedInteger(
+    'requestTimeoutMs',
+    options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    MAX_SERVER_TIMEOUT_MS,
+  );
+  const headersTimeoutMs = checkedInteger(
+    'headersTimeoutMs',
+    options.headersTimeoutMs ?? DEFAULT_HEADERS_TIMEOUT_MS,
+    MAX_SERVER_TIMEOUT_MS,
+  );
+  const keepAliveTimeoutMs = checkedInteger(
+    'keepAliveTimeoutMs',
+    options.keepAliveTimeoutMs ?? DEFAULT_KEEP_ALIVE_TIMEOUT_MS,
+    MAX_SERVER_TIMEOUT_MS,
+  );
+  const maxRequestsPerSocket = checkedInteger(
+    'maxRequestsPerSocket',
+    options.maxRequestsPerSocket ?? DEFAULT_MAX_REQUESTS_PER_SOCKET,
+    1_000_000,
+  );
+  const shutdownGraceMs = checkedInteger(
+    'shutdownGraceMs',
+    options.shutdownGraceMs ?? DEFAULT_SHUTDOWN_GRACE_MS,
+    MAX_SERVER_TIMEOUT_MS,
+  );
+
   const server = createServer(async (req, res) => {
+    if (options.readiness) {
+      (req as RuntimeIncomingMessage)[REQUEST_READINESS] = options.readiness;
+    }
+    const responseOptions = requestResponseOptions(req, config);
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (
       url.pathname.startsWith('/internal/') &&
       !hasValidInternalToken(req.headers['x-polis-internal-token'])
     ) {
-      return json(res, 401, { error: 'internal_auth_required', service });
+      return json(res, 401, { error: 'internal_auth_required', service }, responseOptions);
     }
     if (req.method === 'OPTIONS') {
-      res.writeHead(204, CORS_HEADERS);
+      res.writeHead(204, {
+        ...responseHeaders(responseOptions),
+        ...CORS_PREFLIGHT_HEADERS,
+      });
       return res.end();
     }
     let matched: { route: Route; params: Record<string, string> } | undefined;
@@ -278,22 +525,21 @@ export function startService(service: string, port: number, routes: Route[]): Se
       }
     }
     if (!matched) {
-      return json(res, 404, { error: 'not_found', service, path: url.pathname });
+      return json(res, 404, { error: 'not_found', service, path: url.pathname }, responseOptions);
     }
     try {
       const bodyMode =
-        matched.route.bodyMode ??
-        (req.method === 'GET' || req.method === 'HEAD' ? 'none' : 'json');
+        matched.route.bodyMode ?? (req.method === 'GET' || req.method === 'HEAD' ? 'none' : 'json');
       const body = await readBody(req, bodyMode, matched.route.maxBodyBytes);
       const out = await matched.route.handler(req, body, matched.params);
       if (isHttpResult(out)) {
-        return json(res, out.status, out.body);
+        return json(res, out.status, out.body, responseOptions);
       }
       if (isBinaryResult(out)) {
         const headers: Record<string, string | number> = {
+          ...responseHeaders(responseOptions),
           'content-type': out.contentType,
           'content-length': out.bytes.byteLength,
-          'access-control-allow-origin': '*',
         };
         for (const [name, value] of Object.entries(out.headers)) {
           const normalizedName = name.toLowerCase();
@@ -303,22 +549,33 @@ export function startService(service: string, port: number, routes: Route[]): Se
         return res.end(out.bytes);
       }
       if (typeof out === 'string') {
-        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+        res.writeHead(200, {
+          ...responseHeaders(responseOptions),
+          'content-type': 'text/plain; charset=utf-8',
+        });
         return res.end(out);
       }
-      return json(res, 200, out);
+      return json(res, 200, out, responseOptions);
     } catch (error) {
       if (error instanceof BodyTooLargeError) {
-        return json(res, 413, { error: 'body_too_large', service });
+        res.once('finish', () => {
+          if (!req.destroyed) req.destroy();
+        });
+        return json(res, 413, { error: 'body_too_large', service }, responseOptions);
       }
       const cause =
         error instanceof Error
           ? { name: error.name, message: error.message, stack: error.stack ?? null }
           : { name: 'UnknownError', message: String(error), stack: null };
       console.error(JSON.stringify({ service, stage: 'request', error: cause }));
-      return json(res, 500, { error: 'internal_error', service });
+      return json(res, 500, { error: 'internal_error', service }, responseOptions);
     }
   });
+  server.requestTimeout = requestTimeoutMs;
+  server.headersTimeout = headersTimeoutMs;
+  server.keepAliveTimeout = keepAliveTimeoutMs;
+  server.maxRequestsPerSocket = maxRequestsPerSocket;
   server.listen(port);
+  manageServer(server, options.readiness, shutdownGraceMs);
   return server;
 }

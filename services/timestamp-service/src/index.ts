@@ -13,7 +13,13 @@
 import { getClient } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { eq, sql } from 'drizzle-orm';
-import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  type Route,
+} from '@polis/service-runtime';
 
 import { schema } from '@polis/db';
 import { createTimestampClient, type TimestampClient } from './timestamp-client.js';

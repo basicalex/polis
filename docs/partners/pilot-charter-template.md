@@ -2,6 +2,8 @@
 
 Use this template before a partner uses Polis Interface with real data.
 
+If the [isolated public-read API profile](../operations/isolated-pilot-runbook.md) is selected, this charter must limit it to seeded synthetic/public data. That profile is not a path to real-person data or writable workflows.
+
 ## Pilot identity
 
 - Partner institution:
@@ -10,6 +12,13 @@ Use this template before a partner uses Polis Interface with real data.
 - Pilot owner:
 - Technical owner:
 - Security/privacy contact:
+- Deployment profile selected (isolated public-read or separately reviewed broader profile):
+- Named deployment owner and backup:
+- Named security/incident owner and backup:
+- Named backup operator and backup:
+- Named restore-drill operator and backup:
+- DNS/TLS owner and backup:
+- Dated successful restore evidence (snapshot ID, operator, reviewer, disposable target, evidence location):
 
 ## Scope
 
@@ -19,6 +28,8 @@ Use this template before a partner uses Polis Interface with real data.
 - Public evidence to be published:
 - Private documents to be processed:
 - Systems integrated:
+- For the isolated public-read profile, confirm the service list is limited to PostgreSQL, one-shot seed/migrations, governance graph, public audit, proof, Polis bridge, platform API, and Caddy:
+- For the isolated public-read profile, confirm data is seeded synthetic/public only and all write, login, and participation routes remain denied:
 
 ## Current implementation status
 
@@ -27,6 +38,8 @@ State which adapters are still mocked. Charter signing defaults to
 configured v2 API and webhook. For local v1, Paperless, upstream Polis,
 Keycloak/OIDC, AI providers, payment rails, timestamping, and government
 systems are not live.
+
+The isolated public-read profile does not make any mocked or external provider live. Preserve that distinction when completing this status section.
 
 ## Safeguards
 
@@ -38,6 +51,7 @@ systems are not live.
 - Audit/event review process:
 - Incident contact and response time:
 - Rollback trigger:
+- Pilot launch gate: all operational-owner fields name people and backups; a reviewer has accepted dated restore evidence; DNS/TLS, readiness, and denied-route checks are attached.
 
 ## Charter signing
 

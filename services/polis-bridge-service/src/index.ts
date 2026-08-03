@@ -7,10 +7,13 @@
  * stub in M2; see ./polis-client.ts.
  */
 
-import { getClient, schema } from '@polis/db';
+import { checkDatabase, getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
+  DEFAULT_FETCH_TIMEOUT_MS,
+  MAX_FETCH_TIMEOUT_MS,
+  fetchWithTimeout,
   internalHeaders,
   operationalRoutes,
   result,
@@ -37,6 +40,32 @@ const PARTICIPATION_MODES: readonly ParticipationMode[] = [
   'partner_restricted',
 ];
 
+/** Bounded database readiness without exposing database failure details. */
+export async function databaseReadiness(
+  check: () => Promise<unknown> = checkDatabase,
+): Promise<{ ready: true } | { ready: false; dependency: 'database' }> {
+  try {
+    await check();
+    return { ready: true };
+  } catch {
+    return { ready: false, dependency: 'database' };
+  }
+}
+
+/** Validate the deadline applied to every internal outbound request. */
+export function internalFetchTimeoutMs(
+  value: string | undefined = process.env.INTERNAL_FETCH_TIMEOUT_MS,
+): number {
+  if (value === undefined) return DEFAULT_FETCH_TIMEOUT_MS;
+  const timeoutMs = Number(value);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_FETCH_TIMEOUT_MS) {
+    throw new RangeError(
+      `INTERNAL_FETCH_TIMEOUT_MS must be an integer between 1 and ${MAX_FETCH_TIMEOUT_MS}`,
+    );
+  }
+  return timeoutMs;
+}
+
 function asParticipationMode(value: unknown): ParticipationMode {
   return typeof value === 'string' && (PARTICIPATION_MODES as readonly string[]).includes(value)
     ? (value as ParticipationMode)
@@ -56,19 +85,23 @@ async function emitAudit(event: {
 }): Promise<void> {
   const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   try {
-    await fetch(base + '/internal/audit/events', {
-      method: 'POST',
-      headers: internalHeaders(),
-      body: JSON.stringify({
-        eventType: event.eventType,
-        action: event.action,
-        visibility: 'public',
-        actor: { type: 'service', id: 'polis-bridge-service' },
-        target: event.target,
-        data: event.data,
-        correlationId: event.correlationId ?? null,
-      }),
-    });
+    await fetchWithTimeout(
+      base + '/internal/audit/events',
+      {
+        method: 'POST',
+        headers: internalHeaders(),
+        body: JSON.stringify({
+          eventType: event.eventType,
+          action: event.action,
+          visibility: 'public',
+          actor: { type: 'service', id: 'polis-bridge-service' },
+          target: event.target,
+          data: event.data,
+          correlationId: event.correlationId ?? null,
+        }),
+      },
+      internalFetchTimeoutMs(),
+    );
   } catch (err) {
     console.error(
       JSON.stringify({
@@ -266,7 +299,12 @@ async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.POLIS_BRIDGE_SERVICE_PORT ?? 8200);
   const db = getClient();
   const polis = createPolisClient();
-  startService('polis-bridge-service', port, polisRoutes(db, polis));
+  startService('polis-bridge-service', port, polisRoutes(db, polis), {
+    readiness: databaseReadiness,
+    validateConfig: () => {
+      internalFetchTimeoutMs();
+    },
+  });
   console.log(JSON.stringify({ service: 'polis-bridge-service', port, status: 'listening' }));
 }
 

@@ -45,55 +45,69 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
       box.textContent = text;
       box.style.display = text ? 'block' : 'none';
     }
+    function replaceWithMessage(tbody, message) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 7;
+      cell.textContent = message;
+      row.append(cell);
+      tbody.replaceChildren(row);
+    }
+    function appendTextCell(row, value, tagName) {
+      const cell = document.createElement('td');
+      if (tagName) {
+        const content = document.createElement(tagName);
+        content.textContent = value;
+        cell.append(content);
+      } else {
+        cell.textContent = value;
+      }
+      row.append(cell);
+    }
+    function decisionButton(id, decision, label) {
+      const button = document.createElement('button');
+      button.textContent = label;
+      button.addEventListener('click', function () {
+        decide(id, decision);
+      });
+      return button;
+    }
+    function renderSubmission(submission) {
+      const row = document.createElement('tr');
+      appendTextCell(row, submission.id.slice(0, 12), 'code');
+      appendTextCell(row, submission.type);
+      appendTextCell(row, submission.contributionClass);
+      appendTextCell(row, submission.contributorDisplayName ?? '—');
+      appendTextCell(row, submission.status);
+      appendTextCell(row, submission.submittedAt);
+      const actions = document.createElement('td');
+      actions.append(
+        decisionButton(submission.id, 'approve', 'Approve'),
+        document.createTextNode(' '),
+        decisionButton(submission.id, 'reject', 'Reject'),
+      );
+      row.append(actions);
+      return row;
+    }
     async function loadQueue() {
       const tbody = document.getElementById('queue');
       try {
         const r = await fetch(API + '/api/v1/review/queue', { headers: authHeader() });
         if (r.status === 401 || r.status === 403) {
           showMessage('Staff session required. Sign in with a staff account to review submissions.');
-          tbody.innerHTML = '<tr><td colspan="7">Queue hidden.</td></tr>';
+          replaceWithMessage(tbody, 'Queue hidden.');
           return;
         }
         showMessage('');
         const data = r.ok ? await r.json() : { items: [] };
         const items = data.items ?? [];
         if (items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7">No pending submissions.</td></tr>';
+          replaceWithMessage(tbody, 'No pending submissions.');
           return;
         }
-        tbody.innerHTML = items
-          .map(function (s) {
-            return (
-              '<tr>' +
-              '<td><code>' +
-              s.id.slice(0, 12) +
-              '</code></td>' +
-              '<td>' +
-              s.type +
-              '</td>' +
-              '<td>' +
-              s.contributionClass +
-              '</td>' +
-              '<td>' +
-              (s.contributorDisplayName ?? '—') +
-              '</td>' +
-              '<td>' +
-              s.status +
-              '</td>' +
-              '<td>' +
-              s.submittedAt +
-              '</td>' +
-              '<td><button onclick="decide(\'' +
-              s.id +
-              "', 'approve')\">Approve</button> <button onclick=\"decide('" +
-              s.id +
-              "', 'reject')\">Reject</button></td>" +
-              '</tr>'
-            );
-          })
-          .join('');
+        tbody.replaceChildren(...items.map(renderSubmission));
       } catch {
-        tbody.innerHTML = '<tr><td colspan="7">Failed to load queue.</td></tr>';
+        replaceWithMessage(tbody, 'Failed to load queue.');
       }
     }
     async function decide(id, decision) {
@@ -119,7 +133,6 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
       }
       loadQueue();
     }
-    window.decide = decide;
     if (session && session.token) loadQueue();
   </script>
 </Base>

@@ -64,10 +64,18 @@ const uploaded = await post(INGESTION, '/internal/ingestion/documents', {
   filename: 'm11-acceptance.txt',
   documentClass: 'public-government-record',
 });
-check('POST /internal/ingestion/documents → 201', uploaded.status === 201, `status=${uploaded.status}`);
+check(
+  'POST /internal/ingestion/documents → 201',
+  uploaded.status === 201,
+  `status=${uploaded.status}`,
+);
 const manifestId = uploaded.body?.id ?? '';
 const originalFileHash = uploaded.body?.hashes?.originalFileHash ?? '';
-check('uploaded manifest has id', !!manifestId, `body=${JSON.stringify(uploaded.body ?? {}).slice(0, 200)}`);
+check(
+  'uploaded manifest has id',
+  !!manifestId,
+  `body=${JSON.stringify(uploaded.body ?? {}).slice(0, 200)}`,
+);
 check(
   'uploaded manifest has hashes.originalFileHash',
   !!originalFileHash,
@@ -86,7 +94,11 @@ check(
   `status=${paperlessDoc.status}`,
 );
 const paperlessResults = Array.isArray(paperlessDoc.body?.results) ? paperlessDoc.body.results : [];
-check('Paperless has exactly 1 doc for the ASN', paperlessResults.length === 1, `count=${paperlessResults.length}`);
+check(
+  'Paperless has exactly 1 doc for the ASN',
+  paperlessResults.length === 1,
+  `count=${paperlessResults.length}`,
+);
 const paperlessDocumentId = paperlessResults[0] ? String(paperlessResults[0].id) : '';
 check('Paperless doc id resolved', !!paperlessDocumentId, '');
 
@@ -94,7 +106,11 @@ check('Paperless doc id resolved', !!paperlessDocumentId, '');
 const audit = paperlessDocumentId
   ? await get(BFF, `/api/v1/audit/document/${paperlessDocumentId}`)
   : { status: 0, body: null };
-check('GET /api/v1/audit/document/<paperlessId> → 200', audit.status === 200, `status=${audit.status}`);
+check(
+  'GET /api/v1/audit/document/<paperlessId> → 200',
+  audit.status === 200,
+  `status=${audit.status}`,
+);
 const auditItems = Array.isArray(audit.body?.items) ? audit.body.items : [];
 const eventTypes = auditItems.map((e) => e.eventType);
 check(
@@ -107,7 +123,11 @@ check(
 const hashVerify = originalFileHash
   ? await post(BFF, '/api/v1/verify/hash', { hash: originalFileHash })
   : { status: 0, body: null };
-check('POST /api/v1/verify/hash → status valid', hashVerify.body?.status === 'valid', `status=${hashVerify.body?.status}`);
+check(
+  'POST /api/v1/verify/hash → status valid',
+  hashVerify.body?.status === 'valid',
+  `status=${hashVerify.body?.status}`,
+);
 check(
   'verify/hash manifest.id matches uploaded manifest',
   hashVerify.body?.manifest?.id === manifestId,
@@ -124,13 +144,21 @@ const reuploaded = await post(INGESTION, '/internal/ingestion/documents', {
   documentClass: 'public-government-record',
 });
 check('idempotent re-upload → 201', reuploaded.status === 201, `status=${reuploaded.status}`);
-check('re-upload returns a manifest id', !!reuploaded.body?.id, `body=${JSON.stringify(reuploaded.body ?? {}).slice(0, 120)}`);
+check(
+  're-upload returns a manifest id',
+  !!reuploaded.body?.id,
+  `body=${JSON.stringify(reuploaded.body ?? {}).slice(0, 120)}`,
+);
 // The re-uploaded manifest still verifies valid; verify/hash resolves to the
 // latest active manifest (append-only — a new row per upload, latest by createdAt).
 const reverify = reuploaded.body?.id
   ? await post(BFF, '/api/v1/verify/hash', { hash: originalFileHash })
   : { status: 0, body: null };
-check('re-upload verify/hash → status valid', reverify.body?.status === 'valid', `status=${reverify.body?.status}`);
+check(
+  're-upload verify/hash → status valid',
+  reverify.body?.status === 'valid',
+  `status=${reverify.body?.status}`,
+);
 check(
   're-upload verify/hash resolves to the latest (re-uploaded) manifest id',
   reverify.body?.manifest?.id === reuploaded.body?.id,

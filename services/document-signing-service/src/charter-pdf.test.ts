@@ -21,7 +21,10 @@ test('charter PDF is deterministic and orders object keys', () => {
 
 test('charter PDF transliterates Croatian Latin text readably', () => {
   const result = renderCharterPdf(
-    { title: 'Vijeće Grada Zagreba', duty: 'Čuva javni interes i odlučuje pažljivo; déjà Noël u Łódźu uz smørrebrød' },
+    {
+      title: 'Vijeće Grada Zagreba',
+      duty: 'Čuva javni interes i odlučuje pažljivo; déjà Noël u Łódźu uz smørrebrød',
+    },
     [{ displayName: 'Željko Đurić', mandate: 'Vijećnik' }],
   );
   const text = Buffer.from(result.pdf).toString('ascii');
@@ -54,7 +57,10 @@ test('charter PDF has valid xref offsets and trailer position', () => {
 });
 
 test('charter PDF wraps across pages and exports final-page signature fields', () => {
-  const sections = Array.from({ length: 100 }, (_, index) => `Section ${index} ${'word '.repeat(20)}`);
+  const sections = Array.from(
+    { length: 100 },
+    (_, index) => `Section ${index} ${'word '.repeat(20)}`,
+  );
   const result = renderCharterPdf({ sections }, holders);
   const text = Buffer.from(result.pdf).toString('ascii');
   const pageCount = Number(/\/Type \/Pages \/Kids \[[^\]]+\] \/Count (\d+)/.exec(text)?.[1]);

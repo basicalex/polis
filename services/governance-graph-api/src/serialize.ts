@@ -181,7 +181,6 @@ export interface CommitmentQuestionWire {
   answer: CommitmentAnswerWire | null;
 }
 
-
 export interface CommitmentWire {
   id: string;
   claimId: string;

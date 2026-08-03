@@ -20,7 +20,11 @@ export type VerifierFlowProps = {
   locale?: Locale;
 };
 
-export function VerifierFlow({ apiUrl, proofBasePath = '/proofs', locale = 'en' }: VerifierFlowProps) {
+export function VerifierFlow({
+  apiUrl,
+  proofBasePath = '/proofs',
+  locale = 'en',
+}: VerifierFlowProps) {
   const [tab, setTab] = useState<Tab>('file');
   const [busy, setBusy] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
@@ -158,7 +162,12 @@ export function VerifierFlow({ apiUrl, proofBasePath = '/proofs', locale = 'en' 
       </div>
 
       {tab === 'file' && (
-        <div id={`${baseId}-panel-file`} role="tabpanel" aria-labelledby={`${baseId}-tab-file`} className="stack">
+        <div
+          id={`${baseId}-panel-file`}
+          role="tabpanel"
+          aria-labelledby={`${baseId}-tab-file`}
+          className="stack"
+        >
           <p className="privacy-note">
             <span aria-hidden="true">🔒</span> {t('verifier.privacy', locale)}
           </p>
@@ -193,7 +202,12 @@ export function VerifierFlow({ apiUrl, proofBasePath = '/proofs', locale = 'en' 
       )}
 
       {tab === 'hash' && (
-        <div id={`${baseId}-panel-hash`} role="tabpanel" aria-labelledby={`${baseId}-tab-hash`} className="stack">
+        <div
+          id={`${baseId}-panel-hash`}
+          role="tabpanel"
+          aria-labelledby={`${baseId}-tab-hash`}
+          className="stack"
+        >
           <label htmlFor={`${baseId}-hash-input`}>{t('verifier.hash_label', locale)}</label>
           <input
             id={`${baseId}-hash-input`}

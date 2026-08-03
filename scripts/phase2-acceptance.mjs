@@ -6,7 +6,7 @@ import { withInternalHeaders } from './internal-headers.mjs';
 // internal route, syncs a stub result, and asserts the BFF returns it hydrated on
 // the issue, the embed config is present, and both audit events land in the public
 // audit read. Discovers ids from the API so it is seed-agnostic.
-// Run AFTER `docker compose up -d --wait` + `pnpm db:seed` (or dev-services).
+// Run AFTER `docker compose up -d --wait` + `bun run db:seed` (or dev-services).
 const POLIS = process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200';
 const BFF = process.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 

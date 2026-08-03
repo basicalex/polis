@@ -4,18 +4,55 @@ import test from 'node:test';
 import type { ArtifactStore } from './artifact-store.js';
 import { createReconcileDue, createSigningProvider, signingRoutes } from './index.js';
 import type { SigningLifecycle } from './lifecycle.js';
-import { InMemorySigningRepository, type DocumentArtifactRecord, type SigningContext, type SigningRequestRecord } from './repository.js';
+import {
+  InMemorySigningRepository,
+  type DocumentArtifactRecord,
+  type SigningContext,
+  type SigningRequestRecord,
+} from './repository.js';
 import { StubSigningProvider } from './stub-provider.js';
 
 const now = new Date('2026-07-30T00:00:00.000Z');
 const request: SigningRequestRecord = {
-  id: 'request-1', provider: 'stub', charterId: 'charter-1', mandateHolderId: 'holder-1', unsignedArtifactId: 'unsigned-1', signedArtifactId: null, proofManifestId: null, idempotencyKey: 'key-1', providerEnvelopeId: 'stub-envelope-missing', status: 'distributed', lastReconciledAt: null, reconcileAttempts: 0, providerCompletedAt: null, failureCode: null, createdAt: now, updatedAt: now,
+  id: 'request-1',
+  provider: 'stub',
+  charterId: 'charter-1',
+  mandateHolderId: 'holder-1',
+  unsignedArtifactId: 'unsigned-1',
+  signedArtifactId: null,
+  proofManifestId: null,
+  idempotencyKey: 'key-1',
+  providerEnvelopeId: 'stub-envelope-missing',
+  status: 'distributed',
+  lastReconciledAt: null,
+  reconcileAttempts: 0,
+  providerCompletedAt: null,
+  failureCode: null,
+  createdAt: now,
+  updatedAt: now,
 };
 
 const signingContext: SigningContext = {
-  holder: { id: 'holder-1', citizenId: 'citizen-owner', displayName: 'Owner', status: 'active', roleId: 'mayor' },
-  charter: { id: 'charter-1', mandateHolderId: 'holder-1', charterDoc: { purpose: 'reporting', scope: { jurisdictions: ['jurisdiction-1'] } }, version: 1, status: 'pending' },
-  citizen: { id: 'citizen-owner', email: 'owner@example.test', displayName: 'Owner', identityLevel: 'verified_official' },
+  holder: {
+    id: 'holder-1',
+    citizenId: 'citizen-owner',
+    displayName: 'Owner',
+    status: 'active',
+    roleId: 'mayor',
+  },
+  charter: {
+    id: 'charter-1',
+    mandateHolderId: 'holder-1',
+    charterDoc: { purpose: 'reporting', scope: { jurisdictions: ['jurisdiction-1'] } },
+    version: 1,
+    status: 'pending',
+  },
+  citizen: {
+    id: 'citizen-owner',
+    email: 'owner@example.test',
+    displayName: 'Owner',
+    identityLevel: 'verified_official',
+  },
 };
 
 function fakeRequest(headers: Record<string, string>): IncomingMessage {
@@ -40,22 +77,57 @@ test('route table exposes the complete internal signing surface', () => {
     'POST /internal/signing/requests/:id/stub-complete',
     'GET /internal/signing/artifacts/:id/content',
     'POST /internal/signing/webhooks/documenso',
-  ]) assert.ok(surface.includes(expected), expected);
+  ])
+    assert.ok(surface.includes(expected), expected);
   const webhook = routes.find((route) => route.path === '/internal/signing/webhooks/documenso')!;
   assert.equal(webhook.bodyMode, 'raw');
   assert.equal(webhook.maxBodyBytes, 1_000_000);
 });
 
 test('documenso provider mode fails when any required configuration is missing', () => {
-  assert.throws(() => createSigningProvider({ SIGNING_PROVIDER: 'documenso' }), /configuration is incomplete/);
-  assert.throws(() => createSigningProvider({ SIGNING_PROVIDER: 'documenso', DOCUMENSO_API_URL: 'https://documenso.test', DOCUMENSO_API_TOKEN: 'token' }), /configuration is incomplete/);
+  assert.throws(
+    () => createSigningProvider({ SIGNING_PROVIDER: 'documenso' }),
+    /configuration is incomplete/,
+  );
+  assert.throws(
+    () =>
+      createSigningProvider({
+        SIGNING_PROVIDER: 'documenso',
+        DOCUMENSO_API_URL: 'https://documenso.test',
+        DOCUMENSO_API_TOKEN: 'token',
+      }),
+    /configuration is incomplete/,
+  );
 });
 
 test('stub completion rejects a citizen who is not the signing recipient', async () => {
-  const repository = new InMemorySigningRepository({ requests: [request], recipients: [{ id: 'recipient-1', signingRequestId: request.id, citizenId: 'citizen-owner', role: 'signer', signingOrder: 1, providerRecipientId: 'provider-recipient-1', status: 'sent' }] });
-  const routes = signingRoutes({ repository, lifecycle: {} as SigningLifecycle, artifactStore: { mode: 'database' } as ArtifactStore, provider: new StubSigningProvider(), providerName: 'stub' });
+  const repository = new InMemorySigningRepository({
+    requests: [request],
+    recipients: [
+      {
+        id: 'recipient-1',
+        signingRequestId: request.id,
+        citizenId: 'citizen-owner',
+        role: 'signer',
+        signingOrder: 1,
+        providerRecipientId: 'provider-recipient-1',
+        status: 'sent',
+      },
+    ],
+  });
+  const routes = signingRoutes({
+    repository,
+    lifecycle: {} as SigningLifecycle,
+    artifactStore: { mode: 'database' } as ArtifactStore,
+    provider: new StubSigningProvider(),
+    providerName: 'stub',
+  });
   const route = routes.find((candidate) => candidate.path.endsWith('/stub-complete'))!;
-  const response = await route.handler(fakeRequest({ 'x-polis-citizen': 'citizen-other' }), {}, { id: request.id }) as { status: number; body: { error: string } };
+  const response = (await route.handler(
+    fakeRequest({ 'x-polis-citizen': 'citizen-other' }),
+    {},
+    { id: request.id },
+  )) as { status: number; body: { error: string } };
   assert.equal(response.status, 403);
   assert.equal(response.body.error, 'signing_recipient_required');
 });
@@ -63,10 +135,28 @@ test('stub completion rejects a citizen who is not the signing recipient', async
 test('webhook secret mismatch makes no repository state change', async () => {
   const repository = new InMemorySigningRepository();
   let receipts = 0;
-  const lifecycle = { recordProviderEvent: async () => { receipts += 1; return true; } } as unknown as SigningLifecycle;
-  const routes = signingRoutes({ repository, lifecycle, artifactStore: { mode: 'database' } as ArtifactStore, provider: new StubSigningProvider(), providerName: 'documenso', webhookSecret: 'correct-secret' });
-  const route = routes.find((candidate) => candidate.path === '/internal/signing/webhooks/documenso')!;
-  const response = await route.handler(fakeRequest({ 'x-documenso-secret': 'wrong-secret' }), Buffer.from('{}'), {}) as { status: number; body: { error: string } };
+  const lifecycle = {
+    recordProviderEvent: async () => {
+      receipts += 1;
+      return true;
+    },
+  } as unknown as SigningLifecycle;
+  const routes = signingRoutes({
+    repository,
+    lifecycle,
+    artifactStore: { mode: 'database' } as ArtifactStore,
+    provider: new StubSigningProvider(),
+    providerName: 'documenso',
+    webhookSecret: 'correct-secret',
+  });
+  const route = routes.find(
+    (candidate) => candidate.path === '/internal/signing/webhooks/documenso',
+  )!;
+  const response = (await route.handler(
+    fakeRequest({ 'x-documenso-secret': 'wrong-secret' }),
+    Buffer.from('{}'),
+    {},
+  )) as { status: number; body: { error: string } };
   assert.equal(response.status, 401);
   assert.equal(receipts, 0);
   assert.equal(repository.providerEvents.size, 0);
@@ -81,11 +171,17 @@ test('production stub mode omits the completion route unless explicitly allowed'
     providerName: 'stub',
     allowStubCompletion: false,
   });
-  assert.equal(routes.some((route) => route.path.endsWith('/stub-complete')), false);
+  assert.equal(
+    routes.some((route) => route.path.endsWith('/stub-complete')),
+    false,
+  );
 });
 
 test('signing status is limited to the owner or staff', async () => {
-  const repository = new InMemorySigningRepository({ contexts: [signingContext], requests: [request] });
+  const repository = new InMemorySigningRepository({
+    contexts: [signingContext],
+    requests: [request],
+  });
   const routes = signingRoutes({
     repository,
     lifecycle: {} as SigningLifecycle,
@@ -94,15 +190,37 @@ test('signing status is limited to the owner or staff', async () => {
     providerName: 'stub',
   });
   const route = routes.find((candidate) => candidate.path.includes('/charter-status/'))!;
-  const denied = await route.handler(fakeRequest({ 'x-polis-citizen': 'citizen-other' }), {}, { mandateHolderId: 'holder-1' }) as { status: number };
-  const owner = await route.handler(fakeRequest({ 'x-polis-citizen': 'citizen-owner' }), {}, { mandateHolderId: 'holder-1' }) as { status: number | string };
-  const staff = await route.handler(fakeRequest({ 'x-polis-citizen': 'reviewer-1', 'x-polis-identity-level': 'staff' }), {}, { mandateHolderId: 'holder-1' }) as { status: number | string };
+  const denied = (await route.handler(
+    fakeRequest({ 'x-polis-citizen': 'citizen-other' }),
+    {},
+    { mandateHolderId: 'holder-1' },
+  )) as { status: number };
+  const owner = (await route.handler(
+    fakeRequest({ 'x-polis-citizen': 'citizen-owner' }),
+    {},
+    { mandateHolderId: 'holder-1' },
+  )) as { status: number | string };
+  const staff = (await route.handler(
+    fakeRequest({ 'x-polis-citizen': 'reviewer-1', 'x-polis-identity-level': 'staff' }),
+    {},
+    { mandateHolderId: 'holder-1' },
+  )) as { status: number | string };
   assert.equal(denied.status, 403);
   assert.equal(owner.status, 'distributed');
   assert.equal(staff.status, 'distributed');
-  const detailRoute = routes.find((candidate) => candidate.path === '/internal/signing/requests/:id')!;
-  const detailDenied = await detailRoute.handler(fakeRequest({ 'x-polis-citizen': 'citizen-other' }), {}, { id: request.id }) as { status: number };
-  const detailOwner = await detailRoute.handler(fakeRequest({ 'x-polis-citizen': 'citizen-owner' }), {}, { id: request.id }) as { status: number | string };
+  const detailRoute = routes.find(
+    (candidate) => candidate.path === '/internal/signing/requests/:id',
+  )!;
+  const detailDenied = (await detailRoute.handler(
+    fakeRequest({ 'x-polis-citizen': 'citizen-other' }),
+    {},
+    { id: request.id },
+  )) as { status: number };
+  const detailOwner = (await detailRoute.handler(
+    fakeRequest({ 'x-polis-citizen': 'citizen-owner' }),
+    {},
+    { id: request.id },
+  )) as { status: number | string };
   assert.equal(detailDenied.status, 403);
   assert.equal(detailOwner.status, 'distributed');
 });
@@ -127,18 +245,30 @@ test('artifact download verifies stored bytes against artifact metadata', async 
     createdAt: now,
   };
   const repository = new InMemorySigningRepository({ artifacts: [artifact] });
-  const artifactStore = { mode: 'database', get: async () => Buffer.from('tampered') } as unknown as ArtifactStore;
-  const routes = signingRoutes({ repository, lifecycle: {} as SigningLifecycle, artifactStore, provider: new StubSigningProvider(), providerName: 'stub' });
+  const artifactStore = {
+    mode: 'database',
+    get: async () => Buffer.from('tampered'),
+  } as unknown as ArtifactStore;
+  const routes = signingRoutes({
+    repository,
+    lifecycle: {} as SigningLifecycle,
+    artifactStore,
+    provider: new StubSigningProvider(),
+    providerName: 'stub',
+  });
   const route = routes.find((candidate) => candidate.path.includes('/artifacts/'))!;
-  await assert.rejects(
-    async () => { await route.handler(fakeRequest({}), {}, { id: artifact.id }); },
-    /artifact_hash_mismatch/,
-  );
+  await assert.rejects(async () => {
+    await route.handler(fakeRequest({}), {}, { id: artifact.id });
+  }, /artifact_hash_mismatch/);
 });
 
 test('reconciliation failures persist and stop at the configured attempt cap', async () => {
   const repository = new InMemorySigningRepository({ requests: [request] });
-  const lifecycle = { reconcile: async () => { throw new Error('provider_down'); } } as unknown as SigningLifecycle;
+  const lifecycle = {
+    reconcile: async () => {
+      throw new Error('provider_down');
+    },
+  } as unknown as SigningLifecycle;
   const reconcileDue = createReconcileDue(repository, lifecycle, 25, 2);
   await reconcileDue();
   await reconcileDue();

@@ -42,5 +42,33 @@
     "confidence_state": "official_source",
     "review_state": "approved",
     "visibility": "public"
+  },
+  {
+    "id": "role-complaint-decision-officer",
+    "name": "Initial Complaint Decision Officer",
+    "institution_id": "inst-complaints-office",
+    "mandate_id": "mandate-public-complaints",
+    "description": "Reviews assigned complaint cases and records the initial administrative decision.",
+    "authorized_by_law": "law-general-administrative-procedure",
+    "decision_rights": [
+      "decide_complaint"
+    ],
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
+  },
+  {
+    "id": "role-complaint-appeal-officer",
+    "name": "Complaint Appeal Decision Officer",
+    "institution_id": "inst-complaints-office",
+    "mandate_id": "mandate-public-complaints",
+    "description": "Reviews appealed complaint cases independently and records the appeal decision.",
+    "authorized_by_law": "law-general-administrative-procedure",
+    "decision_rights": [
+      "decide_complaint_appeal"
+    ],
+    "confidence_state": "official_source",
+    "review_state": "approved",
+    "visibility": "public"
   }
 ]

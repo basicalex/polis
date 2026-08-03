@@ -18,7 +18,13 @@
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  type Route,
+} from '@polis/service-runtime';
 
 import { eligibilityWire } from './serialize.js';
 

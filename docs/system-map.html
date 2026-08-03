@@ -1,0 +1,1416 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Polis Interface — System Map</title>
+    <meta
+      name="description"
+      content="A one-page map of the Polis Interface platform: mission, actors, architecture, trust machinery, the Representative-Accountability loop, and productionization seams."
+    />
+    <style>
+      /*
+       * Design tokens transcribed from packages/ui/src/styles/base.css (light
+       * theme — warm paper). Kept inline so the page renders fully offline
+       * with no CDN, webfonts, or JS frameworks.
+       */
+      :root {
+        --polis-bg: #f7f5ec;
+        --polis-surface: #ffffff;
+        --polis-surface-2: #fffdf2;
+        --polis-text: #132018;
+        --polis-muted: #5c6b5f;
+        --polis-primary: #0f3324;
+        --polis-on-primary: #ffffff;
+        --polis-accent: #5b21b6;
+        --polis-border: #d7d0b8;
+
+        --trust-valid-fg: #166534;
+        --trust-valid-bg: #f0f9f3;
+        --trust-valid-border: #2a8b52;
+        --trust-warning-fg: #92400e;
+        --trust-warning-bg: #fef7e8;
+        --trust-warning-border: #d97706;
+        --trust-invalid-fg: #8a2424;
+        --trust-invalid-bg: #fbf0f0;
+        --trust-invalid-border: #b42828;
+        --trust-unknown-fg: #374151;
+        --trust-unknown-bg: #f1f3f5;
+        --trust-unknown-border: #9ca3af;
+        --trust-restricted-fg: #5b21b6;
+        --trust-restricted-bg: #f5f1fe;
+        --trust-restricted-border: #7c3aed;
+
+        --radius-sm: 4px;
+        --radius-md: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        color: var(--polis-text);
+        background: var(--polis-bg);
+        font-size: 16px;
+        line-height: 1.55;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--polis-primary);
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.15em;
+      }
+
+      a:hover,
+      a:focus-visible {
+        text-decoration-thickness: 2px;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--polis-primary);
+        outline-offset: 2px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        line-height: 1.15;
+        margin: 0;
+        color: var(--polis-text);
+        letter-spacing: -0.01em;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        font-weight: 800;
+      }
+
+      h2 {
+        font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--polis-primary);
+      }
+
+      h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 1.15rem;
+      }
+
+      li + li {
+        margin-top: 0.25rem;
+      }
+
+      code,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.85em;
+      }
+
+      /* ---- layout ---- */
+
+      .site-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .site-header {
+        border-bottom: 1px solid var(--polis-border);
+        background: var(--polis-surface);
+        padding: 1rem clamp(1rem, 4vw, 2.5rem);
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .site-brand {
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--polis-primary);
+        font-size: 0.9rem;
+      }
+
+      .site-brand span {
+        color: var(--polis-muted);
+        font-weight: 600;
+        margin-left: 0.5rem;
+      }
+
+      .site-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.1rem;
+        justify-content: flex-end;
+        font-size: 0.85rem;
+      }
+
+      .site-nav a {
+        text-decoration: none;
+        color: var(--polis-muted);
+        font-weight: 600;
+      }
+
+      .site-nav a:hover,
+      .site-nav a:focus-visible {
+        color: var(--polis-primary);
+      }
+
+      main {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+        padding: clamp(1.5rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2rem) 4rem;
+        flex: 1;
+      }
+
+      section {
+        margin-top: clamp(2.5rem, 5vw, 4rem);
+      }
+
+      section > header {
+        margin-bottom: 1.25rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      section > header p {
+        color: var(--polis-muted);
+        max-width: 70ch;
+      }
+
+      .eyebrow {
+        color: var(--polis-accent);
+        font-size: 0.75rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      .stack {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .grid-2 {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      }
+
+      .panel,
+      .card {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-md);
+        background: var(--polis-surface);
+        padding: 1.1rem 1.15rem;
+      }
+
+      .panel--muted {
+        background: var(--polis-surface-2);
+      }
+
+      .hero {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-md);
+        background: var(--polis-surface-2);
+        padding: clamp(1.75rem, 5vw, 3rem);
+        display: grid;
+        gap: 1.25rem;
+      }
+
+      .hero .lede {
+        font-size: 1.1rem;
+        max-width: 62ch;
+      }
+
+      .muted {
+        color: var(--polis-muted);
+      }
+
+      /* ---- badges ---- */
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border: 1px solid transparent;
+        background: color-mix(in srgb, var(--polis-accent) 12%, transparent);
+        color: var(--polis-accent);
+        border-color: color-mix(in srgb, var(--polis-accent) 30%, transparent);
+        white-space: nowrap;
+      }
+
+      .badge[data-tone='valid'] {
+        background: var(--trust-valid-bg);
+        color: var(--trust-valid-fg);
+        border-color: var(--trust-valid-border);
+      }
+      .badge[data-tone='warning'] {
+        background: var(--trust-warning-bg);
+        color: var(--trust-warning-fg);
+        border-color: var(--trust-warning-border);
+      }
+      .badge[data-tone='invalid'] {
+        background: var(--trust-invalid-bg);
+        color: var(--trust-invalid-fg);
+        border-color: var(--trust-invalid-border);
+      }
+      .badge[data-tone='unknown'] {
+        background: var(--trust-unknown-bg);
+        color: var(--trust-unknown-fg);
+        border-color: var(--trust-unknown-border);
+      }
+      .badge[data-tone='restricted'] {
+        background: var(--trust-restricted-bg);
+        color: var(--trust-restricted-fg);
+        border-color: var(--trust-restricted-border);
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      /* ---- hero pull-quote ---- */
+
+      .proof-vs-truth {
+        border-left: 3px solid var(--polis-primary);
+        padding: 0.4rem 0.9rem;
+        color: var(--polis-text);
+        background: var(--polis-surface);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        max-width: 62ch;
+        font-size: 0.95rem;
+      }
+
+      .proof-vs-truth strong {
+        color: var(--polis-primary);
+      }
+
+      /* ---- actor cards ---- */
+
+      .actor {
+        display: grid;
+        gap: 0.6rem;
+      }
+
+      .actor h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--polis-primary);
+      }
+
+      .actor ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .actor li {
+        display: grid;
+        grid-template-columns: 0.9rem 1fr;
+        gap: 0.35rem;
+        align-items: baseline;
+        font-size: 0.92rem;
+      }
+
+      .actor li::before {
+        content: '';
+        display: block;
+        width: 0.4rem;
+        height: 0.4rem;
+        border-radius: 50%;
+        background: var(--polis-primary);
+        transform: translateY(0.35rem);
+      }
+
+      /* ---- architecture diagram ---- */
+
+      .arch {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .arch-layer {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-md);
+        background: var(--polis-surface);
+        padding: 1rem 1.1rem;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .arch-layer h3 {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--polis-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+
+      .arch-layer h3 .layer-tag {
+        border: 1px solid var(--polis-border);
+        border-radius: 999px;
+        padding: 0.05rem 0.5rem;
+        font-size: 0.65rem;
+        color: var(--polis-primary);
+        background: var(--polis-surface-2);
+      }
+
+      .arch-nodes {
+        display: grid;
+        gap: 0.6rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .node {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-sm);
+        background: var(--polis-surface-2);
+        padding: 0.55rem 0.7rem;
+        display: grid;
+        gap: 0.15rem;
+      }
+
+      .node--edge {
+        background: var(--polis-primary);
+        color: var(--polis-on-primary);
+        border-color: var(--polis-primary);
+      }
+
+      .node--edge .node-port,
+      .node--edge .node-role {
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .node--app {
+        background: color-mix(in srgb, var(--polis-primary) 6%, var(--polis-surface));
+      }
+
+      .node-name {
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.01em;
+      }
+
+      .node-port {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.72rem;
+        color: var(--polis-muted);
+      }
+
+      .node-role {
+        font-size: 0.78rem;
+        color: var(--polis-muted);
+        line-height: 1.35;
+      }
+
+      .arch-connector {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--polis-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-left: 0.5rem;
+      }
+
+      .arch-connector::before,
+      .arch-connector::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--polis-border);
+      }
+
+      /* ---- verdict grid ---- */
+
+      .verdicts {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .verdict {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-sm);
+        padding: 0.55rem 0.7rem;
+        background: var(--polis-surface);
+        display: grid;
+        gap: 0.2rem;
+      }
+
+      .verdict[data-tone='valid'] { border-color: var(--trust-valid-border); }
+      .verdict[data-tone='warning'] { border-color: var(--trust-warning-border); }
+      .verdict[data-tone='invalid'] { border-color: var(--trust-invalid-border); }
+      .verdict[data-tone='unknown'] { border-color: var(--trust-unknown-border); }
+      .verdict[data-tone='restricted'] { border-color: var(--trust-restricted-border); }
+
+      .verdict-name {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .verdict-desc {
+        color: var(--polis-muted);
+        font-size: 0.82rem;
+      }
+
+      /* ---- flow diagram (M-RA) ---- */
+
+      .flow {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        align-items: stretch;
+      }
+
+      .flow-step {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 0.9rem;
+        background: var(--polis-surface);
+        display: grid;
+        gap: 0.3rem;
+        position: relative;
+      }
+
+      .flow-step .step-num {
+        font-size: 0.7rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--polis-accent);
+        font-weight: 700;
+      }
+
+      .flow-step h4 {
+        color: var(--polis-primary);
+      }
+
+      .flow-step p {
+        font-size: 0.85rem;
+        color: var(--polis-muted);
+      }
+
+      .flow-step--decision {
+        border-color: var(--polis-primary);
+        background: var(--polis-surface-2);
+      }
+
+      /* ---- adapters table ---- */
+
+      table.adapters {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      table.adapters th,
+      table.adapters td {
+        text-align: left;
+        padding: 0.6rem 0.7rem;
+        border-bottom: 1px solid var(--polis-border);
+        font-size: 0.88rem;
+        vertical-align: top;
+      }
+
+      table.adapters th {
+        color: var(--polis-muted);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      table.adapters td.mode {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.8rem;
+      }
+
+      /* ---- roadmap ---- */
+
+      .milestones {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .milestone {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.9rem;
+        align-items: center;
+        padding: 0.65rem 0.9rem;
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-sm);
+        background: var(--polis-surface);
+      }
+
+      .milestone .m-id {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-weight: 700;
+        color: var(--polis-primary);
+      }
+
+      .milestone .m-desc {
+        font-size: 0.9rem;
+      }
+
+      /* ---- footer ---- */
+
+      footer {
+        border-top: 1px solid var(--polis-border);
+        background: var(--polis-surface);
+        padding: 1.25rem clamp(1rem, 4vw, 2.5rem);
+        color: var(--polis-muted);
+        font-size: 0.82rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 2rem;
+        justify-content: space-between;
+      }
+
+      /* ---- print ---- */
+
+      @media print {
+        html,
+        body {
+          background: #ffffff;
+          color: #000;
+        }
+        .site-header,
+        footer {
+          background: #ffffff;
+        }
+        .site-nav,
+        details summary::marker {
+          display: none;
+        }
+        section,
+        .panel,
+        .card,
+        .hero,
+        .arch-layer,
+        .milestone,
+        .verdict,
+        .flow-step {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+        a {
+          color: inherit;
+        }
+      }
+
+      /* ---- collapsibles ---- */
+
+      details {
+        border: 1px solid var(--polis-border);
+        border-radius: var(--radius-sm);
+        background: var(--polis-surface-2);
+        padding: 0.4rem 0.75rem;
+      }
+
+      details + details {
+        margin-top: 0.4rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--polis-primary);
+        list-style: revert;
+      }
+
+      details[open] {
+        padding-bottom: 0.75rem;
+      }
+
+      details p {
+        margin-top: 0.5rem;
+        color: var(--polis-muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="site-shell">
+      <header class="site-header" role="banner">
+        <div class="site-brand">
+          Polis Interface <span>System map</span>
+        </div>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="#mission">Mission</a>
+          <a href="#actors">Actors</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#trust">Trust machinery</a>
+          <a href="#accountability">M-RA loop</a>
+          <a href="#seams">Adapter seams</a>
+          <a href="#roadmap">Roadmap</a>
+        </nav>
+      </header>
+
+      <main>
+        <!-- =============================================== MISSION -->
+        <section id="mission" aria-labelledby="mission-heading">
+          <div class="hero">
+            <p class="eyebrow">Local-first civic infrastructure</p>
+            <h1 id="mission-heading">
+              Officials campaign and govern on the same verifiable rails
+              that hold them accountable.
+            </h1>
+            <p class="lede">
+              Polis is a monorepo of source-linked governance maps,
+              hash-chained public audit trails, cryptographic proofs
+              (RFC&nbsp;3161 timestamps and CMS institutional e-seals), and
+              proof-oriented transition pilots. Public reads need no
+              authentication, no ranking, no persuasion primitives — only the
+              same evidence anyone else can independently verify.
+            </p>
+            <blockquote class="proof-vs-truth">
+              <strong>Proof is not truth.</strong> The system proves
+              provenance and integrity — that a document existed at a time,
+              was sealed by an institution, and has not changed since — never
+              that its contents are correct. Judgment stays with the reader.
+            </blockquote>
+            <div class="badge-row" aria-label="Design principles">
+              <span class="badge" data-tone="valid">public-read</span>
+              <span class="badge" data-tone="valid">verifiable</span>
+              <span class="badge" data-tone="restricted">accountability, not endorsement</span>
+              <span class="badge" data-tone="unknown">stub-by-default</span>
+              <span class="badge">append-only audit</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================== ACTORS -->
+        <section id="actors" aria-labelledby="actors-heading">
+          <header>
+            <p class="eyebrow">Section 1</p>
+            <h2 id="actors-heading">Who Polis serves</h2>
+            <p>
+              Every surface is scoped to one of five concerned parties. The
+              value proposition for each is defined by what they can verify,
+              file, adjudicate, or seal — never by what the platform asserts
+              about them.
+            </p>
+          </header>
+
+          <div class="grid">
+            <article class="panel actor">
+              <h3>Citizens</h3>
+              <p class="muted">
+                Read the record, verify it themselves, deliberate on it.
+              </p>
+              <ul>
+                <li>Browse governance-graph reads (jurisdictions, processes, claims, evidence) with no login.</li>
+                <li>Verify any file locally in the browser — SHA-256 hashing runs client-side; files never upload.</li>
+                <li>File questions on published commitments through the contribution service.</li>
+                <li>Read the hash-chained public audit trail with redactions applied.</li>
+              </ul>
+            </article>
+
+            <article class="panel actor">
+              <h3>Verified officials &amp; mandate-holders</h3>
+              <p class="muted">
+                A drafting surface — never a self-endorsement surface.
+              </p>
+              <ul>
+                <li>File commitments (proposal-assertions or public statements) tied to an accepted charter.</li>
+                <li>File resolution claims when the commitment is answered by evidence.</li>
+                <li>Answer citizen questions in the open, on the record.</li>
+                <li>Cannot self-mark a commitment as <span class="mono">delivered</span> — only reviewer adjudication can.</li>
+              </ul>
+            </article>
+
+            <article class="panel actor">
+              <h3>Reviewers</h3>
+              <p class="muted">
+                The only path to a terminal commitment status.
+              </p>
+              <ul>
+                <li>Adjudicate submissions in the §19 review queue.</li>
+                <li>Approve or reject resolution claims; approval emits an append-only status event.</li>
+                <li>Bound by <span class="mono">representative/status.rego</span> — terminal transitions require an approved resolution.</li>
+                <li>Every decision is audited with correlation ids linking claim, evidence, and outcome.</li>
+              </ul>
+            </article>
+
+            <article class="panel actor">
+              <h3>Institutions &amp; municipalities</h3>
+              <p class="muted">
+                Ingest, seal, and archive — with proof-oriented pilots.
+              </p>
+              <ul>
+                <li>Route documents through the ingestion gateway into Paperless-ngx (real mode) or the deterministic stub.</li>
+                <li>Apply CMS institutional e-seals via the signature service (eIDAS-style seams; test keys locally).</li>
+                <li>Anchor everything to RFC 3161 timestamps via the timestamp service.</li>
+                <li>Operate the citizen vault with policy-controlled document grants.</li>
+              </ul>
+            </article>
+
+            <article class="panel actor">
+              <h3>Independent verifiers &amp; journalists</h3>
+              <p class="muted">
+                A standalone verifier app — no account, no upload.
+              </p>
+              <ul>
+                <li>Standalone Astro app at <span class="mono">apps/verifier</span> (port 4322) surfaces the eleven verdict states.</li>
+                <li>Verify by hash, by file (client-side hashed), or by proof id — proofs deep-link to the audit chain.</li>
+                <li>Issuer registry and revocation/supersession lookups make provenance auditable end-to-end.</li>
+                <li>Proof manifests are self-contained: RFC 3161 tokens embed the TSA cert chain.</li>
+              </ul>
+            </article>
+
+            <article class="panel actor">
+              <h3>Partner pilot organizations (M15)</h3>
+              <p class="muted">
+                The chartered pilot slot for a real jurisdiction.
+              </p>
+              <ul>
+                <li>Replaces the seeded simulated "Grad Primjer" jurisdiction with a real charter.</li>
+                <li>Gates on M10 (real OIDC identity) and M14 (real upstream Polis deliberation).</li>
+                <li>Charter fields are operator env — no code path or public schema changes required at the pilot boundary.</li>
+                <li>Composes with the M-RA loop for a real chartered mandate-holder.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <!-- =============================================== ARCHITECTURE -->
+        <section id="architecture" aria-labelledby="arch-heading">
+          <header>
+            <p class="eyebrow">Section 2</p>
+            <h2 id="arch-heading">Architecture map</h2>
+            <p>
+              Four Astro apps face the public. A single BFF —
+              <span class="mono">platform-api</span> on port 8080 — is the
+              only public edge. Everything else is an internal service on the
+              private compose network, addressed by hostname. Ports below are
+              transcribed from
+              <span class="mono">infra/compose/docker-compose.yml</span>.
+            </p>
+          </header>
+
+          <div class="arch" role="group" aria-label="Architecture layers">
+            <div class="arch-layer" aria-label="Apps layer">
+              <h3>Apps <span class="layer-tag">Astro SSR + React</span></h3>
+              <div class="arch-nodes">
+                <div class="node node--app">
+                  <span class="node-name">web</span>
+                  <span class="node-port">:4321</span>
+                  <span class="node-role">Public site, docs index, deliberation entry, assistant.</span>
+                </div>
+                <div class="node node--app">
+                  <span class="node-name">verifier</span>
+                  <span class="node-port">:4322</span>
+                  <span class="node-role">Standalone proof verifier UI and proof detail page.</span>
+                </div>
+                <div class="node node--app">
+                  <span class="node-name">vault</span>
+                  <span class="node-port">:4323</span>
+                  <span class="node-role">Citizen document vault UI shell.</span>
+                </div>
+                <div class="node node--app">
+                  <span class="node-name">admin</span>
+                  <span class="node-port">:4324</span>
+                  <span class="node-role">Operator / official drafting surface; assistant review.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arch-connector" aria-hidden="true">public HTTPS</div>
+
+            <div class="arch-layer" aria-label="Public edge layer">
+              <h3>Public edge <span class="layer-tag">§23 BFF</span></h3>
+              <div class="arch-nodes">
+                <div class="node node--edge">
+                  <span class="node-name">platform-api</span>
+                  <span class="node-port">:8080</span>
+                  <span class="node-role">The only public edge. Proxies governance / audit / proof / assistant / vault / contribution routes.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arch-connector" aria-hidden="true">internal only</div>
+
+            <div class="arch-layer" aria-label="Domain services layer">
+              <h3>Domain services <span class="layer-tag">TypeScript + Python (FastAPI)</span></h3>
+              <div class="arch-nodes">
+                <div class="node">
+                  <span class="node-name">governance-graph-api</span>
+                  <span class="node-port">:8100</span>
+                  <span class="node-role">Seeded civic graph reads, traversal, mandate-holder projection.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">audit-service</span>
+                  <span class="node-port">:8600</span>
+                  <span class="node-role">Append-only hash-chained writes; redacted public reads.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">polis-bridge-service</span>
+                  <span class="node-port">:8200</span>
+                  <span class="node-role">Adapter to upstream Polis deliberation (POLIS_MODE).</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">document-ingestion-gateway</span>
+                  <span class="node-port">:8400</span>
+                  <span class="node-role">Orchestrates upload → canonicalize → proof.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">paperless-adapter</span>
+                  <span class="node-port">:8300</span>
+                  <span class="node-role">Paperless-ngx adapter (PAPERLESS_MODE).</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">canonicalization-service</span>
+                  <span class="node-port">:8500</span>
+                  <span class="node-role">Deterministic document canonicalization.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">proof-service</span>
+                  <span class="node-port">:8700</span>
+                  <span class="node-role">Proof manifests, status, issuer lookup, supersede/revoke.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">timestamp-service</span>
+                  <span class="node-port">:8800</span>
+                  <span class="node-role">RFC 3161 timestamp provider (TIMESTAMP_MODE).</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">signature-service</span>
+                  <span class="node-port">:8900</span>
+                  <span class="node-role">Institutional e-seal provider (SIGNATURE_MODE).</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">contribution-service</span>
+                  <span class="node-port">:8450</span>
+                  <span class="node-role">Submissions, reviews, commitment/resolution write path.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">rewards-service</span>
+                  <span class="node-port">:8460</span>
+                  <span class="node-role">Policy-gated contribution rewards ledger.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">citizen-identity-service</span>
+                  <span class="node-port">:8650</span>
+                  <span class="node-role">Sessions, magic-link (stub) or OIDC (real). IDENTITY_MODE.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">citizen-vault-service</span>
+                  <span class="node-port">:8750</span>
+                  <span class="node-role">Private document vault with policy-controlled grants.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">vc-issuer-service</span>
+                  <span class="node-port">:8950</span>
+                  <span class="node-role">Verifiable-credential issuance for identity attestations.</span>
+                </div>
+                <div class="node">
+                  <span class="node-name">ai-gateway</span>
+                  <span class="node-port">:8550</span>
+                  <span class="node-role">Deterministic RAG over approved public sources; OPA-gated; injection heuristics. AI_MODE.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arch-connector" aria-hidden="true">persistence</div>
+
+            <div class="arch-layer" aria-label="Data layer">
+              <h3>Data <span class="layer-tag">source of truth</span></h3>
+              <div class="arch-nodes">
+                <div class="node">
+                  <span class="node-name">postgres (pgvector)</span>
+                  <span class="node-port">:5432</span>
+                  <span class="node-role">Single Postgres 16 + pgvector. Drizzle migrations 0001–0009 are the source of truth.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="muted" style="margin-top: 0.9rem; font-size: 0.85rem">
+            Every Node service exposes the shared runtime contract from
+            <span class="mono">packages/service-runtime</span>:
+            <span class="mono">/healthz</span>,
+            <span class="mono">/readyz</span>,
+            <span class="mono">/metrics</span>,
+            <span class="mono">/version</span>. The AI gateway exposes
+            equivalent FastAPI health/version routes. Shared code lives in
+            <span class="mono">packages/</span>:
+            <span class="mono">db</span> (Drizzle schema + migrations),
+            <span class="mono">domain</span> (verdict composition, types),
+            <span class="mono">policy-rules</span> (OPA/Rego + decision tests),
+            <span class="mono">service-runtime</span>, and
+            <span class="mono">ui</span> (the design tokens this page borrows).
+          </p>
+        </section>
+
+        <!-- =============================================== TRUST -->
+        <section id="trust" aria-labelledby="trust-heading">
+          <header>
+            <p class="eyebrow">Section 3</p>
+            <h2 id="trust-heading">Trust machinery</h2>
+            <p>
+              Provenance and integrity are enforced by four mutually
+              reinforcing mechanisms. None of them requires trusting Polis
+              itself — every claim is externally checkable.
+            </p>
+          </header>
+
+          <div class="grid-2">
+            <article class="panel stack">
+              <h3>Hash-chained append-only audit</h3>
+              <p>
+                Every material event is written to the audit service with a
+                <span class="mono">hash</span> and <span class="mono">previousHash</span>
+                pointer (spec §26.3). No UPDATE, no DELETE. Public reads apply
+                redactions server-side; the chain itself is inspectable end
+                to end.
+              </p>
+              <div class="badge-row">
+                <span class="badge" data-tone="valid">append-only</span>
+                <span class="badge" data-tone="valid">redacted reads</span>
+              </div>
+            </article>
+
+            <article class="panel stack">
+              <h3>Policy-as-code (OPA / Rego)</h3>
+              <p>
+                Access, AI safety, rewards, pilot governance, and the
+                representative-accountability rules all live as Rego
+                bundles in <span class="mono">packages/policy-rules</span>,
+                each with real <span class="mono">opa eval</span> decision
+                tests. Structural absence of persuasion computations is
+                enforced by what the policy does not compute.
+              </p>
+              <div class="badge-row">
+                <span class="badge">access.rego</span>
+                <span class="badge">ai.rego</span>
+                <span class="badge">rewards.rego</span>
+                <span class="badge">pilot.rego</span>
+                <span class="badge">representative/*.rego</span>
+              </div>
+            </article>
+
+            <article class="panel stack">
+              <h3>Client-side file verification</h3>
+              <p>
+                The verifier app hashes uploaded files with SHA-256 in the
+                browser and compares against the proof manifest. Files never
+                leave the client. The privacy note on the drop zone reflects
+                this in the design system (<span class="mono">.privacy-note</span>).
+              </p>
+              <div class="badge-row">
+                <span class="badge" data-tone="valid">no upload</span>
+                <span class="badge" data-tone="valid">SHA-256 in-browser</span>
+              </div>
+            </article>
+
+            <article class="panel stack">
+              <h3>eIDAS-style seals and RFC 3161 timestamps</h3>
+              <p>
+                Proof manifests bind a document hash to a CMS institutional
+                e-seal (the signature service) and an RFC 3161 timestamp
+                token (the timestamp service). In real mode both flip to a
+                qualified TSP / TSA behind the same factory; stub mode uses
+                self-contained test material and is explicitly marked as
+                such in the verdict.
+              </p>
+              <div class="badge-row">
+                <span class="badge">CMS seal</span>
+                <span class="badge">RFC 3161</span>
+                <span class="badge" data-tone="warning">test-signature note in stub</span>
+              </div>
+            </article>
+          </div>
+
+          <div class="panel panel--muted stack" style="margin-top: 1rem">
+            <h3 style="margin-bottom: 0.35rem">Eleven verification verdict states</h3>
+            <p class="muted" style="font-size: 0.9rem">
+              Composed by <span class="mono">composeVerificationVerdict</span>
+              in <span class="mono">packages/domain/src/verdict.ts</span>.
+              Each verdict carries a tone that maps to the trust-badge
+              palette shared by all four apps.
+            </p>
+            <div class="verdicts" role="list">
+              <div class="verdict" data-tone="valid" role="listitem">
+                <span class="verdict-name">valid</span>
+                <span class="verdict-desc">Hash, signature, timestamp match; issuer known; registry active.</span>
+              </div>
+              <div class="verdict" data-tone="warning" role="listitem">
+                <span class="verdict-name">valid_but_superseded</span>
+                <span class="verdict-desc">Proof is intact but a newer supersession exists.</span>
+              </div>
+              <div class="verdict" data-tone="warning" role="listitem">
+                <span class="verdict-name">valid_but_expired</span>
+                <span class="verdict-desc">Registry entry is past its expiry window.</span>
+              </div>
+              <div class="verdict" data-tone="invalid" role="listitem">
+                <span class="verdict-name">revoked</span>
+                <span class="verdict-desc">Issuer or registry has revoked the proof.</span>
+              </div>
+              <div class="verdict" data-tone="invalid" role="listitem">
+                <span class="verdict-name">integrity_failure</span>
+                <span class="verdict-desc">File hash does not match the manifest hash.</span>
+              </div>
+              <div class="verdict" data-tone="invalid" role="listitem">
+                <span class="verdict-name">signature_invalid</span>
+                <span class="verdict-desc">CMS e-seal verification failed.</span>
+              </div>
+              <div class="verdict" data-tone="invalid" role="listitem">
+                <span class="verdict-name">timestamp_invalid</span>
+                <span class="verdict-desc">RFC 3161 token verification failed.</span>
+              </div>
+              <div class="verdict" data-tone="unknown" role="listitem">
+                <span class="verdict-name">issuer_unknown</span>
+                <span class="verdict-desc">Issuer not present in the registry.</span>
+              </div>
+              <div class="verdict" data-tone="unknown" role="listitem">
+                <span class="verdict-name">status_unknown</span>
+                <span class="verdict-desc">Registry cannot confirm current status.</span>
+              </div>
+              <div class="verdict" data-tone="restricted" role="listitem">
+                <span class="verdict-name">private_or_restricted</span>
+                <span class="verdict-desc">Proof exists but is not publicly readable.</span>
+              </div>
+              <div class="verdict" data-tone="unknown" role="listitem">
+                <span class="verdict-name">not_found</span>
+                <span class="verdict-desc">No matching proof or hash lookup.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================== M-RA -->
+        <section id="accountability" aria-labelledby="accountability-heading">
+          <header>
+            <p class="eyebrow">Section 4</p>
+            <h2 id="accountability-heading">
+              The representative-accountability loop (M-RA)
+            </h2>
+            <p>
+              Politicians gain standing only by filing checkable claims and
+              surviving follow-through review. Nothing here computes
+              rankings, grades, or win-probability — the platform is
+              structurally incapable of endorsement.
+            </p>
+          </header>
+
+          <div class="flow" role="list" aria-label="Accountability flow">
+            <div class="flow-step" role="listitem">
+              <span class="step-num">Step 1</span>
+              <h4>Charter accepted</h4>
+              <p>
+                A <span class="mono">verified_official</span> holds an active
+                <span class="mono">mandate_holders</span> row with an accepted
+                <span class="mono">mandate_holder_charters</span> row that
+                covers the process and jurisdiction.
+              </p>
+            </div>
+            <div class="flow-step" role="listitem">
+              <span class="step-num">Step 2</span>
+              <h4>Commitment filed</h4>
+              <p>
+                Official files a claim (proposal-assertion or public
+                statement) plus a <span class="mono">commitments</span> row
+                via <span class="mono">contribution-service</span>. Published
+                to the public record.
+              </p>
+            </div>
+            <div class="flow-step" role="listitem">
+              <span class="step-num">Step 3</span>
+              <h4>Citizens ask</h4>
+              <p>
+                Questions are filed as submissions against the commitment.
+                Answers by the official are on the record and hash-chained.
+              </p>
+            </div>
+            <div class="flow-step" role="listitem">
+              <span class="step-num">Step 4</span>
+              <h4>Resolution claim</h4>
+              <p>
+                Official files a resolution claim with evidence. The caller
+                cannot self-assign <span class="mono">delivered</span>.
+              </p>
+            </div>
+            <div class="flow-step flow-step--decision" role="listitem">
+              <span class="step-num">Step 5 · decision</span>
+              <h4>Reviewer adjudicates</h4>
+              <p>
+                A reviewer approves or rejects. Only reviewer approval emits
+                the append-only <span class="mono">commitment_status_events</span>
+                row that sets a terminal status. <span class="mono">overdue</span>
+                is system-derived — never set by a human.
+              </p>
+            </div>
+            <div class="flow-step" role="listitem">
+              <span class="step-num">Step 6</span>
+              <h4>Scorecard deep-links</h4>
+              <p>
+                Counts by status, every number deep-linked to the underlying
+                evidence and audit rows. No ranking. No grade. No comparison
+                across officials.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top: 1rem">
+            <article class="panel stack">
+              <h3>Governance invariants</h3>
+              <ul>
+                <li>Follow-through is never self-reported — terminal status requires an approved resolution.</li>
+                <li>Status is append-only, latest-row-wins in <span class="mono">commitment_status_events</span>.</li>
+                <li>The scorecard is pure fact — counts by status, every number deep-linked to evidence.</li>
+                <li>Publication requires a verified, active mandate-holder with an accepted charter.</li>
+                <li>No persuasion primitive, ever — no targeting, messaging, GOTV, donor, or opponent tooling.</li>
+              </ul>
+            </article>
+            <article class="panel stack">
+              <h3>Evidence redaction</h3>
+              <p class="muted">
+                Commitment evidence that identifies constituents defaults to
+                <span class="badge" data-tone="restricted">restricted</span>
+                and is redacted in public §26.4 reads. Reviewers see the
+                un-redacted view under access-control policy; the public
+                sees only what the audit chain permits.
+              </p>
+              <p class="muted" style="margin-top: 0.5rem">
+                Every public surface carries the
+                <span class="mono">[accountability, not endorsement]</span>
+                tag next to the existing
+                <span class="mono">[public-read]</span> and
+                <span class="mono">[verifiable]</span> tags.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <!-- =============================================== SEAMS -->
+        <section id="seams" aria-labelledby="seams-heading">
+          <header>
+            <p class="eyebrow">Section 5</p>
+            <h2 id="seams-heading">Adapter seams and production modes</h2>
+            <p>
+              Every external integration is behind an env-driven factory.
+              Stub is the default and stays green. Flipping a
+              <span class="mono">*_MODE</span> switches in the real adapter
+              behind the same contract; unknown modes throw fail-fast, never
+              silent fallback.
+            </p>
+          </header>
+
+          <table class="adapters" aria-label="Adapter seams">
+            <thead>
+              <tr>
+                <th>Concern</th>
+                <th>Env</th>
+                <th>Stub (default)</th>
+                <th>Real mode</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>AI provider</td>
+                <td class="mode">AI_MODE</td>
+                <td>Deterministic RAG over approved public sources.</td>
+                <td>External model provider behind <span class="mono">createModelProvider()</span>.</td>
+              </tr>
+              <tr>
+                <td>Institutional signature</td>
+                <td class="mode">SIGNATURE_MODE</td>
+                <td>Test-key CMS seal; verdict flags "test signature".</td>
+                <td>EU DSS / qualified TSP.</td>
+              </tr>
+              <tr>
+                <td>Timestamp authority</td>
+                <td class="mode">TIMESTAMP_MODE</td>
+                <td>Deterministic RFC 3161 stub token.</td>
+                <td>Real RFC 3161 TSA endpoint (self-hosted sigstore or qualified TSA).</td>
+              </tr>
+              <tr>
+                <td>Upstream deliberation</td>
+                <td class="mode">POLIS_MODE</td>
+                <td>In-repo bridge stub for local demos.</td>
+                <td>Real upstream Polis instance for deliberation.</td>
+              </tr>
+              <tr>
+                <td>Document repository</td>
+                <td class="mode">PAPERLESS_MODE</td>
+                <td>Deterministic paperless-adapter stub.</td>
+                <td>Self-hosted Paperless-ngx over HTTP.</td>
+              </tr>
+              <tr>
+                <td>Identity provider</td>
+                <td class="mode">IDENTITY_MODE</td>
+                <td>HMAC sessions + magic-link dev tokens.</td>
+                <td>OIDC (Keycloak in compose; production IdP via operator env).</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="muted" style="margin-top: 0.9rem; font-size: 0.85rem">
+            The two seams that had to be introduced during productionization
+            (M10 identity and M13 AI provider) each add the
+            <span class="mono">create*Client()</span> abstraction as their
+            first step, then wire the real adapter behind the same factory.
+            Every other seam was ready at end of M9.
+          </p>
+        </section>
+
+        <!-- =============================================== ROADMAP -->
+        <section id="roadmap" aria-labelledby="roadmap-heading">
+          <header>
+            <p class="eyebrow">Section 6</p>
+            <h2 id="roadmap-heading">Productionization status</h2>
+            <p>
+              M10 through M13 have shipped: real OIDC identity, Paperless-ngx,
+              RFC 3161 + CMS signing, and a real external AI provider seam.
+              M14 (real upstream Polis) and M15 (partner pilot) remain, as
+              does M-RA Phase 5 (chartered pilot with a real official).
+            </p>
+          </header>
+
+          <div class="milestones" role="list">
+            <div class="milestone" role="listitem">
+              <span class="m-id">M10</span>
+              <span class="m-desc">Real persistent identity (OIDC) before any private document flow leaves demo mode.</span>
+              <span class="badge" data-tone="valid">done</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M11</span>
+              <span class="m-desc">Paperless-ngx real backend for document ingestion.</span>
+              <span class="badge" data-tone="valid">done</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M12</span>
+              <span class="m-desc">RFC 3161 timestamp + EU DSS institutional e-seal.</span>
+              <span class="badge" data-tone="valid">done</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M13</span>
+              <span class="m-desc">Real external AI provider behind a new provider seam.</span>
+              <span class="badge" data-tone="valid">done</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M14</span>
+              <span class="m-desc">Real upstream Polis instance for deliberation.</span>
+              <span class="badge" data-tone="warning">remaining</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M15</span>
+              <span class="m-desc">Real partner pilot replacing the simulated Grad Primjer jurisdiction.</span>
+              <span class="badge" data-tone="warning">remaining</span>
+            </div>
+            <div class="milestone" role="listitem">
+              <span class="m-id">M-RA</span>
+              <span class="m-desc">Representative-accountability track: Phases 1–4 landed (model, adjudication, drafting surface, governance enforcement). Phase 5 pilot with a real chartered official remains.</span>
+              <span class="badge" data-tone="warning">Phase 5 remaining</span>
+            </div>
+          </div>
+
+          <div class="stack" style="margin-top: 1.25rem">
+            <details>
+              <summary>Cross-cutting invariants every milestone preserves</summary>
+              <p>
+                §23 public-edge contract kept intact.
+                <span class="mono">platform-api</span> stays the only public
+                edge. Drizzle schema is the source of truth; migrations are
+                committed DDL. Audit stays §26.3-shaped — append-only, hash-chained,
+                never UPDATE/DELETE. OPA/Rego policy with real
+                <span class="mono">opa eval</span> decision tests. Stack
+                split (TypeScript for web/BFF/graph/audit; Python via
+                <span class="mono">uv</span> for AI/data/document services).
+                Ports are fixed: platform-api 8080, graph 8100, audit 8600,
+                web 4321, postgres 5432. Graph DB / NATS / Redis / Turbo /
+                blockchain are deferred and not pre-built.
+              </p>
+            </details>
+            <details>
+              <summary>Local run and acceptance checks</summary>
+              <p>
+                <span class="mono">docker compose -f infra/compose/docker-compose.yml up -d --build --wait</span>,
+                then <span class="mono">bun run db:seed</span>, then
+                <span class="mono">bun scripts/phase1-acceptance.mjs</span>
+                (§23 contract). Phase 3/4/5 and complaints acceptance scripts
+                exercise document proof, timestamp / signature, the deterministic
+                AI assistant, and the private case lifecycle respectively.
+              </p>
+            </details>
+          </div>
+        </section>
+      </main>
+
+      <footer role="contentinfo">
+        <span>Polis Interface · local v1 civic-infrastructure prototype · AGPL-3.0-or-later</span>
+        <span>Source of truth: <span class="mono">infra/compose/docker-compose.yml</span>, <span class="mono">packages/db</span>, <span class="mono">docs/roadmap/</span></span>
+      </footer>
+    </div>
+
+    <script>
+      // Vanilla progressive enhancement: smooth-scroll to in-page anchors.
+      // Kept tiny — the page works with JS off; this only smooths the jump.
+      for (const link of document.querySelectorAll('a[href^="#"]')) {
+        link.addEventListener('click', (event) => {
+          const id = link.getAttribute('href').slice(1);
+          const target = document.getElementById(id);
+          if (!target) return;
+          event.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target.setAttribute('tabindex', '-1');
+          target.focus({ preventScroll: true });
+        });
+      }
+    </script>
+  </body>
+</html>

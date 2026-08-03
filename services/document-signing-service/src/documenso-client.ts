@@ -207,7 +207,10 @@ export class DocumensoClient implements SigningProvider {
     const response = await this.#request(
       `/envelope/item/${encodeURIComponent(itemId)}/download?version=signed`,
     );
-    if (response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/pdf') {
+    if (
+      response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !==
+      'application/pdf'
+    ) {
       throw new SigningProviderError('Documenso signed item was not a PDF', {
         code: 'invalid_content_type',
         status: response.status,

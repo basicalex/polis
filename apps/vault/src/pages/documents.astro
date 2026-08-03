@@ -26,6 +26,47 @@ if (!session?.token) {
   document.getElementById('vault-content').style.display = 'none';
 } else {
   const headers = { 'content-type': 'application/json', 'authorization': 'Bearer ' + session.token };
+  function createTextElement(tagName, text, className) {
+    const element = document.createElement(tagName);
+    element.textContent = text;
+    if (className) element.className = className;
+    return element;
+  }
+  function showDocsMessage(message, className) {
+    document.getElementById('docs-list').replaceChildren(
+      createTextElement('p', message, className),
+    );
+  }
+  function renderDocs(items) {
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    for (const label of ['Label', 'Proof Manifest', 'Issuer', 'Status', 'Added']) {
+      headerRow.append(createTextElement('th', label));
+    }
+    thead.append(headerRow);
+    const tbody = document.createElement('tbody');
+    for (const documentItem of items) {
+      const row = document.createElement('tr');
+      for (const value of [
+        documentItem.label || '',
+        documentItem.proofManifestId || '—',
+        documentItem.proof?.issuerName || '—',
+        documentItem.proof?.registryStatus || '—',
+        documentItem.addedAt || '',
+      ]) {
+        row.append(createTextElement('td', value));
+      }
+      tbody.append(row);
+    }
+    table.append(thead, tbody);
+    document.getElementById('docs-list').replaceChildren(table);
+  }
+  function showAddError(message) {
+    const error = document.getElementById('add-error');
+    error.textContent = message;
+    error.style.display = 'block';
+  }
   async function loadDocs() {
     try {
       const r = await fetch(API + '/api/v1/vault/documents', { headers });
@@ -33,18 +74,17 @@ if (!session?.token) {
       const body = await r.json();
       const items = body.items || [];
       if (!items.length) {
-        document.getElementById('docs-list').innerHTML = '<p class="muted">No documents yet.</p>';
+        showDocsMessage('No documents yet.', 'muted');
         return;
       }
-      document.getElementById('docs-list').innerHTML = '<table><thead><tr><th>Label</th><th>Proof Manifest</th><th>Issuer</th><th>Status</th><th>Added</th></tr></thead><tbody>' +
-        items.map(d => '<tr><td>' + (d.label||'') + '</td><td>' + (d.proofManifestId||'—') + '</td><td>' + (d.proof?.issuerName||'—') + '</td><td>' + (d.proof?.registryStatus||'—') + '</td><td>' + (d.addedAt||'') + '</td></tr>').join('') +
-        '</tbody></table>';
+      renderDocs(items);
     } catch (e) {
-      document.getElementById('docs-list').innerHTML = '<p style="color:red">' + e.message + '</p>';
+      showDocsMessage(e.message, null);
+      document.getElementById('docs-list').firstElementChild.style.color = 'red';
     }
   }
   loadDocs();
-  document.getElementById('add-btn').onclick = async () => {
+  document.getElementById('add-btn').addEventListener('click', async () => {
     const proofManifestId = document.getElementById('proof-id').value.trim();
     const label = document.getElementById('label').value.trim();
     if (!label) return;
@@ -59,10 +99,9 @@ if (!session?.token) {
       document.getElementById('label').value = '';
       loadDocs();
     } catch (e) {
-      document.getElementById('add-error').textContent = e.message;
-      document.getElementById('add-error').style.display = 'block';
+      showAddError(e.message);
     }
-  };
+  });
 }
 </script>
 </Base>

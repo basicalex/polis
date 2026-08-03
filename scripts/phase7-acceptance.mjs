@@ -17,7 +17,6 @@ import { loginCitizen } from './dev-login.mjs';
 //   9.  rewards-service /healthz ok.
 //
 // Run AFTER `docker compose up -d --build --wait` and the seed.
-const CONTRIB = process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450';
 const REWARDS = process.env.REWARDS_INTERNAL_URL ?? 'http://localhost:8460';
 const BFF = process.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -77,7 +76,11 @@ check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error
 check('reviewer identityLevel is staff', reviewerLogin.citizen?.identityLevel === 'staff');
 const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
 const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
-check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
+check(
+  'staff GET /api/v1/review/queue → 200',
+  reviewQueue.status === 200,
+  `status=${reviewQueue.status}`,
+);
 
 // 6. Reward rules (read first so the cap loop tracks the configured cap).
 const rules = await get(BFF, '/api/v1/rewards/rules');

@@ -13,13 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 10.33.0
+          bun-version: 1.3.14
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -28,15 +27,15 @@ jobs:
       - name: Install OPA (policy-as-code)
         uses: open-policy-agent/setup-opa@v2
         with:
-          version: latest
+          version: 1.17.1
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       - name: Sync Python workspace
         run: uv sync
       - name: Lint (eslint + prettier)
-        run: pnpm lint
+        run: bun run lint
       - name: Verify (build · typecheck · test · v1:smoke)
-        run: pnpm verify
+        run: bun run verify
       - name: Python ruff
         run: uv run ruff check .
       - name: Python pytest
@@ -56,7 +55,7 @@ jobs:
         uses: google/osv-scanner-action@v2.0.0
         with:
           scan-args: |-
-            --lockfile=pnpm-lock.yaml
+            --lockfile=bun.lock
             --lockfile=uv.lock
       - name: Secret scan (gitleaks)
         uses: gitleaks/gitleaks-action@v2

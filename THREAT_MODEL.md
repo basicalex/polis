@@ -28,6 +28,8 @@
 - Services expose health/readiness/version endpoints for operational checks.
 - Documentation states that production integrations are not live.
 
+The [isolated public-read pilot runbook](docs/operations/isolated-pilot-runbook.md) defines a separate synthetic/public-data-only deployment boundary, its fail-closed preflight, and its incident shutdown procedure. It does not satisfy the production controls below.
+
 ## Required production controls
 
 Production deployments need authenticated identity, role-based authorization, encrypted storage, append-only audit integrity, secret management, backup/restore tests, provider security reviews, incident response, and partner-specific data-sharing agreements.

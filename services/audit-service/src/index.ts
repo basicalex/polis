@@ -6,11 +6,23 @@
  * exposes only public target-scoped rows through the §23 audit read path.
  */
 import { createHash } from 'node:crypto';
-import { getClient, schema } from '@polis/db';
+import { checkDatabase, getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { operationalRoutes, result, startService } from '@polis/service-runtime';
 import type { Route } from '@polis/service-runtime';
+
+/** Bounded database readiness without exposing database failure details. */
+export async function databaseReadiness(
+  check: () => Promise<unknown> = checkDatabase,
+): Promise<{ ready: true } | { ready: false; dependency: 'database' }> {
+  try {
+    await check();
+    return { ready: true };
+  } catch {
+    return { ready: false, dependency: 'database' };
+  }
+}
 
 export type AuditEventInput = {
   eventType?: unknown;
@@ -226,6 +238,7 @@ async function main(): Promise<void> {
     'audit-service',
     Number(process.env.PORT ?? process.env.AUDIT_SERVICE_PORT ?? 8600),
     auditRoutes(db),
+    { readiness: databaseReadiness },
   );
 }
 

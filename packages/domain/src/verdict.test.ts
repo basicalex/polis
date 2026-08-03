@@ -141,7 +141,9 @@ test('hash match against canonicalPdfHash passes', () => {
 
 test('signature_invalid when any signature is invalid', () => {
   const v = composeVerificationVerdict({
-    proof: proof({ signatures: [signature(), signature({ id: 'sig-2', validationStatus: 'invalid' })] }),
+    proof: proof({
+      signatures: [signature(), signature({ id: 'sig-2', validationStatus: 'invalid' })],
+    }),
   });
   assert.equal(v.state, 'signature_invalid');
   assert.equal(v.tone, 'invalid');

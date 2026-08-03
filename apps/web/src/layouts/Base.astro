@@ -12,6 +12,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     <meta name="viewport" content="width=device-width" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <style>
+      @media (max-width: 640px) {
+        .site-header {
+          display: grid;
+          justify-content: stretch;
+        }
+
+        .site-nav {
+          justify-content: flex-start;
+          gap: 0.5rem 0.75rem;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="site-shell">
@@ -21,6 +34,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         <nav class="site-nav" aria-label="Primary">
           <a href="/governance/jur-croatia-local">Governance</a>
           <a href="/issues">Issues</a>
+          <a href="/complaints">Complaints</a>
           <a href="/deliberate">Deliberate</a>
           <a href="/audit">Audit</a>
           <a href="/verify">Verify</a>
@@ -61,9 +75,30 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     </div>
     <script is:inline define:vars={{ apiUrl }}>
       window.__API_URL = apiUrl;
-      const s = sessionStorage.getItem('web_session');
-      const n = document.getElementById('auth-nav');
-      if (n) n.innerHTML = s ? '<a href="/mandate-holders">Mandate-holders</a> · <a href="#" onclick="sessionStorage.removeItem(\'web_session\');location.reload()">Logout</a>' : '<a href="/login">Login</a>';
+      const rawSession = sessionStorage.getItem('web_session');
+      const authNav = document.getElementById('auth-nav');
+      if (authNav) {
+        const login = document.createElement('a');
+        login.href = '/login';
+        login.textContent = 'Login';
+        if (!rawSession) {
+          authNav.replaceChildren(login);
+        } else {
+          const mandateHolders = document.createElement('a');
+          mandateHolders.href = '/mandate-holders';
+          mandateHolders.textContent = 'Mandate-holders';
+          const separator = document.createTextNode(' · ');
+          const logout = document.createElement('a');
+          logout.href = '#';
+          logout.textContent = 'Logout';
+          logout.addEventListener('click', (event) => {
+            event.preventDefault();
+            sessionStorage.removeItem('web_session');
+            location.reload();
+          });
+          authNav.replaceChildren(mandateHolders, separator, logout);
+        }
+      }
     </script>
   </body>
 </html>

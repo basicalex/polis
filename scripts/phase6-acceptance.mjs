@@ -49,7 +49,11 @@ check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error
 check('reviewer identityLevel is staff', reviewerLogin.citizen?.identityLevel === 'staff');
 const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
 const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
-check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
+check(
+  'staff GET /api/v1/review/queue → 200',
+  reviewQueue.status === 200,
+  `status=${reviewQueue.status}`,
+);
 
 // 1. Submit evidence → 201 pending.
 const evidenceText = 'M6 acceptance: registry office accepts digital residence proof.';

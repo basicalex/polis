@@ -37,7 +37,10 @@ export interface IdentityProvider {
 
 /** Single-use PKCE + redirect-URI store, keyed by opaque state. 5-minute TTL. */
 const PKCE_TTL_MS = 5 * 60 * 1000;
-const pkceStore = new Map<string, { codeVerifier: string; redirectUri: string; expiresAt: number }>();
+const pkceStore = new Map<
+  string,
+  { codeVerifier: string; redirectUri: string; expiresAt: number }
+>();
 
 /**
  * OIDC provider. Keycloak is OIDC-conformant, so this speaks the standard
@@ -150,7 +153,5 @@ class OidcIdentityProvider implements IdentityProvider {
 export function createIdentityProvider(): IdentityProvider {
   const mode = process.env.IDENTITY_MODE ?? 'stub';
   if (mode === 'oidc') return new OidcIdentityProvider();
-  throw new Error(
-    `IDENTITY_MODE=${mode} is not supported; OIDC flow requires IDENTITY_MODE=oidc`,
-  );
+  throw new Error(`IDENTITY_MODE=${mode} is not supported; OIDC flow requires IDENTITY_MODE=oidc`);
 }

@@ -17,7 +17,13 @@ import type { IncomingMessage } from 'node:http';
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import { internalHeaders, operationalRoutes, result, startService, type Route } from '@polis/service-runtime';
+import {
+  internalHeaders,
+  operationalRoutes,
+  result,
+  startService,
+  type Route,
+} from '@polis/service-runtime';
 
 import { accessEventWire, accessGrantWire, vaultDocumentWire } from './serialize.js';
 

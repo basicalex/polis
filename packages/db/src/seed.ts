@@ -334,12 +334,13 @@ async function main(): Promise<void> {
     'asked_by_citizen_id',
     'body',
   ]);
-  await upsert(
-    'commitment_answers',
-    schema.commitmentAnswers,
-    'commitment_answers.json',
-    ['question_id', 'mandate_holder_id', 'body', 'decided_by', 'decided_at'],
-  );
+  await upsert('commitment_answers', schema.commitmentAnswers, 'commitment_answers.json', [
+    'question_id',
+    'mandate_holder_id',
+    'body',
+    'decided_by',
+    'decided_at',
+  ]);
   await Promise.resolve();
 }
 

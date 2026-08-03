@@ -30,11 +30,6 @@ function check(label, cond, detail = '') {
   }
 }
 
-async function getJson(base, path) {
-  const r = await fetch(base + path, { headers: withInternalHeaders(path) });
-  return { status: r.status, body: r.ok ? await r.json() : null };
-}
-
 async function getHtml(base, path) {
   try {
     const r = await fetch(base + path);
@@ -62,7 +57,11 @@ const uploaded = await post(INGESTION, '/internal/ingestion/documents', {
   filename: 'phase13-acceptance.txt',
   documentClass: 'public-government-record',
 });
-check('POST /internal/ingestion/documents → 201', uploaded.status === 201, `status=${uploaded.status}`);
+check(
+  'POST /internal/ingestion/documents → 201',
+  uploaded.status === 201,
+  `status=${uploaded.status}`,
+);
 const manifestId = uploaded.body?.id ?? '';
 const originalFileHash = uploaded.body?.hashes?.originalFileHash ?? '';
 check('uploaded manifest has id + originalFileHash', !!manifestId && !!originalFileHash);
@@ -70,7 +69,11 @@ check('uploaded manifest has id + originalFileHash', !!manifestId && !!originalF
 const verified = originalFileHash
   ? await post(BFF, '/api/v1/verify/hash', { hash: originalFileHash })
   : { status: 0, body: null };
-check('POST /api/v1/verify/hash → valid', verified.body?.status === 'valid', `status=${verified.body?.status}`);
+check(
+  'POST /api/v1/verify/hash → valid',
+  verified.body?.status === 'valid',
+  `status=${verified.body?.status}`,
+);
 check(
   'verify/hash manifest round-trips id',
   verified.body?.manifest?.id === manifestId,
@@ -79,7 +82,11 @@ check(
 
 const unknownHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const notFound = await post(BFF, '/api/v1/verify/hash', { hash: unknownHash });
-check('verify/hash for unknown hash → not valid', notFound.body?.status !== 'valid', `status=${notFound.body?.status}`);
+check(
+  'verify/hash for unknown hash → not valid',
+  notFound.body?.status !== 'valid',
+  `status=${notFound.body?.status}`,
+);
 
 // ─── 2. Web /verify page ───
 const webVerify = await getHtml(WEB, '/verify');
@@ -102,7 +109,11 @@ check('web proof page shows manifest hash', webProof.html.includes(originalFileH
 
 // ─── 4. Verifier /verify page ───
 const verifierVerify = await getHtml(VERIFIER, '/verify');
-check('GET verifier /verify → 200', verifierVerify.status === 200, `status=${verifierVerify.status}`);
+check(
+  'GET verifier /verify → 200',
+  verifierVerify.status === 200,
+  `status=${verifierVerify.status}`,
+);
 check(
   'verifier /verify carries client-side hashing privacy copy (§15.5)',
   verifierVerify.html.includes('never uploaded'),

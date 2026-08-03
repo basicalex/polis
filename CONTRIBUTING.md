@@ -8,7 +8,7 @@ Contributions must keep the repository truthful about what runs locally and what
 2. Inspect the existing package/app/service pattern before adding files.
 3. Make the smallest change that satisfies the behavior.
 4. Add or update tests for behavior that can break.
-5. Run the narrowest relevant check, then `pnpm verify` before handoff when behavior or docs routes changed.
+5. Run the narrowest relevant check, then `bun run verify` before handoff when behavior or docs routes changed.
 
 ## Evidence rules
 

@@ -2,6 +2,8 @@
 
 > Simulated partner for §30.10 pilot validation. All adapters are local v1 stubs.
 
+The broader local profile described below remains simulated. A separate [isolated public-read API profile](../operations/isolated-pilot-runbook.md) may expose only seeded synthetic/public data; it is not writable and cannot process real-person or private-document data.
+
 ## Pilot identity
 
 - **Partner institution:** Grad Primjer Municipality (simulated)
@@ -10,6 +12,11 @@
 - **Pilot owner:** Polis Interface project governance
 - **Technical owner:** Polis Interface engineering
 - **Security/privacy contact:** project-governance@polis.local
+- **Isolated-profile deployment owner:** Not assigned — deployment blocked.
+- **Isolated-profile security/incident owner:** Not assigned — deployment blocked.
+- **Isolated-profile backup owner:** Not assigned — deployment blocked.
+- **Isolated-profile restore owner:** Not assigned — deployment blocked.
+- **Latest reviewed restore evidence:** None — deployment blocked until a dated successful drill names the snapshot, operator, reviewer, and evidence location.
 
 ## Scope
 
@@ -19,6 +26,7 @@
 - **Public evidence to be published:** 2 verified document proofs (SHA-256 manifest + Ed25519 test-key signature); Polis deliberation results (87 participants, 1 consensus cluster).
 - **Private documents to be processed:** None in this pilot scope.
 - **Systems integrated:** Governance graph (live), audit trail (live), document proof registry (live), citizen identity (local DB), citizen vault (live), contribution/review (live), rewards eligibility (live).
+- **Isolated public-read systems, if separately launched:** PostgreSQL, one-shot seed/migrations, governance graph, public audit, proof, Polis bridge, platform API, and Caddy only. Reads use seeded records; this does not make any external adapter live.
 
 ## Current implementation status
 
@@ -41,6 +49,10 @@
 - Payment rails (manual export)
 - RFC3161 timestamping (stub)
 - Signing (test-key — `Ed25519Signature2018` with committed test keypair)
+
+### Isolated public-read profile gate
+
+This optional profile does not replace or reclassify the simulated local status above. Before launch, the charter must replace every unassigned operational-owner field with a named person and backup, link a dated successful disposable restore drill, record the reviewed Git SHA and image tag, and complete the runbook's DNS/TLS/readiness/route-denial evidence. No approval under this charter expands the profile to writes, login, participation, private documents, or real-person data.
 
 ## Safeguards
 

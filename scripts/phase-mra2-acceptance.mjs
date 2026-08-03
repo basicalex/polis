@@ -41,7 +41,6 @@ async function post(base, path, body, headers = {}) {
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 
-
 console.log('[phase-mra2] checking M-RA Phase 2 citizen-authenticated mandate write/review path…');
 
 // ─── 1-3. verified_official login (seeded mandate-holder-demo) ───
@@ -59,7 +58,11 @@ check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error
 check('reviewer identityLevel === staff', reviewerLogin.citizen?.identityLevel === 'staff');
 const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
 const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
-check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
+check(
+  'staff GET /api/v1/review/queue → 200',
+  reviewQueue.status === 200,
+  `status=${reviewQueue.status}`,
+);
 
 // ─── 4. File commitment ───
 const fileCommitment = await post(

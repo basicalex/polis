@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { IncomingMessage } from 'node:http';
-import { platformRoutes, withPublicEdge } from './index.js';
+import { FetchTimeoutError } from '@polis/service-runtime';
+import {
+  checkPlatformReadiness,
+  parseInternalFetchTimeoutMs,
+  platformRoutes,
+  runPlatformMigrations,
+  withPublicEdge,
+} from './index.js';
 
 test('platform-api exposes §23 public edge routes without network calls', () => {
   const paths = platformRoutes().map((r) => `${r.method} ${r.path}`);
@@ -33,6 +40,34 @@ test('platform-api exposes §23 public edge routes without network calls', () =>
   assert.ok(paths.includes('POST /webhooks/documenso'));
 });
 
+const complaintRouteKeys = [
+  'POST /api/v1/complaints',
+  'GET /api/v1/complaints/mine',
+  'GET /api/v1/complaints/queue',
+  'GET /api/v1/complaints/:id',
+  'POST /api/v1/complaints/:id/assign',
+  'POST /api/v1/complaints/:id/information-requests',
+  'POST /api/v1/complaints/:id/information-requests/:requestId/respond',
+  'POST /api/v1/complaints/:id/decisions',
+  'POST /api/v1/complaints/:id/appeals',
+  'POST /api/v1/complaints/:id/appeals/:appealId/decisions',
+  'POST /api/v1/complaints/:id/close',
+] as const;
+
+test('platform-api exposes complaints routes in literal-before-id order', () => {
+  const paths = platformRoutes().map((r) => `${r.method} ${r.path}`);
+  assert.deepEqual(
+    paths.filter((path) => path.includes('/api/v1/complaints')),
+    complaintRouteKeys,
+  );
+  assert.ok(
+    paths.indexOf('GET /api/v1/complaints/mine') < paths.indexOf('GET /api/v1/complaints/:id'),
+  );
+  assert.ok(
+    paths.indexOf('GET /api/v1/complaints/queue') < paths.indexOf('GET /api/v1/complaints/:id'),
+  );
+});
+
 test('withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity)', () => {
   const base = platformRoutes();
   assert.strictEqual(withPublicEdge(base), base);
@@ -48,7 +83,6 @@ const mockReq = (
     headers: init.headers ?? {},
     socket: { remoteAddress: ip },
   }) as unknown as IncomingMessage;
-
 
 const fetchHeader = (headers: unknown, name: string): string | undefined => {
   if (headers instanceof Headers) return headers.get(name) ?? undefined;
@@ -90,10 +124,11 @@ test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=
     ).handler(mockReq('198.51.100.1'), {}, {});
     assert.equal((mandateCommitmentOut as { status: number }).status, 405);
 
-    const resolutionOut = await find(
-      'POST',
-      '/api/v1/commitments/:id/resolutions',
-    ).handler(mockReq('198.51.100.1'), {}, {});
+    const resolutionOut = await find('POST', '/api/v1/commitments/:id/resolutions').handler(
+      mockReq('198.51.100.1'),
+      {},
+      {},
+    );
     assert.equal((resolutionOut as { status: number }).status, 405);
     const askOut = await find('POST', '/api/v1/commitments/:id/questions').handler(
       mockReq('198.51.100.1'),
@@ -127,6 +162,11 @@ test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=
     ] as const) {
       const out = await find(method, path).handler(mockReq('198.51.100.1'), {}, {});
       assert.equal((out as { status: number }).status, 405, `${method} ${path} must be blocked`);
+    }
+    for (const routeKey of complaintRouteKeys) {
+      const [method, path] = routeKey.split(' ', 2);
+      const out = await find(method, path).handler(mockReq('198.51.100.1'), {}, { id: 'cmp-1' });
+      assert.equal((out as { status: number }).status, 405, `${routeKey} must be blocked`);
     }
 
     // verify/hash must remain on the public edge (present + not blocked).
@@ -255,13 +295,10 @@ test('citizen-authenticated platform proxy verifies the session and authenticate
     calls.push({ input, init });
     const url = String(input);
     if (url === 'http://identity.internal/internal/identity/verify-session') {
-      return new Response(
-        JSON.stringify({ citizenId: 'citizen-123', identityLevel: 'verified' }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      );
+      return new Response(JSON.stringify({ citizenId: 'citizen-123', identityLevel: 'verified' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     }
     return new Response(JSON.stringify({ documents: [] }), {
       status: 200,
@@ -284,7 +321,10 @@ test('citizen-authenticated platform proxy verifies the session and authenticate
     );
 
     assert.equal(calls.length, 2);
-    assert.equal(String(calls[0].input), 'http://identity.internal/internal/identity/verify-session');
+    assert.equal(
+      String(calls[0].input),
+      'http://identity.internal/internal/identity/verify-session',
+    );
     assert.equal(fetchHeader(calls[0].init?.headers, 'x-polis-internal-token'), token);
     assert.equal(String(calls[1].input), 'http://vault.internal/internal/vault/documents');
     assert.equal(fetchHeader(calls[1].init?.headers, 'x-polis-internal-token'), token);
@@ -299,6 +339,135 @@ test('citizen-authenticated platform proxy verifies the session and authenticate
     else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
     if (originalVaultUrl === undefined) delete process.env.VAULT_INTERNAL_URL;
     else process.env.VAULT_INTERNAL_URL = originalVaultUrl;
+  }
+});
+
+test('complaint routes enforce citizen and staff sessions', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
+  const originalComplaintsUrl = process.env.COMPLAINTS_INTERNAL_URL;
+  const calls: string[] = [];
+
+  process.env.INTERNAL_API_TOKEN = 'complaints-auth-token';
+  process.env.IDENTITY_INTERNAL_URL = 'http://identity.internal';
+  process.env.COMPLAINTS_INTERNAL_URL = 'http://complaints.internal';
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    calls.push(String(input));
+    return new Response(JSON.stringify({ citizenId: 'citizen-123', identityLevel: 'verified' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  try {
+    const routes = platformRoutes();
+    const citizenRoute = routes.find((r) => r.method === 'POST' && r.path === '/api/v1/complaints');
+    const staffRoute = routes.find(
+      (r) => r.method === 'GET' && r.path === '/api/v1/complaints/queue',
+    );
+    assert.ok(citizenRoute);
+    assert.ok(staffRoute);
+
+    const unauthenticated = await citizenRoute.handler(mockReq('198.51.100.20'), {}, {});
+    assert.ok(
+      unauthenticated &&
+        typeof unauthenticated === 'object' &&
+        'status' in unauthenticated &&
+        'body' in unauthenticated,
+    );
+    assert.equal(unauthenticated.status, 401);
+    assert.deepEqual(unauthenticated.body, { error: 'unauthenticated' });
+    assert.equal(calls.length, 0);
+
+    const denied = await staffRoute.handler(
+      mockReq('198.51.100.20', { headers: { authorization: 'Bearer citizen-session' } }),
+      undefined,
+      {},
+    );
+    assert.ok(denied && typeof denied === 'object' && 'status' in denied && 'body' in denied);
+    assert.equal(denied.status, 403);
+    assert.deepEqual(denied.body, { error: 'staff_required' });
+    assert.deepEqual(calls, ['http://identity.internal/internal/identity/verify-session']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalIdentityUrl === undefined) delete process.env.IDENTITY_INTERNAL_URL;
+    else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
+    if (originalComplaintsUrl === undefined) delete process.env.COMPLAINTS_INTERNAL_URL;
+    else process.env.COMPLAINTS_INTERNAL_URL = originalComplaintsUrl;
+  }
+});
+
+test('complaint proxy forwards trusted actor headers and ignores forged browser headers', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
+  const originalComplaintsUrl = process.env.COMPLAINTS_INTERNAL_URL;
+  const calls: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+
+  process.env.INTERNAL_API_TOKEN = 'complaints-proxy-token';
+  process.env.IDENTITY_INTERNAL_URL = 'http://identity.internal';
+  process.env.COMPLAINTS_INTERNAL_URL = 'http://complaints.internal';
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ input, init });
+    if (String(input) === 'http://identity.internal/internal/identity/verify-session') {
+      return new Response(
+        JSON.stringify({ citizenId: 'trusted-citizen', identityLevel: 'staff' }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 202,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  try {
+    const route = platformRoutes().find(
+      (r) =>
+        r.method === 'POST' &&
+        r.path === '/api/v1/complaints/:id/information-requests/:requestId/respond',
+    );
+    assert.ok(route);
+    const out = await route.handler(
+      mockReq('198.51.100.21', {
+        headers: {
+          authorization: 'Bearer session-token',
+          'x-polis-citizen': 'forged-citizen',
+          'x-polis-identity-level': 'verified',
+          'x-polis-internal-token': 'forged-token',
+        },
+      }),
+      { response: 'received' },
+      { id: 'cmp-123', requestId: 'request-456' },
+    );
+
+    assert.ok(out && typeof out === 'object' && 'status' in out);
+    assert.equal(out.status, 202);
+    assert.equal(
+      String(calls[1].input),
+      'http://complaints.internal/internal/complaints/cmp-123/information-requests/request-456/respond',
+    );
+    assert.equal(
+      fetchHeader(calls[1].init?.headers, 'x-polis-internal-token'),
+      'complaints-proxy-token',
+    );
+    assert.equal(fetchHeader(calls[1].init?.headers, 'x-polis-citizen'), 'trusted-citizen');
+    assert.equal(fetchHeader(calls[1].init?.headers, 'x-polis-identity-level'), 'staff');
+    assert.equal(JSON.stringify(calls[1].init?.headers).includes('forged'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalIdentityUrl === undefined) delete process.env.IDENTITY_INTERNAL_URL;
+    else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
+    if (originalComplaintsUrl === undefined) delete process.env.COMPLAINTS_INTERNAL_URL;
+    else process.env.COMPLAINTS_INTERNAL_URL = originalComplaintsUrl;
   }
 });
 
@@ -328,8 +497,7 @@ test('charter signing initiation requires an idempotency key and forwards the tr
   try {
     const route = platformRoutes().find(
       (r) =>
-        r.method === 'POST' &&
-        r.path === '/api/v1/mandate-holders/:id/charter-signing-requests',
+        r.method === 'POST' && r.path === '/api/v1/mandate-holders/:id/charter-signing-requests',
     );
     assert.ok(route);
     const missing = await route.handler(
@@ -414,9 +582,7 @@ test('review routes reject missing and non-staff sessions and strip forged revie
     assert.ok(decide);
     const unauthenticated = await queue.handler(mockReq('198.51.100.8'), {}, {});
     assert.ok(
-      unauthenticated &&
-        typeof unauthenticated === 'object' &&
-        'status' in unauthenticated,
+      unauthenticated && typeof unauthenticated === 'object' && 'status' in unauthenticated,
     );
     assert.equal(unauthenticated.status, 401);
 
@@ -456,6 +622,141 @@ test('review routes reject missing and non-staff sessions and strip forged revie
     else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
     if (originalContributionUrl === undefined) delete process.env.CONTRIBUTION_INTERNAL_URL;
     else process.env.CONTRIBUTION_INTERNAL_URL = originalContributionUrl;
+  }
+});
+
+test('assistant administration routes require staff and forward trusted actor context', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
+  const originalAiUrl = process.env.AI_INTERNAL_URL;
+  const calls: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+  process.env.INTERNAL_API_TOKEN = 'platform-assistant-test-token';
+  process.env.IDENTITY_INTERNAL_URL = 'http://identity.internal';
+  process.env.AI_INTERNAL_URL = 'http://ai.internal';
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ input, init });
+    if (String(input).includes('/verify-session')) {
+      const session = JSON.parse(String(init?.body)).sessionToken;
+      return new Response(
+        JSON.stringify({
+          citizenId: session === 'staff-session' ? 'staff-1' : 'citizen-1',
+          identityLevel: session === 'staff-session' ? 'staff' : 'verified',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ ok: true, path: String(input) }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  try {
+    const routes = platformRoutes();
+    const protectedRoutes: Array<{
+      method: string;
+      path: string;
+      params: Record<string, string>;
+      upstream: string;
+    }> = [
+      {
+        method: 'GET',
+        path: '/api/v1/assistant/traces',
+        params: {},
+        upstream: '/internal/ai/traces',
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/assistant/traces/:id',
+        params: { id: 'trace-1' },
+        upstream: '/internal/ai/traces/trace-1',
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/assistant/outputs/:id',
+        params: { id: 'output-1' },
+        upstream: '/internal/ai/outputs/output-1',
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/assistant/outputs/:id/review',
+        params: { id: 'output-1' },
+        upstream: '/internal/ai/outputs/output-1/review',
+      },
+    ];
+
+    for (const routeInfo of protectedRoutes) {
+      const route = routes.find((r) => r.method === routeInfo.method && r.path === routeInfo.path);
+      assert.ok(route);
+      const unauthenticated = await route.handler(mockReq('198.51.100.9'), {}, routeInfo.params);
+      assert.ok(
+        unauthenticated && typeof unauthenticated === 'object' && 'status' in unauthenticated,
+      );
+      assert.equal(unauthenticated.status, 401);
+
+      const forbidden = await route.handler(
+        mockReq('198.51.100.9', { headers: { authorization: 'Bearer citizen-session' } }),
+        {},
+        routeInfo.params,
+      );
+      assert.ok(forbidden && typeof forbidden === 'object' && 'status' in forbidden);
+      assert.equal(forbidden.status, 403);
+    }
+
+    for (const routeInfo of protectedRoutes.filter((r) => r.method === 'GET')) {
+      const route = routes.find((r) => r.method === routeInfo.method && r.path === routeInfo.path);
+      assert.ok(route);
+      const before = calls.length;
+      const out = await route.handler(
+        mockReq('198.51.100.9', { headers: { authorization: 'Bearer staff-session' } }),
+        {},
+        routeInfo.params,
+      );
+      assert.ok(out && typeof out === 'object' && 'status' in out);
+      assert.equal(out.status, 200);
+      const upstream = calls.slice(before).at(-1);
+      assert.ok(upstream);
+      assert.equal(String(upstream.input), 'http://ai.internal' + routeInfo.upstream);
+      assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-citizen'), 'staff-1');
+      assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-identity-level'), 'staff');
+    }
+
+    const review = routes.find(
+      (r) => r.method === 'POST' && r.path === '/api/v1/assistant/outputs/:id/review',
+    );
+    assert.ok(review);
+    const before = calls.length;
+    const reviewed = await review.handler(
+      mockReq('198.51.100.9', { headers: { authorization: 'Bearer staff-session' } }),
+      {
+        decision: 'approve',
+        notes: 'checked',
+        reviewerId: 'forged-reviewer',
+        reviewerRole: 'reviewer',
+      },
+      { id: 'output-1' },
+    );
+    assert.ok(reviewed && typeof reviewed === 'object' && 'status' in reviewed);
+    assert.equal(reviewed.status, 200);
+    const upstream = calls.slice(before).at(-1);
+    assert.ok(upstream);
+    assert.equal(String(upstream.input), 'http://ai.internal/internal/ai/outputs/output-1/review');
+    assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-citizen'), 'staff-1');
+    assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-identity-level'), 'staff');
+    assert.deepEqual(JSON.parse(String(upstream.init?.body)), {
+      reviewerId: 'staff-1',
+      decision: 'approve',
+      notes: 'checked',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalIdentityUrl === undefined) delete process.env.IDENTITY_INTERNAL_URL;
+    else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
+    if (originalAiUrl === undefined) delete process.env.AI_INTERNAL_URL;
+    else process.env.AI_INTERNAL_URL = originalAiUrl;
   }
 });
 
@@ -503,4 +804,314 @@ test('Documenso webhook forwards raw bytes and secret with a bounded raw route',
     if (originalSigningUrl === undefined) delete process.env.SIGNING_INTERNAL_URL;
     else process.env.SIGNING_INTERNAL_URL = originalSigningUrl;
   }
+});
+
+test('internal BFF calls use a validated timeout and return safe gateway errors', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalGraphUrl = process.env.GRAPH_INTERNAL_URL;
+  const originalTimeout = process.env.INTERNAL_FETCH_TIMEOUT_MS;
+  const internalUrl = 'http://graph.secret.internal';
+  process.env.INTERNAL_API_TOKEN = 'timeout-secret-token';
+  process.env.GRAPH_INTERNAL_URL = internalUrl;
+  process.env.INTERNAL_FETCH_TIMEOUT_MS = '17';
+
+  try {
+    assert.equal(parseInternalFetchTimeoutMs(), 17);
+    assert.equal(parseInternalFetchTimeoutMs(''), 5_000);
+    assert.throws(() => parseInternalFetchTimeoutMs('invalid'), /INTERNAL_FETCH_TIMEOUT_MS/);
+    assert.throws(() => parseInternalFetchTimeoutMs('0'), /INTERNAL_FETCH_TIMEOUT_MS/);
+
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      assert.ok(init?.signal);
+      throw new FetchTimeoutError(17);
+    }) as typeof fetch;
+    const route = platformRoutes().find(
+      (candidate) => candidate.method === 'GET' && candidate.path === '/api/v1/jurisdictions',
+    )!;
+    const timedOut = await route.handler(
+      mockReq('198.51.100.10', { method: 'GET', url: '/api/v1/jurisdictions' }),
+      undefined,
+      {},
+    );
+    assert.ok(
+      timedOut && typeof timedOut === 'object' && 'status' in timedOut && 'body' in timedOut,
+    );
+    assert.equal(timedOut.status, 504);
+    assert.deepEqual(timedOut.body, { error: 'upstream_timeout' });
+    assert.equal(JSON.stringify(timedOut).includes(internalUrl), false);
+    assert.equal(JSON.stringify(timedOut).includes('timeout-secret-token'), false);
+
+    globalThis.fetch = (async () => {
+      throw new Error(`failed to reach ${internalUrl} with timeout-secret-token`);
+    }) as typeof fetch;
+    const failed = await route.handler(
+      mockReq('198.51.100.10', { method: 'GET', url: '/api/v1/jurisdictions' }),
+      undefined,
+      {},
+    );
+    assert.ok(failed && typeof failed === 'object' && 'status' in failed && 'body' in failed);
+    assert.equal(failed.status, 502);
+    assert.deepEqual(failed.body, { error: 'bad_gateway' });
+    assert.equal(JSON.stringify(failed).includes(internalUrl), false);
+    assert.equal(JSON.stringify(failed).includes('timeout-secret-token'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalGraphUrl === undefined) delete process.env.GRAPH_INTERNAL_URL;
+    else process.env.GRAPH_INTERNAL_URL = originalGraphUrl;
+    if (originalTimeout === undefined) delete process.env.INTERNAL_FETCH_TIMEOUT_MS;
+    else process.env.INTERNAL_FETCH_TIMEOUT_MS = originalTimeout;
+  }
+});
+
+test('complaint proxy returns safe 502 and 504 errors', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
+  const originalComplaintsUrl = process.env.COMPLAINTS_INTERNAL_URL;
+  const secretUrl = 'http://complaints.secret.internal';
+
+  process.env.INTERNAL_API_TOKEN = 'complaints-gateway-token';
+  process.env.IDENTITY_INTERNAL_URL = 'http://identity.internal';
+  process.env.COMPLAINTS_INTERNAL_URL = secretUrl;
+
+  try {
+    const route = platformRoutes().find(
+      (r) => r.method === 'GET' && r.path === '/api/v1/complaints/mine',
+    );
+    assert.ok(route);
+
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      if (String(input).includes('/verify-session')) {
+        return new Response(
+          JSON.stringify({ citizenId: 'citizen-123', identityLevel: 'verified' }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        );
+      }
+      throw new FetchTimeoutError(5_000);
+    }) as typeof fetch;
+    const timedOut = await route.handler(
+      mockReq('198.51.100.22', { headers: { authorization: 'Bearer session' } }),
+      undefined,
+      {},
+    );
+    assert.ok(
+      timedOut && typeof timedOut === 'object' && 'status' in timedOut && 'body' in timedOut,
+    );
+    assert.equal(timedOut.status, 504);
+    assert.deepEqual(timedOut.body, { error: 'upstream_timeout' });
+    assert.equal(JSON.stringify(timedOut).includes(secretUrl), false);
+
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      if (String(input).includes('/verify-session')) {
+        return new Response(
+          JSON.stringify({ citizenId: 'citizen-123', identityLevel: 'verified' }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        );
+      }
+      throw new Error(`failed to reach ${secretUrl}`);
+    }) as typeof fetch;
+    const failed = await route.handler(
+      mockReq('198.51.100.22', { headers: { authorization: 'Bearer session' } }),
+      undefined,
+      {},
+    );
+    assert.ok(failed && typeof failed === 'object' && 'status' in failed && 'body' in failed);
+    assert.equal(failed.status, 502);
+    assert.deepEqual(failed.body, { error: 'bad_gateway' });
+    assert.equal(JSON.stringify(failed).includes(secretUrl), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalIdentityUrl === undefined) delete process.env.IDENTITY_INTERNAL_URL;
+    else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
+    if (originalComplaintsUrl === undefined) delete process.env.COMPLAINTS_INTERNAL_URL;
+    else process.env.COMPLAINTS_INTERNAL_URL = originalComplaintsUrl;
+  }
+});
+
+test('platform readiness checks the database and every pilot upstream with internal headers', async () => {
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  process.env.INTERNAL_API_TOKEN = 'readiness-internal-token';
+  const urls: string[] = [];
+  let checkedDatabase: { url: string | undefined; timeoutMs: number } | undefined;
+
+  try {
+    const status = await checkPlatformReadiness({
+      env: {
+        DEPLOYMENT_PROFILE: 'pilot',
+        DATABASE_URL: 'postgres://db.internal/polis',
+        INTERNAL_FETCH_TIMEOUT_MS: '321',
+        GRAPH_INTERNAL_URL: 'http://graph.internal',
+        AUDIT_INTERNAL_URL: 'http://audit.internal',
+        PROOF_INTERNAL_URL: 'http://proof.internal',
+        POLIS_INTERNAL_URL: 'http://polis.internal',
+        COMPLAINTS_INTERNAL_URL: 'http://complaints.internal',
+      },
+      databaseCheck: async (url, timeoutMs) => {
+        checkedDatabase = { url, timeoutMs };
+      },
+      timedFetch: async (input, init, timeoutMs) => {
+        urls.push(String(input));
+        assert.equal(timeoutMs, 321);
+        assert.equal(
+          fetchHeader(init?.headers, 'x-polis-internal-token'),
+          'readiness-internal-token',
+        );
+        return new Response(null, { status: 200 });
+      },
+    });
+
+    assert.deepEqual(checkedDatabase, {
+      url: 'postgres://db.internal/polis',
+      timeoutMs: 321,
+    });
+    assert.deepEqual(urls, [
+      'http://graph.internal/readyz',
+      'http://audit.internal/readyz',
+      'http://proof.internal/readyz',
+      'http://polis.internal/readyz',
+      'http://complaints.internal/readyz',
+    ]);
+    assert.deepEqual(status, { ready: true });
+  } finally {
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+  }
+});
+
+test('platform readiness fails with only the safe dependency label', async () => {
+  const env = {
+    PUBLIC_EDGE: 'true',
+    DATABASE_URL: 'postgres://alice:secret@db.internal/polis',
+    GRAPH_INTERNAL_URL: 'http://graph.internal',
+    AUDIT_INTERNAL_URL: 'http://audit.internal',
+    PROOF_INTERNAL_URL: 'http://proof.internal',
+    POLIS_INTERNAL_URL: 'http://polis.internal',
+  };
+  const databaseFailure = await checkPlatformReadiness({
+    env,
+    databaseCheck: async () => {
+      throw new Error('postgres://alice:secret@db.internal/polis');
+    },
+  });
+  assert.deepEqual(databaseFailure, { ready: false, dependency: 'database' });
+
+  const failures = [
+    ['graph.internal', 'governance_graph'],
+    ['audit.internal', 'audit'],
+    ['proof.internal', 'proof'],
+    ['polis.internal', 'polis'],
+  ] as const;
+  for (const [failedHost, dependency] of failures) {
+    const status = await checkPlatformReadiness({
+      env,
+      databaseCheck: async () => undefined,
+      readinessHeaders: () => ({ 'x-polis-internal-token': 'token' }),
+      timedFetch: async (input) =>
+        new Response(null, { status: String(input).includes(failedHost) ? 503 : 200 }),
+    });
+    assert.deepEqual(status, { ready: false, dependency });
+    assert.equal(JSON.stringify(status).includes('.internal'), false);
+    assert.equal(JSON.stringify(status).includes('secret'), false);
+  }
+});
+
+test('platform readiness checks complaints only outside PUBLIC_EDGE', async () => {
+  const privateUrls: string[] = [];
+  const privateStatus = await checkPlatformReadiness({
+    env: {
+      DATABASE_URL: 'postgres://db.internal/polis',
+      GRAPH_INTERNAL_URL: 'http://graph.internal',
+      AUDIT_INTERNAL_URL: 'http://audit.internal',
+      PROOF_INTERNAL_URL: 'http://proof.internal',
+      POLIS_INTERNAL_URL: 'http://polis.internal',
+      COMPLAINTS_INTERNAL_URL: 'http://complaints.internal',
+      DEPLOYMENT_PROFILE: 'dev',
+    },
+    databaseCheck: async () => undefined,
+    readinessHeaders: () => ({ 'x-polis-internal-token': 'token' }),
+    timedFetch: async (input) => {
+      privateUrls.push(String(input));
+      return new Response(null, {
+        status: String(input) === 'http://complaints.internal/readyz' ? 503 : 200,
+      });
+    },
+  });
+  assert.deepEqual(privateUrls, ['http://complaints.internal/readyz']);
+  assert.deepEqual(privateStatus, { ready: false, dependency: 'complaints' });
+
+  const publicUrls: string[] = [];
+  const publicStatus = await checkPlatformReadiness({
+    env: {
+      PUBLIC_EDGE: 'true',
+      DATABASE_URL: 'postgres://db.internal/polis',
+      GRAPH_INTERNAL_URL: 'http://graph.internal',
+      AUDIT_INTERNAL_URL: 'http://audit.internal',
+      PROOF_INTERNAL_URL: 'http://proof.internal',
+      POLIS_INTERNAL_URL: 'http://polis.internal',
+      COMPLAINTS_INTERNAL_URL: 'http://complaints.internal',
+    },
+    databaseCheck: async () => undefined,
+    readinessHeaders: () => ({ 'x-polis-internal-token': 'token' }),
+    timedFetch: async (input) => {
+      publicUrls.push(String(input));
+      return new Response(null, {
+        status: String(input) === 'http://complaints.internal/readyz' ? 503 : 200,
+      });
+    },
+  });
+  assert.deepEqual(publicUrls, [
+    'http://graph.internal/readyz',
+    'http://audit.internal/readyz',
+    'http://proof.internal/readyz',
+    'http://polis.internal/readyz',
+  ]);
+  assert.deepEqual(publicStatus, { ready: true });
+});
+
+test('pilot migration failure propagates before service startup', async () => {
+  const migrationError = new Error('migration failed');
+  let warnings = 0;
+  await assert.rejects(
+    runPlatformMigrations({
+      env: { DEPLOYMENT_PROFILE: 'pilot' },
+      migrate: async () => {
+        throw migrationError;
+      },
+      warn: () => {
+        warnings += 1;
+      },
+    }),
+    (error: unknown) => error === migrationError,
+  );
+  assert.equal(warnings, 0);
+});
+
+test('dev migration failure preserves warning-and-start tolerance', async () => {
+  const warnings: string[] = [];
+  await runPlatformMigrations({
+    env: { DEPLOYMENT_PROFILE: 'dev' },
+    migrate: async () => {
+      throw new Error('development database unavailable');
+    },
+    warn: (message) => {
+      warnings.push(message);
+    },
+  });
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(JSON.parse(warnings[0]!), {
+    service: 'platform-api',
+    stage: 'db-migrate',
+    warning: 'development database unavailable',
+  });
 });

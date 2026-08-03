@@ -35,14 +35,6 @@ async function get(base, path, headers = {}) {
   const r = await fetch(base + path, { headers });
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
-async function post(base, path, body, headers = {}) {
-  const r = await fetch(base + path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  });
-  return { status: r.status, body: r.ok ? await r.json() : null };
-}
 async function del(base, path, headers = {}) {
   const r = await fetch(base + path, {
     method: 'DELETE',
@@ -59,15 +51,20 @@ async function patch(base, path, body, headers = {}) {
   return { status: r.status, body: r.ok ? await r.json() : null };
 }
 
-
 console.log('[phase9] checking §30.10 first-public-pilot contract…');
 
 // ─── 1. Charter published (criterion 1: public scope + sunset) ───
 const charter = await get(BFF, '/api/v1/pilot/charter');
 check('GET /api/v1/pilot/charter → 200', charter.status === 200, `status=${charter.status}`);
-check('charter has partner', typeof charter.body?.partner === 'string' && charter.body.partner.length > 0);
+check(
+  'charter has partner',
+  typeof charter.body?.partner === 'string' && charter.body.partner.length > 0,
+);
 check('charter has jurisdiction', typeof charter.body?.jurisdiction === 'string');
-check('charter has scope', typeof charter.body?.scope === 'string' && charter.body.scope.length > 0);
+check(
+  'charter has scope',
+  typeof charter.body?.scope === 'string' && charter.body.scope.length > 0,
+);
 check(
   'charter sunsetDate is valid ISO',
   typeof charter.body?.sunsetDate === 'string' && !isNaN(Date.parse(charter.body.sunsetDate)),
@@ -87,7 +84,10 @@ check(
   'results.metrics has ≥1 numeric value',
   metrics && Object.values(metrics).some((v) => typeof v === 'number'),
 );
-check('results.outcomes is array len≥1', Array.isArray(results.body?.outcomes) && results.body.outcomes.length >= 1);
+check(
+  'results.outcomes is array len≥1',
+  Array.isArray(results.body?.outcomes) && results.body.outcomes.length >= 1,
+);
 check(
   'results.methodology is non-empty string',
   typeof results.body?.methodology === 'string' && results.body.methodology.length > 0,
@@ -183,7 +183,11 @@ try {
   });
   check('policy tests (including pilot redaction) pass', true);
 } catch (err) {
-  check('policy tests (including pilot redaction) pass', false, `${err instanceof Error ? err.message : err}`);
+  check(
+    'policy tests (including pilot redaction) pass',
+    false,
+    `${err instanceof Error ? err.message : err}`,
+  );
 }
 
 console.log(`[phase9] ${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);

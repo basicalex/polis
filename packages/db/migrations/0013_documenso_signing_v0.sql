@@ -101,14 +101,6 @@ ALTER TABLE "mandate_holder_charters" ADD COLUMN "signed_artifact_id" text;--> s
 ALTER TABLE "mandate_holder_charters" ADD COLUMN "proof_manifest_id" text;--> statement-breakpoint
 ALTER TABLE "mandate_holder_charters" ADD COLUMN "signed_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "mandate_holder_charters" ADD COLUMN "supersedes_charter_id" text;--> statement-breakpoint
-UPDATE "mandate_holder_charters"
-SET
-	"status" = 'pending',
-	"accepted_signing_request_id" = NULL,
-	"signed_artifact_id" = NULL,
-	"proof_manifest_id" = NULL,
-	"signed_at" = NULL
-WHERE "status" = 'accepted';--> statement-breakpoint
 CREATE UNIQUE INDEX "document_artifacts_subject_kind_version_idx" ON "document_artifacts" USING btree ("subject_type","subject_id","kind","version");--> statement-breakpoint
 CREATE INDEX "document_artifacts_sha256_idx" ON "document_artifacts" USING btree ("sha256");--> statement-breakpoint
 CREATE INDEX "document_artifacts_derived_from_idx" ON "document_artifacts" USING btree ("derived_from_artifact_id");--> statement-breakpoint

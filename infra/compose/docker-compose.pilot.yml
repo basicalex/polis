@@ -1,0 +1,243 @@
+x-node-service: &node-service
+  init: true
+  restart: unless-stopped
+  user: node
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  stop_grace_period: 30s
+
+x-node-environment: &node-environment
+  NODE_ENV: production
+  DEPLOYMENT_PROFILE: pilot
+  INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN is required}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+  GIT_SHA: ${GIT_SHA:?GIT_SHA is required}
+  BUILD_TIME: ${BUILD_TIME:?BUILD_TIME is required}
+  SOURCE_URL: ${SOURCE_URL:?SOURCE_URL is required}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    init: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - pilot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 60s
+    networks:
+      - backend
+
+  seed:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/platform-api:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    restart: 'no'
+    command: ['node', 'packages/db/dist/seed.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    networks:
+      - backend
+
+  governance-graph-api:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/governance-graph-api:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: governance-graph-api
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    expose:
+      - '8100'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8100/readyz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend
+
+  audit-service:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/audit-service:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: audit-service
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    expose:
+      - '8600'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8600/readyz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend
+
+  proof-service:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/proof-service:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: proof-service
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      audit-service:
+        condition: service_healthy
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    expose:
+      - '8700'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8700/readyz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend
+
+  polis-bridge-service:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/polis-bridge-service:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: polis-bridge-service
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      audit-service:
+        condition: service_healthy
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+    expose:
+      - '8200'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8200/readyz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend
+
+  platform-api:
+    <<: *node-service
+    image: ${PILOT_IMAGE_REPOSITORY:?PILOT_IMAGE_REPOSITORY is required}/platform-api:${PILOT_IMAGE_TAG:?PILOT_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: platform-api
+    depends_on:
+      governance-graph-api:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+      proof-service:
+        condition: service_healthy
+      polis-bridge-service:
+        condition: service_healthy
+    environment:
+      <<: *node-environment
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      PUBLIC_EDGE: 'true'
+      IDENTITY_DEV_TOKENS: 'false'
+      GRAPH_INTERNAL_URL: http://governance-graph-api:8100
+      AUDIT_INTERNAL_URL: http://audit-service:8600
+      POLIS_INTERNAL_URL: http://polis-bridge-service:8200
+      PROOF_INTERNAL_URL: http://proof-service:8700
+    expose:
+      - '8080'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/readyz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - backend
+      - edge
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    init: true
+    restart: unless-stopped
+    depends_on:
+      platform-api:
+        condition: service_healthy
+    environment:
+      PILOT_HOSTNAME: ${PILOT_HOSTNAME:?PILOT_HOSTNAME is required}
+      PILOT_ACME_EMAIL: ${PILOT_ACME_EMAIL:?PILOT_ACME_EMAIL is required}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ../proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - pilot_caddy_data:/data
+      - pilot_caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    networks:
+      - edge
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+
+volumes:
+  pilot_pgdata:
+  pilot_caddy_data:
+  pilot_caddy_config:

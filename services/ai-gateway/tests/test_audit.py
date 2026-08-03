@@ -18,6 +18,23 @@ def _event() -> dict:
     }
 
 
+
+
+class _AuditResponse:
+    def __init__(self, captured):
+        self.captured = captured
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.captured["closed"] = True
+        return False
+
+    def read(self):
+        self.captured["read"] = True
+        return b""
+
 def test_emit_audit_sends_internal_token(monkeypatch):
     captured = {}
     monkeypatch.setenv("AUDIT_INTERNAL_URL", "http://audit.test:8600")
@@ -26,7 +43,7 @@ def test_emit_audit_sends_internal_token(monkeypatch):
     def fake_urlopen(request, timeout):
         captured["request"] = request
         captured["timeout"] = timeout
-        return object()
+        return _AuditResponse(captured)
 
     monkeypatch.setattr(audit.urllib.request, "urlopen", fake_urlopen)
 
@@ -45,7 +62,9 @@ def test_emit_audit_sends_internal_token(monkeypatch):
         "data": {"published": False},
         "correlationId": "request-1",
     }
-    assert captured["timeout"] == 5
+    assert captured["timeout"] == audit._AUDIT_HTTP_TIMEOUT_SECONDS
+    assert captured["read"] is True
+    assert captured["closed"] is True
 
 
 def test_emit_audit_without_token_fails_closed(monkeypatch, capsys):

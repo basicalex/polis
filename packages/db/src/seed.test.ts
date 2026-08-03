@@ -28,6 +28,7 @@ const seedFiles = [
   'evidence_links.json',
   'relationships.json',
   'citizens.json',
+  'mandate_holders.json',
   'mandate_holder_charters.json',
   'commitment_questions.json',
   'commitment_answers.json',
@@ -120,5 +121,109 @@ describe('governance v1 seed data', () => {
     assert.equal(charter.signed_artifact_id, null);
     assert.equal(charter.proof_manifest_id, null);
     assert.equal(charter.signed_at, null);
+  });
+
+  it('separates complaint intake, initial decision, and appeal authority', async () => {
+    const decisionRights = await load('decision_rights.json');
+    const roles = await load('roles.json');
+    const citizens = await load('citizens.json');
+    const mandateHolders = await load('mandate_holders.json');
+
+    const initialRoleId = 'role-complaint-decision-officer';
+    const appealRoleId = 'role-complaint-appeal-officer';
+    const initialCitizenId = 'citizen-complaint-decision-officer-demo';
+    const appealCitizenId = 'citizen-complaint-appeal-officer-demo';
+    const intakeRoleId = 'role-complaints-intake-officer';
+    const intakeCitizenId = 'citizen-complaint-intake-officer-demo';
+
+    const initialRight = decisionRights.find((right) => right.name === 'decide_complaint');
+    const appealRight = decisionRights.find((right) => right.name === 'decide_complaint_appeal');
+    assert.equal(initialRight?.role_id, initialRoleId);
+    assert.equal(appealRight?.role_id, appealRoleId);
+
+    const initialRole = roles.find((role) => role.id === initialRoleId);
+    const appealRole = roles.find((role) => role.id === appealRoleId);
+    const intakeRole = roles.find((role) => role.id === intakeRoleId);
+    assert.ok(
+      Array.isArray(intakeRole?.decision_rights) &&
+        intakeRole.decision_rights.includes('route_case_to_sector_office'),
+    );
+    assert.ok(
+      Array.isArray(intakeRole?.decision_rights) &&
+        intakeRole.decision_rights.includes('request_missing_identity_or_residence_evidence'),
+    );
+    assert.equal(intakeRole?.institution_id, 'inst-complaints-office');
+    assert.deepEqual(initialRole?.decision_rights, ['decide_complaint']);
+    assert.deepEqual(appealRole?.decision_rights, ['decide_complaint_appeal']);
+    assert.equal(initialRole?.institution_id, 'inst-complaints-office');
+    assert.equal(appealRole?.institution_id, 'inst-complaints-office');
+
+    const initialCitizen = citizens.find((citizen) => citizen.id === initialCitizenId);
+    const appealCitizen = citizens.find((citizen) => citizen.id === appealCitizenId);
+    const intakeCitizen = citizens.find((citizen) => citizen.id === intakeCitizenId);
+    assert.equal(intakeCitizen?.identity_level, 'staff');
+    assert.notEqual(intakeCitizen?.id, initialCitizen?.id);
+    assert.notEqual(intakeCitizen?.id, appealCitizen?.id);
+    assert.equal(initialCitizen?.identity_level, 'staff');
+    assert.equal(appealCitizen?.identity_level, 'staff');
+    assert.notEqual(initialCitizen?.id, appealCitizen?.id);
+
+    const initialHolder = mandateHolders.find(
+      (holder) => holder.id === 'mh-complaint-decision-officer-demo',
+    );
+    const appealHolder = mandateHolders.find(
+      (holder) => holder.id === 'mh-complaint-appeal-officer-demo',
+    );
+    const intakeHolder = mandateHolders.find(
+      (holder) => holder.id === 'mh-complaint-intake-officer-demo',
+    );
+    assert.deepEqual(
+      {
+        citizenId: intakeHolder?.citizen_id,
+        jurisdictionId: intakeHolder?.jurisdiction_id,
+        roleId: intakeHolder?.role_id,
+        status: intakeHolder?.status,
+      },
+      {
+        citizenId: intakeCitizenId,
+        jurisdictionId: 'jur-croatia-local',
+        roleId: intakeRoleId,
+        status: 'active',
+      },
+    );
+    assert.deepEqual(
+      {
+        citizenId: initialHolder?.citizen_id,
+        jurisdictionId: initialHolder?.jurisdiction_id,
+        roleId: initialHolder?.role_id,
+        status: initialHolder?.status,
+      },
+      {
+        citizenId: initialCitizenId,
+        jurisdictionId: 'jur-croatia-local',
+        roleId: initialRoleId,
+        status: 'active',
+      },
+    );
+    assert.deepEqual(
+      {
+        citizenId: appealHolder?.citizen_id,
+        jurisdictionId: appealHolder?.jurisdiction_id,
+        roleId: appealHolder?.role_id,
+        status: appealHolder?.status,
+      },
+      {
+        citizenId: appealCitizenId,
+        jurisdictionId: 'jur-croatia-local',
+        roleId: appealRoleId,
+        status: 'active',
+      },
+    );
+    assert.notEqual(initialHolder?.citizen_id, appealHolder?.citizen_id);
+    assert.notEqual(initialHolder?.role_id, appealHolder?.role_id);
+    assert.notEqual(intakeHolder?.citizen_id, initialHolder?.citizen_id);
+    assert.notEqual(intakeHolder?.citizen_id, appealHolder?.citizen_id);
+    assert.notEqual(intakeHolder?.role_id, initialHolder?.role_id);
+    assert.notEqual(intakeHolder?.role_id, appealHolder?.role_id);
   });
 });

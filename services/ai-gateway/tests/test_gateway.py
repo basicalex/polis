@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import socket
 import subprocess
 import sys
@@ -18,7 +19,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
+from polis_aigateway import db
 from polis_aigateway import main as gateway
 from polis_aigateway.main import app
 from polis_core import ConfidenceState, RetrievalChunk
@@ -37,6 +40,8 @@ def _restore_ai_provider_env(monkeypatch):
         "AI_PROVIDER_BASE_URL",
         "AI_PROVIDER_API_KEY",
         "AI_PROVIDER_MODEL",
+        "AI_PROVIDER_TIMEOUT_SECONDS",
+        "AI_DEPLOYMENT_PROFILE",
     ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("INTERNAL_API_TOKEN", _INTERNAL_API_TOKEN)
@@ -159,6 +164,120 @@ def test_version():
     assert body["version"] == "0.1.0"
 
 
+def test_module_configures_bounded_uvicorn_lifecycle(monkeypatch):
+    captured = {}
+
+    def fake_run(received_app, **kwargs):
+        captured["app"] = received_app
+        captured.update(kwargs)
+
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+    monkeypatch.setenv("PORT", "9550")
+
+    runpy.run_module("polis_aigateway.__main__", run_name="__main__")
+
+    assert captured["app"] is app
+    assert captured["host"] == "0.0.0.0"
+    assert captured["port"] == 9550
+    assert captured["timeout_keep_alive"] == 5
+    assert captured["timeout_graceful_shutdown"] == 10
+
+
+def test_readyz_reports_ready_when_dependencies_are_ready(monkeypatch):
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
+    monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setattr(gateway, "database_ready", lambda: True)
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready", "service": "ai-gateway"}
+
+
+def test_readyz_reports_only_safe_database_label(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER_API_KEY", "secret-never-returned")
+    monkeypatch.setattr(gateway, "database_ready", lambda: False)
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "not_ready", "dependency": "database"}
+    assert "secret-never-returned" not in response.text
+
+
+def test_readyz_rejects_stub_in_pilot(monkeypatch):
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "pilot")
+    monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setattr(gateway, "database_ready", lambda: True)
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "not_ready", "dependency": "provider"}
+
+
+def test_metrics_exposes_up_and_readiness(monkeypatch):
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
+    monkeypatch.setenv("AI_MODE", "stub")
+    monkeypatch.setattr(gateway, "database_ready", lambda: True)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.text == "polis_ai_gateway_up 1\npolis_ai_gateway_ready 1\n"
+
+
+def test_database_ready_uses_bounded_non_mutating_probe(monkeypatch):
+    captured = {"statements": []}
+
+    class ProbeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            captured["cursor_closed"] = True
+            return False
+
+        def execute(self, statement):
+            captured["statements"].append(statement)
+
+        def fetchone(self):
+            return (1,)
+
+    class ProbeConnection:
+        def cursor(self):
+            return ProbeCursor()
+
+    class ProbeContext:
+        def __enter__(self):
+            return ProbeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            captured["connection_returned"] = True
+            return False
+
+    def get_probe_connection(*, timeout=None):
+        captured["timeout"] = timeout
+        return ProbeContext()
+
+    monkeypatch.setattr(db, "get_conn", get_probe_connection)
+
+    assert db.database_ready() is True
+    assert captured["timeout"] == 2.0
+    assert captured["statements"][-1] == "SELECT 1"
+    assert captured["cursor_closed"] is True
+    assert captured["connection_returned"] is True
+
+
+def test_database_ready_hides_probe_failures(monkeypatch):
+    def failing_connection(*, timeout=None):
+        raise RuntimeError("postgres://secret-host/secret-db")
+
+    monkeypatch.setattr(db, "get_conn", failing_connection)
+
+    assert db.database_ready() is False
+
+
 def test_create_model_provider_defaults_to_stub(monkeypatch):
     monkeypatch.delenv("AI_MODE", raising=False)
 
@@ -179,6 +298,67 @@ def test_create_model_provider_rejects_unknown_mode(monkeypatch):
     monkeypatch.setenv("AI_MODE", "bogus")
 
     with pytest.raises(Exception, match=r"AI_MODE=bogus is not supported"):
+        gateway.create_model_provider()
+
+
+@pytest.mark.parametrize("value", ["0", "61", "1.5", "NaN", "infinity"])
+def test_provider_timeout_rejects_unsafe_values(monkeypatch, value):
+    monkeypatch.setenv("AI_PROVIDER_TIMEOUT_SECONDS", value)
+
+    with pytest.raises(ValueError, match="finite integer between 1 and 60"):
+        gateway.provider_timeout_seconds()
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("AI_PROVIDER_BASE_URL", "not-a-url"),
+        ("AI_PROVIDER_API_KEY", " "),
+        ("AI_PROVIDER_MODEL", " "),
+    ],
+)
+def test_real_provider_rejects_invalid_required_config(monkeypatch, name, value):
+    monkeypatch.setenv("AI_MODE", "real")
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
+    monkeypatch.setenv("AI_PROVIDER_BASE_URL", "http://127.0.0.1:11434/v1")
+    monkeypatch.setenv("AI_PROVIDER_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PROVIDER_MODEL", "test-model")
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(RuntimeError):
+        gateway.create_model_provider()
+
+
+def test_real_provider_rejects_pilot_placeholders_and_remote_http(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "real")
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "pilot")
+    monkeypatch.setenv("AI_PROVIDER_BASE_URL", "https://example.com/v1")
+    monkeypatch.setenv("AI_PROVIDER_API_KEY", "real-key")
+    monkeypatch.setenv("AI_PROVIDER_MODEL", "real-model")
+
+    with pytest.raises(RuntimeError, match="placeholder"):
+        gateway.create_model_provider()
+
+    monkeypatch.setenv("AI_PROVIDER_BASE_URL", "http://provider.test/v1")
+
+    with pytest.raises(RuntimeError, match="HTTPS"):
+        gateway.create_model_provider()
+
+
+def test_real_provider_allows_localhost_only_in_development(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "real")
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
+    monkeypatch.setenv("AI_PROVIDER_BASE_URL", "http://127.0.0.1:11434/v1")
+    monkeypatch.setenv("AI_PROVIDER_API_KEY", "test-secret")
+    monkeypatch.setenv("AI_PROVIDER_MODEL", "test-model")
+
+    assert gateway.provider_ready() is True
+
+
+def test_invalid_deployment_profile_fails_closed(monkeypatch):
+    monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "staging")
+
+    with pytest.raises(ValueError, match="AI_DEPLOYMENT_PROFILE"):
         gateway.create_model_provider()
 
 
@@ -236,6 +416,7 @@ def test_real_mode_maps_openai_request_response_without_live_llm(monkeypatch):
     server, http_capture = _run_openai_compatible_server("Real provider answer.")
     try:
         monkeypatch.setenv("AI_MODE", "real")
+        monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
         monkeypatch.setenv(
             "AI_PROVIDER_BASE_URL",
             f"http://127.0.0.1:{server.server_port}",
@@ -275,6 +456,7 @@ def test_real_mode_with_no_chunks_preserves_no_results_and_skips_llm(monkeypatch
     server, http_capture = _run_openai_compatible_server("Should not be used.")
     try:
         monkeypatch.setenv("AI_MODE", "real")
+        monkeypatch.setenv("AI_DEPLOYMENT_PROFILE", "development")
         monkeypatch.setenv(
             "AI_PROVIDER_BASE_URL",
             f"http://127.0.0.1:{server.server_port}",

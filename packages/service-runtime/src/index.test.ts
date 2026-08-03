@@ -1,27 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
+import { request as httpRequest } from 'node:http';
+import { EventEmitter, once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import {
+  FetchTimeoutError,
+  ReadinessController,
   binaryResult,
+  fetchWithTimeout,
   internalHeaders,
   operationalRoutes,
+  parseDeploymentProfile,
   startService,
   trustedActorHeaders,
+  validateRuntimeConfig,
   versionMeta,
   type Route,
+  type StartServiceOptions,
 } from './index.js';
 
-async function withServer(routes: Route[], run: (baseUrl: string) => Promise<void>): Promise<void> {
-  const server = startService('runtime-test', 0, routes);
+async function withServer(
+  routes: Route[],
+  run: (baseUrl: string) => Promise<void>,
+  options: StartServiceOptions = {},
+): Promise<void> {
+  const server = startService('runtime-test', 0, routes, options);
   try {
     await once(server, 'listening');
     const address = server.address() as AddressInfo;
     await run(`http://127.0.0.1:${address.port}`);
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    const closed = once(server, 'close');
+    server.close();
+    await closed;
   }
 }
 
@@ -37,6 +48,26 @@ async function withInternalToken(
   } finally {
     if (previous === undefined) delete process.env.INTERNAL_API_TOKEN;
     else process.env.INTERNAL_API_TOKEN = previous;
+  }
+}
+
+async function withEnvironment(
+  changes: Readonly<Record<string, string | undefined>>,
+  run: () => Promise<void>,
+): Promise<void> {
+  const previous: Record<string, string | undefined> = {};
+  for (const [name, value] of Object.entries(changes)) {
+    previous[name] = process.env[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  try {
+    await run();
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   }
 }
 
@@ -220,7 +251,10 @@ test('binaryResult emits exact bytes, status, content type, and safe headers', a
       const response = await fetch(`${baseUrl}/file`);
       assert.equal(response.status, 206);
       assert.equal(response.headers.get('content-type'), 'application/octet-stream');
-      assert.equal(response.headers.get('content-disposition'), 'attachment; filename="sample.bin"');
+      assert.equal(
+        response.headers.get('content-disposition'),
+        'attachment; filename="sample.bin"',
+      );
       assert.equal(response.headers.get('set-cookie'), null);
       assert.equal(response.headers.get('access-control-allow-origin'), '*');
       assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([0, 255, 1]));
@@ -233,11 +267,14 @@ test('internal header helpers require a token and protect trusted values', async
     assert.throws(() => internalHeaders(), /INTERNAL_API_TOKEN is required/);
   });
   await withInternalToken('service-secret', async () => {
-    assert.deepEqual(internalHeaders({ authorization: 'Bearer user', 'content-type': 'text/plain' }), {
-      authorization: 'Bearer user',
-      'content-type': 'application/json',
-      'x-polis-internal-token': 'service-secret',
-    });
+    assert.deepEqual(
+      internalHeaders({ authorization: 'Bearer user', 'content-type': 'text/plain' }),
+      {
+        authorization: 'Bearer user',
+        'content-type': 'application/json',
+        'x-polis-internal-token': 'service-secret',
+      },
+    );
     assert.deepEqual(
       trustedActorHeaders(
         { citizenId: 'citizen-7', identityLevel: 'verified_official' },
@@ -263,4 +300,269 @@ test('CORS preflight advertises the expanded methods and headers', async () => {
       'content-type,authorization,idempotency-key',
     );
   });
+});
+
+test('deployment profiles preserve dev defaults and reject unsafe pilot configuration', async () => {
+  assert.equal(parseDeploymentProfile(undefined), 'dev');
+  assert.equal(parseDeploymentProfile('pilot'), 'pilot');
+  assert.throws(() => parseDeploymentProfile('production'), /DEPLOYMENT_PROFILE/);
+  assert.deepEqual(validateRuntimeConfig({}), {
+    deploymentProfile: 'dev',
+    internalApiToken: undefined,
+    corsAllowedOrigins: ['*'],
+  });
+
+  const validPilot = {
+    DEPLOYMENT_PROFILE: 'pilot',
+    INTERNAL_API_TOKEN: 'a'.repeat(32),
+    CORS_ALLOWED_ORIGINS: 'https://polis.example,https://admin.polis.example',
+  };
+  assert.deepEqual(validateRuntimeConfig(validPilot), {
+    deploymentProfile: 'pilot',
+    internalApiToken: 'a'.repeat(32),
+    corsAllowedOrigins: ['https://polis.example', 'https://admin.polis.example'],
+  });
+
+  for (const env of [
+    { ...validPilot, INTERNAL_API_TOKEN: undefined },
+    { ...validPilot, INTERNAL_API_TOKEN: '   ' },
+    { ...validPilot, INTERNAL_API_TOKEN: 'polis-internal-dev-token' },
+    { ...validPilot, INTERNAL_API_TOKEN: 'x'.repeat(31) },
+  ]) {
+    assert.throws(() => validateRuntimeConfig(env), /INTERNAL_API_TOKEN/);
+  }
+  assert.throws(
+    () => validateRuntimeConfig({ ...validPilot, CORS_ALLOWED_ORIGINS: undefined }),
+    /CORS_ALLOWED_ORIGINS/,
+  );
+  assert.throws(
+    () => validateRuntimeConfig({ ...validPilot, CORS_ALLOWED_ORIGINS: '*' }),
+    /CORS_ALLOWED_ORIGINS/,
+  );
+  const weakSecret = 'secret-value-to-hide';
+  assert.throws(
+    () =>
+      validateRuntimeConfig({
+        ...validPilot,
+        INTERNAL_API_TOKEN: weakSecret,
+      }),
+    (error: unknown) => error instanceof Error && !error.message.includes(weakSecret),
+  );
+
+  await withEnvironment(
+    {
+      DEPLOYMENT_PROFILE: 'pilot',
+      INTERNAL_API_TOKEN: undefined,
+      CORS_ALLOWED_ORIGINS: 'https://polis.example',
+    },
+    async () => {
+      assert.throws(() => startService('unsafe-pilot', 0, []), /INTERNAL_API_TOKEN/);
+    },
+  );
+});
+
+test('fetchWithTimeout maps its deadline and preserves caller cancellation', async () => {
+  const never = once(new EventEmitter(), 'never');
+  await withServer(
+    [
+      {
+        method: 'GET',
+        path: '/slow',
+        handler: () => never,
+      },
+    ],
+    async (baseUrl) => {
+      // This integration test intentionally exercises AbortSignal's real platform deadline.
+      await assert.rejects(
+        fetchWithTimeout(`${baseUrl}/slow`, {}, 10),
+        (error: unknown) =>
+          error instanceof FetchTimeoutError &&
+          error.code === 'FETCH_TIMEOUT' &&
+          error.timeoutMs === 10,
+      );
+
+      const controller = new AbortController();
+      const callerReason = new Error('caller_cancelled');
+      controller.abort(callerReason);
+      await assert.rejects(
+        fetchWithTimeout(`${baseUrl}/slow`, { signal: controller.signal }, 1_000),
+        (error: unknown) => error === callerReason,
+      );
+    },
+  );
+
+  await assert.rejects(fetchWithTimeout('http://127.0.0.1', {}, 0), RangeError);
+  await assert.rejects(fetchWithTimeout('http://127.0.0.1', {}, 300_001), RangeError);
+});
+
+test('readiness reports safe 200/503 state while liveness stays up', async () => {
+  const readiness = new ReadinessController();
+  await withServer(
+    operationalRoutes('runtime-test'),
+    async (baseUrl) => {
+      const ready = await fetch(`${baseUrl}/readyz`);
+      assert.equal(ready.status, 200);
+      assert.deepEqual(await ready.json(), { status: 'ready', service: 'runtime-test' });
+      assert.match(await (await fetch(`${baseUrl}/metrics`)).text(), /polis_service_ready.* 1/);
+
+      readiness.setNotReady('postgres');
+      const unavailable = await fetch(`${baseUrl}/readyz`);
+      assert.equal(unavailable.status, 503);
+      assert.deepEqual(await unavailable.json(), {
+        status: 'not_ready',
+        service: 'runtime-test',
+        dependency: 'postgres',
+      });
+      assert.equal((await fetch(`${baseUrl}/healthz`)).status, 200);
+      const metrics = await (await fetch(`${baseUrl}/metrics`)).text();
+      assert.match(metrics, /polis_service_up.* 1/);
+      assert.match(metrics, /polis_service_ready.* 0/);
+
+      readiness.setNotReady('secret details with spaces');
+      assert.deepEqual(await (await fetch(`${baseUrl}/readyz`)).json(), {
+        status: 'not_ready',
+        service: 'runtime-test',
+        dependency: 'dependency',
+      });
+    },
+    { readiness },
+  );
+});
+
+test('safe headers and explicit CORS apply to JSON, binary, text, and preflight', async () => {
+  await withEnvironment(
+    {
+      DEPLOYMENT_PROFILE: 'dev',
+      CORS_ALLOWED_ORIGINS: 'https://allowed.example,https://admin.example',
+    },
+    async () => {
+      await withServer(
+        [
+          { method: 'GET', path: '/json', handler: () => ({ ok: true }) },
+          {
+            method: 'GET',
+            path: '/binary',
+            handler: () => binaryResult(200, new Uint8Array([1]), 'application/octet-stream'),
+          },
+          { method: 'GET', path: '/text', handler: () => 'ok' },
+        ],
+        async (baseUrl) => {
+          for (const path of ['/json', '/binary', '/text']) {
+            const response = await fetch(`${baseUrl}${path}`, {
+              headers: { origin: 'https://allowed.example' },
+            });
+            assert.equal(
+              response.headers.get('access-control-allow-origin'),
+              'https://allowed.example',
+            );
+            assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+            assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+            assert.equal(response.headers.get('cache-control'), 'no-store');
+            await response.arrayBuffer();
+          }
+
+          const denied = await fetch(`${baseUrl}/json`, {
+            headers: { origin: 'https://denied.example' },
+          });
+          assert.equal(denied.headers.get('access-control-allow-origin'), null);
+          assert.equal(denied.headers.get('vary'), 'Origin');
+
+          const preflight = await fetch(`${baseUrl}/json`, {
+            method: 'OPTIONS',
+            headers: { origin: 'https://allowed.example' },
+          });
+          assert.equal(preflight.status, 204);
+          assert.equal(
+            preflight.headers.get('access-control-allow-origin'),
+            'https://allowed.example',
+          );
+          assert.equal(preflight.headers.get('x-content-type-options'), 'nosniff');
+        },
+      );
+    },
+  );
+});
+
+test('startService applies configured HTTP limits and startup validation', async () => {
+  let validated = 0;
+  const server = startService('runtime-test', 0, [], {
+    requestTimeoutMs: 12_000,
+    headersTimeoutMs: 4_000,
+    keepAliveTimeoutMs: 2_000,
+    maxRequestsPerSocket: 17,
+    shutdownGraceMs: 50,
+    validateConfig: () => {
+      validated += 1;
+    },
+  });
+  try {
+    await once(server, 'listening');
+    assert.equal(server.requestTimeout, 12_000);
+    assert.equal(server.headersTimeout, 4_000);
+    assert.equal(server.keepAliveTimeout, 2_000);
+    assert.equal(server.maxRequestsPerSocket, 17);
+    assert.equal(validated, 1);
+  } finally {
+    const closed = once(server, 'close');
+    server.close();
+    await closed;
+  }
+  assert.throws(
+    () => startService('runtime-test', 0, [], { requestTimeoutMs: 0 }),
+    /requestTimeoutMs/,
+  );
+});
+
+test('signal drain is shared, marks readiness down, and force-closes after grace', async () => {
+  const originalHandlers = new Set(process.listeners('SIGTERM'));
+  const readiness = new ReadinessController();
+  const requestState = new EventEmitter();
+  const blocked = once(new EventEmitter(), 'never');
+  const server = startService(
+    'runtime-test',
+    0,
+    [
+      {
+        method: 'GET',
+        path: '/blocked',
+        handler: () => {
+          requestState.emit('started');
+          return blocked;
+        },
+      },
+    ],
+    { readiness, shutdownGraceMs: 25 },
+  );
+  const secondServer = startService('runtime-test-2', 0, []);
+  await Promise.all([once(server, 'listening'), once(secondServer, 'listening')]);
+
+  const addedHandlers = process
+    .listeners('SIGTERM')
+    .filter((handler) => !originalHandlers.has(handler));
+  assert.equal(addedHandlers.length, 1);
+  const secondClosed = once(secondServer, 'close');
+  secondServer.close();
+  await secondClosed;
+  assert.equal(
+    process.listeners('SIGTERM').filter((handler) => !originalHandlers.has(handler)).length,
+    1,
+  );
+
+  const address = server.address() as AddressInfo;
+  const clientRequest = httpRequest(`http://127.0.0.1:${address.port}/blocked`);
+  const started = once(requestState, 'started');
+  clientRequest.on('error', () => {});
+  clientRequest.end();
+  await started;
+
+  // This integration test intentionally waits for the real shutdown grace deadline.
+
+  const closed = once(server, 'close');
+  addedHandlers[0]?.('SIGTERM');
+  assert.deepEqual(readiness.check(), { ready: false, dependency: 'shutdown' });
+  await closed;
+  assert.equal(
+    process.listeners('SIGTERM').filter((handler) => !originalHandlers.has(handler)).length,
+    0,
+  );
 });

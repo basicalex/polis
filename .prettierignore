@@ -5,7 +5,7 @@
 **/.astro/**
 **/.vite/**
 **/*.lock
-pnpm-lock.yaml
+bun.lock
 uv.lock
 **/*.sql
 .env

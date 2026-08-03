@@ -4,32 +4,176 @@ import Base from '../layouts/Base.astro';
 
 <Base title="Polis Interface">
   <section class="hero stack">
-    <p class="badge">Local v1 civic graph</p>
-    <h1>Polis Interface</h1>
+    <h1>A resident resubmits a document after filing a complaint</h1>
     <p>
-      Local civic infrastructure for source-linked governance maps, public audit trails, and proof-oriented transition pilots.
-      Current build: seeded Postgres graph, public BFF, internal graph API, append-only audit service, and Astro app shells.
-    </p>
-    <p>
-      <a href="/governance/jur-croatia-local">Enter the governance map</a> · <a href="/audit">Read the public audit trail</a> · <a href="/issues">Browse issues</a>
+      Polis helps the resident inspect the complaints process, verify the resubmitted document in the record, and read the
+      public transparency material that explains what happens next.
     </p>
   </section>
-  <section class="grid" aria-label="Public interface pillars">
-    <article class="card">
-      <h2>Map</h2>
-      <p class="muted">Follow jurisdiction → institution → role → process without losing confidence or review state.</p>
-    </article>
-    <article class="card">
-      <h2>Evidence</h2>
-      <p class="muted">Claims show source links when supported, or an explicit unsupported draft badge when not.</p>
-    </article>
-    <article class="card">
-      <h2>Audit</h2>
-      <p class="muted">Public, redacted audit events expose actors, actions, hashes, and previous hashes.</p>
-    </article>
-    <article class="card">
-      <h2>Pilot</h2>
-      <p class="muted">Live municipal pilot with Grad Primjer. <a href="/partners">Charter</a> · <a href="/pilot/results">Results</a></p>
-    </article>
+
+  <section class="process-path stack" aria-labelledby="process-path-title">
+    <h2 id="process-path-title">Follow the complaint record</h2>
+    <ol>
+      <li>
+        <article>
+          <h3>Inspect process</h3>
+          <p class="muted">Check the local complaints route, the responsible role, and the next required action.</p>
+          <a href="/governance/jur-croatia-local">Inspect the process map</a>
+        </article>
+      </li>
+      <li>
+        <article>
+          <h3>Verify record</h3>
+          <p class="muted">Confirm the resubmitted document and its supporting record before relying on it.</p>
+          <a href="/verify">Verify the record</a>
+        </article>
+      </li>
+      <li>
+        <article>
+          <h3>Read transparency</h3>
+          <p class="muted">Read the public explanation of the demonstrator record and its limits.</p>
+          <a href="/transparency">Read transparency material</a>
+        </article>
+      </li>
+    </ol>
   </section>
+
+  <aside class="demonstrator-note" aria-labelledby="demonstrator-title">
+    <h2 id="demonstrator-title">Demonstrator limits</h2>
+    <p>
+      This is a <strong>simulated complaints-process demonstrator</strong> using <strong>synthetic fixtures</strong> and
+      <strong>development trust material</strong>. It has <strong>no government integration</strong>.
+    </p>
+    <dl>
+      <div>
+        <dt>implemented locally</dt>
+        <dd>The interface and local development flow shown on this site.</dd>
+      </div>
+      <div>
+        <dt>mocked</dt>
+        <dd>Complaint-process entries, charter material, measures, and outputs.</dd>
+      </div>
+      <div>
+        <dt>operationally accepted</dt>
+        <dd>No part of this demonstrator is operationally accepted.</dd>
+      </div>
+    </dl>
+  </aside>
+
+  <nav class="resource-links" aria-label="Demonstrator resources">
+    <a href="/governance/jur-croatia-local">Process map</a>
+    <a href="/transparency">Transparency</a>
+    <a href="/verify">Verify</a>
+    <a href="/partners">Simulated charter</a>
+    <a href="/pilot/results">Demonstrator fixture results</a>
+  </nav>
 </Base>
+
+<style>
+  .demonstrator-note {
+    margin-block: 1.5rem;
+    max-width: 75ch;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    border-radius: var(--polis-radius-md, 0.5rem);
+    background: rgba(18, 25, 35, 0.78);
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .demonstrator-note h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+
+  .demonstrator-note p {
+    margin: 0;
+  }
+
+  .demonstrator-note dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 0;
+  }
+
+  .demonstrator-note dl > div {
+    min-width: 0;
+  }
+
+  .demonstrator-note dt {
+    color: var(--polis-primary, #38bdf8);
+    font-weight: 700;
+  }
+
+  .demonstrator-note dd {
+    margin: 0.35rem 0 0;
+    color: var(--polis-muted, #9ca3af);
+  }
+
+  .process-path {
+    max-width: 75ch;
+    margin-block: 1.5rem;
+  }
+
+  .process-path h2 {
+    margin: 0;
+  }
+
+  .process-path ol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+
+  .process-path li {
+    min-width: 0;
+    padding-left: 0.25rem;
+  }
+
+  .process-path h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+
+  .process-path p {
+    margin: 0.5rem 0;
+  }
+
+  .process-path a {
+    text-underline-offset: 0.2em;
+  }
+
+  .process-path a:focus-visible {
+    outline: 3px solid var(--polis-primary, #38bdf8);
+    outline-offset: 3px;
+  }
+
+  .resource-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-block: 1.5rem;
+  }
+
+  .resource-links a,
+  .demonstrator-note a {
+    text-underline-offset: 0.2em;
+  }
+
+  .resource-links a:focus-visible,
+  .demonstrator-note a:focus-visible {
+    outline: 3px solid var(--polis-primary, #38bdf8);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 44rem) {
+    .demonstrator-note dl,
+    .process-path ol {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+</style>

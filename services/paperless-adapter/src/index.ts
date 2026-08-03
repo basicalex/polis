@@ -28,9 +28,7 @@ const DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /** Build the §23.9 route table bound to a Paperless adapter. */
 export function paperlessRoutes(client: PaperlessClient): Route[] {
-  const configuredMax = Number(
-    process.env.DOCUMENT_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_UPLOAD_BYTES,
-  );
+  const configuredMax = Number(process.env.DOCUMENT_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_UPLOAD_BYTES);
   const maxUploadBytes =
     Number.isSafeInteger(configuredMax) && configuredMax > 0
       ? configuredMax

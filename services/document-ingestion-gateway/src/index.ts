@@ -138,6 +138,7 @@ export function ingestionRoutes(): Route[] {
           (typeof input.filename !== 'string' ||
             input.filename.length === 0 ||
             Buffer.byteLength(input.filename) > MAX_FILENAME_BYTES ||
+            // eslint-disable-next-line no-control-regex -- Intentionally reject ASCII control characters.
             /[/\\\u0000-\u001f\u007f]/.test(input.filename))
         ) {
           return result(400, { error: 'unsafe_filename' });
@@ -146,8 +147,7 @@ export function ingestionRoutes(): Route[] {
           return result(400, { error: 'invalid_mime' });
         }
         const magicMatches =
-          (input.mime === 'application/pdf' &&
-            bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) ||
+          (input.mime === 'application/pdf' && bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) ||
           (input.mime === 'image/png' &&
             bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) ||
           (input.mime === 'image/jpeg' &&

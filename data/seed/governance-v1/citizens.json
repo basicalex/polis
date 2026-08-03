@@ -10,5 +10,23 @@
     "email": "reviewer-demo@polis.local",
     "display_name": "Staff Reviewer",
     "identity_level": "staff"
+  },
+  {
+    "id": "citizen-complaint-decision-officer-demo",
+    "email": "initial-complaint-officer@polis.local",
+    "display_name": "Ivana Initial Decision",
+    "identity_level": "staff"
+  },
+  {
+    "id": "citizen-complaint-appeal-officer-demo",
+    "email": "appeal-complaint-officer@polis.local",
+    "display_name": "Marko Appeal Decision",
+    "identity_level": "staff"
+  },
+  {
+    "id": "citizen-complaint-intake-officer-demo",
+    "email": "complaint-intake-officer@polis.local",
+    "display_name": "Petra Complaint Intake",
+    "identity_level": "staff"
   }
 ]

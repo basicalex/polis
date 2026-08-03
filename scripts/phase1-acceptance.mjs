@@ -1,7 +1,7 @@
 // Phase 1 (M1) acceptance: exercises the §23 contract end-to-end against a
 // running stack (governance-graph-api :8100, audit-service :8600, platform-api
 // :8080, seeded Postgres). Discovers ids from the API so it is seed-agnostic.
-// Run AFTER `docker compose up -d --wait` + `pnpm db:seed` (or dev-services).
+// Run AFTER `docker compose up -d --wait` + `bun run db:seed` (or dev-services).
 const GRAPH = process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100';
 const BFF = process.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 

@@ -46,7 +46,6 @@ test('signature-service rejects unauthenticated internal HTTP access', async () 
   });
 });
 
-
 // ── createSignerClient mode resolution ────────────────────────────────────
 // Env is saved/restored around every case so the suite is order-independent.
 

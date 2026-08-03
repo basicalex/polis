@@ -8,6 +8,7 @@ import {
   buildCanonicalAuditEvent,
   canonicalAuditJson,
   computeAuditHash,
+  databaseReadiness,
 } from './index.js';
 import { startService, type Route } from '@polis/service-runtime';
 
@@ -38,6 +39,16 @@ async function withServer(routes: Route[], run: (baseUrl: string) => Promise<voi
     });
   }
 }
+
+test('audit-service readiness reports only database failures', async () => {
+  assert.deepEqual(await databaseReadiness(async () => undefined), { ready: true });
+  assert.deepEqual(
+    await databaseReadiness(async () => {
+      throw new Error('postgres://credentials@db.internal/polis');
+    }),
+    { ready: false, dependency: 'database' },
+  );
+});
 
 test('computeAuditHash hashes previous hash plus canonical event JSON', () => {
   const canonicalJson =

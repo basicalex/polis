@@ -16,5 +16,17 @@
     "role_id": "role-registry-clerk",
     "name": "Issue residence confirmation",
     "description": "Issue or confirm the residence record used by the complaint process."
+  },
+  {
+    "id": "dr-decide-complaint",
+    "role_id": "role-complaint-decision-officer",
+    "name": "decide_complaint",
+    "description": "Issue the initial decision for an assigned municipal complaint."
+  },
+  {
+    "id": "dr-decide-complaint-appeal",
+    "role_id": "role-complaint-appeal-officer",
+    "name": "decide_complaint_appeal",
+    "description": "Issue the final appeal decision without acting as the initial decision-maker."
   }
 ]

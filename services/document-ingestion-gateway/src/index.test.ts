@@ -150,9 +150,7 @@ test('rejects invalid ingestion input before any upstream call', async () => {
     [{ ...valid, proofVisibility: 'unknown' }, 'invalid_proof_visibility'],
   ];
   try {
-    const route = ingestionRoutes().find(
-      (item) => item.path === '/internal/ingestion/documents',
-    )!;
+    const route = ingestionRoutes().find((item) => item.path === '/internal/ingestion/documents')!;
     for (const [input, expectedError] of cases) {
       const output = (await route.handler({} as never, input, {})) as {
         status: number;
@@ -192,10 +190,10 @@ test('document-ingestion-gateway rejects unauthenticated internal HTTP calls', a
   try {
     await once(server, 'listening');
     const address = server.address() as AddressInfo;
-    const response = await fetch(
-      `http://127.0.0.1:${address.port}/internal/ingestion/documents`,
-      { method: 'POST', body: '{}' },
-    );
+    const response = await fetch(`http://127.0.0.1:${address.port}/internal/ingestion/documents`, {
+      method: 'POST',
+      body: '{}',
+    });
     assert.equal(response.status, 401);
   } finally {
     await new Promise<void>((resolve, reject) => {

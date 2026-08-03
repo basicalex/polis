@@ -1,0 +1,829 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Reviewer Admin — Complaints workbench">
+  <section class="complaints-workbench stack">
+    <header class="complaints-heading">
+      <div>
+        <h1>Complaints workbench</h1>
+        <p class="muted">
+          Restricted staff workspace for routing and deciding private complaint cases. The service checks
+          every role, assignment, and status transition; this page does not grant authority. It runs only in
+          the full development stack, not the isolated public-read pilot.
+        </p>
+      </div>
+      <p class="trust-note trust-note--compact">
+        Keep complaint narratives, information requests, responses, and decisions in this restricted
+        case record. Do not copy them into public records.
+      </p>
+    </header>
+
+    <section class="workflow-panel" aria-labelledby="complaint-workflow-title">
+      <h2 id="complaint-workflow-title">Status workflow</h2>
+      <ol class="workflow-list">
+        <li><span class="badge">Submitted</span><span>Intake staff route the case to an initial decision holder.</span></li>
+        <li><span class="badge">Assigned</span><span>Authorized staff request information or record an initial decision.</span></li>
+        <li><span class="badge">Awaiting information</span><span>The resident responds; the case returns to assigned.</span></li>
+        <li><span class="badge">Decided</span><span>The resident may appeal, or the assigned initial decision holder closes the case.</span></li>
+        <li><span class="badge">Appealed</span><span>An independent appeal officer decides and closes the case.</span></li>
+        <li><span class="badge">Closed</span><span>No further staff action is available.</span></li>
+      </ol>
+      <p class="muted">
+        Local test roles: <code>complaint-intake-officer@polis.local</code>, <code>initial-complaint-officer@polis.local</code>,
+        and <code>appeal-complaint-officer@polis.local</code>. Use <code>reviewer-demo@polis.local</code> to confirm access denial.
+        Assign initial decisions to <code>mh-complaint-decision-officer-demo</code>. These seeded accounts are not production identities.
+      </p>
+    </section>
+
+    <div id="complaints-gate" class="trust-note" hidden>
+      <p id="complaints-gate-message"></p>
+      <p><a href="/login">Go to sign in</a></p>
+    </div>
+
+    <div id="complaints-app" class="complaints-layout" hidden>
+      <section class="panel queue-panel" aria-labelledby="complaints-queue-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="complaints-queue-title">Case queue</h2>
+            <p class="muted" id="queue-summary">Loading cases…</p>
+          </div>
+          <button id="refresh-queue" type="button" class="secondary-action">Refresh queue</button>
+        </div>
+        <div class="table-wrap" tabindex="0">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Case</th>
+                <th scope="col">Subject</th>
+                <th scope="col">Status</th>
+                <th scope="col">Updated</th>
+                <th scope="col"><span class="visually-hidden">Open case</span></th>
+              </tr>
+            </thead>
+            <tbody id="complaints-queue"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel detail-panel" aria-labelledby="complaint-detail-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="complaint-detail-title">Case detail</h2>
+            <p class="muted">Select a case from the queue to view its restricted record and permitted staff actions.</p>
+          </div>
+        </div>
+        <div id="complaint-detail" aria-live="polite">
+          <p class="muted">No case selected.</p>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <style>
+    .complaints-workbench {
+      gap: 1.5rem;
+    }
+
+    .complaints-heading {
+      display: grid;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .complaints-heading h1,
+    .workflow-panel h2,
+    .section-heading h2 {
+      margin-bottom: 0.35rem;
+    }
+
+    .complaints-heading p:last-child,
+    .section-heading p:last-child {
+      margin-bottom: 0;
+    }
+
+    .workflow-panel {
+      border: 1px solid var(--polis-border);
+      border-radius: var(--radius-md);
+      background: var(--polis-surface-2);
+      padding: 1rem;
+    }
+
+    .workflow-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .workflow-list li {
+      display: grid;
+      gap: 0.45rem;
+      align-content: start;
+      font-size: 0.875rem;
+    }
+
+    .complaints-layout {
+      display: grid;
+      grid-template-columns: minmax(19rem, 0.82fr) minmax(0, 1.5fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .queue-panel,
+    .detail-panel {
+      min-width: 0;
+    }
+
+    .queue-panel {
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .section-heading {
+      display: flex;
+      gap: 1rem;
+      align-items: start;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .secondary-action {
+      flex: none;
+      border: 1px solid var(--polis-border);
+      background: var(--polis-surface-2);
+      color: var(--polis-text);
+    }
+
+    .table-wrap {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+    }
+
+    .queue-open {
+      padding: 0.35rem 0.6rem;
+      white-space: nowrap;
+    }
+
+    .status-badge[data-status='submitted'] {
+      background: var(--trust-unknown-bg);
+      border-color: var(--trust-unknown-border);
+      color: var(--trust-unknown-fg);
+    }
+
+    .status-badge[data-status='assigned'],
+    .status-badge[data-status='decided'] {
+      background: var(--trust-restricted-bg);
+      border-color: var(--trust-restricted-border);
+      color: var(--trust-restricted-fg);
+    }
+
+    .status-badge[data-status='awaiting_information'] {
+      background: var(--trust-warning-bg);
+      border-color: var(--trust-warning-border);
+      color: var(--trust-warning-fg);
+    }
+
+    .status-badge[data-status='appealed'] {
+      background: var(--trust-invalid-bg);
+      border-color: var(--trust-invalid-border);
+      color: var(--trust-invalid-fg);
+    }
+
+    .status-badge[data-status='closed'] {
+      background: var(--trust-valid-bg);
+      border-color: var(--trust-valid-border);
+      color: var(--trust-valid-fg);
+    }
+
+    .case-record,
+    .case-section,
+    .case-actions,
+    .case-events {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .case-record > header {
+      display: grid;
+      gap: 0.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--polis-border);
+    }
+
+    .case-record h3,
+    .case-section h3,
+    .case-actions h3,
+    .case-events h3 {
+      margin-bottom: 0;
+    }
+
+    .case-metadata {
+      grid-template-columns: minmax(8.5rem, 0.45fr) 1fr;
+    }
+
+    .case-narrative,
+    .record-list,
+    .case-event-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .case-narrative {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .record-item,
+    .case-event {
+      display: grid;
+      gap: 0.5rem;
+      border: 1px solid var(--polis-border);
+      border-radius: var(--radius-sm);
+      background: var(--polis-surface-2);
+      padding: 0.75rem;
+    }
+
+    .record-item p,
+    .case-event p,
+    .record-item dl,
+    .case-event dl {
+      margin-bottom: 0;
+    }
+
+    .case-event-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+      color: var(--polis-muted);
+      font-size: 0.85rem;
+    }
+
+    .case-actions {
+      padding-top: 1rem;
+      border-top: 1px solid var(--polis-border);
+    }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .action-form {
+      display: grid;
+      gap: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--polis-border);
+      border-radius: var(--radius-sm);
+      background: var(--polis-surface-2);
+    }
+
+    .action-form h4 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .action-form label {
+      display: grid;
+      gap: 0.3rem;
+      margin: 0;
+    }
+
+    .action-form input,
+    .action-form textarea,
+    .action-form select {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid var(--polis-border);
+      border-radius: var(--radius-sm);
+      font: inherit;
+      background: var(--polis-surface);
+      color: var(--polis-text);
+    }
+
+    .action-form textarea {
+      min-height: 7rem;
+      resize: vertical;
+    }
+
+    .action-message[data-tone='error'] {
+      color: var(--trust-invalid-fg);
+    }
+
+    .action-message[data-tone='success'] {
+      color: var(--trust-valid-fg);
+    }
+
+    @media (max-width: 780px) {
+      .workflow-list,
+      .complaints-layout,
+      .action-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-heading {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .section-heading button {
+        width: 100%;
+      }
+
+      .case-metadata {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+      }
+
+      .case-metadata dt:not(:first-child) {
+        margin-top: 0.5rem;
+      }
+
+      .data-table {
+        width: 100%;
+        table-layout: fixed;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 0.5rem 0.35rem;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+
+      .data-table th:nth-child(4),
+      .data-table td:nth-child(4) {
+        display: none;
+      }
+
+      .data-table code,
+      .queue-open {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+    }
+  </style>
+
+  <script is:inline>
+    window.addEventListener('DOMContentLoaded', function () {
+      const apiUrl = window.__API_URL;
+    const queueRoot = document.getElementById('complaints-queue');
+    const queueSummary = document.getElementById('queue-summary');
+    const detailRoot = document.getElementById('complaint-detail');
+    const gate = document.getElementById('complaints-gate');
+    const gateMessage = document.getElementById('complaints-gate-message');
+    const app = document.getElementById('complaints-app');
+    const refreshButton = document.getElementById('refresh-queue');
+    let session = null;
+    let selectedComplaintId = new URLSearchParams(location.search).get('case');
+
+    function text(value, fallback = '—') {
+      if (value === null || value === undefined || value === '') return fallback;
+      return String(value);
+    }
+
+    function prettyStatus(value) {
+      return text(value, 'unknown').replaceAll('_', ' ');
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const date = new Date(String(value));
+      return Number.isNaN(date.getTime()) ? text(value) : date.toLocaleString();
+    }
+
+    function make(tag, options = {}) {
+      const element = document.createElement(tag);
+      if (options.className) element.className = options.className;
+      if (options.text !== undefined) element.textContent = text(options.text, '');
+      if (options.id) element.id = options.id;
+      if (options.type) element.type = options.type;
+      if (options.name) element.name = options.name;
+      if (options.value !== undefined) element.value = String(options.value);
+      if (options.placeholder) element.placeholder = options.placeholder;
+      if (options.rows) element.rows = options.rows;
+      if (options.required) element.required = true;
+      if (options.hidden) element.hidden = true;
+      if (options.attributes) {
+        for (const [name, value] of Object.entries(options.attributes)) {
+          element.setAttribute(name, String(value));
+        }
+      }
+      return element;
+    }
+
+    function add(parent, ...children) {
+      for (const child of children) parent.append(child);
+      return parent;
+    }
+
+    function statusBadge(status) {
+      return make('span', {
+        className: 'badge status-badge',
+        text: prettyStatus(status),
+        attributes: { 'data-status': text(status, 'unknown') },
+      });
+    }
+
+    function statusMessage(parent, message, tone) {
+      parent.textContent = text(message, '');
+      parent.setAttribute('data-tone', tone);
+    }
+
+    function authHeaders(withJson = false) {
+      const headers = { authorization: 'Bearer ' + session.token };
+      if (withJson) headers['content-type'] = 'application/json';
+      return headers;
+    }
+
+    async function readJson(response) {
+      try {
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(apiUrl + path, options);
+      const body = await readJson(response);
+      if (response.status === 401) {
+        location.href = '/login';
+        throw new Error('Your session has expired. Sign in again.');
+      }
+      if (!response.ok) throw new Error(text(body && body.error, 'The request could not be completed.'));
+      return body;
+    }
+
+    function showDetailMessage(message, tone = 'muted') {
+      detailRoot.replaceChildren(make('p', { className: tone === 'error' ? 'action-message' : 'muted', text: message }));
+    }
+
+    function setSelectedCase(id) {
+      selectedComplaintId = id;
+      const url = new URL(location.href);
+      url.searchParams.set('case', id);
+      history.replaceState({}, '', url);
+      loadDetail(id);
+    }
+
+    function renderQueue(items) {
+      queueRoot.replaceChildren();
+      queueSummary.textContent = items.length === 1 ? '1 case in your authorized queue.' : items.length + ' cases in your authorized queue.';
+      if (items.length === 0) {
+        const row = make('tr');
+        const cell = make('td', { text: 'No complaint cases are available to your staff role.', attributes: { colspan: '5' } });
+        row.append(cell);
+        queueRoot.append(row);
+        return;
+      }
+      for (const complaint of items) {
+        const row = make('tr');
+        const caseCell = make('td');
+        const caseNumber = make('code', { text: complaint.caseNumber || complaint.id });
+        caseCell.append(caseNumber);
+        const subjectCell = make('td', { text: complaint.subject });
+        const statusCell = make('td');
+        statusCell.append(statusBadge(complaint.status));
+        const updatedCell = make('td', { text: formatDate(complaint.updatedAt) });
+        const actionCell = make('td');
+        const openButton = make('button', { type: 'button', className: 'queue-open', text: selectedComplaintId === complaint.id ? 'Open' : 'View' });
+        openButton.addEventListener('click', () => setSelectedCase(complaint.id));
+        actionCell.append(openButton);
+        add(row, caseCell, subjectCell, statusCell, updatedCell, actionCell);
+        queueRoot.append(row);
+      }
+    }
+
+    async function loadQueue() {
+      refreshButton.disabled = true;
+      try {
+        const body = await apiRequest('/api/v1/complaints/queue', { headers: authHeaders() });
+        const items = Array.isArray(body && body.items) ? body.items : [];
+        renderQueue(items);
+        if (selectedComplaintId && items.some((item) => item && item.id === selectedComplaintId)) {
+          await loadDetail(selectedComplaintId);
+        } else if (!selectedComplaintId && items[0] && items[0].id) {
+          setSelectedCase(items[0].id);
+        } else if (selectedComplaintId) {
+          selectedComplaintId = null;
+          const url = new URL(location.href);
+          url.searchParams.delete('case');
+          history.replaceState({}, '', url);
+          showDetailMessage('The selected case is no longer available in your queue.', 'error');
+        }
+      } catch (error) {
+        queueRoot.replaceChildren();
+        const row = make('tr');
+        row.append(make('td', { text: 'Unable to load the complaint queue: ' + text(error && error.message), attributes: { colspan: '5' } }));
+        queueRoot.append(row);
+        queueSummary.textContent = 'Queue unavailable.';
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    function metadataRow(list, label, value, code = false) {
+      const term = make('dt', { text: label });
+      const definition = make('dd');
+      definition.append(code ? make('code', { text: value }) : document.createTextNode(text(value)));
+      add(list, term, definition);
+    }
+
+    function renderInformationRequests(requests) {
+      const section = make('section', { className: 'case-section' });
+      section.append(make('h3', { text: 'Information requests' }));
+      if (!requests.length) {
+        section.append(make('p', { className: 'muted', text: 'No information requests recorded.' }));
+        return section;
+      }
+      const list = make('div', { className: 'record-list' });
+      for (const request of requests) {
+        const item = make('article', { className: 'record-item' });
+        add(
+          item,
+          make('p', { text: request.question }),
+          make('p', { className: 'muted', text: 'Due ' + formatDate(request.dueAt) + ' · requested ' + formatDate(request.createdAt) }),
+          make('p', { text: request.response ? 'Resident response: ' + request.response : 'Awaiting the resident response.' }),
+        );
+        list.append(item);
+      }
+      section.append(list);
+      return section;
+    }
+
+    function renderDecisions(decisions, appeal) {
+      const section = make('section', { className: 'case-section' });
+      section.append(make('h3', { text: 'Decisions' }));
+      const list = make('div', { className: 'record-list' });
+      if (!decisions.length) list.append(make('p', { className: 'muted', text: 'No decisions recorded.' }));
+      for (const decision of decisions) {
+        const item = make('article', { className: 'record-item' });
+        add(
+          item,
+          make('p', { text: prettyStatus(decision.kind) + ' decision: ' + text(decision.outcome) }),
+          make('p', { text: decision.reason }),
+          make('p', { className: 'muted', text: 'Recorded ' + formatDate(decision.decidedAt) + ' by ' + text(decision.decidedBy) }),
+        );
+        list.append(item);
+      }
+      if (appeal) {
+        const appealItem = make('article', { className: 'record-item' });
+        add(
+          appealItem,
+          make('p', { text: 'Appeal: ' + prettyStatus(appeal.status) }),
+          make('p', { text: appeal.grounds }),
+          make('p', { className: 'muted', text: 'Filed ' + formatDate(appeal.filedAt) + (appeal.decidedAt ? ' · decided ' + formatDate(appeal.decidedAt) : '') }),
+        );
+        list.append(appealItem);
+      }
+      section.append(list);
+      return section;
+    }
+
+    function renderEvents(events) {
+      const section = make('section', { className: 'case-events' });
+      section.append(make('h3', { text: 'Case timeline' }));
+      if (!events.length) {
+        section.append(make('p', { className: 'muted', text: 'No timeline events recorded.' }));
+        return section;
+      }
+      const list = make('ol', { className: 'case-event-list' });
+      for (const event of events) {
+        const item = make('li', { className: 'case-event' });
+        const transition = event.fromStatus ? prettyStatus(event.fromStatus) + ' to ' + prettyStatus(event.toStatus) : 'Moved to ' + prettyStatus(event.toStatus);
+        add(
+          item,
+          make('p', { text: prettyStatus(event.eventType) + ' · ' + transition }),
+          make('p', { className: 'case-event-meta', text: formatDate(event.occurredAt) + ' · actor ' + text(event.actorId) }),
+        );
+        list.append(item);
+      }
+      section.append(list);
+      return section;
+    }
+
+    function appendField(form, labelText, control) {
+      const label = make('label', { text: labelText });
+      label.append(control);
+      form.append(label);
+    }
+
+    function appendActionForm(parent, options) {
+      const form = make('form', { className: 'action-form' });
+      form.append(make('h4', { text: options.title }));
+      for (const field of options.fields) {
+        const control = make(field.tag || 'input', {
+          type: field.type,
+          name: field.name,
+          placeholder: field.placeholder,
+          rows: field.rows,
+          required: field.required,
+        });
+        if (field.options) {
+          for (const option of field.options) control.append(make('option', { text: option.label, value: option.value }));
+        }
+        appendField(form, field.label, control);
+      }
+      const submit = make('button', { type: 'submit', text: options.submit });
+      const message = make('p', { className: 'action-message', attributes: { 'aria-live': 'polite' } });
+      add(form, submit, message);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        statusMessage(message, 'Saving…', 'pending');
+        const formData = new FormData(form);
+        const body = {};
+        for (const field of options.fields) {
+          const value = formData.get(field.name);
+          if (typeof value === 'string' && value.trim()) {
+            body[field.name] = field.type === 'datetime-local' ? new Date(value).toISOString() : value.trim();
+          }
+        }
+        try {
+          const request = { method: 'POST', headers: authHeaders(options.fields.length > 0) };
+          if (options.fields.length > 0) request.body = JSON.stringify(body);
+          await apiRequest(options.path, request);
+          statusMessage(message, options.success, 'success');
+          await loadQueue();
+        } catch (error) {
+          statusMessage(message, text(error && error.message, 'The action could not be completed.'), 'error');
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      parent.append(form);
+    }
+
+    function renderActions(complaint) {
+      const section = make('section', { className: 'case-actions' });
+      section.append(make('h3', { text: 'Staff actions' }));
+      const description = make('p', { className: 'muted' });
+      const grid = make('div', { className: 'action-grid' });
+      if (complaint.status === 'submitted') {
+        description.textContent = 'Route this submitted case to a mandate holder with the initial decision right.';
+        appendActionForm(grid, {
+          title: 'Assign initial decision holder',
+          submit: 'Assign case',
+          success: 'Case assigned. The queue and detail will refresh.',
+          path: '/api/v1/complaints/' + encodeURIComponent(complaint.id) + '/assign',
+          fields: [{ name: 'assignedMandateHolderId', label: 'Mandate holder ID', placeholder: 'holder-initial', required: true }],
+        });
+      } else if (complaint.status === 'assigned') {
+        description.textContent = 'Request missing information or record the assigned initial decision. The service confirms your decision right and assignment.';
+        appendActionForm(grid, {
+          title: 'Request information',
+          submit: 'Send information request',
+          success: 'Information request recorded. The queue and detail will refresh.',
+          path: '/api/v1/complaints/' + encodeURIComponent(complaint.id) + '/information-requests',
+          fields: [
+            { tag: 'textarea', name: 'question', label: 'Question for the resident', rows: 4, required: true },
+            { name: 'dueAt', label: 'Due date and time', type: 'datetime-local', required: false },
+          ],
+        });
+        appendActionForm(grid, {
+          title: 'Record initial decision',
+          submit: 'Record decision',
+          success: 'Initial decision recorded. The queue and detail will refresh.',
+          path: '/api/v1/complaints/' + encodeURIComponent(complaint.id) + '/decisions',
+          fields: [
+            {
+              tag: 'select',
+              name: 'outcome',
+              label: 'Outcome',
+              required: true,
+              options: [
+                { value: 'upheld', label: 'Upheld' },
+                { value: 'partially_upheld', label: 'Partially upheld' },
+                { value: 'dismissed', label: 'Dismissed' },
+              ],
+            },
+            { tag: 'textarea', name: 'reason', label: 'Decision reason', rows: 4, required: true },
+          ],
+        });
+      } else if (complaint.status === 'awaiting_information') {
+        description.textContent = 'This case awaits the resident response. It returns to assigned after a valid response.';
+      } else if (complaint.status === 'decided') {
+        description.textContent = 'The resident may file one appeal. If no appeal is filed, only the assigned initial decision holder may close the case.';
+        appendActionForm(grid, {
+          title: 'Close unappealed case',
+          submit: 'Close case',
+          success: 'Case closed. The queue and detail will refresh.',
+          path: '/api/v1/complaints/' + encodeURIComponent(complaint.id) + '/close',
+          fields: [],
+        });
+      } else if (complaint.status === 'appealed') {
+        description.textContent = 'An independent appeal officer must record the appeal decision. The original decision officer cannot decide this appeal.';
+        if (complaint.appeal && complaint.appeal.id) {
+          appendActionForm(grid, {
+            title: 'Record appeal decision',
+            submit: 'Record appeal decision',
+            success: 'Appeal decision recorded and case closed. The queue and detail will refresh.',
+            path: '/api/v1/complaints/' + encodeURIComponent(complaint.id) + '/appeals/' + encodeURIComponent(complaint.appeal.id) + '/decisions',
+            fields: [
+              {
+                tag: 'select',
+                name: 'outcome',
+                label: 'Outcome',
+                required: true,
+                options: [
+                  { value: 'upheld', label: 'Upheld' },
+                  { value: 'partially_upheld', label: 'Partially upheld' },
+                  { value: 'dismissed', label: 'Dismissed' },
+                ],
+              },
+              { tag: 'textarea', name: 'reason', label: 'Appeal decision reason', rows: 4, required: true },
+            ],
+          });
+        }
+      } else if (complaint.status === 'closed') {
+        description.textContent = 'This case is closed. No further staff action is available.';
+      } else {
+        description.textContent = 'The case status is not recognized. Refresh the queue before taking action.';
+      }
+      section.append(description);
+      if (grid.childElementCount) section.append(grid);
+      return section;
+    }
+
+    function renderDetail(complaint) {
+      detailRoot.replaceChildren();
+      const record = make('article', { className: 'case-record' });
+      const header = make('header');
+      const title = make('h3', { text: complaint.subject });
+      const caseLine = make('p', { className: 'muted' });
+      caseLine.append(make('code', { text: complaint.caseNumber || complaint.id }), document.createTextNode(' '), statusBadge(complaint.status));
+      add(header, title, caseLine);
+      const metadata = make('dl', { className: 'kv case-metadata' });
+      metadataRow(metadata, 'Case ID', complaint.id, true);
+      metadataRow(metadata, 'Assigned holder', complaint.assignedMandateHolderId, true);
+      metadataRow(metadata, 'Institution', complaint.institutionId, true);
+      metadataRow(metadata, 'Process', complaint.processId, true);
+      metadataRow(metadata, 'Jurisdiction', complaint.jurisdictionId, true);
+      metadataRow(metadata, 'Created', formatDate(complaint.createdAt));
+      metadataRow(metadata, 'Updated', formatDate(complaint.updatedAt));
+      metadataRow(metadata, 'Closed', formatDate(complaint.closedAt));
+      const narrativeSection = make('section', { className: 'case-section' });
+      add(
+        narrativeSection,
+        make('h3', { text: 'Complaint narrative' }),
+        make('p', { className: 'case-narrative', text: complaint.narrative }),
+      );
+      add(
+        record,
+        header,
+        metadata,
+        narrativeSection,
+        renderInformationRequests(Array.isArray(complaint.informationRequests) ? complaint.informationRequests : []),
+        renderDecisions(Array.isArray(complaint.decisions) ? complaint.decisions : [], complaint.appeal),
+        renderActions(complaint),
+        renderEvents(Array.isArray(complaint.events) ? complaint.events : []),
+      );
+      detailRoot.append(record);
+    }
+
+    async function loadDetail(id) {
+      showDetailMessage('Loading restricted case record…');
+      try {
+        const complaint = await apiRequest('/api/v1/complaints/' + encodeURIComponent(id), { headers: authHeaders() });
+        if (!complaint || typeof complaint !== 'object') throw new Error('The case record is unavailable.');
+        renderDetail(complaint);
+      } catch (error) {
+        showDetailMessage('Unable to load this case: ' + text(error && error.message), 'error');
+      }
+    }
+
+    function start() {
+      const raw = sessionStorage.getItem('admin_session');
+      if (!raw) {
+        location.href = '/login';
+        return;
+      }
+      try {
+        session = JSON.parse(raw);
+      } catch {
+        session = null;
+      }
+      if (!session || !session.token) {
+        location.href = '/login';
+        return;
+      }
+      if (session.identityLevel !== 'staff') {
+        gate.hidden = false;
+        gateMessage.textContent = 'Complaint workbench access requires a staff session. Your current identity level is ' + text(session.identityLevel, 'unknown') + '.';
+        return;
+      }
+      app.hidden = false;
+      refreshButton.addEventListener('click', loadQueue);
+      loadQueue();
+    }
+
+      start();
+    });
+  </script>
+</Base>

@@ -18,6 +18,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -38,7 +39,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
 
 from polis_aigateway.audit import emit_audit
-from polis_aigateway.db import get_conn
+from polis_aigateway.db import database_ready, get_conn
 from polis_aigateway.policy import publish_allowed
 from polis_aigateway.rag import APPROVED_SOURCE_TYPES, retrieve
 
@@ -50,6 +51,91 @@ _PROMPT_TEMPLATE_ID = "citizen-assistant-v1"
 _PROMPT_TEMPLATE_VERSION = "0.1"
 _INJECTION_REFUSAL = "I can't act on that request."
 _NO_RESULTS = "No approved public sources were found for this question."
+
+_DEPLOYMENT_PROFILES = frozenset({"development", "pilot", "production"})
+_SAFE_PROVIDER_TIMEOUT_MIN_SECONDS = 1
+_SAFE_PROVIDER_TIMEOUT_MAX_SECONDS = 60
+_PLACEHOLDER_PROVIDER_VALUES = frozenset(
+    {
+        "change-me",
+        "changeme",
+        "example",
+        "none",
+        "null",
+        "placeholder",
+        "stub",
+        "test",
+        "your-api-key",
+        "your_api_key",
+    }
+)
+
+
+def deployment_profile() -> str:
+    """Return the explicitly configured deployment profile, defaulting safely."""
+    profile = os.getenv("AI_DEPLOYMENT_PROFILE", "pilot").strip().lower()
+    if profile not in _DEPLOYMENT_PROFILES:
+        raise ValueError(
+            "AI_DEPLOYMENT_PROFILE must be development, pilot, or production"
+        )
+    return profile
+
+
+def provider_timeout_seconds() -> int:
+    """Validate the bounded timeout for outbound provider requests."""
+    raw = os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "15").strip()
+    if not raw.isdecimal():
+        raise ValueError(
+            "AI_PROVIDER_TIMEOUT_SECONDS must be a finite integer between 1 and 60"
+        )
+    timeout = int(raw)
+    if not _SAFE_PROVIDER_TIMEOUT_MIN_SECONDS <= timeout <= _SAFE_PROVIDER_TIMEOUT_MAX_SECONDS:
+        raise ValueError(
+            "AI_PROVIDER_TIMEOUT_SECONDS must be a finite integer between 1 and 60"
+        )
+    return timeout
+
+
+def _is_placeholder_provider_value(value: str) -> bool:
+    normalized = value.strip().lower()
+    hostname = urlparse(normalized).hostname
+    return (
+        normalized in _PLACEHOLDER_PROVIDER_VALUES
+        or "placeholder" in normalized
+        or hostname == "example.com"
+        or (
+            hostname is not None
+            and (hostname.endswith(".example") or hostname.endswith(".invalid"))
+        )
+    )
+
+
+def _is_loopback_url(url: str) -> bool:
+    host = urlparse(url).hostname
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
+def _validate_real_provider_config(
+    *, base_url: str, api_key: str, model: str, profile: str
+) -> None:
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise RuntimeError("AI_PROVIDER_BASE_URL must be an absolute HTTP(S) URL")
+    if parsed.username or parsed.password:
+        raise RuntimeError("AI_PROVIDER_BASE_URL must not contain credentials")
+    if profile != "development" and (
+        _is_placeholder_provider_value(base_url)
+        or _is_placeholder_provider_value(api_key)
+        or _is_placeholder_provider_value(model)
+    ):
+        raise RuntimeError("AI provider configuration contains a placeholder value")
+    if parsed.scheme == "http" and not (
+        profile == "development" and _is_loopback_url(base_url)
+    ):
+        raise RuntimeError(
+            "AI_PROVIDER_BASE_URL must use HTTPS outside localhost development"
+        )
+
 _RESULTS_PREFIX = "Based on approved public sources: "
 
 
@@ -93,7 +179,7 @@ class OpenAICompatibleModelProvider:
                 ("AI_PROVIDER_API_KEY", api_key),
                 ("AI_PROVIDER_MODEL", model),
             )
-            if not value
+            if not value or not value.strip()
         ]
         if missing:
             raise RuntimeError(
@@ -102,11 +188,15 @@ class OpenAICompatibleModelProvider:
         assert base_url is not None
         assert api_key is not None
         assert model is not None
+        profile = deployment_profile()
+        _validate_real_provider_config(
+            base_url=base_url, api_key=api_key, model=model, profile=profile
+        )
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model_name = model
         self.model_provider = "openai-compatible"
-        self.timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "15"))
+        self.timeout_seconds = provider_timeout_seconds()
         self.temperature = 0.2
 
     def answer(self, *, question: str, chunks: list[Any]) -> ModelResponse:
@@ -173,7 +263,7 @@ def _post_chat_completions(
     base_url: str,
     api_key: str,
     payload: dict[str, Any],
-    timeout_seconds: float,
+    timeout_seconds: int,
 ) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -201,12 +291,32 @@ def _post_chat_completions(
 
 
 def create_model_provider() -> ModelProvider:
+    deployment_profile()
     mode = os.getenv("AI_MODE", "stub")
     if mode == "stub":
         return StubModelProvider()
     if mode == "real":
         return OpenAICompatibleModelProvider()
     raise ValueError(f"AI_MODE={mode} is not supported; use 'stub' or 'real'.")
+
+
+def provider_ready() -> bool:
+    """Check local provider configuration without making a provider request."""
+    try:
+        provider = create_model_provider()
+    except (RuntimeError, ValueError):
+        return False
+    return not (
+        isinstance(provider, StubModelProvider) and deployment_profile() != "development"
+    )
+
+def readiness_failure() -> str | None:
+    """Return a public-safe failed dependency label, if any."""
+    if not database_ready():
+        return "database"
+    if not provider_ready():
+        return "provider"
+    return None
 
 _MODEL_PROVIDER = create_model_provider()
 
@@ -392,6 +502,26 @@ async def require_internal_auth(
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz():
+    dependency = readiness_failure()
+    if dependency:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "dependency": dependency},
+        )
+    return {"status": "ready", "service": "ai-gateway"}
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    ready = int(readiness_failure() is None)
+    return Response(
+        content=f"polis_ai_gateway_up 1\npolis_ai_gateway_ready {ready}\n",
+        media_type="text/plain",
+    )
 
 
 @app.get("/version")

@@ -16,6 +16,9 @@ from psycopg_pool import ConnectionPool
 
 _pool: ConnectionPool | None = None
 
+_READINESS_TIMEOUT_SECONDS = 2.0
+_READINESS_STATEMENT_TIMEOUT_MILLISECONDS = 2_000
+
 
 def _get_pool() -> ConnectionPool:
     global _pool
@@ -34,8 +37,23 @@ def _get_pool() -> ConnectionPool:
 
 
 @contextmanager
-def get_conn() -> Iterator[Connection]:
+def get_conn(*, timeout: float | None = None) -> Iterator[Connection]:
     """Yield a pooled connection; auto-commit on success, rollback on error."""
     pool = _get_pool()
-    with pool.connection() as conn:
+    with pool.connection(timeout=timeout) as conn:
         yield conn
+
+
+def database_ready() -> bool:
+    """Run a short, non-mutating database probe and always return its resource."""
+    try:
+        with get_conn(timeout=_READINESS_TIMEOUT_SECONDS) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET LOCAL statement_timeout = "
+                    f"{_READINESS_STATEMENT_TIMEOUT_MILLISECONDS}"
+                )
+                cur.execute("SELECT 1")
+                return cur.fetchone() == (1,)
+    except Exception:  # noqa: BLE001 — readiness must not leak dependency details
+        return False

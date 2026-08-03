@@ -22,7 +22,6 @@ test('contribution-service exposes §19 contribution + M-RA filing routes', () =
   }
 });
 
-
 async function withServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
   const server = startService('contribution-service', 0, contributionRoutes({} as never));
   try {
@@ -77,7 +76,6 @@ const httpStatus = (value: unknown): number | undefined => {
   return undefined;
 };
 
-
 type InsertedSubmission = {
   status?: string;
   contributionClass?: string;
@@ -125,7 +123,12 @@ const queuedDb = (selectRows: unknown[][]) => {
         createdAt: new Date('2026-01-01T00:00:00Z'),
       };
     }
-    if (values && typeof values === 'object' && 'commitmentId' in values && 'resolutionClaimId' in values) {
+    if (
+      values &&
+      typeof values === 'object' &&
+      'commitmentId' in values &&
+      'resolutionClaimId' in values
+    ) {
       return {
         id: `status-event-${inserts.length}`,
         ...values,
@@ -190,21 +193,10 @@ const proofManifest = { id: 'proof-manifest-1', registryStatus: 'active' };
 const invalidSignatureEvidenceCases: Array<[string, unknown[][]]> = [
   [
     'wrong-kind signed artifact',
-    [
-      [{ id: 'signed-artifact-1', kind: 'uploaded_document' }],
-      [proofManifest],
-      [],
-      [],
-    ],
+    [[{ id: 'signed-artifact-1', kind: 'uploaded_document' }], [proofManifest], [], []],
   ],
-  [
-    'revoked charter proof',
-    [[signedArtifact], [proofManifest], [{ id: 'revocation-1' }], []],
-  ],
-  [
-    'superseded charter proof',
-    [[signedArtifact], [proofManifest], [], [{ id: 'supersession-1' }]],
-  ],
+  ['revoked charter proof', [[signedArtifact], [proofManifest], [{ id: 'revocation-1' }], []]],
+  ['superseded charter proof', [[signedArtifact], [proofManifest], [], [{ id: 'supersession-1' }]]],
 ];
 
 for (const [name, evidenceRows] of invalidSignatureEvidenceCases) {
@@ -327,7 +319,11 @@ test('commitment filing rejects non-covering charter scope before inserts', asyn
     reason: 'jurisdiction_not_covered',
     field: 'jurisdictionId',
   });
-  assert.equal(inserts.length, 0, 'scope denial must not create claims, commitments, status events, or submissions');
+  assert.equal(
+    inserts.length,
+    0,
+    'scope denial must not create claims, commitments, status events, or submissions',
+  );
 });
 
 test('commitment filing allows covering charter scope', async () => {
@@ -363,7 +359,11 @@ test('commitment filing allows covering charter scope', async () => {
   );
 
   assert.equal(httpStatus(out), 201);
-  assert.equal(inserts.length, 4, 'publish path creates claim, commitment, initial status event, and submission');
+  assert.equal(
+    inserts.length,
+    4,
+    'publish path creates claim, commitment, initial status event, and submission',
+  );
   assert.ok(
     inserts.some((entry) => {
       const values = entry.values;
@@ -506,9 +506,7 @@ test('resolution filing records requested terminal status as a pending claim onl
 test('internal review handlers reject actors who are missing or non-staff', async () => {
   const { db } = queuedDb([]);
   const routes = contributionRoutes(db as never);
-  const queue = routes.find(
-    (r) => r.method === 'GET' && r.path === '/internal/review/queue',
-  );
+  const queue = routes.find((r) => r.method === 'GET' && r.path === '/internal/review/queue');
   const decide = routes.find(
     (r) => r.method === 'POST' && r.path === '/internal/review/:id/decide',
   );
@@ -517,7 +515,11 @@ test('internal review handlers reject actors who are missing or non-staff', asyn
   for (const out of [
     await queue.handler({ headers: {} } as never, {}, {}),
     await queue.handler(reqWithActor('citizen-1', 'verified'), {}, {}),
-    await decide.handler(reqWithActor('citizen-1', 'verified'), { decision: 'approve' }, { id: 'submission-1' }),
+    await decide.handler(
+      reqWithActor('citizen-1', 'verified'),
+      { decision: 'approve' },
+      { id: 'submission-1' },
+    ),
   ]) {
     assert.equal(httpStatus(out), 403);
   }
@@ -544,7 +546,10 @@ test('approved resolution review marks the referenced claim approved before stat
     status: 'approved',
     decidedAt: new Date('2026-01-01T00:00:00Z'),
   };
-  const { db, inserts, updates, operations } = queuedDb([[resolutionSubmission], [updatedSubmission]]);
+  const { db, inserts, updates, operations } = queuedDb([
+    [resolutionSubmission],
+    [updatedSubmission],
+  ]);
   const route = contributionRoutes(db as never).find(
     (r) => r.method === 'POST' && r.path === '/internal/review/:id/decide',
   );
@@ -574,7 +579,11 @@ test('approved resolution review marks the referenced claim approved before stat
   assert.equal(reviewInsert.values.reviewerId, 'staff-reviewer');
   assert.ok(
     inserts.some((entry) => {
-      const values = entry.values as { commitmentId?: string; status?: string; resolutionClaimId?: string };
+      const values = entry.values as {
+        commitmentId?: string;
+        status?: string;
+        resolutionClaimId?: string;
+      };
       return (
         values.commitmentId === 'commitment-1' &&
         values.status === 'delivered' &&

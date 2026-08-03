@@ -57,6 +57,19 @@ Node services using `packages/service-runtime` expose:
 | GET | `/api/v1/mandate-holders/:id/charter-signing-status` | Requires a citizen session; returns the latest signing request for the mandate-holder. |
 | POST | `/api/v1/signing-requests/:id/stub-complete` | Requires the signer citizen's session; completes and reconciles a stub request. |
 | POST | `/webhooks/documenso` | Forwards the raw body and `X-Documenso-Secret` to the signing service. |
+| POST | `/api/v1/complaints` | Requires a citizen session; creates a resident-owned complaint case. |
+| GET | `/api/v1/complaints/mine` | Requires a citizen session; lists the caller's complaint summaries. |
+| GET | `/api/v1/complaints/queue` | Requires a staff session and authorized complaints right; lists the intake queue. |
+| GET | `/api/v1/complaints/:id` | Requires a citizen session; returns owner- or authorized-staff-readable case detail. |
+| POST | `/api/v1/complaints/:id/assign` | Requires authorized intake staff; assigns a submitted case. |
+| POST | `/api/v1/complaints/:id/information-requests` | Requires authorized staff; requests case information. |
+| POST | `/api/v1/complaints/:id/information-requests/:requestId/respond` | Requires the owner session; responds to a pending information request. |
+| POST | `/api/v1/complaints/:id/decisions` | Requires the assigned initial decision officer; records the initial decision. |
+| POST | `/api/v1/complaints/:id/appeals` | Requires the owner session; files one appeal after the initial decision. |
+| POST | `/api/v1/complaints/:id/appeals/:appealId/decisions` | Requires an independent appeal officer; decides the appeal and closes the case. |
+| POST | `/api/v1/complaints/:id/close` | Requires the assigned initial decision officer; closes an unappealed decided case. |
+
+`platform-api` maps authenticated `/api/v1/complaints*` routes to `complaints-service` through `COMPLAINTS_INTERNAL_URL` in the development Compose stack. The BFF verifies the session and injects the trusted actor plus service token; direct `/internal/complaints*` calls remain private.
 
 ## Service roles and health
 
@@ -74,10 +87,15 @@ Node services using `packages/service-runtime` expose:
 | `timestamp-service` | 8800 | Internal RFC3161-stub timestamp issuer for proof hashes. | `GET /healthz` |
 | `signature-service` | 8900 | Internal test-key signature issuer and issuer registry reader. | `GET /healthz` |
 | `document-signing-service` | 8960 | Internal charter PDF rendering, provider orchestration, restricted artifact storage, proof registration, and charter acceptance. | `GET /healthz` |
+| `complaints-service` | 8970 | Private complaint-case lifecycle, owner-scoped access, staff assignment/decision rights, and best-effort audit emission. | `GET /readyz` |
 
 `document-signing-service` depends on Postgres, `proof-service`,
 `paperless-adapter`, and `audit-service`. Proof registration blocks charter
 acceptance. Paperless archival and audit emission are best-effort.
+
+`complaints-service` depends on Postgres and `audit-service`. Its case content, resident ownership identifier, and audit correlation identifier are private; serialized responses omit the latter two.
+
+The isolated public-read pilot Compose deliberately omits `complaints-service`, its port, and `COMPLAINTS_INTERNAL_URL`.
 
 ## Internal service routes
 
@@ -112,6 +130,17 @@ Documenso webhook also requires `X-Documenso-Secret`.
 | `signature-service` | 8900 | POST | `/internal/signatures` | Upserts a local issuer and persists a test-key signature for a proof/hash. |
 | `signature-service` | 8900 | GET | `/internal/signatures/:proofId` | Lists signatures for a proof. |
 | `signature-service` | 8900 | GET | `/internal/issuers/:id` | Reads an internal issuer row. |
+| `complaints-service` | 8970 | POST | `/internal/complaints` | Creates a resident-owned complaint case. |
+| `complaints-service` | 8970 | GET | `/internal/complaints/mine` | Lists complaint summaries owned by the trusted resident. |
+| `complaints-service` | 8970 | GET | `/internal/complaints/queue` | Lists cases for authorized complaint staff. |
+| `complaints-service` | 8970 | GET | `/internal/complaints/:id` | Returns owner- or authorized-staff-readable case detail. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/assign` | Intake staff route a submitted case to an initial decision holder. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/information-requests` | Authorized staff request case information. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/information-requests/:requestId/respond` | The owner responds to a pending information request. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/decisions` | Assigned initial decision staff record a decision. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/appeals` | The case owner files one appeal after the initial decision. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/appeals/:appealId/decisions` | An independent appeal officer decides and closes the case. |
+| `complaints-service` | 8970 | POST | `/internal/complaints/:id/close` | Assigned initial decision staff close an unappealed decided case. |
 | `document-signing-service` | 8960 | POST | `/internal/signing/charter-requests` | Renders and stores a pending charter PDF, then creates and distributes a provider envelope. |
 | `document-signing-service` | 8960 | GET | `/internal/signing/charter-status/:mandateHolderId` | Returns the holder's latest signing request. |
 | `document-signing-service` | 8960 | GET | `/internal/signing/requests/:id` | Returns one signing request. |
@@ -127,9 +156,10 @@ Documenso webhook also requires `X-Documenso-Secret`.
 available only on the Compose network: governance graph `8100`, Polis bridge
 `8200`, Paperless adapter `8300`, document-ingestion gateway `8400`,
 canonicalization `8500`, AI gateway `8550`, audit `8600`, proof `8700`,
-timestamp `8800`, signature `8900`, and document signing `8960`.
-`scripts/dev-services.mjs` launches `document-signing-service` at `8960` and
-wires the BFF to it at `http://localhost:8960`.
+timestamp `8800`, signature `8900`, document signing `8960`, and complaints
+`8970`. `scripts/dev-services.mjs` launches `document-signing-service` at
+`8960`, `complaints-service` at `8970`, and supplies their development internal
+URLs to the BFF process.
 
 ## Integration warning
 

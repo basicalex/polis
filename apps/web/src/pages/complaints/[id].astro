@@ -1,0 +1,357 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="Private development case">
+  <p><a href="/complaints">← My cases</a></p>
+  <section id="complaint-auth" class="panel muted" role="status">Checking your session…</section>
+  <div id="complaint-detail" class="stack" hidden>
+    <section class="hero stack" aria-labelledby="case-heading">
+      <p id="case-number" class="badge"></p>
+      <h1 id="case-heading">Loading case…</h1>
+      <p id="case-status"></p>
+      <p class="muted">This private development case workflow is not a live government service.</p>
+    </section>
+
+    <section class="stack" aria-labelledby="narrative-heading">
+      <h2 id="narrative-heading">Your complaint</h2>
+      <div id="case-narrative" class="panel"></div>
+    </section>
+
+    <section class="stack" aria-labelledby="requests-heading">
+      <h2 id="requests-heading">Information requests</h2>
+      <div id="information-requests" class="stack"></div>
+    </section>
+
+    <section class="stack" aria-labelledby="decisions-heading">
+      <h2 id="decisions-heading">Decisions</h2>
+      <div id="decisions" class="stack"></div>
+    </section>
+
+    <section class="stack" aria-labelledby="appeal-heading">
+      <h2 id="appeal-heading">Appeal</h2>
+      <div id="appeal" class="stack"></div>
+    </section>
+
+    <section class="stack" aria-labelledby="actions-heading">
+      <h2 id="actions-heading">Your actions</h2>
+      <div id="owner-actions" class="stack"></div>
+    </section>
+
+    <section class="stack" aria-labelledby="timeline-heading">
+      <h2 id="timeline-heading">Case timeline</h2>
+      <ol id="case-timeline" class="audit-trail"></ol>
+    </section>
+  </div>
+  <section id="complaint-state" class="panel muted" role="status" aria-live="polite">Loading case…</section>
+  <p id="complaint-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
+
+  <script is:inline>
+    window.addEventListener('DOMContentLoaded', function () {
+      var API = window.__API_URL;
+      var auth = document.getElementById('complaint-auth');
+      var detail = document.getElementById('complaint-detail');
+      var state = document.getElementById('complaint-state');
+      var announcement = document.getElementById('complaint-announcement');
+      var caseNumber = document.getElementById('case-number');
+      var heading = document.getElementById('case-heading');
+      var caseStatus = document.getElementById('case-status');
+      var narrative = document.getElementById('case-narrative');
+      var requests = document.getElementById('information-requests');
+      var decisions = document.getElementById('decisions');
+      var appeal = document.getElementById('appeal');
+      var actions = document.getElementById('owner-actions');
+      var timeline = document.getElementById('case-timeline');
+      var session;
+      var id = '';
+
+      try {
+        id = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
+      } catch (_error) {
+        id = '';
+      }
+
+      function textElement(tag, value, className) {
+        var element = document.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = String(value == null ? '' : value);
+        return element;
+      }
+
+      function friendlyDate(value) {
+        var date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value == null ? 'Date unavailable' : value) : date.toLocaleString();
+      }
+
+      function showState(value) {
+        detail.hidden = true;
+        state.hidden = false;
+        state.textContent = value;
+      }
+
+      function apiError(response, fallback) {
+        return response
+          .json()
+          .then(function (body) {
+            return body && typeof body.error === 'string' ? body.error : fallback;
+          })
+          .catch(function () {
+            return fallback;
+          });
+      }
+
+      function actionMessage(container, value) {
+        var message = container.querySelector('[data-action-message]');
+        if (!message) {
+          message = document.createElement('p');
+          message.className = 'muted';
+          message.setAttribute('data-action-message', '');
+          message.setAttribute('role', 'status');
+          message.setAttribute('aria-live', 'polite');
+          container.append(message);
+        }
+        message.textContent = value;
+      }
+
+      function actionForm(labelText, textareaId, buttonText) {
+        var form = document.createElement('form');
+        form.className = 'panel stack';
+        var label = document.createElement('label');
+        label.htmlFor = textareaId;
+        label.textContent = labelText;
+        var textarea = document.createElement('textarea');
+        textarea.id = textareaId;
+        textarea.rows = 6;
+        textarea.maxLength = 10000;
+        textarea.required = true;
+        var button = document.createElement('button');
+        button.type = 'submit';
+        button.textContent = buttonText;
+        form.append(label, textarea, button);
+        return { form: form, textarea: textarea, button: button };
+      }
+
+      function renderRequests(items) {
+        var rows = [];
+        if (!items.length) {
+          rows.push(textElement('p', 'No information requests have been recorded.', 'panel muted'));
+        }
+        items.forEach(function (item) {
+          var article = document.createElement('article');
+          article.className = 'card stack';
+          article.append(textElement('h3', 'Request'));
+          article.append(textElement('p', item.question == null ? 'Question unavailable.' : item.question));
+          var meta = textElement('p', 'Requested ' + friendlyDate(item.createdAt), 'muted');
+          if (item.dueAt) meta.append(document.createTextNode(' · due ' + friendlyDate(item.dueAt)));
+          article.append(meta);
+          if (item.response != null) {
+            article.append(textElement('h4', 'Your response'));
+            article.append(textElement('p', item.response));
+            article.append(textElement('p', 'Sent ' + friendlyDate(item.respondedAt), 'muted'));
+          } else {
+            article.append(textElement('p', 'Awaiting your response.', 'muted'));
+          }
+          rows.push(article);
+        });
+        requests.replaceChildren.apply(requests, rows);
+      }
+
+      function renderDecisions(items) {
+        var rows = [];
+        if (!items.length) {
+          rows.push(textElement('p', 'No decision has been recorded yet.', 'panel muted'));
+        }
+        items.forEach(function (item) {
+          var article = document.createElement('article');
+          article.className = 'card stack';
+          article.append(textElement('h3', item.kind == null ? 'Decision' : item.kind + ' decision'));
+          article.append(textElement('p', item.outcome == null ? 'Outcome unavailable.' : item.outcome));
+          article.append(textElement('h4', 'Reason'));
+          article.append(textElement('p', item.reason == null ? 'Reason unavailable.' : item.reason));
+          article.append(textElement('p', 'Recorded ' + friendlyDate(item.decidedAt), 'muted'));
+          rows.push(article);
+        });
+        decisions.replaceChildren.apply(decisions, rows);
+      }
+
+      function renderAppeal(item) {
+        if (!item) {
+          appeal.replaceChildren(textElement('p', 'No appeal has been filed.', 'panel muted'));
+          return;
+        }
+        var article = document.createElement('article');
+        article.className = 'card stack';
+        article.append(textElement('h3', item.status == null ? 'Appeal' : item.status + ' appeal'));
+        article.append(textElement('h4', 'Grounds'));
+        article.append(textElement('p', item.grounds == null ? 'Grounds unavailable.' : item.grounds));
+        article.append(textElement('p', 'Filed ' + friendlyDate(item.filedAt), 'muted'));
+        if (item.decidedAt) article.append(textElement('p', 'Decided ' + friendlyDate(item.decidedAt), 'muted'));
+        appeal.replaceChildren(article);
+      }
+
+      function renderTimeline(items) {
+        var rows = [];
+        if (!items.length) {
+          rows.push(textElement('li', 'No timeline events have been recorded.', 'audit-event audit-event--redacted'));
+        }
+        items.forEach(function (item) {
+          var row = document.createElement('li');
+          row.className = 'audit-event';
+          row.append(textElement('strong', item.eventType == null ? 'Case updated' : item.eventType));
+          var statusText = item.fromStatus ? String(item.fromStatus) + ' → ' + String(item.toStatus == null ? '' : item.toStatus) : String(item.toStatus == null ? 'status unavailable' : item.toStatus);
+          row.append(textElement('span', statusText));
+          row.append(textElement('span', friendlyDate(item.occurredAt), 'audit-meta'));
+          rows.push(row);
+        });
+        timeline.replaceChildren.apply(timeline, rows);
+      }
+
+      function renderActions(data) {
+        var rows = [];
+        var pending = (data.informationRequests || []).find(function (request) {
+          return request && request.respondedAt == null;
+        });
+        if (data.status === 'closed') {
+          rows.push(textElement('p', 'This case is closed. It is read-only.', 'panel muted'));
+        } else if (data.status === 'awaiting_information' && pending) {
+          var responseAction = document.createElement('section');
+          responseAction.className = 'stack';
+          responseAction.append(textElement('p', 'Your response becomes part of this private development case.', 'muted'));
+          responseAction.append(textElement('p', pending.question == null ? 'Pending request question unavailable.' : pending.question, 'panel'));
+          var responseForm = actionForm('Response to this request', 'information-response', 'Send response');
+          responseForm.form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            var value = responseForm.textarea.value.trim();
+            if (!value) {
+              actionMessage(responseAction, 'Add a response before sending.');
+              return;
+            }
+            responseForm.button.disabled = true;
+            actionMessage(responseAction, 'Sending your response…');
+            try {
+              var response = await fetch(API + '/api/v1/complaints/' + encodeURIComponent(data.id) + '/information-requests/' + encodeURIComponent(pending.id) + '/respond', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+                body: JSON.stringify({ response: value }),
+              });
+              if (response.status === 401) {
+                location.href = '/login';
+                return;
+              }
+              if (!response.ok) {
+                actionMessage(responseAction, await apiError(response, 'The response could not be sent. Try again.'));
+                return;
+              }
+              loadCase();
+            } catch (_error) {
+              actionMessage(responseAction, 'The response could not be sent. Check your connection and try again.');
+            } finally {
+              responseForm.button.disabled = false;
+            }
+          });
+          responseAction.append(responseForm.form);
+          rows.push(responseAction);
+        } else if (data.status === 'decided' && !data.appeal) {
+          var appealAction = document.createElement('section');
+          appealAction.className = 'stack';
+          appealAction.append(textElement('p', 'You may file one appeal against the recorded decision.', 'muted'));
+          var appealForm = actionForm('Grounds for appeal', 'appeal-grounds', 'File appeal');
+          appealForm.form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            var value = appealForm.textarea.value.trim();
+            if (!value) {
+              actionMessage(appealAction, 'Add grounds before filing an appeal.');
+              return;
+            }
+            appealForm.button.disabled = true;
+            actionMessage(appealAction, 'Filing your appeal…');
+            try {
+              var response = await fetch(API + '/api/v1/complaints/' + encodeURIComponent(data.id) + '/appeals', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+                body: JSON.stringify({ grounds: value }),
+              });
+              if (response.status === 401) {
+                location.href = '/login';
+                return;
+              }
+              if (!response.ok) {
+                actionMessage(appealAction, await apiError(response, 'The appeal could not be filed. Try again.'));
+                return;
+              }
+              loadCase();
+            } catch (_error) {
+              actionMessage(appealAction, 'The appeal could not be filed. Check your connection and try again.');
+            } finally {
+              appealForm.button.disabled = false;
+            }
+          });
+          appealAction.append(appealForm.form);
+          rows.push(appealAction);
+        } else {
+          rows.push(textElement('p', 'No action is needed from you right now.', 'panel muted'));
+        }
+        actions.replaceChildren.apply(actions, rows);
+      }
+
+      function renderCase(data) {
+        caseNumber.textContent = String(data.caseNumber == null ? 'Case' : data.caseNumber);
+        heading.textContent = String(data.subject == null ? 'Untitled case' : data.subject);
+        caseStatus.replaceChildren(textElement('span', data.status == null ? 'unknown' : data.status, 'badge'), document.createTextNode(' · updated ' + friendlyDate(data.updatedAt)));
+        narrative.replaceChildren(textElement('p', data.narrative == null ? 'Narrative unavailable.' : data.narrative));
+        renderRequests(Array.isArray(data.informationRequests) ? data.informationRequests : []);
+        renderDecisions(Array.isArray(data.decisions) ? data.decisions : []);
+        renderAppeal(data.appeal);
+        renderActions(data);
+        renderTimeline(Array.isArray(data.events) ? data.events : []);
+        announcement.textContent = 'Case loaded.';
+        state.hidden = true;
+        detail.hidden = false;
+      }
+
+      function loadCase() {
+        showState('Loading case…');
+        fetch(API + '/api/v1/complaints/' + encodeURIComponent(id), {
+          headers: { authorization: 'Bearer ' + session.token },
+        })
+          .then(async function (response) {
+            if (response.status === 401) {
+              location.href = '/login';
+              return null;
+            }
+            if (response.status === 404) throw new Error('This case was not found.');
+            if (!response.ok) throw new Error(await apiError(response, 'The case could not be loaded.'));
+            return response.json();
+          })
+          .then(function (data) {
+            if (data) renderCase(data);
+          })
+          .catch(function (error) {
+            showState(error && error.message ? error.message : 'The case could not be loaded. Try again.');
+          });
+      }
+
+      try {
+        var raw = sessionStorage.getItem('web_session');
+        session = raw ? JSON.parse(raw) : null;
+      } catch (_error) {
+        session = null;
+      }
+      if (!session || typeof session.token !== 'string' || !session.token) {
+        var signIn = document.createElement('a');
+        signIn.href = '/login';
+        signIn.textContent = 'Sign in';
+        auth.replaceChildren(document.createTextNode('You need to '), signIn, document.createTextNode(' to view this private development case.'));
+        showState('Sign in to continue.');
+        return;
+      }
+      if (!id) {
+        auth.hidden = true;
+        showState('This case link is invalid.');
+        return;
+      }
+      auth.hidden = true;
+      loadCase();
+    });
+  </script>
+</Base>

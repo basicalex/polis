@@ -227,10 +227,9 @@ export class HttpPaperlessClient implements PaperlessClient {
   }
 
   async fetchDocument(id: string): Promise<PaperlessDocument | null> {
-    const res = await fetch(
-      `${this.baseUrl}/api/documents/${encodeURIComponent(id)}/`,
-      { headers: this.authHeaders() },
-    );
+    const res = await fetch(`${this.baseUrl}/api/documents/${encodeURIComponent(id)}/`, {
+      headers: this.authHeaders(),
+    });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`paperless_fetch_${res.status}`);
     return this.mapFetchedDoc((await res.json()) as Record<string, unknown>);
@@ -266,8 +265,10 @@ export class HttpPaperlessClient implements PaperlessClient {
     fallbackBytes: number,
   ): PaperlessDocument {
     const id = String(doc.id);
-    const archiveFileSize = typeof doc.archive_file_size === 'number' ? doc.archive_file_size : undefined;
-    const originalFileSize = typeof doc.original_file_size === 'number' ? doc.original_file_size : undefined;
+    const archiveFileSize =
+      typeof doc.archive_file_size === 'number' ? doc.archive_file_size : undefined;
+    const originalFileSize =
+      typeof doc.original_file_size === 'number' ? doc.original_file_size : undefined;
     return {
       id,
       originalMime: typeof doc.mime_type === 'string' ? doc.mime_type : guessMime(input.filename),
@@ -287,8 +288,10 @@ export class HttpPaperlessClient implements PaperlessClient {
 
   private mapFetchedDoc(doc: Record<string, unknown>): PaperlessDocument {
     const id = String(doc.id);
-    const archiveFileSize = typeof doc.archive_file_size === 'number' ? doc.archive_file_size : undefined;
-    const originalFileSize = typeof doc.original_file_size === 'number' ? doc.original_file_size : undefined;
+    const archiveFileSize =
+      typeof doc.archive_file_size === 'number' ? doc.archive_file_size : undefined;
+    const originalFileSize =
+      typeof doc.original_file_size === 'number' ? doc.original_file_size : undefined;
     return {
       id,
       originalMime: typeof doc.mime_type === 'string' ? doc.mime_type : null,
@@ -310,7 +313,5 @@ export function createPaperlessClient(): PaperlessClient {
   const mode = process.env.PAPERLESS_MODE ?? 'stub';
   if (mode === 'stub') return new StubPaperlessClient();
   if (mode === 'http') return new HttpPaperlessClient();
-  throw new Error(
-    `PAPERLESS_MODE=${mode} is not supported; use 'stub' or 'http'`,
-  );
+  throw new Error(`PAPERLESS_MODE=${mode} is not supported; use 'stub' or 'http'`);
 }

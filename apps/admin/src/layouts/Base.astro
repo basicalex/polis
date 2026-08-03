@@ -20,12 +20,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         <nav class="site-nav" aria-label="Primary">
           <a href="/drafting">Official drafting</a>
           <a href="/review">Review</a>
+          <a href="/complaints">Complaints</a>
           <a href="/governance">Governance</a>
           <a href="/verify">Verify</a>
           <a href="/deliberate">Deliberate</a>
           <a href="/audit">Audit</a>
           <a href="/assistant">Assistant</a>
-          <span id="auth-nav"></span>
+          <a id="auth-nav" href="/login">Login</a>
         </nav>
       </header>
       <main class="site-main"><slot /></main>
@@ -35,9 +36,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     </div>
     <script is:inline define:vars={{ apiUrl }}>
       window.__API_URL = apiUrl;
-      const s = sessionStorage.getItem('admin_session');
-      const n = document.getElementById('auth-nav');
-      if (n) n.innerHTML = s ? '<a href="#" onclick="sessionStorage.removeItem(\'admin_session\');location.reload()">Logout</a>' : '<a href="/login">Login</a>';
+      const session = sessionStorage.getItem('admin_session');
+      const nav = document.getElementById('auth-nav');
+      if (nav && session) {
+        nav.textContent = 'Logout';
+        nav.href = '#';
+        nav.addEventListener('click', function (event) {
+          event.preventDefault();
+          sessionStorage.removeItem('admin_session');
+          location.reload();
+        });
+      }
     </script>
   </body>
 </html>

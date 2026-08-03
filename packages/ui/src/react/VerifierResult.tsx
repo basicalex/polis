@@ -1,9 +1,4 @@
-import type {
-  CheckStatus,
-  DocumentProof,
-  VerdictTone,
-  VerificationVerdict,
-} from '@polis/domain';
+import type { CheckStatus, DocumentProof, VerdictTone, VerificationVerdict } from '@polis/domain';
 import { t, type Locale, type MessageKey } from '../messages/index.ts';
 
 const TONE_GLYPHS: Record<VerdictTone, string> = {
@@ -50,8 +45,7 @@ export function VerifierResult({
       ))}
       {computedHash ? (
         <p>
-          {t('verifier.computed_hash', locale)}:{' '}
-          <span className="hash-value">{computedHash}</span>
+          {t('verifier.computed_hash', locale)}: <span className="hash-value">{computedHash}</span>
         </p>
       ) : null}
       <ul className="check-list">
@@ -76,9 +70,7 @@ export function VerifierResult({
           {t('verifier.view_proof', locale)}
         </a>
       ) : null}
-      <p className="trust-note trust-note--compact">
-        {t('verdict.note.proof_not_truth', locale)}
-      </p>
+      <p className="trust-note trust-note--compact">{t('verdict.note.proof_not_truth', locale)}</p>
     </article>
   );
 }

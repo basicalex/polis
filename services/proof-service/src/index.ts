@@ -11,17 +11,15 @@
  * hash directly — a verify must never depend on the ingestion pipeline being up.
  */
 import { randomUUID } from 'node:crypto';
-import { getClient } from '@polis/db';
+import { checkDatabase, getClient } from '@polis/db';
 import type { DbClient } from '@polis/db';
-import {
-  sha256Hex,
-  type DocumentProof,
-  type ProofSignature,
-  type ProofTimestamp,
-} from '@polis/domain';
+import { sha256Hex, type ProofSignature, type ProofTimestamp } from '@polis/domain';
 import { and, desc, eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
+  DEFAULT_FETCH_TIMEOUT_MS,
+  MAX_FETCH_TIMEOUT_MS,
+  fetchWithTimeout,
   internalHeaders,
   operationalRoutes,
   result,
@@ -47,6 +45,32 @@ const MANIFEST_CREATOR_SERVICES: Record<string, true> = {
   'document-signing-service': true,
 };
 
+/** Bounded database readiness without exposing database failure details. */
+export async function databaseReadiness(
+  check: () => Promise<unknown> = checkDatabase,
+): Promise<{ ready: true } | { ready: false; dependency: 'database' }> {
+  try {
+    await check();
+    return { ready: true };
+  } catch {
+    return { ready: false, dependency: 'database' };
+  }
+}
+
+/** Validate the deadline applied to every internal outbound request. */
+export function internalFetchTimeoutMs(
+  value: string | undefined = process.env.INTERNAL_FETCH_TIMEOUT_MS,
+): number {
+  if (value === undefined) return DEFAULT_FETCH_TIMEOUT_MS;
+  const timeoutMs = Number(value);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_FETCH_TIMEOUT_MS) {
+    throw new RangeError(
+      `INTERNAL_FETCH_TIMEOUT_MS must be an integer between 1 and ${MAX_FETCH_TIMEOUT_MS}`,
+    );
+  }
+  return timeoutMs;
+}
+
 /**
  * Best-effort audit emit. Failures (audit-service unreachable) are logged and
  * never fail the originating request — matches platform-api + polis-bridge.
@@ -61,19 +85,23 @@ async function emitAudit(event: {
 }): Promise<void> {
   const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   try {
-    await fetch(base + '/internal/audit/events', {
-      method: 'POST',
-      headers: internalHeaders(),
-      body: JSON.stringify({
-        eventType: event.eventType,
-        action: event.action,
-        visibility: event.visibility,
-        actor: { type: 'service', id: 'proof-service' },
-        target: event.target,
-        data: event.data,
-        correlationId: event.correlationId ?? null,
-      }),
-    });
+    await fetchWithTimeout(
+      base + '/internal/audit/events',
+      {
+        method: 'POST',
+        headers: internalHeaders(),
+        body: JSON.stringify({
+          eventType: event.eventType,
+          action: event.action,
+          visibility: event.visibility,
+          actor: { type: 'service', id: 'proof-service' },
+          target: event.target,
+          data: event.data,
+          correlationId: event.correlationId ?? null,
+        }),
+      },
+      internalFetchTimeoutMs(),
+    );
   } catch (err) {
     console.error(
       JSON.stringify({
@@ -89,7 +117,7 @@ async function emitAudit(event: {
 async function findLatestPublicByHash(
   db: DbClient,
   hash: string,
-): Promise<(typeof schema.proofManifests.$inferSelect) | null> {
+): Promise<typeof schema.proofManifests.$inferSelect | null> {
   const rows = await db
     .select()
     .from(schema.proofManifests)
@@ -106,11 +134,15 @@ async function findLatestPublicByHash(
 
 /** POST JSON to an internal service; throw on non-2xx so the caller can decide. */
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: internalHeaders(),
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: internalHeaders(),
+      body: JSON.stringify(body),
+    },
+    internalFetchTimeoutMs(),
+  );
   if (!res.ok) {
     const detail = await res.json().catch(() => ({ status: res.status }));
     throw new Error(JSON.stringify(detail));
@@ -251,7 +283,7 @@ export function proofRoutes(db: DbClient): Route[] {
           originalMime: input.originalMime ?? null,
           originalBytes: input.originalBytes == null ? null : String(input.originalBytes),
           algorithm: input.algorithm ?? 'sha256',
-          registryStatus: 'active',
+          registryStatus: 'unknown',
           contentVisibility: input.contentVisibility ?? 'public',
           proofVisibility: input.proofVisibility ?? 'public',
           createdAt,
@@ -272,20 +304,18 @@ export function proofRoutes(db: DbClient): Route[] {
           data: { originalFileHash: row.originalFileHash, manifestHash: row.manifestHash },
           visibility: auditVisibility(row.proofVisibility),
         });
-        // §9.12 orchestration: await sig + ts so the 201 already carries them.
-        // Failure is explicit (empty array + audit warning), never silently missing.
+        // A manifest remains non-active until both required evidence providers succeed.
         const signatureUrl = process.env.SIGNATURE_INTERNAL_URL ?? 'http://localhost:8900';
         const timestampUrl = process.env.TIMESTAMP_INTERNAL_URL ?? 'http://localhost:8800';
-        let signatures: ProofSignature[] = [];
-        let timestamps: ProofTimestamp[] = [];
+        let signature: ProofSignature | null = null;
+        let timestamp: ProofTimestamp | null = null;
         try {
-          const sig = await postJson<ProofSignature>(signatureUrl + '/internal/signatures', {
+          signature = await postJson<ProofSignature>(signatureUrl + '/internal/signatures', {
             proofId: row.id,
             hash: row.manifestHash,
             issuerId: row.issuerId,
             issuerName: row.issuerName,
           });
-          signatures = [sig];
         } catch (err) {
           console.warn(
             JSON.stringify({
@@ -303,12 +333,11 @@ export function proofRoutes(db: DbClient): Route[] {
           });
         }
         try {
-          const ts = await postJson<ProofTimestamp>(timestampUrl + '/internal/timestamps', {
+          timestamp = await postJson<ProofTimestamp>(timestampUrl + '/internal/timestamps', {
             proofId: row.id,
             hash: row.manifestHash,
             algorithm: row.algorithm,
           });
-          timestamps = [ts];
         } catch (err) {
           console.warn(
             JSON.stringify({
@@ -325,6 +354,28 @@ export function proofRoutes(db: DbClient): Route[] {
             visibility: auditVisibility(row.proofVisibility),
           });
         }
+
+        const signatures = signature ? [signature] : [];
+        const timestamps = timestamp ? [timestamp] : [];
+        if (signature && timestamp) {
+          const activeRow = { ...row, registryStatus: 'active' };
+          const activeManifest = documentProofWire(activeRow, signatures, timestamps, null, null);
+          const activatedRows = await db
+            .update(schema.proofManifests)
+            .set({ registryStatus: 'active', manifestJson: activeManifest })
+            .where(eq(schema.proofManifests.id, row.id))
+            .returning();
+          const activatedRow = activatedRows[0];
+          await emitAudit({
+            eventType: 'proof.manifest.activated',
+            action: 'activate',
+            target: { type: 'proof', id: row.id },
+            data: { signatureId: signature.id, timestampId: timestamp.id },
+            visibility: auditVisibility(row.proofVisibility),
+          });
+          return result(201, documentProofWire(activatedRow, signatures, timestamps, null, null));
+        }
+
         return result(201, documentProofWire(row, signatures, timestamps, null, null));
       },
     },
@@ -358,7 +409,10 @@ export function proofRoutes(db: DbClient): Route[] {
           data: { method: 'file', result: manifest.registryStatus, originalFileHash: hash },
           visibility: 'public',
         });
-        return { status: manifest.registryStatus === 'active' ? 'valid' : manifest.registryStatus, manifest };
+        return {
+          status: manifest.registryStatus === 'active' ? 'valid' : manifest.registryStatus,
+          manifest,
+        };
       },
     },
 
@@ -617,7 +671,12 @@ export function proofRoutes(db: DbClient): Route[] {
 async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.PROOF_SERVICE_PORT ?? 8700);
   const db = getClient();
-  startService('proof-service', port, proofRoutes(db));
+  startService('proof-service', port, proofRoutes(db), {
+    readiness: databaseReadiness,
+    validateConfig: () => {
+      internalFetchTimeoutMs();
+    },
+  });
   console.log(JSON.stringify({ service: 'proof-service', port, status: 'listening' }));
 }
 

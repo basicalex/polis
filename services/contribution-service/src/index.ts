@@ -14,7 +14,7 @@
  */
 import { getClient, schema } from '@polis/db';
 import type { DbClient } from '@polis/db';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   internalHeaders,
   operationalRoutes,
@@ -24,7 +24,13 @@ import {
   type Route,
 } from '@polis/service-runtime';
 
-import { contributorWire, graphProposalWire, questionWire, reviewWire, submissionWire } from './serialize.js';
+import {
+  contributorWire,
+  graphProposalWire,
+  questionWire,
+  reviewWire,
+  submissionWire,
+} from './serialize.js';
 
 /** §21 non-anonymous identity levels. */
 const ALLOWED_IDENTITY: Record<string, true> = {
@@ -124,10 +130,14 @@ type RepresentativeEvidenceInput = {
 
 const representativeEvidenceItems = (value: unknown): RepresentativeEvidenceInput[] => {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is RepresentativeEvidenceInput => item !== null && typeof item === 'object');
+  return value.filter(
+    (item): item is RepresentativeEvidenceInput => item !== null && typeof item === 'object',
+  );
 };
 
-const representativeEvidenceVisibility = (visibility: unknown): 'public' | 'restricted' | 'private' => {
+const representativeEvidenceVisibility = (
+  visibility: unknown,
+): 'public' | 'restricted' | 'private' => {
   return visibility === 'public' || visibility === 'restricted' || visibility === 'private'
     ? visibility
     : 'restricted';
@@ -227,7 +237,10 @@ type PublishGateDenied = {
   response: HttpResult;
 };
 
-function charterScopeCovers(scope: unknown, requested: RequestedCommitmentScope): true | PublishDenial {
+function charterScopeCovers(
+  scope: unknown,
+  requested: RequestedCommitmentScope,
+): true | PublishDenial {
   const jurisdictionId = requested.jurisdictionId ?? null;
   const processId = requested.processId ?? null;
   if (scope == null || scope === 'all') return true;
@@ -245,7 +258,11 @@ function charterScopeCovers(scope: unknown, requested: RequestedCommitmentScope)
       !Array.isArray(scoped.jurisdictions) ||
       (!scoped.jurisdictions.includes('all') && !scoped.jurisdictions.includes(jurisdictionId))
     ) {
-      return { error: 'charter_scope_not_covered', reason: 'jurisdiction_not_covered', field: 'jurisdictionId' };
+      return {
+        error: 'charter_scope_not_covered',
+        reason: 'jurisdiction_not_covered',
+        field: 'jurisdictionId',
+      };
     }
   }
   if (processId) {
@@ -253,7 +270,11 @@ function charterScopeCovers(scope: unknown, requested: RequestedCommitmentScope)
       !Array.isArray(scoped.processes) ||
       (!scoped.processes.includes('all') && !scoped.processes.includes(processId))
     ) {
-      return { error: 'charter_scope_not_covered', reason: 'process_not_covered', field: 'processId' };
+      return {
+        error: 'charter_scope_not_covered',
+        reason: 'process_not_covered',
+        field: 'processId',
+      };
     }
   }
   return true;
@@ -277,7 +298,11 @@ async function assertCanPublish(
     .limit(1);
   const citizen = citizenRows[0];
   if (!citizen || citizen.identityLevel !== 'verified_official') {
-    const body = { error: 'not_verified_official', reason: 'identity_level_required', field: 'identityLevel' };
+    const body = {
+      error: 'not_verified_official',
+      reason: 'identity_level_required',
+      field: 'identityLevel',
+    };
     return { denied: true, body, response: result(403, body) };
   }
   const holderRows = await db
@@ -291,11 +316,19 @@ async function assertCanPublish(
     .limit(1);
   const holder = holderRows[0];
   if (!holder || holder.citizenId !== citizenId) {
-    const body = { error: 'not_mandate_holder', reason: 'citizen_mismatch', field: 'mandateHolderId' };
+    const body = {
+      error: 'not_mandate_holder',
+      reason: 'citizen_mismatch',
+      field: 'mandateHolderId',
+    };
     return { denied: true, body, response: result(403, body) };
   }
   if (holder.status !== 'active') {
-    const body = { error: 'mandate_inactive', reason: 'mandate_holder_not_active', field: 'status' };
+    const body = {
+      error: 'mandate_inactive',
+      reason: 'mandate_holder_not_active',
+      field: 'status',
+    };
     return { denied: true, body, response: result(403, body) };
   }
   const charterRows = await db
@@ -316,7 +349,11 @@ async function assertCanPublish(
     .limit(1);
   const charter = charterRows[0];
   if (!charter || charter.status !== 'accepted') {
-    const body = { error: 'charter_required', reason: 'accepted_charter_required', field: 'charter' };
+    const body = {
+      error: 'charter_required',
+      reason: 'accepted_charter_required',
+      field: 'charter',
+    };
     return { denied: true, body, response: result(403, body) };
   }
   let signatureBacked = false;
@@ -347,7 +384,10 @@ async function assertCanPublish(
         .where(eq(schema.documentArtifacts.id, charter.signedArtifactId))
         .limit(1);
       const proofRows = await db
-        .select({ id: schema.proofManifests.id, registryStatus: schema.proofManifests.registryStatus })
+        .select({
+          id: schema.proofManifests.id,
+          registryStatus: schema.proofManifests.registryStatus,
+        })
         .from(schema.proofManifests)
         .where(eq(schema.proofManifests.id, charter.proofManifestId))
         .limit(1);
@@ -364,11 +404,11 @@ async function assertCanPublish(
       const proof = proofRows[0];
       signatureBacked = Boolean(
         artifactRows[0]?.kind === 'charter_signed' &&
-          proof &&
-          proof.registryStatus !== 'revoked' &&
-          proof.registryStatus !== 'superseded' &&
-          !revocationRows[0] &&
-          !supersessionRows[0],
+        proof &&
+        proof.registryStatus !== 'revoked' &&
+        proof.registryStatus !== 'superseded' &&
+        !revocationRows[0] &&
+        !supersessionRows[0],
       );
     }
   }
@@ -421,7 +461,11 @@ async function emitRepresentativeDeniedAudit(input: {
  * failure is logged + audited and never propagates (the review decision is
  * already recorded and must not be lost).
  */
-async function applySubmission(db: DbClient, sub: SubmissionRow, reviewerId: string): Promise<boolean> {
+async function applySubmission(
+  db: DbClient,
+  sub: SubmissionRow,
+  reviewerId: string,
+): Promise<boolean> {
   try {
     if (sub.type === 'evidence') {
       const p = (sub.payload ?? {}) as {
@@ -505,7 +549,10 @@ async function applySubmission(db: DbClient, sub: SubmissionRow, reviewerId: str
         status?: string;
         resolutionClaimId?: string;
       };
-      if (p.kind === 'resolution' && (!p.status || !(p.status in RESOLUTION_STATUSES) || !p.resolutionClaimId)) {
+      if (
+        p.kind === 'resolution' &&
+        (!p.status || !(p.status in RESOLUTION_STATUSES) || !p.resolutionClaimId)
+      ) {
         return false;
       }
       if (p.kind === 'resolution') {
@@ -806,11 +853,7 @@ export function contributionRoutes(db: DbClient): Route[] {
       handler: async (req) => {
         const reviewerId = req.headers['x-polis-citizen'];
         const identityLevel = req.headers['x-polis-identity-level'];
-        if (
-          typeof reviewerId !== 'string' ||
-          !reviewerId.trim() ||
-          identityLevel !== 'staff'
-        ) {
+        if (typeof reviewerId !== 'string' || !reviewerId.trim() || identityLevel !== 'staff') {
           return result(403, { error: 'staff_required' });
         }
         const rows = await db
@@ -839,11 +882,7 @@ export function contributionRoutes(db: DbClient): Route[] {
       handler: async (req, body, params) => {
         const reviewerId = req.headers['x-polis-citizen'];
         const identityLevel = req.headers['x-polis-identity-level'];
-        if (
-          typeof reviewerId !== 'string' ||
-          !reviewerId.trim() ||
-          identityLevel !== 'staff'
-        ) {
+        if (typeof reviewerId !== 'string' || !reviewerId.trim() || identityLevel !== 'staff') {
           return result(403, { error: 'staff_required' });
         }
         const input = body as { decision?: string; notes?: string };
@@ -895,7 +934,11 @@ export function contributionRoutes(db: DbClient): Route[] {
             target: { type: 'contribution', id: params.id },
             data: { reviewerId, applied },
           });
-          if (sub.contributionClass !== 'political_agreement' && sub.contributionClass !== 'mandate_commitment' && sub.contributionClass !== 'mandate_answer') {
+          if (
+            sub.contributionClass !== 'political_agreement' &&
+            sub.contributionClass !== 'mandate_commitment' &&
+            sub.contributionClass !== 'mandate_answer'
+          ) {
             await emitRewardEligibility({
               submissionId: params.id,
               contributorId: sub.contributorId,
@@ -968,11 +1011,7 @@ export function contributionRoutes(db: DbClient): Route[] {
         if (!successCriterion) detail.push('success_criterion_required');
         let dueAt: string | null = null;
         if (p.dueAt !== undefined && p.dueAt !== null) {
-          if (
-            typeof p.dueAt !== 'string' ||
-            !p.dueAt.trim() ||
-            Number.isNaN(Date.parse(p.dueAt))
-          ) {
+          if (typeof p.dueAt !== 'string' || !p.dueAt.trim() || Number.isNaN(Date.parse(p.dueAt))) {
             detail.push('invalid_due_at');
           } else {
             dueAt = p.dueAt.trim();
@@ -1121,7 +1160,12 @@ export function contributionRoutes(db: DbClient): Route[] {
           jurisdictionId: commitment.jurisdictionId ?? null,
           processId: commitment.processId ?? null,
         };
-        const gate = await assertCanPublish(db, citizenId, commitment.mandateHolderId, requestedScope);
+        const gate = await assertCanPublish(
+          db,
+          citizenId,
+          commitment.mandateHolderId,
+          requestedScope,
+        );
         if (gate) {
           await emitRepresentativeDeniedAudit({
             eventType: 'representative.commitment.resolution_denied',
@@ -1240,7 +1284,8 @@ export function contributionRoutes(db: DbClient): Route[] {
         if (!cRows[0]) return result(404, { error: 'not_found', id: params.id });
         const q = (body ?? {}) as { body?: string };
         const text = typeof q.body === 'string' ? q.body.trim() : '';
-        if (!text) return result(400, { error: 'invalid_question_payload', detail: ['body_required'] });
+        if (!text)
+          return result(400, { error: 'invalid_question_payload', detail: ['body_required'] });
         const ins = await db
           .insert(schema.commitmentQuestions)
           .values({
@@ -1291,7 +1336,8 @@ export function contributionRoutes(db: DbClient): Route[] {
         if (gate) return gate.response;
         const input = (body ?? {}) as { body?: string };
         const answerText = typeof input.body === 'string' ? input.body.trim() : '';
-        if (!answerText) return result(400, { error: 'invalid_answer_payload', detail: ['body_required'] });
+        if (!answerText)
+          return result(400, { error: 'invalid_answer_payload', detail: ['body_required'] });
         const payload = {
           kind: 'answer',
           questionId: params.id,

@@ -14,7 +14,10 @@ RUN uv sync --frozen
 
 FROM python:3.12-slim AS runner
 ENV UV_PYTHON=3.12 PATH=/app/.venv/bin:$PATH
+RUN groupadd --system polis \
+  && useradd --system --gid polis --create-home --home-dir /app --shell /usr/sbin/nologin polis
 WORKDIR /app
-COPY --from=build /app /app
+COPY --from=build --chown=polis:polis /app /app
+USER polis
 # Smoke entrypoint: confirms polis_core imports.
 CMD ["python", "-c", "import polis_core; print('polis-core ready')"]

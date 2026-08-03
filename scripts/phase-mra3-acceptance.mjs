@@ -15,7 +15,7 @@ import { loginCitizen } from './dev-login.mjs';
 //   7.  Access gate — verified_resident answering → 403 not_verified_official.
 //   8.  Scorecard counts still served (deep-link surface verified by build + manual).
 //
-// Run with: node scripts/dev-services.mjs (fresh seed) then node scripts/phase-mra3-acceptance.mjs
+// Run with: bun scripts/dev-services.mjs (fresh seed) then bun scripts/phase-mra3-acceptance.mjs
 
 const BFF = process.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -41,7 +41,6 @@ async function post(base, path, body, headers = {}) {
   });
   return { status: r.status, body: await r.json().catch(() => null) };
 }
-
 
 console.log('[phase-mra3] checking M-RA Phase 3 commitment-scoped Q&A + scorecard deep-links…');
 
@@ -70,7 +69,11 @@ check('staff reviewer login succeeds', !reviewerLogin.error, reviewerLogin.error
 check('reviewer identityLevel === staff', reviewerLogin.citizen?.identityLevel === 'staff');
 const reviewerAuth = { authorization: 'Bearer ' + reviewerLogin.sessionToken };
 const reviewQueue = await get(BFF, '/api/v1/review/queue', reviewerAuth);
-check('staff GET /api/v1/review/queue → 200', reviewQueue.status === 200, `status=${reviewQueue.status}`);
+check(
+  'staff GET /api/v1/review/queue → 200',
+  reviewQueue.status === 200,
+  `status=${reviewQueue.status}`,
+);
 
 // ─── 3. Citizen ask on c-mh-2 ───
 const ask = await post(
@@ -85,10 +88,20 @@ check('asked question has an id', typeof qId === 'string', `id=${qId}`);
 
 // ─── 4. Public read (answer===null) ───
 const pubRead = await get(BFF, '/api/v1/commitments/c-mh-2/questions');
-check('GET /commitments/c-mh-2/questions → 200', pubRead.status === 200, `status=${pubRead.status}`);
-const asked = Array.isArray(pubRead.body?.items) ? pubRead.body.items.find((q) => q.id === qId) : null;
+check(
+  'GET /commitments/c-mh-2/questions → 200',
+  pubRead.status === 200,
+  `status=${pubRead.status}`,
+);
+const asked = Array.isArray(pubRead.body?.items)
+  ? pubRead.body.items.find((q) => q.id === qId)
+  : null;
 check('public read includes the new question', !!asked, 'question missing');
-check('new question answer === null', asked?.answer === null, `answer=${JSON.stringify(asked?.answer)}`);
+check(
+  'new question answer === null',
+  asked?.answer === null,
+  `answer=${JSON.stringify(asked?.answer)}`,
+);
 
 // ─── 5. Projection (commitment detail carries questions) ───
 const detail = await get(BFF, '/api/v1/commitments/c-mh-2');
@@ -106,7 +119,11 @@ const answer = await post(
   { body: 'On schedule.' },
   mhAuth,
 );
-check('POST /commitment-questions/:id/answers → 201', answer.status === 201, `status=${answer.status}`);
+check(
+  'POST /commitment-questions/:id/answers → 201',
+  answer.status === 201,
+  `status=${answer.status}`,
+);
 check(
   'filed answer status === pending',
   answer.body?.status === 'pending',
@@ -127,11 +144,17 @@ const approve = await post(
   reviewerAuth,
 );
 check('POST /review/:id/decide → 201', approve.status === 201, `status=${approve.status}`);
-check('answer applied === true', approve.body?.applied === true, `applied=${approve.body?.applied}`);
+check(
+  'answer applied === true',
+  approve.body?.applied === true,
+  `applied=${approve.body?.applied}`,
+);
 
 // ─── 8. Answer now readable ───
 const pubRead2 = await get(BFF, '/api/v1/commitments/c-mh-2/questions');
-const answered = Array.isArray(pubRead2.body?.items) ? pubRead2.body.items.find((q) => q.id === qId) : null;
+const answered = Array.isArray(pubRead2.body?.items)
+  ? pubRead2.body.items.find((q) => q.id === qId)
+  : null;
 check(
   'applied answer body === "On schedule."',
   answered?.answer?.body === 'On schedule.',
@@ -158,10 +181,14 @@ check('POST ask without auth → 401', noAuth.status === 401, `status=${noAuth.s
 
 // ─── 11. Scorecard counts still served (deep-link surface present) ───
 // The deep-link itself (?status=delivered) is server-rendered HTML on apps/web;
-// it is verified by `pnpm --filter @polis/apps-web build` + a manual visit. Here
+// it is verified by `bun run --filter @polis/apps-web build` + a manual visit. Here
 // we assert the API the cells are built from still returns counts.
 const scorecard = await get(BFF, '/api/v1/mandate-holders/mh-demo/scorecard');
-check('GET /mandate-holders/mh-demo/scorecard → 200', scorecard.status === 200, `status=${scorecard.status}`);
+check(
+  'GET /mandate-holders/mh-demo/scorecard → 200',
+  scorecard.status === 200,
+  `status=${scorecard.status}`,
+);
 check(
   'scorecard returns totals',
   !!scorecard.body?.totals && typeof scorecard.body.totals.delivered === 'number',

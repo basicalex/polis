@@ -60,10 +60,18 @@ const uploaded = await post(INGESTION, '/internal/ingestion/documents', {
   filename: 'm12-acceptance.txt',
   documentClass: 'public-government-record',
 });
-check('POST /internal/ingestion/documents → 201', uploaded.status === 201, `status=${uploaded.status}`);
+check(
+  'POST /internal/ingestion/documents → 201',
+  uploaded.status === 201,
+  `status=${uploaded.status}`,
+);
 const manifestId = uploaded.body?.id ?? '';
 const originalFileHash = uploaded.body?.hashes?.originalFileHash ?? '';
-check('uploaded manifest has id', !!manifestId, `body=${JSON.stringify(uploaded.body ?? {}).slice(0, 200)}`);
+check(
+  'uploaded manifest has id',
+  !!manifestId,
+  `body=${JSON.stringify(uploaded.body ?? {}).slice(0, 200)}`,
+);
 check(
   'uploaded manifest has hashes.originalFileHash',
   !!originalFileHash,
@@ -71,7 +79,9 @@ check(
 );
 
 // ─── 2. Real signature + real timestamp on the proof ───
-const proof = manifestId ? await get(BFF, `/api/v1/proofs/${manifestId}`) : { status: 0, body: null };
+const proof = manifestId
+  ? await get(BFF, `/api/v1/proofs/${manifestId}`)
+  : { status: 0, body: null };
 check('GET /api/v1/proofs/<id> → 200', proof.status === 200, `status=${proof.status}`);
 
 const signatures = Array.isArray(proof.body?.signatures) ? proof.body.signatures : [];
@@ -87,7 +97,11 @@ check(
   !!sig?.signerRef && sig.signerRef !== 'test-signer-stub-ed25519',
   `signerRef=${sig?.signerRef}`,
 );
-check('signature.validationStatus is valid', sig?.validationStatus === 'valid', `status=${sig?.validationStatus}`);
+check(
+  'signature.validationStatus is valid',
+  sig?.validationStatus === 'valid',
+  `status=${sig?.validationStatus}`,
+);
 check('signature has non-empty signatureValueRef', !!sig?.signatureValueRef, '');
 
 const timestamps = Array.isArray(proof.body?.timestamps) ? proof.body.timestamps : [];
@@ -99,7 +113,11 @@ check(
   !!ts?.tsa && ts.tsa !== 'polis-stub-tsa',
   `tsa=${ts?.tsa}`,
 );
-check('timestamp.validationStatus is valid', ts?.validationStatus === 'valid', `status=${ts?.validationStatus}`);
+check(
+  'timestamp.validationStatus is valid',
+  ts?.validationStatus === 'valid',
+  `status=${ts?.validationStatus}`,
+);
 check('timestamp has non-empty timestampRef', !!ts?.timestampRef, '');
 
 // ─── 3. TSA reachable + real (dev cert chain exists) ───
@@ -110,7 +128,11 @@ check('GET TSA /api/v1/timestamp/certchain → 200', ccRes.ok, `status=${ccRes.s
 const hashVerify = originalFileHash
   ? await post(BFF, '/api/v1/verify/hash', { hash: originalFileHash })
   : { status: 0, body: null };
-check('POST /api/v1/verify/hash → status valid', hashVerify.body?.status === 'valid', `status=${hashVerify.body?.status}`);
+check(
+  'POST /api/v1/verify/hash → status valid',
+  hashVerify.body?.status === 'valid',
+  `status=${hashVerify.body?.status}`,
+);
 check(
   'verify/hash manifest.id matches uploaded manifest',
   hashVerify.body?.manifest?.id === manifestId,
@@ -118,7 +140,9 @@ check(
 );
 
 // ─── 5. Audit carries the real signature + timestamp events ───
-const audit = manifestId ? await get(BFF, `/api/v1/audit/proof/${manifestId}`) : { status: 0, body: null };
+const audit = manifestId
+  ? await get(BFF, `/api/v1/audit/proof/${manifestId}`)
+  : { status: 0, body: null };
 check('GET /api/v1/audit/proof/<id> → 200', audit.status === 200, `status=${audit.status}`);
 const auditItems = Array.isArray(audit.body?.items) ? audit.body.items : [];
 const eventTypes = auditItems.map((e) => e.eventType);
