@@ -2,9 +2,9 @@
 
 # Polis Interface
 
-**A place where residents speak up about how their government works — and can watch, with evidence, what it does in response.**
+**Say something to your government — a remark, a question, a complaint — then watch the file: who got it, what they promised, what changed.**
 
-What a movement promises and what an institution actually does are checked against the same public record. Every claim links to its source. Every promise is tracked by independent review, not self-reporting. Every document can be verified by anyone holding a copy.
+A complaint, a promise, and a document all sit on the same public record. Every claim shows its source. Every promise is checked by reviewers against evidence, not by the person who made it. Every registered document can be verified by anyone holding a copy.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/basicalex/polis/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/basicalex/polis/actions/workflows/ci.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg?style=flat-square)](NOTICE)
@@ -18,14 +18,14 @@ What a movement promises and what an institution actually does are checked again
 
 ## What is this?
 
-Civic data suffers from a trust problem, not a data problem. Documents circulate without provenance. Promises drift from records. Dashboards summarise without sources. Residents who raise a problem rarely see what happened next.
+Someone reports a broken thing. It goes into an office, and nothing comes back out. The documents that would explain the decision circulate with no proof of where they came from; promises drift from records; dashboards summarise without sources.
 
-Polis Interface is one platform serving both sides of that gap:
+Polis Interface works both directions:
 
-- **For the community** — a way to raise issues, file complaints, propose evidence-backed claims about how government works, and then *see* what happens: who is responsible, what they committed to, and how far along it is.
-- **For institutions and campaigns** — a way to publish programmes and commitments where progress is measured against evidence in public, not asserted in press releases.
+- **For the community** — a way to raise issues, file complaints, write down how a rule actually works and show the document that says so, and then *see* what happens: who is responsible, what they committed to, and how far along it is.
+- **For institutions and campaigns** — a way to publish a programme and have each promise scored in public against documents, not in a press release.
 
-Both run on the same verifiable data, so the accountability is symmetric: the public can check the government, and the government can point to proof.
+Both run on the same data, so it cuts both ways: the public can check the government, and the government can point to proof.
 
 **Status: this is a local v1 prototype.** It runs on your machine against synthetic data and mock providers. It is not deployed anywhere and holds no real resident or government data. Details in [Honest status](#honest-status).
 
@@ -38,8 +38,8 @@ Both run on the same verifiable data, so the accountability is symmetric: the pu
 **As a resident (public site, `:4321`)**
 - Browse a map of who governs what — institutions, roles, laws, processes — with a source behind every entry.
 - Click any claim (e.g. *"the Complaints Office requires identity evidence before accepting a complaint"*) and see the documents it came from, its confidence rating, and its review history.
-- File a complaint and follow the case: who it was assigned to, what was requested, what was decided, and the appeal — handled by a different officer than the original decision, by design.
-- Look up an elected office-holder, read what they committed to, and see the current status of each commitment — adjudicated through a public review queue, never self-reported.
+- File a complaint and follow the case: who it was assigned to, what was requested, what was decided, and the appeal, which goes to a different officer than the one who decided.
+- Look up an elected office-holder, read what they committed to, and see the current status of each commitment — set by reviewers in a public queue, not by the office-holder.
 - Ask the built-in assistant questions about local government. It answers only from approved public documents and cites them.
 
 **As anyone holding a document (verifier, `:4322/verify`)**
@@ -54,7 +54,7 @@ Both run on the same verifiable data, so the accountability is symmetric: the pu
 
 ## See it work
 
-The seed data models a fictional Croatian municipality, **Grad Primjer**, whose complaint procedure has a real-world flaw: it makes residents prove identity and residence twice, to two different offices. Polis doesn't impose that burden — it documents it, traces it to sources, and tracks the elected official's promise to remove it. A four-step tour after [Quickstart](#quickstart):
+The seed data models a fictional Croatian municipality, **Grad Primjer**, whose complaint procedure has a flaw copied from real procedures: it makes residents prove identity and residence twice, to two different offices. Polis doesn't impose that burden — it documents it, traces it to sources, and tracks the elected official's promise to remove it. A four-step tour after [Quickstart](#quickstart):
 
 1. **Open the governance map** — `localhost:4321/governance/jur-croatia-local`. See the complaint process and the two offices (Public Complaints Office, Municipal Registry Office) that each demand the same documents.
 2. **Follow a claim to its sources** — click *"The Public Complaints Office requires identity evidence before accepting and routing a citizen complaint."* You get its confidence badge, review state, the government sources it cites, and its audit trail.
@@ -104,7 +104,7 @@ docker compose -f infra/compose/docker-compose.yml up -d --build --wait
 docker compose -f infra/compose/docker-compose.yml run --rm seed
 ```
 
-This starts Postgres and all 18 backend services on an internal network, with the public API on `:8080`, then seeds the Grad Primjer demo data (the seed job is idempotent — safe to re-run). The UIs still run with `bun run dev:web` / `dev:verifier` as above. Postgres is not published to the host — for direct service access (and the `scripts/phase*-acceptance.mjs` scripts, which expect service ports on localhost) add `--profile debug`.
+This starts Postgres and all 18 backend services (17 Node plus the Python AI gateway) on an internal network, with the public API on `:8080`, then seeds the Grad Primjer demo data (the seed job is idempotent — safe to re-run). The UIs still run with `bun run dev:web` / `dev:verifier` as above. Postgres is not published to the host — for direct service access (and the `scripts/phase*-acceptance.mjs` scripts, which expect service ports on localhost) add `--profile debug`.
 
 ### Checks
 
@@ -117,11 +117,11 @@ bun run lint
 
 ## Why you can trust what you see
 
-Four rules the system holds at once:
+Four rules, all of the time:
 
-- **Every governance fact links to its source.** Institutions, roles, laws, and claims trace back to the document they came from. Nothing is asserted bare.
-- **Sensitive actions leave a tamper-evident trail.** Covered actions append entries to a hash-linked log — each entry seals the one before it, so edits and deletions show up. Coverage is explicit: the system says exactly which actions are logged rather than implying everything is.
-- **Important documents are verifiable by anyone.** A document is frozen byte-for-byte, then its fingerprint (SHA-256), signature, and timestamp are recorded. Documents can later be withdrawn or replaced, and the record shows which.
+- **Every governance fact links to its source.** Institutions, roles, laws, and claims trace back to the document they came from. Nothing stands on its own word.
+- **Sensitive actions leave a tamper-evident trail.** Some actions write to a hash-linked log, where each entry seals the one before it, so edits and deletions show. The list of which actions are logged is public — the system never implies it is everything.
+- **Important documents are verifiable by anyone.** We freeze the document byte-for-byte and record its fingerprint (SHA-256), signature, and timestamp. Documents can later be withdrawn or replaced, and the record shows which.
 - **The AI assistant can be audited.** It answers only from an approved set of public sources, cites them, screens ingested text for prompt injection, and stores every answer's trace for staff review. Review decisions are added, never overwritten.
 
 ---
@@ -140,9 +140,9 @@ This is a **local v1 prototype**, not a production deployment.
 - Production timestamp and signature authorities
 - Any government systems
 
-The full development stack exercises one private complaint lifecycle against seeded test identities and mock providers. The isolated pilot profile — a cut-down deployment that serves public reads only — does not run identity, complaints, AI, signing, or private-document services. No profile is approved for real resident data or government operations.
+The full dev stack runs one private complaint from filing to appeal, using fake identities and mock providers. The isolated pilot profile — a cut-down deployment that serves public reads only — does not run identity, complaints, AI, signing, or private-document services. No profile is approved for real resident data or government operations.
 
-A project about verifiability has to be honest about what it verifies. Local v1 proves selected contracts end-to-end against synthetic data and mocks; the remaining work is documented in [ROADMAP.md](ROADMAP.md).
+A project about verifiability has to be honest about what it verifies. Local v1 runs the main flows end to end on fake data; the remaining work is in [ROADMAP.md](ROADMAP.md).
 
 ---
 
