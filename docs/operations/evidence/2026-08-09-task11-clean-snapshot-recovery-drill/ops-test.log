@@ -1,0 +1,31 @@
+[0m[2m[35m$[0m [2m[1mbash scripts/ops/test-backup-restore.sh[0m
+[0m[1mbun test [0m[2mv1.3.14 (0d9b296a)[0m
+[0m
+scripts/ops/ops-contract.test.mjs:
+[0m[33mWarning[0m[2m:[0m [1mThe 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.[0m
+[0m      [2mat [0m[0m[1m[3mwarnOnDeactivatedColors[0m[2m ([0m[0m[36minternal:tty[0m[2m:[0m[33m33[0m[2m:[33m24[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3mgetColorDepth[0m[2m ([0m[0m[36minternal:tty[0m[2m:[0m[33m42[0m[2m:[33m39[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3mshouldColorize[0m[2m ([0m[0m[36minternal:util/colors[0m[2m:[0m[33m14[0m[2m:[33m109[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3mrefresh[0m[2m ([0m[0m[36minternal:util/colors[0m[2m:[0m[33m18[0m[2m:[33m31[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3minternal:util/colors[0m[2m ([0m[0m[36minternal:util/colors[0m[2m:[0m[33m24[0m[2m:[33m16[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3minternal:assert/assertion_error[0m[2m ([0m[0m[36minternal:assert/assertion_error[0m[2m:[0m[33m2[0m[2m:[33m187[0m[2m)[0m
+[0m      [2mat [0m[0m[1m[3mloadAssertionError[0m[2m ([0m[0m[36mnode:assert[0m[2m:[0m[33m28[0m[2m:[33m96[0m[2m)[0m
+
+[0m[32m✓[0m[0m[1m audit verifier accepts valid JSON and NDJSON chains[0m [0m[2m[[1m128.11ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m audit verifier rejects recomputed hash tampering[0m [0m[2m[[1m64.09ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m audit verifier rejects previous-hash gaps[0m [0m[2m[[1m63.42ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m audit verifier rejects out-of-order records[0m [0m[2m[[1m61.59ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m audit verifier rejects malformed and empty input unless explicitly allowed[0m [0m[2m[[1m185.98ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m backup script is fail-closed and archives only named non-secret artifacts[0m [0m[2m[8.03ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m backup script refuses a dirty release checkout before connecting to PostgreSQL[0m [0m[2m[[1m44.32ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m backup script fails closed when Git cannot verify worktree status[0m [0m[2m[[1m42.50ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m restore script gates destructive restore and verifies manifest, schema, counts, migrations, and audit[0m [0m[2m[1.97ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m restore script refuses destructive inputs before restic restore and pg_restore[0m [0m[2m[[1m821.06ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m clean DB drill script is source-hardened and explicit-Docker only[0m [0m[2m[1.45ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m operator scripts contain no hard-coded credentials and are executable[0m [0m[2m[0.82ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m root package exposes all operator commands without replacing existing commands[0m [0m[2m[0.34ms[0m[2m][0m
+
+[0m[32m 13 pass[0m
+[0m[2m 0 fail[0m
+Ran 13 tests across 1 file. [0m[2m[[1m1494.00ms[0m[2m][0m
+{"ok":true,"sourceTests":true,"fixtureToolsExercised":false}

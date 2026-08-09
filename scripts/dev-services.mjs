@@ -1,42 +1,31 @@
-// Dev orchestrator: launches the TS services in dependency order and waits
-// until each is healthy. platform-api runs DB migrations at boot.
+// Dev orchestrator: launches catalogued Node services in dependency order and waits
+// until each is ready. platform-api runs DB migrations at boot. The Python
+// ai-gateway remains an external process and is not launched here.
 import { spawn } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadCatalog, validateCatalog } from './service-catalog.mjs';
 
-const services = [
-  { name: 'governance-graph-api', filter: '@polis/governance-graph-api', port: 8100 },
-  { name: 'audit-service', filter: '@polis/audit-service', port: 8600 },
-  { name: 'paperless-adapter', filter: '@polis/paperless-adapter', port: 8300 },
-  { name: 'canonicalization-service', filter: '@polis/canonicalization-service', port: 8500 },
-  { name: 'proof-service', filter: '@polis/proof-service', port: 8700 },
-  {
-    name: 'document-signing-service',
-    filter: '@polis/document-signing-service',
-    port: 8960,
-  },
-  { name: 'citizen-identity-service', filter: '@polis/citizen-identity-service', port: 8650 },
-  { name: 'citizen-vault-service', filter: '@polis/citizen-vault-service', port: 8750 },
-  { name: 'vc-issuer-service', filter: '@polis/vc-issuer-service', port: 8950 },
-  { name: 'rewards-service', filter: '@polis/rewards-service', port: 8460 },
-  { name: 'contribution-service', filter: '@polis/contribution-service', port: 8450 },
-  { name: 'polis-bridge-service', filter: '@polis/polis-bridge-service', port: 8200 },
-  { name: 'complaints-service', filter: '@polis/complaints-service', port: 8970 },
-  { name: 'platform-api', filter: '@polis/platform-api', port: 8080 },
-];
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const catalog = await loadCatalog(root);
+const catalogErrors = validateCatalog(catalog);
+if (catalogErrors.length) {
+  throw new Error(`invalid service catalog:\n${catalogErrors.join('\n')}`);
+}
+const services = catalog.services
+  .filter((service) => service.runtime === 'node-24' && service.dev.launch)
+  .sort((left, right) => left.dev.order - right.dev.order);
 
-const portOf = (name) => {
-  const envKey = `${name.replace(/-/g, '_').toUpperCase()}_PORT`;
-  const found = services.find((s) => s.name === name);
-  return Number(process.env[envKey] ?? found.port);
-};
+const portOf = (service) => Number(process.env[service.devPortEnv] ?? service.defaultPort);
 
 /** Resolve when `url` returns 2xx, rejecting after `timeoutMs`. */
 function pollReady(url, timeoutMs = 30000) {
   const start = Date.now();
-  return new Promise((resolve, reject) => {
+  return new Promise((resolveReady, reject) => {
     const tick = async () => {
       try {
-        const res = await fetch(url);
-        if (res.ok) return resolve();
+        const response = await fetch(url);
+        if (response.ok) return resolveReady();
       } catch {
         /* not up yet */
       }
@@ -49,7 +38,7 @@ function pollReady(url, timeoutMs = 30000) {
 
 const children = [];
 const cleanup = () => {
-  for (const c of children) c.child.kill('SIGTERM');
+  for (const child of children) child.process.kill('SIGTERM');
 };
 process.on('SIGINT', () => {
   cleanup();
@@ -60,9 +49,9 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-for (const svc of services) {
-  const port = portOf(svc.name);
-  const child = spawn('bun', ['run', '--filter', svc.filter, 'start'], {
+for (const service of services) {
+  const port = portOf(service);
+  const child = spawn('bun', ['run', '--filter', service.workspace, 'start'], {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -99,10 +88,14 @@ for (const svc of services) {
       IDENTITY_DEV_TOKENS: 'true',
       IDENTITY_MODE: process.env.IDENTITY_MODE ?? 'stub',
       PROOF_INTERNAL_URL: process.env.PROOF_INTERNAL_URL ?? 'http://localhost:8700',
+      TIMESTAMP_INTERNAL_URL: process.env.TIMESTAMP_INTERNAL_URL ?? 'http://localhost:8800',
+      SIGNATURE_INTERNAL_URL: process.env.SIGNATURE_INTERNAL_URL ?? 'http://localhost:8900',
       SIGNING_INTERNAL_URL: process.env.SIGNING_INTERNAL_URL ?? 'http://localhost:8960',
       CONTRIBUTION_INTERNAL_URL: process.env.CONTRIBUTION_INTERNAL_URL ?? 'http://localhost:8450',
       COMPLAINTS_INTERNAL_URL: process.env.COMPLAINTS_INTERNAL_URL ?? 'http://localhost:8970',
       PAPERLESS_MODE: process.env.PAPERLESS_MODE ?? 'stub',
+      TIMESTAMP_MODE: process.env.TIMESTAMP_MODE ?? 'stub',
+      SIGNATURE_MODE: process.env.SIGNATURE_MODE ?? 'stub',
       SIGNING_PROVIDER: process.env.SIGNING_PROVIDER ?? 'stub',
       ARTIFACT_STORE_MODE: process.env.ARTIFACT_STORE_MODE ?? 'database',
     },
@@ -110,12 +103,12 @@ for (const svc of services) {
   child.on('exit', (code) => {
     if (code) process.exit(code ?? 0);
   });
-  children.push({ name: svc.name, child });
+  children.push({ name: service.name, process: child });
   try {
-    await pollReady(`http://127.0.0.1:${port}/readyz`);
-    console.log(`[dev-services] ${svc.name} ready at :${port}`);
-  } catch (err) {
-    console.error(`[dev-services] ${svc.name} ${err.message}`);
+    await pollReady(`http://127.0.0.1:${port}${service.healthRoute}`);
+    console.log(`[dev-services] ${service.name} ready at :${port}`);
+  } catch (error) {
+    console.error(`[dev-services] ${service.name} ${error.message}`);
     cleanup();
     process.exit(1);
   }

@@ -7,37 +7,120 @@ import {
   parseInternalFetchTimeoutMs,
   platformRoutes,
   runPlatformMigrations,
+  validatePlatformConfig,
   withPublicEdge,
 } from './index.js';
 
-test('platform-api exposes §23 public edge routes without network calls', () => {
-  const paths = platformRoutes().map((r) => `${r.method} ${r.path}`);
-  assert.ok(paths.includes('GET /healthz'));
-  assert.ok(paths.includes('GET /version'));
-  assert.ok(paths.includes('GET /api/v1/institutions'));
-  assert.ok(paths.includes('GET /api/v1/institutions/:id'));
-  assert.ok(paths.includes('GET /api/v1/roles/:id'));
-  assert.ok(paths.includes('GET /api/v1/processes/:id'));
-  assert.ok(paths.includes('GET /api/v1/claims'));
-  assert.ok(paths.includes('GET /api/v1/audit/:objectType/:objectId'));
-  assert.ok(paths.includes('POST /api/v1/verify/hash'));
-  assert.ok(paths.includes('GET /api/v1/mandate-holders'));
-  assert.ok(paths.includes('GET /api/v1/mandate-holders/:id'));
-  assert.ok(paths.includes('GET /api/v1/mandate-holders/:id/scorecard'));
-  assert.ok(paths.includes('GET /api/v1/commitments/:id'));
-  assert.ok(paths.includes('GET /api/v1/pilot/charter'));
-  assert.ok(paths.includes('GET /api/v1/pilot/results'));
-  assert.ok(paths.includes('POST /api/v1/mandate-holders/:id/commitments'));
-  assert.ok(paths.includes('POST /api/v1/commitments/:id/resolutions'));
-  assert.ok(paths.includes('GET /api/v1/commitments/:id/questions'));
-  assert.ok(paths.includes('POST /api/v1/commitments/:id/questions'));
-  assert.ok(paths.includes('POST /api/v1/commitment-questions/:id/answers'));
-  assert.ok(paths.includes('GET /api/v1/identity/authorize'));
-  assert.ok(paths.includes('POST /api/v1/identity/callback'));
-  assert.ok(paths.includes('POST /api/v1/mandate-holders/:id/charter-signing-requests'));
-  assert.ok(paths.includes('GET /api/v1/mandate-holders/:id/charter-signing-status'));
-  assert.ok(paths.includes('POST /api/v1/signing-requests/:id/stub-complete'));
-  assert.ok(paths.includes('POST /webhooks/documenso'));
+test('platform startup permits dev and only the approved public-read pilot shape', () => {
+  assert.doesNotThrow(() => validatePlatformConfig({ DEPLOYMENT_PROFILE: 'dev' }));
+  assert.doesNotThrow(() =>
+    validatePlatformConfig({ DEPLOYMENT_PROFILE: 'pilot', PUBLIC_EDGE: 'true' }),
+  );
+  assert.throws(
+    () => validatePlatformConfig({ DEPLOYMENT_PROFILE: 'pilot' }),
+    /DEPLOYMENT_PROFILE=pilot requires PUBLIC_EDGE=true/,
+  );
+  assert.throws(
+    () => validatePlatformConfig({ DEPLOYMENT_PROFILE: 'pilot', PUBLIC_EDGE: 'false' }),
+    /DEPLOYMENT_PROFILE=pilot requires PUBLIC_EDGE=true/,
+  );
+});
+
+const expectedRouteSignatures = [
+  'GET /healthz',
+  'GET /readyz',
+  'GET /metrics',
+  'GET /version',
+  'GET /api/v1/jurisdictions',
+  'GET /api/v1/institutions',
+  'GET /api/v1/institutions/:id',
+  'GET /api/v1/roles/:id',
+  'GET /api/v1/processes',
+  'GET /api/v1/processes/:id',
+  'GET /api/v1/document-types/:id',
+  'GET /api/v1/laws/:id',
+  'GET /api/v1/budget-lines/:id',
+  'GET /api/v1/failure-modes',
+  'GET /api/v1/controls',
+  'GET /api/v1/proposals/:id',
+  'GET /api/v1/assessments/:id',
+  'GET /api/v1/claims',
+  'GET /api/v1/claims/:id',
+  'GET /api/v1/relationships',
+  'GET /api/v1/graph/traverse',
+  'GET /api/v1/mandate-holders',
+  'GET /api/v1/mandate-holders/:id',
+  'GET /api/v1/mandate-holders/:id/scorecard',
+  'GET /api/v1/commitments/:id',
+  'GET /api/v1/commitments/:id/questions',
+  'GET /api/v1/issues',
+  'GET /api/v1/issues/:id',
+  'GET /api/v1/processes/:id/issues',
+  'GET /api/v1/issues/:id/conversation',
+  'GET /api/v1/audit/:objectType/:objectId',
+  'GET /api/v1/proofs/:id',
+  'GET /api/v1/proofs/:id/status',
+  'GET /api/v1/proofs/:id/audit',
+  'GET /api/v1/issuers/:id',
+  'POST /api/v1/verify/file',
+  'POST /api/v1/verify/hash',
+  'POST /api/v1/verify/manifest',
+  'POST /api/v1/assistant/ask',
+  'GET /api/v1/assistant/traces',
+  'GET /api/v1/assistant/traces/:id',
+  'GET /api/v1/assistant/outputs/:id',
+  'POST /api/v1/assistant/outputs/:id/review',
+  'POST /api/v1/contribute/evidence',
+  'POST /api/v1/contribute/graph-edit',
+  'GET /api/v1/contributions/:id',
+  'GET /api/v1/contributors/:id',
+  'GET /api/v1/review/queue',
+  'POST /api/v1/review/:id/decide',
+  'POST /api/v1/complaints',
+  'GET /api/v1/complaints/mine',
+  'GET /api/v1/complaints/queue',
+  'GET /api/v1/complaints/:id',
+  'POST /api/v1/complaints/:id/assign',
+  'POST /api/v1/complaints/:id/information-requests',
+  'POST /api/v1/complaints/:id/information-requests/:requestId/respond',
+  'POST /api/v1/complaints/:id/decisions',
+  'POST /api/v1/complaints/:id/appeals',
+  'POST /api/v1/complaints/:id/appeals/:appealId/decisions',
+  'POST /api/v1/complaints/:id/close',
+  'GET /api/v1/rewards/rules',
+  'GET /api/v1/rewards/public-ledger',
+  'POST /api/v1/identity/magic-link',
+  'POST /api/v1/identity/exchange',
+  'GET /api/v1/identity/authorize',
+  'POST /api/v1/identity/callback',
+  'GET /api/v1/identity/dev-tokens',
+  'GET /api/v1/vault/documents',
+  'POST /api/v1/vault/documents',
+  'POST /api/v1/vault/grants',
+  'DELETE /api/v1/vault/grants/:id',
+  'GET /api/v1/vault/access-events',
+  'POST /api/v1/vault/verify',
+  'GET /api/v1/vc/:id',
+  'POST /api/v1/mandate-holders/:id/commitments',
+  'POST /api/v1/commitments/:id/resolutions',
+  'POST /api/v1/commitments/:id/questions',
+  'POST /api/v1/commitment-questions/:id/answers',
+  'POST /api/v1/mandate-holders/:id/charter-signing-requests',
+  'GET /api/v1/mandate-holders/:id/charter-signing-status',
+  'POST /api/v1/signing-requests/:id/stub-complete',
+  'POST /webhooks/documenso bodyMode=raw maxBodyBytes=1000000',
+  'GET /api/v1/pilot/charter',
+  'GET /api/v1/pilot/results',
+] as const;
+
+test('platform-api preserves the exact ordered route contract', () => {
+  const signatures = platformRoutes().map(
+    ({ method, path, bodyMode, maxBodyBytes }) =>
+      `${method} ${path}` +
+      (bodyMode === undefined ? '' : ` bodyMode=${bodyMode}`) +
+      (maxBodyBytes === undefined ? '' : ` maxBodyBytes=${maxBodyBytes}`),
+  );
+  assert.deepEqual(signatures, expectedRouteSignatures);
 });
 
 const complaintRouteKeys = [
@@ -91,6 +174,70 @@ const fetchHeader = (headers: unknown, name: string): string | undefined => {
   }
   return undefined;
 };
+
+const expectedPublicEdgeRoutes = new Set([
+  'GET /healthz',
+  'GET /readyz',
+  'GET /metrics',
+  'GET /version',
+  'GET /api/v1/jurisdictions',
+  'GET /api/v1/institutions',
+  'GET /api/v1/institutions/:id',
+  'GET /api/v1/roles/:id',
+  'GET /api/v1/processes',
+  'GET /api/v1/processes/:id',
+  'GET /api/v1/document-types/:id',
+  'GET /api/v1/laws/:id',
+  'GET /api/v1/budget-lines/:id',
+  'GET /api/v1/failure-modes',
+  'GET /api/v1/controls',
+  'GET /api/v1/proposals/:id',
+  'GET /api/v1/assessments/:id',
+  'GET /api/v1/claims',
+  'GET /api/v1/claims/:id',
+  'GET /api/v1/relationships',
+  'GET /api/v1/graph/traverse',
+  'GET /api/v1/mandate-holders',
+  'GET /api/v1/mandate-holders/:id',
+  'GET /api/v1/mandate-holders/:id/scorecard',
+  'GET /api/v1/commitments/:id',
+  'GET /api/v1/commitments/:id/questions',
+  'GET /api/v1/issues',
+  'GET /api/v1/issues/:id',
+  'GET /api/v1/processes/:id/issues',
+  'GET /api/v1/issues/:id/conversation',
+  'GET /api/v1/audit/:objectType/:objectId',
+  'GET /api/v1/proofs/:id',
+  'GET /api/v1/proofs/:id/status',
+  'GET /api/v1/proofs/:id/audit',
+  'GET /api/v1/issuers/:id',
+  'POST /api/v1/verify/file',
+  'POST /api/v1/verify/hash',
+  'POST /api/v1/verify/manifest',
+  'GET /api/v1/pilot/charter',
+  'GET /api/v1/pilot/results',
+]);
+
+test('public edge executable route matrix keeps every unapproved platform route pure 405', async () => {
+  process.env.PUBLIC_EDGE = 'true';
+  try {
+    const routes = withPublicEdge(platformRoutes());
+    const actualKeys = new Set(routes.map((route) => `${route.method} ${route.path}`));
+    for (const key of expectedPublicEdgeRoutes) assert.ok(actualKeys.has(key), `missing ${key}`);
+    for (const route of routes) {
+      const key = `${route.method} ${route.path}`;
+      if (expectedPublicEdgeRoutes.has(key)) continue;
+      const output = await route.handler(mockReq('203.0.113.10'), {}, {});
+      assert.equal((output as { status: number }).status, 405, `${key} must be blocked`);
+      assert.deepEqual((output as { body: unknown }).body, {
+        error: 'method_not_allowed',
+        reason: 'public_edge',
+      });
+    }
+  } finally {
+    delete process.env.PUBLIC_EDGE;
+  }
+});
 
 test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true)', async () => {
   process.env.PUBLIC_EDGE = 'true';
@@ -168,6 +315,16 @@ test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=
       const out = await find(method, path).handler(mockReq('198.51.100.1'), {}, { id: 'cmp-1' });
       assert.equal((out as { status: number }).status, 405, `${routeKey} must be blocked`);
     }
+    for (const [method, path] of [
+      ['GET', '/api/v1/assistant/traces'],
+      ['GET', '/api/v1/rewards/rules'],
+      ['GET', '/api/v1/vault/documents'],
+      ['GET', '/api/v1/vc/:id'],
+      ['GET', '/api/v1/contributions/:id'],
+    ] as const) {
+      const out = await find(method, path).handler(mockReq('198.51.100.1'), {}, {});
+      assert.equal((out as { status: number }).status, 405, `${method} ${path} must be blocked`);
+    }
 
     // verify/hash must remain on the public edge (present + not blocked).
     const verifyHash = routes.find((r) => r.method === 'POST' && r.path === '/api/v1/verify/hash');
@@ -177,7 +334,7 @@ test('withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=
   }
 });
 
-test('withPublicEdge wraps non-blocked routes, stubs blocked ones, leaves exempt routes untouched', async () => {
+test('withPublicEdge permits only the exact allowlist and fails unknown routes closed', async () => {
   // Synthetic spy table: no platformRoutes coupling, no network. Proves the
   // verify/hash category (wrapped+rate-limited) without invoking a real proxy.
   process.env.PUBLIC_EDGE = 'true';
@@ -188,10 +345,19 @@ test('withPublicEdge wraps non-blocked routes, stubs blocked ones, leaves exempt
       spyCalls += 1;
       return spyValue;
     };
+    const blockedRoutes = [
+      ['POST', '/api/v1/contribute/evidence'],
+      ['POST', '/api/v1/contribute/graph-edit'],
+      ['GET', '/api/v1/review/queue'],
+      ['POST', '/api/v1/review/:id/decide'],
+      // Unknown routes fail closed even when a future route author forgets this module.
+      ['POST', '/api/v1/new-write'],
+      ['GET', '/api/v1/private-state'],
+    ] as const;
     const routes = withPublicEdge([
       { method: 'GET', path: '/healthz', handler: spy }, // exempt → unchanged
       { method: 'POST', path: '/api/v1/verify/hash', handler: spy }, // wrapped
-      { method: 'POST', path: '/api/v1/contribute/evidence', handler: spy }, // blocked
+      ...blockedRoutes.map(([method, path]) => ({ method, path, handler: spy })),
     ]);
     const find = (method: string, path: string) =>
       routes.find((r) => r.method === method && r.path === path)!;
@@ -199,14 +365,19 @@ test('withPublicEdge wraps non-blocked routes, stubs blocked ones, leaves exempt
     // Exempt operational route: handler reference-identical (not wrapped).
     assert.strictEqual(find('GET', '/healthz').handler, spy);
 
-    // Blocked route: returns 405, spy never invoked.
+    // Every contribution/review pilot route is a pure 405 stub: no handler or upstream work.
     spyCalls = 0;
-    const blocked = await find('POST', '/api/v1/contribute/evidence').handler(
-      mockReq('198.51.100.2'),
-      {},
-      {},
-    );
-    assert.equal((blocked as { status: number }).status, 405);
+    for (const [method, path] of blockedRoutes) {
+      const blocked = await find(method, path).handler(mockReq('198.51.100.2'), {}, {});
+      assert.ok(
+        blocked !== null && typeof blocked === 'object' && 'status' in blocked && 'body' in blocked,
+      );
+      assert.equal(blocked.status, 405);
+      assert.deepEqual(blocked.body, {
+        error: 'method_not_allowed',
+        reason: 'public_edge',
+      });
+    }
     assert.equal(spyCalls, 0);
 
     // Wrapped route: spy invoked once, return value passed through.
@@ -544,7 +715,159 @@ test('charter signing initiation requires an idempotency key and forwards the tr
   }
 });
 
-test('review routes reject missing and non-staff sessions and strip forged reviewer identity', async () => {
+test('contribution writes require a healthy verified session and reject caller authority', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.INTERNAL_API_TOKEN;
+  const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
+  const originalContributionUrl = process.env.CONTRIBUTION_INTERNAL_URL;
+  const calls: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+  process.env.INTERNAL_API_TOKEN = 'platform-contribution-test-token';
+  process.env.IDENTITY_INTERNAL_URL = 'http://identity.internal';
+  process.env.CONTRIBUTION_INTERNAL_URL = 'http://contribution.internal';
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ input, init });
+    if (String(input).includes('/verify-session')) {
+      const session = JSON.parse(String(init?.body)).sessionToken;
+      if (session === 'invalid-session') {
+        return new Response(JSON.stringify({ error: 'invalid_session' }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (session === 'unavailable-session') {
+        return new Response(JSON.stringify({ error: 'internal_error' }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (session === 'malformed-session') {
+        return new Response(JSON.stringify({ citizenId: 'missing-level' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (session === 'throw-session') throw new Error('identity offline');
+      return new Response(
+        JSON.stringify({ citizenId: 'trusted-citizen', identityLevel: 'verified_resident' }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ id: 'submission-1', status: 'pending' }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  try {
+    const evidence = platformRoutes().find(
+      (route) => route.method === 'POST' && route.path === '/api/v1/contribute/evidence',
+    );
+    const graphEdit = platformRoutes().find(
+      (route) => route.method === 'POST' && route.path === '/api/v1/contribute/graph-edit',
+    );
+    assert.ok(evidence);
+    assert.ok(graphEdit);
+
+    const missing = await evidence.handler(mockReq('198.51.100.8'), { payload: {} }, {});
+    assert.ok(missing && typeof missing === 'object' && 'status' in missing);
+    assert.equal(missing.status, 401);
+    assert.equal(calls.length, 0);
+
+    for (const body of [
+      { contributor: { identityLevel: 'staff' }, payload: {} },
+      { contributorId: 'forged-contributor', payload: {} },
+      { reviewerId: 'forged-reviewer', payload: {} },
+      { reviewerRole: 'reviewer', payload: {} },
+    ]) {
+      const before: number = calls.length;
+      const denied: unknown = await evidence.handler(
+        mockReq('198.51.100.8', { headers: { authorization: 'Bearer trusted-session' } }),
+        body,
+        {},
+      );
+      assert.ok(denied && typeof denied === 'object' && 'status' in denied);
+      assert.equal(denied.status, 400);
+      assert.equal(calls.length, before);
+    }
+
+    const forgedHeaders: Array<Record<string, string>> = [
+      { 'x-polis-citizen': 'forged-citizen' },
+      { 'x-polis-identity-level': 'staff' },
+      { 'x-polis-internal-token': 'forged-token' },
+    ];
+
+    for (const header of forgedHeaders) {
+      const before: number = calls.length;
+      const denied: unknown = await graphEdit.handler(
+        mockReq('198.51.100.8', {
+          headers: { authorization: 'Bearer trusted-session', ...header },
+        }),
+        { payload: {} },
+        {},
+      );
+      assert.ok(denied && typeof denied === 'object' && 'status' in denied);
+      assert.equal(denied.status, 400);
+      assert.equal(calls.length, before);
+    }
+
+    for (const [session, status] of [
+      ['invalid-session', 401],
+      ['unavailable-session', 503],
+      ['malformed-session', 503],
+      ['throw-session', 503],
+    ] as const) {
+      const before: number = calls.length;
+      const denied: unknown = await evidence.handler(
+        mockReq('198.51.100.8', { headers: { authorization: `Bearer ${session}` } }),
+        { payload: { text: 'evidence' } },
+        {},
+      );
+      assert.ok(denied && typeof denied === 'object' && 'status' in denied);
+      assert.equal(denied.status, status);
+      assert.equal(calls.length, before + 1, 'identity failure must not call contribution-service');
+    }
+
+    const payload = {
+      payload: {
+        text: 'trusted evidence',
+        claimType: 'other',
+        subjectType: 'claim',
+        subjectId: 'claim-1',
+        confidence: 0.8,
+      },
+    };
+    const accepted = await evidence.handler(
+      mockReq('198.51.100.8', { headers: { authorization: 'Bearer trusted-session' } }),
+      payload,
+      {},
+    );
+    assert.ok(accepted && typeof accepted === 'object' && 'status' in accepted);
+    assert.equal(accepted.status, 201);
+    const upstream = calls.at(-1);
+    assert.ok(upstream);
+    assert.equal(String(upstream.input), 'http://contribution.internal/api/v1/contribute/evidence');
+    assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-citizen'), 'trusted-citizen');
+    assert.equal(
+      fetchHeader(upstream.init?.headers, 'x-polis-identity-level'),
+      'verified_resident',
+    );
+    assert.equal(
+      fetchHeader(upstream.init?.headers, 'x-polis-internal-token'),
+      'platform-contribution-test-token',
+    );
+    assert.deepEqual(JSON.parse(String(upstream.init?.body)), payload);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = originalToken;
+    if (originalIdentityUrl === undefined) delete process.env.IDENTITY_INTERNAL_URL;
+    else process.env.IDENTITY_INTERNAL_URL = originalIdentityUrl;
+    if (originalContributionUrl === undefined) delete process.env.CONTRIBUTION_INTERNAL_URL;
+    else process.env.CONTRIBUTION_INTERNAL_URL = originalContributionUrl;
+  }
+});
+
+test('review routes reject forged authority and forward only a verified distinct staff actor', async () => {
   const originalFetch = globalThis.fetch;
   const originalToken = process.env.INTERNAL_API_TOKEN;
   const originalIdentityUrl = process.env.IDENTITY_INTERNAL_URL;
@@ -559,8 +882,8 @@ test('review routes reject missing and non-staff sessions and strip forged revie
       const session = JSON.parse(String(init?.body)).sessionToken;
       return new Response(
         JSON.stringify({
-          citizenId: session === 'staff-session' ? 'staff-1' : 'citizen-1',
-          identityLevel: session === 'staff-session' ? 'staff' : 'verified',
+          citizenId: session === 'staff-session' ? 'staff-reviewer' : 'citizen-1',
+          identityLevel: session === 'staff-session' ? 'staff' : 'verified_resident',
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
@@ -573,18 +896,20 @@ test('review routes reject missing and non-staff sessions and strip forged revie
 
   try {
     const queue = platformRoutes().find(
-      (r) => r.method === 'GET' && r.path === '/api/v1/review/queue',
+      (route) => route.method === 'GET' && route.path === '/api/v1/review/queue',
     );
     const decide = platformRoutes().find(
-      (r) => r.method === 'POST' && r.path === '/api/v1/review/:id/decide',
+      (route) => route.method === 'POST' && route.path === '/api/v1/review/:id/decide',
     );
     assert.ok(queue);
     assert.ok(decide);
+
     const unauthenticated = await queue.handler(mockReq('198.51.100.8'), {}, {});
     assert.ok(
       unauthenticated && typeof unauthenticated === 'object' && 'status' in unauthenticated,
     );
     assert.equal(unauthenticated.status, 401);
+    assert.equal(calls.length, 0);
 
     const forbidden = await queue.handler(
       mockReq('198.51.100.8', { headers: { authorization: 'Bearer citizen-session' } }),
@@ -594,21 +919,46 @@ test('review routes reject missing and non-staff sessions and strip forged revie
     assert.ok(forbidden && typeof forbidden === 'object' && 'status' in forbidden);
     assert.equal(forbidden.status, 403);
 
+    for (const body of [
+      { decision: 'approve', reviewerId: 'forged-reviewer' },
+      { decision: 'approve', reviewerRole: 'reviewer' },
+    ]) {
+      const before: number = calls.length;
+      const denied: unknown = await decide.handler(
+        mockReq('198.51.100.8', { headers: { authorization: 'Bearer staff-session' } }),
+        body,
+        { id: 'submission-1' },
+      );
+      assert.ok(denied && typeof denied === 'object' && 'status' in denied);
+      assert.equal(denied.status, 400);
+      assert.equal(calls.length, before);
+    }
+
+    const beforeForgedHeader = calls.length;
+    const forgedHeader = await decide.handler(
+      mockReq('198.51.100.8', {
+        headers: {
+          authorization: 'Bearer staff-session',
+          'x-polis-citizen': 'forged-reviewer',
+        },
+      }),
+      { decision: 'approve' },
+      { id: 'submission-1' },
+    );
+    assert.ok(forgedHeader && typeof forgedHeader === 'object' && 'status' in forgedHeader);
+    assert.equal(forgedHeader.status, 400);
+    assert.equal(calls.length, beforeForgedHeader);
+
     const reviewed = await decide.handler(
       mockReq('198.51.100.8', { headers: { authorization: 'Bearer staff-session' } }),
-      {
-        decision: 'approve',
-        notes: 'checked',
-        reviewerId: 'forged-reviewer',
-        reviewerRole: 'reviewer',
-      },
+      { decision: 'approve', notes: 'checked' },
       { id: 'submission-1' },
     );
     assert.ok(reviewed && typeof reviewed === 'object' && 'status' in reviewed);
     assert.equal(reviewed.status, 201);
     const upstream = calls.at(-1);
     assert.ok(upstream);
-    assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-citizen'), 'staff-1');
+    assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-citizen'), 'staff-reviewer');
     assert.equal(fetchHeader(upstream.init?.headers, 'x-polis-identity-level'), 'staff');
     assert.deepEqual(JSON.parse(String(upstream.init?.body)), {
       decision: 'approve',

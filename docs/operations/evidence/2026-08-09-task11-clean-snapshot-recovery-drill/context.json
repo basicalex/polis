@@ -1,0 +1,17 @@
+{
+  "scope": "clean-snapshot-local-tool-drill",
+  "offHost": false,
+  "operator": "Prime Agent",
+  "reviewer": null,
+  "gitHead": "fec6bbec179808121cbb2912c693851f4bec45da",
+  "worktreeClean": true,
+  "postgresImage": "pgvector/pgvector:pg16",
+  "resticVersion": "restic 0.19.1 compiled with go1.26.4 on linux/amd64",
+  "postgresClientVersion": "psql (PostgreSQL) 16.14",
+  "sourceDatabase": "polis_task11_source_de30a14c1753",
+  "disposableDatabase": "polis_task11_disposable_restore_drill_de30a14c1753",
+  "productionSimulationDatabase": "polis_task11_production_simulation_de30a14c1753",
+  "tamperedAuditRejected": true,
+  "destroyedAt": "2026-08-09T02:45:53Z",
+  "remainingTask11Containers": 0
+}

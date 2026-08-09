@@ -238,31 +238,26 @@ async function captureAudit(run: () => Promise<unknown>): Promise<{
   }
 }
 
-test('complaints-service exposes only the required internal complaint routes in safe order', () => {
-  const paths = complaintRoutes({} as never).map((route) => `${route.method} ${route.path}`);
-  const required = [
-    'POST /internal/complaints',
-    'GET /internal/complaints/mine',
-    'GET /internal/complaints/:id',
-    'GET /internal/complaints/queue',
-    'POST /internal/complaints/:id/assign',
-    'POST /internal/complaints/:id/information-requests',
-    'POST /internal/complaints/:id/information-requests/:requestId/respond',
-    'POST /internal/complaints/:id/decisions',
-    'POST /internal/complaints/:id/appeals',
-    'POST /internal/complaints/:id/appeals/:appealId/decisions',
-    'POST /internal/complaints/:id/close',
-  ];
-  for (const path of required) assert.ok(paths.includes(path), `missing ${path}`);
-  assert.ok(
-    paths.indexOf('GET /internal/complaints/mine') < paths.indexOf('GET /internal/complaints/:id'),
-  );
-  assert.ok(
-    paths.indexOf('GET /internal/complaints/queue') < paths.indexOf('GET /internal/complaints/:id'),
-  );
-  assert.equal(
-    paths.some((path) => path.includes('/api/v1/complaints')),
-    false,
+test('complaints-service exposes exactly the required routes in safe order', () => {
+  assert.deepEqual(
+    complaintRoutes({} as never).map((route) => `${route.method} ${route.path}`),
+    [
+      'GET /healthz',
+      'GET /readyz',
+      'GET /metrics',
+      'GET /version',
+      'POST /internal/complaints',
+      'GET /internal/complaints/mine',
+      'GET /internal/complaints/queue',
+      'GET /internal/complaints/:id',
+      'POST /internal/complaints/:id/assign',
+      'POST /internal/complaints/:id/information-requests',
+      'POST /internal/complaints/:id/information-requests/:requestId/respond',
+      'POST /internal/complaints/:id/decisions',
+      'POST /internal/complaints/:id/appeals',
+      'POST /internal/complaints/:id/appeals/:appealId/decisions',
+      'POST /internal/complaints/:id/close',
+    ],
   );
 });
 

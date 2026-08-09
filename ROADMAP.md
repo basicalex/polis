@@ -4,6 +4,14 @@
 
 Local v1 is implemented as a deterministic, seeded Postgres environment with mock/test external adapters. It is suitable for local demos, route validation, contributor onboarding, and partner discovery. It is not production-ready and does not include live external integrations.
 
+## Optimization mode
+
+The architecture is feature-complete for the current prototype. New services and product pillars are paused while the project proves one partner workflow:
+
+`accepted charter → signed proof → commitment → evidence → independent review → public status`
+
+This workflow remains local/demo-only until trusted identity, role-aware review, fail-closed audit for sensitive writes, backup/restore evidence, and a reviewed partner charter are executable release gates. The isolated `pilot` deployment remains synthetic and public-read only.
+
 ## Completed local v1 slice
 
 - Astro app shells for public web, verifier, vault, and admin surfaces, including verifier proof detail and assistant pages.

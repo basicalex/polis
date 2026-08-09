@@ -295,7 +295,7 @@ export function signingRoutes(dependencies: SigningRoutesDependencies): Route[] 
   ];
 }
 
-class HttpProofRegistrar implements ProofRegistrar {
+export class HttpProofRegistrar implements ProofRegistrar {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImplementation: FetchImplementation,
@@ -304,11 +304,13 @@ class HttpProofRegistrar implements ProofRegistrar {
     const response = await this.fetchImplementation(`${this.baseUrl}/internal/proofs/manifests`, {
       method: 'POST',
       headers: internalHeaders(),
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, createdByService: 'document-signing-service' }),
     });
     if (!response.ok) throw new Error(`proof_registration_failed:${response.status}`);
-    const value = (await response.json()) as { id?: unknown };
-    if (typeof value.id !== 'string') throw new Error('proof_registration_invalid_response');
+    const value = (await response.json()) as { id?: unknown; registryStatus?: unknown };
+    if (typeof value.id !== 'string' || value.registryStatus !== 'active') {
+      throw new Error('proof_registration_inactive_response');
+    }
     return { id: value.id };
   }
 }

@@ -38,5 +38,15 @@
     "starts_at": "2025-01-01T00:00:00Z",
     "ends_at": null,
     "status": "active"
+  },
+  {
+    "id": "mh-contribution-reviewer-demo",
+    "citizen_id": "reviewer-demo",
+    "role_id": "role-contribution-reviewer-demo",
+    "jurisdiction_id": "jur-croatia-local",
+    "display_name": "Staff Reviewer Demo",
+    "starts_at": "2025-01-01T00:00:00Z",
+    "ends_at": null,
+    "status": "active"
   }
 ]

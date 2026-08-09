@@ -1,6 +1,6 @@
 # Architecture
 
-Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator surfaces, TypeScript packages hold deterministic domain logic, Postgres stores seeded civic graph/audit/proof/AI state, and service entrypoints expose the current HTTP runtime while production integrations remain mocked.
+Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator surfaces, TypeScript packages hold deterministic domain logic, Postgres stores seeded civic graph/audit/proof/AI state, and service entrypoints expose the current HTTP runtime while production integrations remain mocked. The TypeScript services target Node 24; the FastAPI AI gateway targets Python 3.12.
 
 ## Boundaries
 
@@ -18,13 +18,19 @@ Polis Interface v1 is a local-first monorepo. Astro apps provide public/operator
 - `services/paperless-adapter`: internal stub document intake adapter on :8300.
 - `services/document-ingestion-gateway`: internal document pipeline conductor on :8400.
 - `services/canonicalization-service`: internal canonical hash service on :8500.
-- `services/ai-gateway`: internal deterministic assistant/RAG service on :8550 backed by Postgres.
+- `services/ai-gateway`: internal assistant/RAG service on :8550 backed by Postgres; `AI_MODE=stub` is deterministic and `AI_MODE=real` selects the OpenAI-compatible provider.
 - `services/audit-service`: append-only audit write/read API on :8600 backed by Postgres.
+- `services/citizen-identity-service`: local citizen session service on :8650.
 - `services/proof-service`: proof registry and public verifier API on :8700 backed by Postgres.
+- `services/citizen-vault-service`: citizen document vault service shell on :8750.
 - `services/timestamp-service`: internal RFC3161-stub timestamp service on :8800.
 - `services/signature-service`: internal test-key signature service on :8900.
+- `services/vc-issuer-service`: verifiable credential issuer shell on :8950.
+- `services/document-signing-service`: charter rendering and signing coordinator on :8960.
+- `services/contribution-service`: evidence-linked claim and review service on :8450.
+- `services/rewards-service`: local civic rewards service on :8460.
 - `services/complaints-service`: private complaint-case lifecycle service on :8970; accepts only trusted internal callers, emits best-effort audit events, and never exposes resident identifiers or audit correlation identifiers in response shapes.
-- `scripts/dev-services.mjs`: local launcher for the TypeScript v1 service set.
+- `scripts/dev-services.mjs`: catalog-driven local launcher for all 17 Node services; the Python `ai-gateway` stays external.
 - `infra/compose/docker-compose.yml`: compose stack for Postgres plus Node/Python services.
 - `scripts/v1-smoke.mjs`: smoke test for the documented local API contract.
 
@@ -40,7 +46,7 @@ Node services using `packages/service-runtime` expose:
 - `GET /version`
 - public `/api/v1/*` or internal routes listed in `docs/architecture/service-map.md`
 
-`services/ai-gateway` is FastAPI-based and currently exposes `GET /healthz`, `GET /version`, and `/internal/ai/*` routes.
+`services/ai-gateway` is FastAPI-based and exposes `GET /healthz`, `GET /readyz`, `GET /version`, and `/internal/ai/*` routes. Its current `AI_MODE` seam supports deterministic `stub` and OpenAI-compatible `real` providers.
 
 ## Integration status
 
@@ -67,7 +73,8 @@ Node services using `packages/service-runtime` expose:
 7. Proof status resolves local append-only state with precedence `revoked > superseded > stored registryStatus`.
 8. Assistant pages call `platform-api`, which proxies to `ai-gateway`; `ai-gateway` retrieves approved public sources, applies deterministic prompt-injection heuristics, persists traces/outputs/review decisions, and emits best-effort audit events.
 9. `POST /internal/audit/events` appends canonical, hash-chained audit rows; public reads return only `visibility: "public"` target rows.
-10. `complaints-service` accepts private, trusted-actor complaint lifecycle calls, persists owner-scoped cases and decisions, and emits best-effort audit events. It remains outside the isolated public-read pilot profile.
+10. `document-signing-service` renders charter PDFs, coordinates the signing provider, archives restricted artifacts, registers proofs, and records acceptance.
+11. `complaints-service` accepts private, trusted-actor complaint lifecycle calls, persists owner-scoped cases and decisions, and emits best-effort audit events. It remains outside the isolated public-read pilot profile.
 
 ## Design constraint
 

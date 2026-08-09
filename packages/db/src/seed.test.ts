@@ -123,6 +123,35 @@ describe('governance v1 seed data', () => {
     assert.equal(charter.signed_at, null);
   });
 
+  it('binds reviewer-demo to explicit demo-only contribution review authority', async () => {
+    const roles = await load('roles.json');
+    const decisionRights = await load('decision_rights.json');
+    const mandateHolders = await load('mandate_holders.json');
+    const roleId = 'role-contribution-reviewer-demo';
+
+    const role = roles.find((row) => row.id === roleId);
+    assert.ok(role, 'expected demo contribution reviewer role');
+    assert.equal(
+      role.description,
+      'Demo/test authority only for contribution review; this is not live approval.',
+    );
+    assert.equal(role.authorized_by_law, null);
+    assert.deepEqual(role.decision_rights, ['review_contribution']);
+    assert.equal(role.confidence_state, 'unsupported_draft');
+    assert.equal(role.review_state, 'draft');
+
+    const right = decisionRights.find((row) => row.name === 'review_contribution');
+    assert.ok(right, 'expected review_contribution decision right');
+    assert.equal(right.role_id, roleId);
+
+    const holder = mandateHolders.find((row) => row.citizen_id === 'reviewer-demo');
+    assert.ok(holder, 'expected reviewer-demo mandate-holder binding');
+    assert.equal(holder.role_id, roleId);
+    assert.equal(holder.status, 'active');
+    assert.ok(new Date(String(holder.starts_at)).getTime() <= Date.now());
+    assert.equal(holder.ends_at, null);
+  });
+
   it('separates complaint intake, initial decision, and appeal authority', async () => {
     const decisionRights = await load('decision_rights.json');
     const roles = await load('roles.json');

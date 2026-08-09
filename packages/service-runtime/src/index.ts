@@ -502,11 +502,24 @@ export function startService(
     }
     const responseOptions = requestResponseOptions(req, config);
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (
-      url.pathname.startsWith('/internal/') &&
-      !hasValidInternalToken(req.headers['x-polis-internal-token'])
-    ) {
+    const internalToken = req.headers['x-polis-internal-token'];
+    const citizenId = req.headers['x-polis-citizen'];
+    const identityLevel = req.headers['x-polis-identity-level'];
+    const carriesAuthorityHeaders =
+      internalToken !== undefined || citizenId !== undefined || identityLevel !== undefined;
+    const internalPath = url.pathname.startsWith('/internal/');
+    if ((internalPath || carriesAuthorityHeaders) && !hasValidInternalToken(internalToken)) {
       return json(res, 401, { error: 'internal_auth_required', service }, responseOptions);
+    }
+    const carriesActor = citizenId !== undefined || identityLevel !== undefined;
+    if (
+      carriesActor &&
+      (typeof citizenId !== 'string' ||
+        !citizenId.trim() ||
+        typeof identityLevel !== 'string' ||
+        !identityLevel.trim())
+    ) {
+      return json(res, 401, { error: 'trusted_actor_required', service }, responseOptions);
     }
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {

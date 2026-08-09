@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "services": [
+    {
+      "name": "platform-api",
+      "path": "services/platform-api",
+      "workspace": "@polis/platform-api",
+      "runtime": "node-24",
+      "defaultPort": 8080,
+      "role": "Public BFF for governance, proof, assistant, citizen, signing, contribution, rewards, and complaint routes.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 17
+      },
+      "devPortEnv": "PLATFORM_API_PORT",
+      "internalUrlEnv": null
+    },
+    {
+      "name": "governance-graph-api",
+      "path": "services/governance-graph-api",
+      "workspace": "@polis/governance-graph-api",
+      "runtime": "node-24",
+      "defaultPort": 8100,
+      "role": "Postgres-backed civic graph and governance read API.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 1
+      },
+      "devPortEnv": "GOVERNANCE_GRAPH_API_PORT",
+      "internalUrlEnv": "GRAPH_INTERNAL_URL"
+    },
+    {
+      "name": "polis-bridge-service",
+      "path": "services/polis-bridge-service",
+      "workspace": "@polis/polis-bridge-service",
+      "runtime": "node-24",
+      "defaultPort": 8200,
+      "role": "Local Polis issue and conversation bridge with a provider seam.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 3
+      },
+      "devPortEnv": "POLIS_BRIDGE_SERVICE_PORT",
+      "internalUrlEnv": "POLIS_INTERNAL_URL"
+    },
+    {
+      "name": "paperless-adapter",
+      "path": "services/paperless-adapter",
+      "workspace": "@polis/paperless-adapter",
+      "runtime": "node-24",
+      "defaultPort": 8300,
+      "role": "Document intake and archive adapter for stub or Paperless backends.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 4
+      },
+      "devPortEnv": "PAPERLESS_ADAPTER_PORT",
+      "internalUrlEnv": "PAPERLESS_INTERNAL_URL"
+    },
+    {
+      "name": "document-ingestion-gateway",
+      "path": "services/document-ingestion-gateway",
+      "workspace": "@polis/document-ingestion-gateway",
+      "runtime": "node-24",
+      "defaultPort": 8400,
+      "role": "Orchestrates document intake, canonicalization, and proof registration.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 9
+      },
+      "devPortEnv": "DOCUMENT_INGESTION_GATEWAY_PORT",
+      "internalUrlEnv": null
+    },
+    {
+      "name": "contribution-service",
+      "path": "services/contribution-service",
+      "workspace": "@polis/contribution-service",
+      "runtime": "node-24",
+      "defaultPort": 8450,
+      "role": "Persists evidence-linked claims and review decisions.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 14
+      },
+      "devPortEnv": "CONTRIBUTION_SERVICE_PORT",
+      "internalUrlEnv": "CONTRIBUTION_INTERNAL_URL"
+    },
+    {
+      "name": "rewards-service",
+      "path": "services/rewards-service",
+      "workspace": "@polis/rewards-service",
+      "runtime": "node-24",
+      "defaultPort": 8460,
+      "role": "Runs the local civic rewards prototype.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 13
+      },
+      "devPortEnv": "REWARDS_SERVICE_PORT",
+      "internalUrlEnv": "REWARDS_INTERNAL_URL"
+    },
+    {
+      "name": "canonicalization-service",
+      "path": "services/canonicalization-service",
+      "workspace": "@polis/canonicalization-service",
+      "runtime": "node-24",
+      "defaultPort": 8500,
+      "role": "Creates deterministic SHA-256 document hash bundles.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 5
+      },
+      "devPortEnv": "CANONICALIZATION_SERVICE_PORT",
+      "internalUrlEnv": "CANONICALIZATION_INTERNAL_URL"
+    },
+    {
+      "name": "ai-gateway",
+      "path": "services/ai-gateway",
+      "workspace": null,
+      "runtime": "python-3.12",
+      "defaultPort": 8550,
+      "role": "FastAPI grounded-RAG assistant with stub and OpenAI-compatible provider modes.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": false,
+        "order": null
+      },
+      "devPortEnv": null,
+      "internalUrlEnv": "AI_INTERNAL_URL"
+    },
+    {
+      "name": "audit-service",
+      "path": "services/audit-service",
+      "workspace": "@polis/audit-service",
+      "runtime": "node-24",
+      "defaultPort": 8600,
+      "role": "Stores and reads append-only hash-chained audit events.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 2
+      },
+      "devPortEnv": "AUDIT_SERVICE_PORT",
+      "internalUrlEnv": "AUDIT_INTERNAL_URL"
+    },
+    {
+      "name": "citizen-identity-service",
+      "path": "services/citizen-identity-service",
+      "workspace": "@polis/citizen-identity-service",
+      "runtime": "node-24",
+      "defaultPort": 8650,
+      "role": "Provides local HMAC-based citizen sessions.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 10
+      },
+      "devPortEnv": "CITIZEN_IDENTITY_SERVICE_PORT",
+      "internalUrlEnv": "IDENTITY_INTERNAL_URL"
+    },
+    {
+      "name": "proof-service",
+      "path": "services/proof-service",
+      "workspace": "@polis/proof-service",
+      "runtime": "node-24",
+      "defaultPort": 8700,
+      "role": "Stores proof manifests and serves verification, status, and issuer reads.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 8
+      },
+      "devPortEnv": "PROOF_SERVICE_PORT",
+      "internalUrlEnv": "PROOF_INTERNAL_URL"
+    },
+    {
+      "name": "citizen-vault-service",
+      "path": "services/citizen-vault-service",
+      "workspace": "@polis/citizen-vault-service",
+      "runtime": "node-24",
+      "defaultPort": 8750,
+      "role": "Provides the citizen document vault service shell.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 11
+      },
+      "devPortEnv": "CITIZEN_VAULT_SERVICE_PORT",
+      "internalUrlEnv": "VAULT_INTERNAL_URL"
+    },
+    {
+      "name": "timestamp-service",
+      "path": "services/timestamp-service",
+      "workspace": "@polis/timestamp-service",
+      "runtime": "node-24",
+      "defaultPort": 8800,
+      "role": "Issues local RFC 3161-style timestamps behind a provider seam.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 6
+      },
+      "devPortEnv": "TIMESTAMP_SERVICE_PORT",
+      "internalUrlEnv": "TIMESTAMP_INTERNAL_URL"
+    },
+    {
+      "name": "signature-service",
+      "path": "services/signature-service",
+      "workspace": "@polis/signature-service",
+      "runtime": "node-24",
+      "defaultPort": 8900,
+      "role": "Issues test-key proof signatures and exposes the issuer registry.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 7
+      },
+      "devPortEnv": "SIGNATURE_SERVICE_PORT",
+      "internalUrlEnv": "SIGNATURE_INTERNAL_URL"
+    },
+    {
+      "name": "vc-issuer-service",
+      "path": "services/vc-issuer-service",
+      "workspace": "@polis/vc-issuer-service",
+      "runtime": "node-24",
+      "defaultPort": 8950,
+      "role": "Provides the verifiable credential issuer service shell.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 12
+      },
+      "devPortEnv": "VC_ISSUER_SERVICE_PORT",
+      "internalUrlEnv": "VC_ISSUER_INTERNAL_URL"
+    },
+    {
+      "name": "document-signing-service",
+      "path": "services/document-signing-service",
+      "workspace": "@polis/document-signing-service",
+      "runtime": "node-24",
+      "defaultPort": 8960,
+      "role": "Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 15
+      },
+      "devPortEnv": "DOCUMENT_SIGNING_SERVICE_PORT",
+      "internalUrlEnv": "SIGNING_INTERNAL_URL"
+    },
+    {
+      "name": "complaints-service",
+      "path": "services/complaints-service",
+      "workspace": "@polis/complaints-service",
+      "runtime": "node-24",
+      "defaultPort": 8970,
+      "role": "Manages private resident complaint cases, staff decisions, and appeals.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": true,
+        "order": 16
+      },
+      "devPortEnv": "COMPLAINTS_SERVICE_PORT",
+      "internalUrlEnv": "COMPLAINTS_INTERNAL_URL"
+    }
+  ]
+}

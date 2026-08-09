@@ -1,0 +1,20 @@
+using temporary cache in /tmp/restic-check-cache-3472480303
+create exclusive lock for repository
+load indexes
+check all packs
+check snapshots, trees and blobs
+[0:00] 100.00%  1 / 1 snapshots
+read group #1 of 0 data packs (out of total 2 packs in 20 groups
+[0:00]          0 packs
+no errors were found
+Applying Policy: keep 7 daily, 4 weekly, 6 monthly snapshots
+keep 1 snapshots:
+ID        Time                 Host        Tags                Reasons           Paths                                     Size
+--------------------------------------------------------------------------------------------------------------------------------------
+7bf7eefa  2026-08-09 05:57:39  [local-host-redacted]         polis-pilot-backup  daily snapshot    /tmp/polis-backup.izlBAxZ6/manifest.json  130.091 KiB
+                                                               weekly snapshot   /tmp/polis-backup.izlBAxZ6/polis.dump
+                                                               monthly snapshot
+--------------------------------------------------------------------------------------------------------------------------------------
+Timestamps shown in local time
+1 snapshots
+

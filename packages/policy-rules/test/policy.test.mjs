@@ -230,38 +230,72 @@ test('polis conversation creation requires service-level trust (M2 §13)', () =>
   );
 });
 
-test('contribute allow_submit requires a known non-anonymous identity level (M6 §21)', () => {
-  assert.equal(
-    opaEval(
-      'contribute/access.rego',
-      { identity_level: 'casual' },
-      'data.polis.contribute.allow_submit',
-    ),
-    true,
-  );
-  assert.equal(
-    opaEval(
-      'contribute/access.rego',
-      { identity_level: 'anonymous' },
-      'data.polis.contribute.allow_submit',
-    ),
-    false,
-  );
+test('contribute allow_submit accepts only real verified session levels', () => {
+  for (const identityLevel of ['verified_resident', 'verified_official', 'staff']) {
+    assert.equal(
+      opaEval(
+        'contribute/access.rego',
+        { identity_level: identityLevel },
+        'data.polis.contribute.allow_submit',
+      ),
+      true,
+    );
+  }
+  for (const identityLevel of ['anonymous', 'casual', 'verified', 'enrolled']) {
+    assert.equal(
+      opaEval(
+        'contribute/access.rego',
+        { identity_level: identityLevel },
+        'data.polis.contribute.allow_submit',
+      ),
+      false,
+    );
+  }
 });
 
-test('contribute allow_review requires the reviewer role (M6 §19)', () => {
-  assert.equal(
-    opaEval('contribute/access.rego', { role: 'reviewer' }, 'data.polis.contribute.allow_review'),
-    true,
-  );
+test('contribute allow_review requires staff right and distinct reviewer', () => {
+  const query = 'data.polis.contribute.allow_review';
   assert.equal(
     opaEval(
       'contribute/access.rego',
-      { role: 'contributor' },
-      'data.polis.contribute.allow_review',
+      {
+        identity_level: 'staff',
+        decision_right: 'review_contribution',
+        reviewer_id: 'reviewer-1',
+        contributor_id: 'contributor-1',
+      },
+      query,
     ),
-    false,
+    true,
   );
+  for (const denied of [
+    {
+      identity_level: 'verified_official',
+      decision_right: 'review_contribution',
+      reviewer_id: 'reviewer-1',
+      contributor_id: 'contributor-1',
+    },
+    {
+      identity_level: 'staff',
+      decision_right: 'decide_complaint',
+      reviewer_id: 'reviewer-1',
+      contributor_id: 'contributor-1',
+    },
+    {
+      identity_level: 'staff',
+      role: 'reviewer',
+      reviewer_id: 'reviewer-1',
+      contributor_id: 'contributor-1',
+    },
+    {
+      identity_level: 'staff',
+      decision_right: 'review_contribution',
+      reviewer_id: 'same-citizen',
+      contributor_id: 'same-citizen',
+    },
+  ]) {
+    assert.equal(opaEval('contribute/access.rego', denied, query), false);
+  }
 });
 
 test('contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007)', () => {

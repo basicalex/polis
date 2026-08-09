@@ -150,6 +150,86 @@ test('internal routes fail closed when INTERNAL_API_TOKEN is not configured', as
   });
 });
 
+test('public-shaped routes reject forged or partial actor context and accept trusted actors', async () => {
+  await withInternalToken('trusted-channel-token', async () => {
+    let handlerCalls = 0;
+    await withServer(
+      [
+        {
+          method: 'POST',
+          path: '/api/v1/contribute/evidence',
+          handler: (req) => {
+            handlerCalls += 1;
+            return {
+              citizenId: req.headers['x-polis-citizen'],
+              identityLevel: req.headers['x-polis-identity-level'],
+            };
+          },
+        },
+      ],
+      async (baseUrl) => {
+        const request = (headers: Record<string, string>) =>
+          fetch(`${baseUrl}/api/v1/contribute/evidence`, {
+            method: 'POST',
+            headers,
+            body: '{}',
+          });
+
+        const forgedHeaders: Array<Record<string, string>> = [
+          { 'x-polis-citizen': 'forged-citizen' },
+          { 'x-polis-identity-level': 'staff' },
+          { 'x-polis-internal-token': 'wrong-token' },
+          {
+            'x-polis-internal-token': 'wrong-token',
+            'x-polis-citizen': 'forged-citizen',
+            'x-polis-identity-level': 'staff',
+          },
+        ];
+        const partialActors: Array<Record<string, string>> = [
+          {
+            'x-polis-internal-token': 'trusted-channel-token',
+            'x-polis-citizen': 'trusted-citizen',
+          },
+          {
+            'x-polis-internal-token': 'trusted-channel-token',
+            'x-polis-identity-level': 'verified_resident',
+          },
+        ];
+
+        for (const headers of forgedHeaders) {
+          const response = await request(headers);
+          assert.equal(response.status, 401);
+          assert.deepEqual(await response.json(), {
+            error: 'internal_auth_required',
+            service: 'runtime-test',
+          });
+        }
+
+        for (const headers of partialActors) {
+          const response = await request(headers);
+          assert.equal(response.status, 401);
+          assert.deepEqual(await response.json(), {
+            error: 'trusted_actor_required',
+            service: 'runtime-test',
+          });
+        }
+
+        const accepted = await request({
+          'x-polis-internal-token': 'trusted-channel-token',
+          'x-polis-citizen': 'trusted-citizen',
+          'x-polis-identity-level': 'verified_resident',
+        });
+        assert.equal(accepted.status, 200);
+        assert.deepEqual(await accepted.json(), {
+          citizenId: 'trusted-citizen',
+          identityLevel: 'verified_resident',
+        });
+        assert.equal(handlerCalls, 1);
+      },
+    );
+  });
+});
+
 test('default JSON, raw, and none body modes reach handlers with the expected value', async () => {
   const routes: Route[] = [
     { method: 'POST', path: '/json', handler: (_req, body) => body },

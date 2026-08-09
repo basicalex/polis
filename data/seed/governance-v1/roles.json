@@ -70,5 +70,19 @@
     "confidence_state": "official_source",
     "review_state": "approved",
     "visibility": "public"
+  },
+  {
+    "id": "role-contribution-reviewer-demo",
+    "name": "Demo Contribution Reviewer",
+    "institution_id": null,
+    "mandate_id": null,
+    "description": "Demo/test authority only for contribution review; this is not live approval.",
+    "authorized_by_law": null,
+    "decision_rights": [
+      "review_contribution"
+    ],
+    "confidence_state": "unsupported_draft",
+    "review_state": "draft",
+    "visibility": "internal"
   }
 ]

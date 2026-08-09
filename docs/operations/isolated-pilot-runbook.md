@@ -33,7 +33,7 @@ Use a dedicated Linux host with:
 - inbound TCP 80/443 and UDP 443 allowed; no database or application port allowed at the host firewall;
 - outbound DNS and HTTPS for image pulls and ACME;
 - host `node`, `git`, PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`), `restic`, and `timeout` for backups;
-- an encrypted off-host restic repository and a root-readable restic password file outside the repository;
+- an encrypted off-host restic repository and an operator-readable, owner-only restic password file outside the repository;
 - monitoring for HTTPS availability, response status/latency, container restarts, disk use, certificate expiry, and backup age;
 - synchronized UTC time and a reviewed incident contact channel.
 
@@ -165,7 +165,9 @@ These checks do not mean every POST is denied: stateless proof verification is a
 
 ## Backup
 
-Run at least daily and before any image, schema, secret, or host change. The backend network has no host port, so derive the current PostgreSQL container address without publishing one. Run in a subshell from the repository root:
+Run at least daily and before any image, schema, secret, or host change. Run from a clean immutable checkout: the backup script rejects tracked, staged, or untracked working-tree changes before it connects to PostgreSQL, so the recorded Git SHA binds the tools and migrations used. The production gate is an encrypted off-host restic repository plus reviewed operator evidence. Local restic repositories, local-tool tests, or `bun run ops:clean-db-drill` prove tooling only; they never satisfy the production off-host backup gate. A `local-test` repository with `productionEligible:false` never satisfies Task 11; Task 11 production evidence requires `repositoryClass:"off-host"` and `productionEligible:true`.
+
+The backend network has no host port, so derive the current PostgreSQL container address without publishing one. Run in a subshell from the repository root:
 
 ```sh
 (
@@ -188,11 +190,24 @@ Run at least daily and before any image, schema, secret, or host change. The bac
 )
 ```
 
-The command must return JSON with `ok:true`, a nominated snapshot ID, timestamp, and dump digest. The script creates a custom-format dump and manifest, validates the audit table, sends only those named artifacts to the off-host repository, runs `restic check`, and applies retention. Alert if no verified backup completes within 24 hours. Never back up `.env.pilot` or the restic password file with this job.
+The command must print one nonsecret JSON object with `ok:true`, `snapshotId`, `createdAt`, `gitSha`, `postgresMajor`, `dumpSha256`, `restoreListSha256`, `repositoryClass`, `productionEligible`, `publicTableCount`, `migrationCount`, `latestMigrationHash`, `auditEventCount`, and `auditHeadHash`. Save the raw JSON as evidence; do not paste secrets or connection strings into the report. `pg_dump` must have the same major version as the source PostgreSQL server; the script rejects a mismatch before creating a snapshot.
+
+`RESTIC_PASSWORD_FILE` must resolve, before restic use, to a readable, nonempty, regular file whose permission bits are owner-only. `0400`, `0600`, and other owner-only modes are accepted; any group or other bit is a failed backup precheck. Do not record the resolved path, mode, password content, or other secret detail in evidence or error notes.
+
+The effective `RESTIC_REPOSITORY` is classified as exactly `off-host` or `local-test`. Production/off-host classification rejects loopback or local endpoints, `rclone:`, explicit HTTP REST transports (`rest:http://...`), explicit HTTP S3 endpoints (`s3:http://...`), and otherwise ineligible repositories. These may run only as `local-test` when `OPS_ALLOW_LOCAL_RESTIC_REPOSITORY_FOR_TESTS=true`; without that exact override they must fail before backup with a transport/off-host error. Supported secure remote schemes remain `off-host` even when the local-test override is set.
+
+The backup archive must contain exactly two named artifacts:
+
+- `polis.dump`
+- `manifest.json`
+
+`manifest.json` must be manifest `formatVersion` 3 and bind the backup to `createdAt`, `gitSha`, `postgresMajor`, `dumpSha256`, `restoreListSha256`, `publicTableCount`, `migrationCount`, `latestMigrationHash`, `auditEventCount`, `auditHeadHash`, `repositoryClass`, and `productionEligible`. The source audit chain must be non-empty and valid, using the canonical verification order `created_at,id`; an empty chain is a failed backup, not a bypass. The migration ledger is `drizzle.__drizzle_migrations`; `migrationCount` must be positive, and `latestMigrationHash` must be a lowercase 64-character hex SHA-256. `productionEligible` is true if and only if `repositoryClass` is `off-host`; `local-test` must record `productionEligible:false`.
+
+The script creates a custom-format dump, writes the v3 manifest, validates the source audit table, verifies the migration ledger, sends only `polis.dump` and `manifest.json` to the classified repository, runs `restic check`, and applies retention. Alert if no verified off-host backup completes within 24 hours. Never back up `.env.pilot`, database URLs, restic credentials, the restic password file, or other secret material with this job. Historical evidence captured before manifest v3 remains historical v2 evidence. The dated local manifest-v3 drill in `docs/operations/evidence/2026-08-09-task11-manifest-v3-local-recovery-drill.md` proves only `local-test` mechanics with `productionEligible:false`; it does not satisfy Task 11 or support an off-host claim.
 
 ## Disposable restore drill
 
-Run after initial deployment, monthly, and before relying on a backup for recovery. Provision a separate PostgreSQL database whose name contains `restore_drill` or `disposable`; it must not be the pilot source or any production database. Export the nominated snapshot ID from backup evidence and the three distinct URLs, then run:
+Run after initial deployment, monthly, and before relying on a backup for recovery. The drill must use the exact nominated snapshot ID from reviewed backup evidence. Do not use `latest`. Provision a separate PostgreSQL database whose name contains `restore_drill` or `disposable`; it must not be the pilot source or any production database. Export the nominated snapshot ID and the three distinct URLs, then run:
 
 ```sh
 set -a
@@ -210,7 +225,15 @@ RESTIC_PASSWORD_FILE="$RESTIC_PASSWORD_FILE" \
   scripts/ops/restore-verify.sh
 ```
 
-The script rejects `latest`, identical source/target identities, production targets, system databases, and targets without the disposable naming marker. It validates snapshot metadata and digests before destructive `pg_restore`, then verifies schema, table count, audit-event count, and audit chain. Destroy only the disposable target after the reviewer signs the dated evidence. Never point this command at the live pilot.
+The script must reject `latest`, identical source/target identities, production targets, system databases, targets without the disposable naming marker, multiple-host URIs, and URI query parameters that can override the effective host, port, database, or libpq service. It also compares PostgreSQL system identifiers plus database names for the target, source, and production URLs before `pg_restore`, so DNS aliases cannot bypass the string-level guard; failure to read any physical identity is a failed drill. Before any destructive restore, it must validate the exact snapshot metadata, manifest v3 fields, repository classification fields, dump digest, and restore-list/TOC digest. Stop if any manifest value is missing, if the archive contains anything other than `polis.dump` and `manifest.json`, if the current repository class does not exactly match the manifest `repositoryClass`, if `productionEligible` is not exactly true for `off-host` and false for `local-test`, or if a digest does not match.
+
+Restore applies the same repository and password-file invariants as backup: the current effective repository class must be recomputed before restore, the resolved `RESTIC_PASSWORD_FILE` target must be checked before restic use, and evidence/errors must not disclose password-file path, mode, or content.
+
+Before restore, require `pg_restore`, the target PostgreSQL server, and the manifest `postgresMajor` to use the same major version. After restore, compare the restored public table count, migration count, latest migration hash, audit-event count, and audit head hash to the manifest and backup JSON. The restored audit chain must be non-empty and valid in canonical `created_at,id` order. The restored migration ledger must be `drizzle.__drizzle_migrations`, with positive `migrationCount` and a lowercase 64-character hex `latestMigrationHash`.
+
+The restore command must print one nonsecret JSON object with `ok`, `snapshotId`, `createdAt`, `verifiedAt`, `gitSha`, `postgresMajor`, `dumpSha256`, `restoreListSha256`, `repositoryClass`, `productionEligible`, `disposableDbName`, `publicTableCount`, `migrationCount`, `latestMigrationHash`, `auditEventCount`, and `auditHeadHash`. Save the raw JSON and operator transcript as evidence without secrets. Destroy only the disposable target after a reviewer checks the backup JSON, restore JSON, manifest v3 fields, repository class, production eligibility, digests, table/migration/audit comparisons, and records approval. Never point this command at the live pilot.
+
+`bun run ops:clean-db-drill` is useful local proof that the clean-database seed/migration tooling still works. It is not backup proof, restore proof, or off-host evidence. Local restic/tool tests and any `local-test` backup or restore with `productionEligible:false` never satisfy Task 11 or the production off-host gate.
 
 ## Monitoring and thresholds
 

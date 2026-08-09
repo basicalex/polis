@@ -84,6 +84,388 @@
         "aocPrd": null,
         "updatedAt": "2026-06-08T09:22:53.462Z",
         "activeAgent": false
+      },
+      {
+        "id": "7",
+        "title": "Harden and simplify the feature-complete pilot architecture",
+        "description": "Focus the product on the commitment-to-evidence pilot, add executable fail-closed gates and generated architecture inventory checks, reconcile docs, and decompose sensitive oversized entrypoints without changing public contracts.",
+        "details": "No new product features. Preserve existing HTTP contracts and tests. First tranche: canonical service inventory validation/docs reconciliation; pilot gate audit; behavior-preserving contribution-service decomposition.",
+        "testStrategy": "Run new inventory/contract checks, affected workspace tests, TypeScript diagnostics/typecheck, and Python tests only if Python changes.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "aocOutcome": {
+          "version": 1,
+          "status": "done",
+          "summary": "Paused feature expansion around the charter-to-evidence pilot workflow; added an 18-service canonical catalog with generated docs/env checks; made the Node dev launcher catalog-driven; reconciled runtime/provider docs; made pilot platform startup require PUBLIC_EDGE=true; and extracted the 210-line representative publish authorization gate from contribution-service.",
+          "completedAt": "2026-08-08T13:37:54.405Z",
+          "completedBy": "prime-agent",
+          "artifacts": [
+            {
+              "path": "config/services.json",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "scripts/service-catalog.mjs",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/contribution-service/src/representative-publish-gate.ts",
+              "kind": null,
+              "change": null
+            }
+          ],
+          "verification": [
+            {
+              "kind": "command",
+              "command": "service-catalog 6/6; platform-api 21/21; contribution-service 14/14; pilot Compose 4/4; v1 smoke passed; targeted typechecks/builds and ESLint passed",
+              "result": "recorded"
+            }
+          ],
+          "gaps": [
+            "Writable/private pilot remains blocked: trusted contribution identity, reviewer-role authorization, and sensitive-write audit gates moved to task 8; remaining entrypoint decomposition moved to task 9."
+          ],
+          "cancelReason": null,
+          "replacementTaskId": null,
+          "refs": {
+            "commits": [],
+            "stm": [],
+            "mind": []
+          }
+        },
+        "updatedAt": "2026-08-08T13:37:54.405Z",
+        "activeAgent": true
+      },
+      {
+        "id": "8",
+        "title": "Bind contribution and review writes to trusted identity and roles",
+        "description": "Replace caller-asserted contribution identity with verified-session trusted actor headers, require reviewer authority rather than any staff identity, and make sensitive-write audit requirements explicit before any writable pilot.",
+        "details": "Preserve public route shapes. Add negative tests for spoofed body identity, forged headers, staff without reviewer authority, unavailable identity, and unavailable required audit. Keep the public-read pilot closed.",
+        "testStrategy": "Platform/contribution contract tests, policy tests, targeted typecheck/build, and a fail-closed pilot refusal check.",
+        "status": "done",
+        "dependencies": [
+          "7"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "aocOutcome": {
+          "version": 1,
+          "status": "done",
+          "summary": "Hardened contribution and review writes with verified bearer sessions, trusted internal actor propagation, explicit active review rights, contributor/reviewer separation, transactional fail-closed auditing, and public-edge refusal.",
+          "completedAt": "2026-08-08T18:33:01.846Z",
+          "completedBy": "Prime Agent after OMP implementation and independent adversarial review",
+          "artifacts": [
+            {
+              "path": "packages/service-runtime/src/index.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/platform-api/src/index.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/contribution-service/src/index.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "packages/policy-rules/contribute/access.rego",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "data/seed/governance-v1/{roles,decision_rights,mandate_holders}.json",
+              "kind": null,
+              "change": null
+            }
+          ],
+          "verification": [
+            {
+              "kind": "command",
+              "command": "service-runtime 17/17; platform-api 22/22; contribution-service 23/23; policy-rules 25/25; db 19/19; all targeted builds/typechecks, ESLint, Prettier/OPA formatting, service catalog, and diff checks passed.",
+              "result": "recorded"
+            }
+          ],
+          "gaps": [
+            "No Task 8 acceptance gap. Distributed DB/audit atomicity is not claimed: a DB commit failure after an accepted remote completion audit can leave an orphan audit event; the inverse is prevented for sensitive local writes."
+          ],
+          "cancelReason": null,
+          "replacementTaskId": null,
+          "refs": {
+            "commits": [],
+            "stm": [],
+            "mind": []
+          }
+        },
+        "updatedAt": "2026-08-08T18:33:01.846Z",
+        "activeAgent": false
+      },
+      {
+        "id": "9",
+        "title": "Continue decomposing sensitive service entrypoints",
+        "description": "Split platform-api, contribution-service, and complaints-service into route, authorization, repository, and orchestration modules without changing HTTP contracts.",
+        "details": "Continue after the representative publish gate extraction. Work one coherent security boundary per change; avoid cross-service rewrites.",
+        "testStrategy": "Affected service typecheck/build/tests plus route-order and authorization negative-path contracts.",
+        "status": "done",
+        "dependencies": [
+          "7"
+        ],
+        "priority": "medium",
+        "subtasks": [],
+        "aocPrd": null,
+        "aocOutcome": {
+          "version": 1,
+          "status": "done",
+          "summary": "Decomposed platform-api, contribution-service, and complaints-service monolith entrypoints into thin startup files plus explicit route, authorization, repository/proxy, audit, config, lifecycle, and orchestration modules without changing route or runtime contracts.",
+          "completedAt": "2026-08-08T19:16:40.519Z",
+          "completedBy": "Prime Agent after three sequential OMP slices, parent verification, and independent adversarial review",
+          "artifacts": [
+            {
+              "path": "services/platform-api/src/{config,proxy,auth,public-edge,routes,index}.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/contribution-service/src/{authorization,audit,repository,orchestration,contribution-routes,representative-routes,routes,types,index}.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/complaints-service/src/{config,authorization,audit,repository,orchestration,routes,lifecycle,types,index}.ts",
+              "kind": null,
+              "change": null
+            }
+          ],
+          "verification": [
+            {
+              "kind": "command",
+              "command": "Exact ordered route contracts: platform 84, contribution 15, complaints 15. Builds/typechecks and tests passed: platform 22/22, contribution 23/23, complaints 17/17; Task 8 runtime/policy/db regressions 17/17, 25/25, 19/19; ESLint, Prettier, OPA format, service catalog, import-cycle scan, and diff checks passed.",
+              "result": "recorded"
+            }
+          ],
+          "gaps": [
+            "No Task 9 behavior-drift gap after independent adversarial review. Inherited complaint audit delivery remains best-effort and does not reject non-2xx; track as a separate production hardening gate rather than changing behavior during decomposition."
+          ],
+          "cancelReason": null,
+          "replacementTaskId": null,
+          "refs": {
+            "commits": [],
+            "stm": [],
+            "mind": []
+          }
+        },
+        "updatedAt": "2026-08-08T19:16:40.519Z",
+        "activeAgent": false
+      },
+      {
+        "id": "10",
+        "title": "Close workflow-wide authorization and audit release gates",
+        "description": "Inventory every state-changing path reachable from the partner workflow and make enabled sensitive mutations fail closed on trusted actor, explicit decision rights, separation of duties, and required truthful audit delivery; keep unproved paths closed.",
+        "details": "Preserve public and DB contracts. Cover accepted charter/signing callbacks, commitment/resolution/evidence/review/public-status mutations, proof lifecycle writes, identity session exchange, and complaints only if that private surface is enabled. Reuse existing audit/internal-token seams; no migrations or new endpoints. Public-read pilot remains 405-closed. Record an executable mutation coverage matrix; paths outside the production workflow remain disabled rather than partially secured.",
+        "testStrategy": "Exact route inventory; forged/missing actor and right tests; audit timeout/throw/non-2xx rollback tests with zero local mutation/external side effect; self-review tests; platform public-edge refusal; affected builds/typechecks/policy tests.",
+        "status": "done",
+        "dependencies": [
+          "9"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "aocOutcome": {
+          "version": 1,
+          "status": "done",
+          "summary": "Closed enabled partner-workflow mutations on verified actors, active charter/proof scope, serializable authorization, separation of duties, transactional required audits, and exact public-edge refusal; all unproved surfaces remain disabled.",
+          "completedAt": "2026-08-08T20:14:31.612Z",
+          "completedBy": "Prime Agent",
+          "artifacts": [
+            {
+              "path": "services/platform-api/src/public-edge.ts; services/platform-api/src/index.test.ts",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/contribution-service/src/{audit.ts,representative-publish-gate.ts,representative-routes.ts,orchestration.ts,repository.ts,index.test.ts}",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "services/document-signing-service/src/{index.ts,index.test.ts}",
+              "kind": null,
+              "change": null
+            },
+            {
+              "path": "docs/operations/partner-workflow-release-gates.md",
+              "kind": null,
+              "change": null
+            }
+          ],
+          "verification": [
+            {
+              "kind": "command",
+              "command": "platform-api build/typecheck and 23/23 tests",
+              "result": "recorded"
+            },
+            {
+              "kind": "command",
+              "command": "contribution-service build/typecheck and 35/35 tests",
+              "result": "recorded"
+            },
+            {
+              "kind": "command",
+              "command": "document-signing-service build/typecheck and 37/37 tests",
+              "result": "recorded"
+            },
+            {
+              "kind": "command",
+              "command": "scoped Prettier, ESLint, service-catalog check, and git diff check passed",
+              "result": "recorded"
+            },
+            {
+              "kind": "command",
+              "command": "independent focused adversarial re-review: clean to complete",
+              "result": "recorded"
+            }
+          ],
+          "gaps": [
+            "No live PostgreSQL contention test was run; serializable isolation is asserted at the transaction seam and stale-view authorization is covered by the staged fake.",
+            "Recovery, provider authority, partner deployment, sandbox acceptance, and final independent release audit remain owned by Tasks 11-14, 17, and 18."
+          ],
+          "cancelReason": null,
+          "replacementTaskId": null,
+          "refs": {
+            "commits": [],
+            "stm": [],
+            "mind": []
+          }
+        },
+        "updatedAt": "2026-08-08T20:14:31.612Z",
+        "activeAgent": false
+      },
+      {
+        "id": "11",
+        "title": "Prove migrations backup restore and audit-chain recovery",
+        "description": "Turn the existing migration, restic backup, disposable restore, and audit-chain tools into a dated independently reviewable release gate for the partner database.",
+        "details": "No new storage system. Validate committed migrations against a clean database, backup only named artifacts to an encrypted off-host repository, restore a nominated immutable snapshot into a disposable non-production database, verify digests/schema/table and audit counts/hash chain, and record operator/reviewer evidence. Keep source-only contract tests green; never claim a drill that was not run.",
+        "testStrategy": "ops contract tests; clean migration/seed test; real pg_dump/restic snapshot evidence; destructive-target refusal tests; real disposable pg_restore; audit-chain verification including tampered negative fixture; dated report with snapshot/digest/Git SHA/operator/reviewer.",
+        "status": "in-progress",
+        "dependencies": [
+          "10"
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Harden recovery source contracts and clean-database drill",
+            "description": "Manifest v3; exact off-host/local-test classification with canonical loopback rejection; production-eligibility invariant; owner-only password-file checks; consistent snapshot, non-empty audit, migration/head, exact-artifact, version, physical-target, and clean-Git guards; 15/15 source tests.",
+            "status": "done",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "Run independently reviewed clean-snapshot local recovery drill",
+            "description": "Historical manifest-v2 drill retained. Current clean synthetic Git snapshot f63099e ran real PostgreSQL 16 migration/seed, encrypted local-test restic manifest-v3 backup, nominated disposable restore, digest/migration/audit cross-checks, tampered-audit negative, cleanup, 12 hashed attachments, and independent evidence review. productionEligible:false; local-only NO-GO.",
+            "status": "done",
+            "dependencies": []
+          },
+          {
+            "id": 3,
+            "title": "Run partner off-host recovery drill and human sign-off",
+            "description": "Release-scope preflight is independently reviewed: 93 accepted Tasks 7-11 source/state/evidence paths, full three-report local audit lineage, and sole exclusion .omp/RULES.md. A candidate commit does not approve itself or satisfy Task 11. A named operator must approve its exact SHA, use a separate clean checkout, back up the partner DB to the encrypted off-host repository, restore the exact snapshot to a distinct disposable target, record provider/check/retention/destruction evidence, and obtain independent human reviewer approval.",
+            "status": "pending",
+            "dependencies": [
+              "2"
+            ]
+          }
+        ],
+        "aocPrd": null,
+        "updatedAt": "2026-08-09T04:18:18.514Z",
+        "activeAgent": false
+      },
+      {
+        "id": "12",
+        "title": "Operate OIDC identity and production role mapping (M10)",
+        "description": "Prove the existing OIDC seam against the selected persistent IdP and map real partner citizens, officials, and reviewers to explicit active rights before any private flow is enabled.",
+        "details": "Preserve stub mode. Fail startup on missing/unsafe production config; disable dev tokens in OIDC mode; verify redirect/state/PKCE/session persistence and trusted BFF propagation; document issuer/client/claim mapping and rotation ownership without committing secrets. Seed demo reviewer authority is not production authority.",
+        "testStrategy": "Identity/platform unit and negative tests; phase10 acceptance against configured IdP; invalid state/code/issuer/claim tests; restart persistence; private-route 401/403 checks; explicit active reviewer-right evidence and operator-owned secret rotation record.",
+        "status": "pending",
+        "dependencies": [
+          "11"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-08-08T19:19:37.593Z",
+        "activeAgent": false
+      },
+      {
+        "id": "13",
+        "title": "Operate Paperless ingestion and storage evidence (M11)",
+        "description": "Prove the existing HTTP Paperless adapter and document ingestion flow against the selected partner storage backend with identity, idempotency, provenance, and audit evidence.",
+        "details": "Preserve stub and existing APIs/schema. Validate fail-fast config, TLS/auth, deterministic duplicate handling, storage_uri truth, evidence visibility, and document.paperless.linked audit behavior. Do not expose a new upload route or add alternate object storage.",
+        "testStrategy": "Adapter contract and failure tests; phase11 acceptance against configured Paperless; upload appears once, storage link and audit event match, proof manifest verifies, timeout/auth/duplicate negative paths, provider ownership/retention evidence.",
+        "status": "pending",
+        "dependencies": [
+          "12"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-08-08T19:19:37.614Z",
+        "activeAgent": false
+      },
+      {
+        "id": "14",
+        "title": "Operate RFC3161 timestamp and reviewed signature providers (M12)",
+        "description": "Prove real RFC3161 timestamp and reviewed institutional signature adapters end to end so signed charter and proof manifests are independently verifiable.",
+        "details": "Preserve stub mode, proof API, and append-only lifecycle. Configure reviewed TSA and signer trust material from operator env; fail closed on invalid/untrusted/expired responses; record issuer key custody and rotation owner. Do not claim qualified status beyond provider/legal evidence.",
+        "testStrategy": "Timestamp/signature/proof contract and cryptographic negative tests; phase12 acceptance against configured providers; independent verification of TSR and signature chain; revoke/supersede precedence and append-only checks; audit event evidence.",
+        "status": "pending",
+        "dependencies": [
+          "13"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-08-08T19:19:37.635Z",
+        "activeAgent": false
+      },
+      {
+        "id": "17",
+        "title": "Prepare the single-partner charter and release candidate (M15)",
+        "description": "Bind one real partner, scope, owners, redaction rights, success measures, rollback, retention, and enabled-provider matrix into a reviewed release candidate without deploying it.",
+        "details": "No new service/API/schema. Replace synthetic pilot data only after the charter is signed and legally approved. Require immutable image/Git SHA, secret and DNS owners, monitoring thresholds, incident/rollback/data-disposition plan, backup/restore report, threat review, provider acceptance evidence, and explicit disabled-feature list. The partner cannot suppress results beyond pre-agreed redactions.",
+        "testStrategy": "Charter schema/policy checks; release-manifest preflight; compose service/port/secret hardening contract; clean build and full acceptance suite; restore evidence freshness; redaction negative tests; named owner and legal/security approvals. No deployment.",
+        "status": "pending",
+        "dependencies": [
+          "14"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-08-08T19:36:00.939Z",
+        "activeAgent": false
+      },
+      {
+        "id": "18",
+        "title": "Run independent end-to-end release audit and launch decision",
+        "description": "Have an independent reviewer reproduce the complete accepted-charter to public-status flow and issue a signed go/no-go report; deployment remains operator-approved and is not performed automatically.",
+        "details": "Use the exact release candidate and configured providers. Exercise accepted charter → signed proof → commitment → evidence → distinct authorized review → public status, plus rollback, audit-chain, provider outage, forbidden-write, and result-redaction negatives. Publish only non-secret evidence. Any failed or unavailable gate is a no-go and keeps the public-read profile closed.",
+        "testStrategy": "Independent rerun of release preflight and end-to-end acceptance; verify hashes/signatures/timestamps/audit chain/role bindings/backups/restore/monitoring; dated signed report with exact blockers. No push or deploy without explicit approval.",
+        "status": "pending",
+        "dependencies": [
+          "17"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "aocPrd": null,
+        "updatedAt": "2026-08-08T19:19:37.721Z",
+        "activeAgent": false
       }
     ]
   }

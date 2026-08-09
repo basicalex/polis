@@ -13,7 +13,7 @@ Node services using `packages/service-runtime` expose:
 | GET | `/metrics` | Prometheus-style `polis_service_up` line |
 | GET | `/version` | service name, `0.1.0-v1`, and `GIT_SHA` or `dev` |
 
-`ai-gateway` exposes `GET /healthz` and `GET /version`.
+`ai-gateway` exposes equivalent `GET /healthz`, `GET /readyz`, and `GET /version` routes. `AI_MODE=stub` is deterministic; `AI_MODE=real` selects its OpenAI-compatible provider.
 
 ## v1 API routes exposed through `platform-api` (:8080)
 
@@ -73,21 +73,28 @@ Node services using `packages/service-runtime` expose:
 
 ## Service roles and health
 
-| Service | Port | Role in local v1 | Health |
-| --- | ---: | --- | --- |
-| `platform-api` | 8080 | Public BFF for graph, Polis, audit, proof, and assistant routes. | `GET /healthz` |
-| `governance-graph-api` | 8100 | Postgres-backed civic graph/read model. | `GET /healthz` |
-| `polis-bridge-service` | 8200 | Local/stub Polis issue and conversation bridge. | `GET /healthz` |
-| `paperless-adapter` | 8300 | Stub document intake/archive adapter. | `GET /healthz` |
-| `document-ingestion-gateway` | 8400 | Upload pipeline conductor: Paperless stub → canonicalization → proof registry. | `GET /healthz` |
-| `canonicalization-service` | 8500 | Stateless SHA-256 hash bundle generator for proof manifests. | `GET /healthz` |
-| `ai-gateway` | 8550 | FastAPI deterministic assistant/RAG service with trace/output/review state. | `GET /healthz` |
-| `audit-service` | 8600 | Append-only hash-chained audit writer and public audit reader. | `GET /healthz` |
-| `proof-service` | 8700 | Proof registry plus public verification/detail/status API. | `GET /healthz` |
-| `timestamp-service` | 8800 | Internal RFC3161-stub timestamp issuer for proof hashes. | `GET /healthz` |
-| `signature-service` | 8900 | Internal test-key signature issuer and issuer registry reader. | `GET /healthz` |
-| `document-signing-service` | 8960 | Internal charter PDF rendering, provider orchestration, restricted artifact storage, proof registration, and charter acceptance. | `GET /healthz` |
-| `complaints-service` | 8970 | Private complaint-case lifecycle, owner-scoped access, staff assignment/decision rights, and best-effort audit emission. | `GET /readyz` |
+<!-- service-catalog:service-map:start -->
+| Service | Runtime | Port | Role in local v1 | Operational health | Dev order |
+| --- | --- | ---: | --- | --- | ---: |
+| `platform-api` | Node 24 | 8080 | Public BFF for governance, proof, assistant, citizen, signing, contribution, rewards, and complaint routes. | `GET /readyz` | 17 |
+| `governance-graph-api` | Node 24 | 8100 | Postgres-backed civic graph and governance read API. | `GET /readyz` | 1 |
+| `polis-bridge-service` | Node 24 | 8200 | Local Polis issue and conversation bridge with a provider seam. | `GET /readyz` | 3 |
+| `paperless-adapter` | Node 24 | 8300 | Document intake and archive adapter for stub or Paperless backends. | `GET /readyz` | 4 |
+| `document-ingestion-gateway` | Node 24 | 8400 | Orchestrates document intake, canonicalization, and proof registration. | `GET /readyz` | 9 |
+| `contribution-service` | Node 24 | 8450 | Persists evidence-linked claims and review decisions. | `GET /readyz` | 14 |
+| `rewards-service` | Node 24 | 8460 | Runs the local civic rewards prototype. | `GET /readyz` | 13 |
+| `canonicalization-service` | Node 24 | 8500 | Creates deterministic SHA-256 document hash bundles. | `GET /readyz` | 5 |
+| `ai-gateway` | Python 3.12 | 8550 | FastAPI grounded-RAG assistant with stub and OpenAI-compatible provider modes. | `GET /readyz` | external |
+| `audit-service` | Node 24 | 8600 | Stores and reads append-only hash-chained audit events. | `GET /readyz` | 2 |
+| `citizen-identity-service` | Node 24 | 8650 | Provides local HMAC-based citizen sessions. | `GET /readyz` | 10 |
+| `proof-service` | Node 24 | 8700 | Stores proof manifests and serves verification, status, and issuer reads. | `GET /readyz` | 8 |
+| `citizen-vault-service` | Node 24 | 8750 | Provides the citizen document vault service shell. | `GET /readyz` | 11 |
+| `timestamp-service` | Node 24 | 8800 | Issues local RFC 3161-style timestamps behind a provider seam. | `GET /readyz` | 6 |
+| `signature-service` | Node 24 | 8900 | Issues test-key proof signatures and exposes the issuer registry. | `GET /readyz` | 7 |
+| `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | `GET /readyz` | 12 |
+| `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | `GET /readyz` | 15 |
+| `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | `GET /readyz` | 16 |
+<!-- service-catalog:service-map:end -->
 
 `document-signing-service` depends on Postgres, `proof-service`,
 `paperless-adapter`, and `audit-service`. Proof registration blocks charter
@@ -151,23 +158,14 @@ Documenso webhook also requires `X-Documenso-Secret`.
 
 ## Local ports
 
-`infra/compose/docker-compose.yml` publishes only `platform-api` at host port
-`8080`. Postgres and internal services use `expose`, so their ports are
-available only on the Compose network: governance graph `8100`, Polis bridge
-`8200`, Paperless adapter `8300`, document-ingestion gateway `8400`,
-canonicalization `8500`, AI gateway `8550`, audit `8600`, proof `8700`,
-timestamp `8800`, signature `8900`, document signing `8960`, and complaints
-`8970`. `scripts/dev-services.mjs` launches `document-signing-service` at
-`8960`, `complaints-service` at `8970`, and supplies their development internal
-URLs to the BFF process.
+The generated service table above is the canonical local port map. Compose publishes only `platform-api` at host port `8080`; Postgres and internal services use `expose`. `scripts/dev-services.mjs` launches all 17 catalogued Node services in the listed dependency-safe order and supplies their development internal URLs. The Python `ai-gateway` remains an external process.
 
 ## Integration warning
 
 These endpoints prove local contract shape only. They do not prove production
 Paperless, upstream Polis, identity, payment, trusted timestamp authority,
 electronic-signature provider, external AI model provider, or government
-connectivity. The current AI v0 path is deterministic local RAG over approved
-public sources with heuristic injection handling and append-only review state.
+connectivity. The AI path uses deterministic local RAG over approved public sources in `AI_MODE=stub`; `AI_MODE=real` calls the configured OpenAI-compatible provider. Both modes retain heuristic injection handling and append-only review state.
 Provider completion does not make the human signature advanced or qualified.
 The local Polis seal and timestamp use test/stub material. See
 [Document Trust: Verification](../document-trust/verification.md) and the

@@ -1,0 +1,17 @@
+{
+  "formatVersion": 3,
+  "repositoryClass": "local-test",
+  "productionEligible": false,
+  "deploymentProfile": "pilot",
+  "createdAt": "2026-08-09T03:57:38Z",
+  "gitSha": "f63099ebe136b55d0140f22d9bef97f5c4ac7104",
+  "postgresMajor": 16,
+  "dumpFile": "polis.dump",
+  "dumpSha256": "7b0ff1f35eaff031f8a353c5a10605ab2a3baa8e2682e562d9798527b8eaebe0",
+  "restoreListSha256": "89477c6b5df7826d548a440862e648520d03a142f63528848d7b6d84720fead2",
+  "publicTableCount": 66,
+  "migrationCount": 15,
+  "latestMigrationHash": "3e3634b31c63efe7803ad17e84ac5009d74ab906123d84055b41da237949ae8f",
+  "auditEventCount": 1,
+  "auditHeadHash": "10c03462592eab763a43cf93b724f264c13cbaa9c9e45ffec54051986d621ad0"
+}

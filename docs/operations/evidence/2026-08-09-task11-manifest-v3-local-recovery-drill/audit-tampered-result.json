@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "rejected": true,
+  "stderr": "{\"ok\":false,\"error\":\"recomputed hash mismatch at record 1\"}"
+}

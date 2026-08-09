@@ -28,5 +28,11 @@
     "role_id": "role-complaint-appeal-officer",
     "name": "decide_complaint_appeal",
     "description": "Issue the final appeal decision without acting as the initial decision-maker."
+  },
+  {
+    "id": "dr-review-contribution-demo",
+    "role_id": "role-contribution-reviewer-demo",
+    "name": "review_contribution",
+    "description": "Demo/test-only authority to review a contribution; not a live or legal approval."
   }
 ]

@@ -69,6 +69,7 @@ flowchart TB
         proofsvc["proof-service<br/>:8700"]
         ts["timestamp-service<br/>:8800"]
         sig["signature-service<br/>:8900"]
+        docsign["document-signing-service<br/>:8960"]
     end
 
     subgraph ai["AI assistant"]
@@ -105,12 +106,15 @@ flowchart TB
     bff --> gw
     bff --> contrib
     bff --> complaints
+    bff --> docsign
     bff --> citizen
     bff --> adapters
 
     ingest --> canon --> proofsvc
     proofsvc --> ts
     proofsvc --> sig
+    docsign --> proofsvc
+    docsign --> paperless
 
     gov --> db
     audit --> db
@@ -165,14 +169,16 @@ bun scripts/phase-complaints-acceptance.mjs # private complaint lifecycle
 ```bash
 bun install --frozen-lockfile
 cp .env.example .env
-bun run dev:services
+bun run build
 bun run db:seed
 ```
 
-Then in another shell:
+Then keep the catalogued Node services, Python gateway, and web app running in separate shells:
 
 ```bash
-bun run dev:web      # public and resident site on :4321
+bun run dev:services                 # all 17 Node services
+PORT=8550 uv run python -m polis_aigateway # Python AI gateway
+bun run dev:web                      # public and resident site on :4321
 ```
 
 ### Checks
@@ -203,26 +209,30 @@ bun run build && bun run typecheck && bun run test
 <details>
 <summary><b>Full service and port table</b></summary>
 
-| Service | Port | Summary |
-| --- | --- | --- |
-| `platform-api` (BFF) | 8080 | Public governance/proof reads plus authenticated assistant administration, citizen, contribution, signing, and complaint routes; private routes are blocked in the isolated public-edge profile |
-| `governance-graph-api` | 8100 | Seeded civic graph reads and traversal |
-| `audit-service` | 8600 | Append-only hash-chained writes, public redacted reads, AI trace read events |
-| `document-ingestion-gateway` | 8400 | Upload → canonicalization → proof orchestration |
-| `canonicalization-service` | 8500 | Deterministic SHA-256 canonicalization |
-| `proof-service` | 8700 | Proof manifests, status, issuer lookup; status precedence `revoked > superseded` |
-| `timestamp-service` | 8800 | RFC3161-stub timestamps |
-| `signature-service` | 8900 | Test-key signatures and issuer registry |
-| `ai-gateway` | 8550 | FastAPI. Deterministic grounded RAG, injection heuristics, `AI_MODE` seam (stub default) |
-| `contribution-service` | 8450 | Claims write path and review adjudication queue |
-| `complaints-service` | 8970 | Private resident case lifecycle with scoped staff rights, appeals, and restricted audit events |
-| `rewards-service` | 8460 | Civic rewards prototype |
-| `polis-bridge-service` | 8200 | Deliberation platform bridge stub |
-| `paperless-adapter` | 8300 | Paperless-ngx intake adapter |
-| `citizen-identity-service` | 8650 | Citizen identity shell |
-| `citizen-vault-service` | 8750 | Citizen vault shell |
-| `vc-issuer-service` | 8950 | Verifiable credential issuer shell |
-| `postgres` | 5432 | PostgreSQL 16 with pgvector |
+<!-- service-catalog:readme:start -->
+| Service | Runtime | Port | Summary | Dev launcher |
+| --- | --- | ---: | --- | --- |
+| `platform-api` | Node 24 | 8080 | Public BFF for governance, proof, assistant, citizen, signing, contribution, rewards, and complaint routes. | Yes (17) |
+| `governance-graph-api` | Node 24 | 8100 | Postgres-backed civic graph and governance read API. | Yes (1) |
+| `polis-bridge-service` | Node 24 | 8200 | Local Polis issue and conversation bridge with a provider seam. | Yes (3) |
+| `paperless-adapter` | Node 24 | 8300 | Document intake and archive adapter for stub or Paperless backends. | Yes (4) |
+| `document-ingestion-gateway` | Node 24 | 8400 | Orchestrates document intake, canonicalization, and proof registration. | Yes (9) |
+| `contribution-service` | Node 24 | 8450 | Persists evidence-linked claims and review decisions. | Yes (14) |
+| `rewards-service` | Node 24 | 8460 | Runs the local civic rewards prototype. | Yes (13) |
+| `canonicalization-service` | Node 24 | 8500 | Creates deterministic SHA-256 document hash bundles. | Yes (5) |
+| `ai-gateway` | Python 3.12 | 8550 | FastAPI grounded-RAG assistant with stub and OpenAI-compatible provider modes. | No (external) |
+| `audit-service` | Node 24 | 8600 | Stores and reads append-only hash-chained audit events. | Yes (2) |
+| `citizen-identity-service` | Node 24 | 8650 | Provides local HMAC-based citizen sessions. | Yes (10) |
+| `proof-service` | Node 24 | 8700 | Stores proof manifests and serves verification, status, and issuer reads. | Yes (8) |
+| `citizen-vault-service` | Node 24 | 8750 | Provides the citizen document vault service shell. | Yes (11) |
+| `timestamp-service` | Node 24 | 8800 | Issues local RFC 3161-style timestamps behind a provider seam. | Yes (6) |
+| `signature-service` | Node 24 | 8900 | Issues test-key proof signatures and exposes the issuer registry. | Yes (7) |
+| `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | Yes (12) |
+| `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | Yes (15) |
+| `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | Yes (16) |
+<!-- service-catalog:readme:end -->
+
+PostgreSQL 16 with pgvector listens on port `5432` in the local stack.
 
 </details>
 

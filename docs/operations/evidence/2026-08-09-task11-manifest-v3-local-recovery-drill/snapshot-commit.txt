@@ -1,0 +1,5 @@
+tree 693f4b6c256694c39ee4d28b8592bcbcff63bef4
+author Task 11 Local Snapshot <task11-local-snapshot@example.invalid> 1786245790 +0200
+committer Task 11 Local Snapshot <task11-local-snapshot@example.invalid> 1786245790 +0200
+
+Synthetic manifest v3 Task 11 local drill snapshot

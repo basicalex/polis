@@ -1,0 +1,2 @@
+91b36fadba4b38a308529cad4e283b3c433325d2f718d11a6c1f7de8cb3204b6  scripts/ops/backup.sh
+34df182220f2f18bc92600d4a3bb71bbabe6d123c4d4536b8d6d1675f9467ff9  scripts/ops/restore-verify.sh

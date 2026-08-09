@@ -17,9 +17,11 @@
     "typecheck": "bun run --workspaces --sequential --if-present typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "verify": "bun run build && bun run typecheck && bun run test && bun run v1:smoke",
+    "verify": "bun run service-catalog:check && bun run build && bun run typecheck && bun run test && bun run v1:smoke",
     "dev:web": "bun run --filter @polis/apps-web dev -- --host 0.0.0.0",
     "dev:verifier": "bun run --filter @polis/apps-verifier dev -- --host 0.0.0.0",
+    "service-catalog:check": "node scripts/service-catalog.mjs --check",
+    "service-catalog:test": "node --test scripts/service-catalog.test.mjs",
     "dev:services": "bun scripts/dev-services.mjs",
     "v1:smoke": "bun scripts/v1-smoke.mjs",
     "db:generate": "bun run --filter @polis/db db:generate",
@@ -27,7 +29,8 @@
     "ops:backup": "bash scripts/ops/backup.sh",
     "ops:restore-verify": "bash scripts/ops/restore-verify.sh",
     "ops:verify-audit": "node scripts/ops/verify-audit-chain.mjs",
-    "ops:test": "bash scripts/ops/test-backup-restore.sh"
+    "ops:test": "bash scripts/ops/test-backup-restore.sh",
+    "ops:clean-db-drill": "bash scripts/ops/clean-db-drill.sh"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

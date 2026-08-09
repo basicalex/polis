@@ -1,0 +1,1 @@
+{"ok":true,"image":"pgvector/pgvector:pg16","migrationCount":15,"latestMigrationHash":"3e3634b31c63efe7803ad17e84ac5009d74ab906123d84055b41da237949ae8f","publicTableCount":66,"seedRowCount":101,"idempotent":true}

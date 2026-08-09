@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
 import type { ArtifactStore } from './artifact-store.js';
-import { createReconcileDue, createSigningProvider, signingRoutes } from './index.js';
+import {
+  createReconcileDue,
+  createSigningProvider,
+  HttpProofRegistrar,
+  signingRoutes,
+} from './index.js';
 import type { SigningLifecycle } from './lifecycle.js';
 import {
   InMemorySigningRepository,
@@ -98,6 +103,46 @@ test('documenso provider mode fails when any required configuration is missing',
       }),
     /configuration is incomplete/,
   );
+});
+
+test('proof registration sends exact service provenance and requires active proof', async () => {
+  const previousToken = process.env.INTERNAL_API_TOKEN;
+  process.env.INTERNAL_API_TOKEN = 'test-internal-token';
+  const bodies: Array<Record<string, unknown>> = [];
+  let registryStatus = 'unknown';
+  const registrar = new HttpProofRegistrar('http://proof.test', async (_input, init) => {
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return new Response(JSON.stringify({ id: 'proof-1', registryStatus }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  });
+  const input: Parameters<HttpProofRegistrar['register']>[0] = {
+    originalFileHash: 'a'.repeat(64),
+    canonicalPdfHash: 'a'.repeat(64),
+    manifestHash: 'b'.repeat(64),
+    documentClass: 'restricted-administrative-record' as const,
+    issuerId: 'holder-1',
+    issuerName: 'Polis mandate holder',
+    originalFilename: 'signed-charter.pdf',
+    originalMime: 'application/pdf',
+    originalBytes: 10,
+    contentVisibility: 'restricted' as const,
+    proofVisibility: 'public' as const,
+    algorithm: 'sha256' as const,
+  };
+
+  await assert.rejects(() => registrar.register(input), /proof_registration_inactive_response/);
+  assert.equal(bodies[0]?.createdByService, 'document-signing-service');
+
+  registryStatus = 'active';
+  try {
+    assert.deepEqual(await registrar.register(input), { id: 'proof-1' });
+    assert.equal(bodies[1]?.createdByService, 'document-signing-service');
+  } finally {
+    if (previousToken === undefined) delete process.env.INTERNAL_API_TOKEN;
+    else process.env.INTERNAL_API_TOKEN = previousToken;
+  }
 });
 
 test('stub completion rejects a citizen who is not the signing recipient', async () => {
