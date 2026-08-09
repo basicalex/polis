@@ -54,7 +54,7 @@ Both run on the same verifiable data, so the accountability is symmetric: the pu
 
 ## See it work
 
-The seed data models a fictional Croatian municipality, **Grad Primjer**, with a real civic pain point: to file a service complaint, a resident must prove identity and residence twice, to two different offices. A four-step tour after [Quickstart](#quickstart):
+The seed data models a fictional Croatian municipality, **Grad Primjer**, whose complaint procedure has a real-world flaw: it makes residents prove identity and residence twice, to two different offices. Polis doesn't impose that burden — it documents it, traces it to sources, and tracks the elected official's promise to remove it. A four-step tour after [Quickstart](#quickstart):
 
 1. **Open the governance map** — `localhost:4321/governance/jur-croatia-local`. See the complaint process and the two offices (Public Complaints Office, Municipal Registry Office) that each demand the same documents.
 2. **Follow a claim to its sources** — click *"The Public Complaints Office requires identity evidence before accepting and routing a citizen complaint."* You get its confidence badge, review state, the government sources it cites, and its audit trail.
