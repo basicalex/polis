@@ -15,6 +15,27 @@ services:
     networks:
       - polis
 
+  # One-shot database seed job. Run explicitly after the stack is up:
+  #   docker compose -f infra/compose/docker-compose.yml run --rm seed
+  # Idempotent (upserts); applies migrations first if the schema is missing.
+  seed:
+    build:
+      context: ../..
+      dockerfile: infra/docker/node.Dockerfile
+      args:
+        SERVICE: platform-api
+    restart: 'no'
+    profiles: [seed]
+    command: ['bun', 'packages/db/dist/seed.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://polis:polis@postgres:5432/polis
+      NODE_ENV: production
+    networks:
+      - polis
+
   governance-graph-api:
     build:
       context: ../..
