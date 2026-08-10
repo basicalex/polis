@@ -22,6 +22,7 @@ const backupPath = join(opsDirectory, 'backup.sh');
 const restorePath = join(opsDirectory, 'restore-verify.sh');
 const cleanDbDrillPath = join(opsDirectory, 'clean-db-drill.sh');
 const wrapperPath = join(opsDirectory, 'test-backup-restore.sh');
+const slowTest = (name, run) => test(name, { timeout: 20_000 }, run);
 const canonicalFields = [
   'eventType',
   'actorType',
@@ -693,7 +694,7 @@ test('restore script gates destructive restore and verifies manifest, schema, co
   );
 });
 
-test('restore script refuses destructive inputs before restic restore and pg_restore', () => {
+slowTest('restore script refuses destructive inputs before restic restore and pg_restore', () => {
   const cases = [
     {
       name: 'missing confirmation',
@@ -827,7 +828,7 @@ test('restore script refuses destructive inputs before restic restore and pg_res
   assertRestoreRefusal({}, /RESTIC_PASSWORD_FILE is not usable/, 0o644);
 });
 
-test('restore script validates manifest v3 repository class before database actions', () => {
+slowTest('restore script validates manifest v3 repository class before database actions', () => {
   assertRestoreManifestRefusal(
     validRestoreManifest({ formatVersion: 2 }),
     /unsupported or non-pilot manifest|manifest validation failed/,

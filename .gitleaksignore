@@ -1,0 +1,8 @@
+# Exact historical fingerprints for explicit contract-test fixtures.
+04993ec9dcb541b9ac5732714cbaf60e140f88b7:infra/compose/complaints-contract.test.mjs:generic-api-key:26
+04993ec9dcb541b9ac5732714cbaf60e140f88b7:infra/compose/pilot-contract.test.mjs:generic-api-key:26
+
+# Exact historical fingerprints for repository-labelled test/development signing keys.
+# Production signing remains closed until the provider and key-custody gates pass.
+629008b25ec51d749eacf8be31a1ff0ba5dbd7f8:services/signature-service/dev/dev-institutional-seal.key:private-key:1
+b6099cd99299cea052f70126c31057bb83b6c073:services/signature-service/src/signer-client.ts:private-key:17

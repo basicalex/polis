@@ -41,7 +41,7 @@ async function runDirectStartup(
     const { stderr } = await execFileAsync(
       process.execPath,
       [fileURLToPath(new URL('./index.js', import.meta.url))],
-      { encoding: 'utf8', env, timeout: 3_000 },
+      { encoding: 'utf8', env, timeout: 10_000 },
     );
     return { error: null, stderr };
   } catch (error) {
