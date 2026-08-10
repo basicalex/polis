@@ -1,0 +1,11 @@
+{
+  "adminCollaboratorCount": 1,
+  "collaboratorCount": 1,
+  "currentHead": "d46910274c0bae9b10073b88b874dc2da3346c62",
+  "distinctHumanReviewerCapacity": "not-evidenced",
+  "implication": "Do not enable or claim a one-approval distinct-human branch rule until a second accountable collaborator/reviewer is named, invited, accepts, and their effective permission is verified.",
+  "nonAdminWriteOrMaintainCollaboratorCount": 0,
+  "observedAtUtc": "2026-08-10T08:18:57Z",
+  "remoteSettingsChanged": false,
+  "repository": "basicalex/polis"
+}
