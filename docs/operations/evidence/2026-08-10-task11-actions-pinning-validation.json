@@ -1,0 +1,314 @@
+{
+  "candidate": {
+    "cleanDetachedCheckout": "/home/ceii/dev/polis-release-candidates/02b26c5c922359357af3b52b7ba74b903036b696",
+    "commit": "02b26c5c922359357af3b52b7ba74b903036b696",
+    "parent": "a62edcbdf5f506aad845d2fd28f06687ef4653d4",
+    "tree": "da949d75af5a3c35f183bc2c9f4fed62b0088db7"
+  },
+  "changes": {
+    "actions/checkout": {
+      "label": "v7.0.1",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "runtime": "node24"
+    },
+    "actions/setup-node": {
+      "label": "v7.0.0",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "runtime": "node24"
+    },
+    "actions/setup-python": {
+      "label": "v7.0.0",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "runtime": "node24"
+    },
+    "gitleaks/gitleaks-action": {
+      "label": "v3.0.0",
+      "ref": "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
+      "runtime": "node24"
+    },
+    "google/osv-scanner-action/osv-scanner-action": {
+      "label": "v2.0.0",
+      "ref": "98b584ee2ed2da3935ccce10e06739d54cdcd20b",
+      "runtime": "docker"
+    },
+    "open-policy-agent/setup-opa": {
+      "label": "v2.4.0",
+      "ref": "b2b258e089860efaadaaf71bf6e3aecb4a3eeff1",
+      "runtime": "node24"
+    },
+    "oven-sh/setup-bun": {
+      "label": "v2.2.0",
+      "ref": "0c5077e51419868618aeaa5fe8019c62421857d6",
+      "runtime": "node24"
+    }
+  },
+  "githubActions": {
+    "conclusion": "success",
+    "headSha": "02b26c5c922359357af3b52b7ba74b903036b696",
+    "jobs": [
+      {
+        "annotationCount": 0,
+        "completedAt": "2026-08-10T08:08:57Z",
+        "conclusion": "success",
+        "databaseId": 93392535916,
+        "name": "build \u00b7 lint \u00b7 test (ts + python)",
+        "startedAt": "2026-08-10T08:07:18Z",
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install uv",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install OPA (policy-as-code)",
+            "number": 7,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Install dependencies",
+            "number": 8,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Sync Python workspace",
+            "number": 9,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Lint (eslint + prettier)",
+            "number": 10,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Verify (build \u00b7 typecheck \u00b7 test \u00b7 v1:smoke)",
+            "number": 11,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Python ruff",
+            "number": 12,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Python pytest",
+            "number": 13,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "number": 23,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 24,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "number": 25,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 26,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 27,
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "annotationCount": 0,
+        "completedAt": "2026-08-10T08:07:36Z",
+        "conclusion": "success",
+        "databaseId": 93392535925,
+        "name": "dependency + secret scan",
+        "startedAt": "2026-08-10T08:07:19Z",
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Pull ghcr.io/google/osv-scanner-action:v2.0.0",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Dependency scan (osv-scanner)",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Secret scan (gitleaks)",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 10,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 11,
+            "status": "completed"
+          }
+        ]
+      }
+    ],
+    "runId": 31368674242,
+    "status": "completed",
+    "url": "https://github.com/basicalex/polis/actions/runs/31368674242"
+  },
+  "independentAgentReview": "CLEAN",
+  "knownBoundary": {
+    "gitleaksDefaultCoreVersionAtPinnedAction": "8.24.3",
+    "osvActionManifestImage": "ghcr.io/google/osv-scanner-action:v2.0.0",
+    "repositoryShaPinningEnforcementEnabled": false
+  },
+  "observedAtUtc": "2026-08-10T08:08:57Z",
+  "staticValidation": {
+    "actionlint": {
+      "result": "pass",
+      "version": "1.7.12"
+    },
+    "allUsesPinned40Hex": true,
+    "gitDiffCheck": true,
+    "prettier": true,
+    "pyyamlParse": true
+  },
+  "usedInputCompatibility": {
+    "actions/checkout": {
+      "currentHasAll": true,
+      "currentInputCount": 21,
+      "latestHasAll": true,
+      "latestInputCount": 21,
+      "removedUsed": [],
+      "used": [
+        "fetch-depth"
+      ]
+    },
+    "actions/setup-node": {
+      "currentHasAll": true,
+      "currentInputCount": 12,
+      "latestHasAll": true,
+      "latestInputCount": 12,
+      "removedUsed": [],
+      "used": [
+        "node-version"
+      ]
+    },
+    "actions/setup-python": {
+      "currentHasAll": true,
+      "currentInputCount": 10,
+      "latestHasAll": true,
+      "latestInputCount": 11,
+      "removedUsed": [],
+      "used": [
+        "python-version"
+      ]
+    },
+    "gitleaks/gitleaks-action": {
+      "currentHasAll": true,
+      "currentInputCount": 0,
+      "latestHasAll": true,
+      "latestInputCount": 0,
+      "removedUsed": [],
+      "used": []
+    },
+    "google/osv-scanner-action": {
+      "currentHasAll": true,
+      "currentInputCount": 1,
+      "latestHasAll": true,
+      "latestInputCount": 1,
+      "removedUsed": [],
+      "used": [
+        "scan-args"
+      ]
+    },
+    "open-policy-agent/setup-opa": {
+      "currentHasAll": true,
+      "currentInputCount": 3,
+      "latestHasAll": true,
+      "latestInputCount": 4,
+      "removedUsed": [],
+      "used": [
+        "version"
+      ]
+    },
+    "oven-sh/setup-bun": {
+      "currentHasAll": true,
+      "currentInputCount": 8,
+      "latestHasAll": true,
+      "latestInputCount": 8,
+      "removedUsed": [],
+      "used": [
+        "bun-version"
+      ]
+    }
+  },
+  "workflow": ".github/workflows/ci.yml"
+}
