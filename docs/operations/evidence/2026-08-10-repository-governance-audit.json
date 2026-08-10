@@ -1,0 +1,49 @@
+{
+  "actionsPermissions": {
+    "allowed_actions": "all",
+    "enabled": true,
+    "sha_pinning_required": false
+  },
+  "archived": false,
+  "currentHead": "2c8bc86ab2de1eba57fede1aaf621c36b3626653",
+  "defaultBranch": "main",
+  "disabled": false,
+  "evidenceRun": {
+    "candidate": "e4e05719348024ca51fc6eda17927073fd2e6927",
+    "conclusion": "success",
+    "runId": 31366532706
+  },
+  "mainBranchProtection": {
+    "enabled": false,
+    "httpResult": "404 Branch not protected"
+  },
+  "observedAtUtc": "2026-08-10T07:52:29Z",
+  "repository": "basicalex/polis",
+  "rulesets": [],
+  "securityAndAnalysis": {
+    "dependabot_security_updates": {
+      "status": "disabled"
+    },
+    "secret_scanning": {
+      "status": "disabled"
+    },
+    "secret_scanning_non_provider_patterns": {
+      "status": "disabled"
+    },
+    "secret_scanning_push_protection": {
+      "status": "disabled"
+    },
+    "secret_scanning_validity_checks": {
+      "status": "disabled"
+    }
+  },
+  "visibility": "public",
+  "vulnerabilityAlerts": {
+    "enabled": false,
+    "httpResult": "404 disabled"
+  },
+  "workflowPermissions": {
+    "can_approve_pull_request_reviews": false,
+    "default_workflow_permissions": "read"
+  }
+}

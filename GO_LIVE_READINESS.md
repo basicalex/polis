@@ -82,7 +82,16 @@ The future off-host operator report must use `docs/operations/recovery-drill-rep
 - The correction uses `google/osv-scanner-action/osv-scanner-action@v2.0.0`, upgrades Astro to 7.2.0, `@astrojs/node` to 11.1.0, and `@astrojs/react` to 6.0.2, and pins transitive esbuild 0.28.2 and sharp 0.35.3 through reviewed Bun overrides.
 - Initial exact local OSV v2.0.0 scanning found 14 advisories with highest reported CVSS 7.5. The corrected candidate's local and remote dependency scans pass; the local exact image scanned 629 Bun and 41 uv packages with no issues.
 - Initial redacted gitleaks 8.24.3 full-history scanning found four repository-labelled contract-test/development fixtures. Four exact historical fingerprints, with no broad path or rule suppression, make local and remote scans pass. Human key-use confirmation remains required.
-- Dirty-worktree remediation evidence remains at `docs/operations/evidence/2026-08-09-task11-ci-security-remediation-preflight.md`, transcript SHA-256 `c69f6693daf187fc6faae3027e1a0bd3a0183fb6f86a87fc37bb12087f064ddf`. The exact committed candidate and remote result supersede that preflight for the repository gate.
+- Dirty-worktree remediation evidence remains at `docs/operations/evidence/2026-08-09-task11-ci-security-remediation-preflight.md`, transcript SHA-256 `c69f6693daf187fc6faae3027e1a0bd3a0183fb6f86a87fc37bb12087f064ddf`. The exact committed candidate and remote result supersede that preflight for the repository CI gate.
+
+### Repository governance evidence — 2026-08-10 UTC
+
+- A read-only GitHub API audit found that `basicalex/polis` is public and `main` is its default branch. Public visibility still needs an explicit repository-owner/privacy decision for the partner release.
+- `main` has no branch protection and the repository has no rulesets. Green CI exists but is not enforced for later pushes; no required pull request, human review, status checks, linear history, force-push restriction, or deletion restriction is currently evidenced.
+- GitHub secret scanning, push protection, non-provider pattern scanning, secret validity checks, vulnerability alerts, and Dependabot security updates are disabled.
+- Actions are enabled with all actions allowed and SHA pinning not required. Workflow-token permissions default to read-only and workflows cannot approve pull requests; those two controls are correctly least-privileged.
+- Evidence is `docs/operations/evidence/2026-08-10-repository-governance-audit.md`; normalized API evidence SHA-256 is `545ad35885cbdbbad6a005c9808e289a24d7a32db3c3aca6cd34478b78810a70`. No remote setting was changed.
+- The repository CI gate passes for candidate `e4e05719348024ca51fc6eda17927073fd2e6927`. The broader repository governance gate remains **NO-GO** until a repository owner approves and applies a reviewed enforcement policy, dispositions any host-side secret alerts without treating labels as key-use proof, and verifies the effective settings. Action-runtime/SHA-pinning source changes, if selected, require another immutable candidate and green run.
 
 ## Ownership still required
 
@@ -114,6 +123,7 @@ Until GO, keep the private partner profile undeployed and the public-read profil
 - No production credentials or provider contracts are present in the repository.
 - AI, upstream Polis mutation or sync, complaints, rewards, vault, verifiable credentials, graph edits, questions/answers, revocation, and supersession remain outside the enabled first-partner release surface.
 - The Task 11 local evidence is not off-host or production evidence.
+- Repository CI is green, but branch/ruleset enforcement and GitHub host-side secret/vulnerability controls are absent pending owner decisions.
 - No deployment, DNS change, production connection, backup, restore, or destructive operation has been made by this work. The reviewed candidate commit and push are source-control evidence only.
 
 ## GO rule
