@@ -1,0 +1,948 @@
+candidate_sha=e4e05719348024ca51fc6eda17927073fd2e6927
+candidate_tree=2ee908f03e6a8eb3ce0930d303620ea4cb3c730c
+base_sha=f006ea5092244ff423de1655f603be6460065939
+bun_version=1.3.14
+node_version=v26.1.0
+
+=== frozen_install BEGIN 2026-08-10T07:26:10Z ===
+bun install v1.3.14 (0d9b296a)
+
++ @astrojs/check@0.9.10
++ @eslint/js@9.39.5
++ @types/node@24.13.3
++ astro@7.2.0
++ eslint@9.39.5
++ globals@15.15.0
++ prettier@3.9.6
++ ts7@7.0.1-rc
++ typescript@5.9.3
++ typescript-eslint@8.66.0
++ zod@4.4.3
+
+950 packages installed [1392.00ms]
+=== frozen_install PASS 2026-08-10T07:26:11Z ===
+
+=== build BEGIN 2026-08-10T07:26:11Z ===
+$ bun run --filter @polis/domain build && bun run --filter @polis/db build && bun run --filter @polis/service-runtime build && bun run --filter @polis/policy-rules build && bun run --filter './services/*' --sequential --if-present build && bun run --filter './apps/*' --sequential --if-present build
+@polis/domain build: Exited with code 0
+@polis/db build: Exited with code 0
+@polis/service-runtime build: Exited with code 0
+@polis/policy-rules build: Exited with code 0
+@polis/audit-service:build              | Done in 5.94s
+@polis/canonicalization-service:build   | Done in 2.39s
+@polis/citizen-identity-service:build   | Done in 4.21s
+@polis/citizen-vault-service:build      | Done in 5.40s
+@polis/complaints-service:build         | Done in 4.34s
+@polis/contribution-service:build       | Done in 5.83s
+@polis/document-ingestion-gateway:build | Done in 3.41s
+@polis/document-signing-service:build   | Done in 6.78s
+@polis/governance-graph-api:build       | Done in 8.52s
+@polis/paperless-adapter:build          | Done in 2.70s
+@polis/platform-api:build               | Done in 5.27s
+@polis/polis-bridge-service:build       | Done in 6.27s
+@polis/proof-service:build              | Done in 6.07s
+@polis/rewards-service:build            | Done in 3.63s
+@polis/signature-service:build          | Done in 3.95s
+@polis/timestamp-service:build          | Done in 4.49s
+@polis/vc-issuer-service:build          | Done in 3.94s
+@polis/apps-admin:build    | 09:28:09 [types] Generated 409ms
+@polis/apps-admin:build    | 09:28:09 [build] output: "static"
+@polis/apps-admin:build    | 09:28:09 [build] mode: "static"
+@polis/apps-admin:build    | 09:28:09 [build] directory: /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/admin/dist/
+@polis/apps-admin:build    | 09:28:09 [build] Collecting build info...
+@polis/apps-admin:build    | 09:28:09 [build] ✓ Completed in 582ms.
+@polis/apps-admin:build    | 09:28:09 [build] Building static entrypoints...
+@polis/apps-admin:build    | 09:28:10 [vite] ✓ built in 721ms
+@polis/apps-admin:build    | 09:28:10 [vite] ✓ built in 51ms
+@polis/apps-admin:build    | 09:28:10 [build] Rearranging server assets...
+@polis/apps-admin:build    | 
+@polis/apps-admin:build    |  generating static routes 
+@polis/apps-admin:build    | 09:28:10   ├─ /assistant/index.html (+35ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /audit/index.html (+10ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /complaints/index.html (+8ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /contribute/index.html (+7ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /deliberate/index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /docs/index.html (+8ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /drafting/index.html (+11ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /governance/index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /login/index.html (+6ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /privacy/index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /review/index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /rewards/index.html (+4ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /security/index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /transparency/index.html (+8ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /verify/index.html (+6ms) 
+@polis/apps-admin:build    | 09:28:10   ├─ /index.html (+5ms) 
+@polis/apps-admin:build    | 09:28:10 ✓ Completed in 171ms.
+@polis/apps-admin:build    | 
+@polis/apps-admin:build    | 09:28:10 [build] ✓ Completed in 1.07s.
+@polis/apps-admin:build    | 09:28:10 [build] 16 page(s) built in 1.65s
+@polis/apps-admin:build    | 09:28:10 [build] Complete!
+@polis/apps-admin:build    | Done in 4.11s
+@polis/apps-vault:build    | 09:28:13 [types] Generated 294ms
+@polis/apps-vault:build    | 09:28:13 [build] output: "static"
+@polis/apps-vault:build    | 09:28:13 [build] mode: "static"
+@polis/apps-vault:build    | 09:28:13 [build] directory: /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/vault/dist/
+@polis/apps-vault:build    | 09:28:13 [build] Collecting build info...
+@polis/apps-vault:build    | 09:28:13 [build] ✓ Completed in 363ms.
+@polis/apps-vault:build    | 09:28:13 [build] Building static entrypoints...
+@polis/apps-vault:build    | 09:28:14 [vite] ✓ built in 531ms
+@polis/apps-vault:build    | 09:28:14 [vite] ✓ built in 73ms
+@polis/apps-vault:build    | 09:28:14 [build] Rearranging server assets...
+@polis/apps-vault:build    | 
+@polis/apps-vault:build    |  generating static routes 
+@polis/apps-vault:build    | 09:28:14   ├─ /audit/index.html (+48ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /contribute/index.html (+10ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /deliberate/index.html (+12ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /docs/index.html (+8ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /documents/index.html (+7ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /governance/index.html (+8ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /grants/index.html (+12ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /privacy/index.html (+9ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /rewards/index.html (+9ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /security/index.html (+9ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /transparency/index.html (+8ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /verify/index.html (+5ms) 
+@polis/apps-vault:build    | 09:28:14   ├─ /index.html (+13ms) 
+@polis/apps-vault:build    | 09:28:14 ✓ Completed in 206ms.
+@polis/apps-vault:build    | 
+@polis/apps-vault:build    | 09:28:14 [build] ✓ Completed in 908ms.
+@polis/apps-vault:build    | 09:28:14 [build] 13 page(s) built in 1.28s
+@polis/apps-vault:build    | 09:28:14 [build] Complete!
+@polis/apps-vault:build    | Done in 3.82s
+@polis/apps-verifier:build | 09:28:17 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-verifier:build | 09:28:18 [types] Generated 1.09s
+@polis/apps-verifier:build | 09:28:18 [build] output: "server"
+@polis/apps-verifier:build | 09:28:18 [build] mode: "server"
+@polis/apps-verifier:build | 09:28:18 [build] directory: /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/verifier/dist/
+@polis/apps-verifier:build | 09:28:18 [build] adapter: @astrojs/node
+@polis/apps-verifier:build | 09:28:18 [build] Collecting build info...
+@polis/apps-verifier:build | 09:28:18 [build] ✓ Completed in 1.26s.
+@polis/apps-verifier:build | 09:28:18 [build] Building server entrypoints...
+@polis/apps-verifier:build | 09:28:19 [vite] ✓ built in 907ms
+@polis/apps-verifier:build | 09:28:21 [vite] ✓ built in 1.98s
+@polis/apps-verifier:build | 09:28:22 [vite] ✓ built in 500ms
+@polis/apps-verifier:build | 09:28:22 [build] Rearranging server assets...
+@polis/apps-verifier:build | 09:28:22 [build] ✓ Completed in 3.78s.
+@polis/apps-verifier:build | 09:28:22 [build] Server built in 5.06s
+@polis/apps-verifier:build | 09:28:22 [build] Complete!
+@polis/apps-verifier:build | Done in 7.87s
+@polis/apps-web:build      | 09:28:26 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-web:build      | 09:28:27 [types] Generated 893ms
+@polis/apps-web:build      | 09:28:27 [build] output: "server"
+@polis/apps-web:build      | 09:28:27 [build] mode: "server"
+@polis/apps-web:build      | 09:28:27 [build] directory: /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/web/dist/
+@polis/apps-web:build      | 09:28:27 [build] adapter: @astrojs/node
+@polis/apps-web:build      | 09:28:27 [build] Collecting build info...
+@polis/apps-web:build      | 09:28:27 [build] ✓ Completed in 1.23s.
+@polis/apps-web:build      | 09:28:27 [build] Building server entrypoints...
+@polis/apps-web:build      | 09:28:28 [vite] ✓ built in 716ms
+@polis/apps-web:build      | 09:28:30 [vite] ✓ built in 1.45s
+@polis/apps-web:build      | 09:28:30 [vite] ✓ built in 355ms
+@polis/apps-web:build      | 09:28:30 [build] Rearranging server assets...
+@polis/apps-web:build      | 09:28:30 [build] ✓ Completed in 2.75s.
+@polis/apps-web:build      | 09:28:30 [build] Server built in 3.99s
+@polis/apps-web:build      | 09:28:30 [build] Complete!
+@polis/apps-web:build      | Done in 8.37s
+=== build PASS 2026-08-10T07:28:30Z ===
+
+=== typecheck BEGIN 2026-08-10T07:28:30Z ===
+$ bun run --workspaces --sequential --if-present typecheck
+@polis/apps-admin:typecheck                 | 09:28:35 [types] Generated 186ms
+@polis/apps-admin:typecheck                 | 09:28:35 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/admin...
+@polis/apps-admin:typecheck                 | Result (18 files): 
+@polis/apps-admin:typecheck                 | - 0 errors
+@polis/apps-admin:typecheck                 | - 0 warnings
+@polis/apps-admin:typecheck                 | - 0 hints
+@polis/apps-admin:typecheck                 | 
+@polis/apps-admin:typecheck                 | Done in 14.27s
+@polis/apps-vault:typecheck                 | 09:28:48 [types] Generated 126ms
+@polis/apps-vault:typecheck                 | 09:28:48 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/vault...
+@polis/apps-vault:typecheck                 | Result (15 files): 
+@polis/apps-vault:typecheck                 | - 0 errors
+@polis/apps-vault:typecheck                 | - 0 warnings
+@polis/apps-vault:typecheck                 | - 0 hints
+@polis/apps-vault:typecheck                 | 
+@polis/apps-vault:typecheck                 | Done in 13.32s
+@polis/apps-verifier:typecheck              | 09:29:02 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-verifier:typecheck              | 09:29:02 [types] Generated 216ms
+@polis/apps-verifier:typecheck              | 09:29:02 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/verifier...
+@polis/apps-verifier:typecheck              | Result (14 files): 
+@polis/apps-verifier:typecheck              | - 0 errors
+@polis/apps-verifier:typecheck              | - 0 warnings
+@polis/apps-verifier:typecheck              | - 0 hints
+@polis/apps-verifier:typecheck              | 
+@polis/apps-verifier:typecheck              | Done in 18.84s
+@polis/apps-web:typecheck                   | 09:29:21 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-web:typecheck                   | 09:29:21 [types] Generated 188ms
+@polis/apps-web:typecheck                   | 09:29:21 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/apps/web...
+@polis/apps-web:typecheck                   | Result (41 files): 
+@polis/apps-web:typecheck                   | - 0 errors
+@polis/apps-web:typecheck                   | - 0 warnings
+@polis/apps-web:typecheck                   | - 0 hints
+@polis/apps-web:typecheck                   | 
+@polis/apps-web:typecheck                   | Done in 20.03s
+@polis/audit-service:typecheck              | Done in 560ms
+@polis/canonicalization-service:typecheck   | Done in 388ms
+@polis/citizen-identity-service:typecheck   | Done in 630ms
+@polis/citizen-vault-service:typecheck      | Done in 619ms
+@polis/complaints-service:typecheck         | Done in 836ms
+@polis/contribution-service:typecheck       | Done in 1.18s
+@polis/db:typecheck                         | Done in 5.55s
+@polis/document-ingestion-gateway:typecheck | Done in 427ms
+@polis/document-signing-service:typecheck   | Done in 1.22s
+@polis/domain:typecheck                     | Done in 497ms
+@polis/governance-graph-api:typecheck       | Done in 1.26s
+@polis/paperless-adapter:typecheck          | Done in 541ms
+@polis/platform-api:typecheck               | Done in 677ms
+@polis/policy-rules:typecheck               | Done in 87ms
+@polis/polis-bridge-service:typecheck       | Done in 894ms
+@polis/proof-service:typecheck              | Done in 1.08s
+@polis/rewards-service:typecheck            | Done in 824ms
+@polis/service-runtime:typecheck            | Done in 457ms
+@polis/signature-service:typecheck          | Done in 747ms
+@polis/timestamp-service:typecheck          | Done in 811ms
+@polis/ui:typecheck                         | Done in 599ms
+@polis/vc-issuer-service:typecheck          | Done in 611ms
+=== typecheck PASS 2026-08-10T07:29:57Z ===
+
+=== tests BEGIN 2026-08-10T07:29:57Z ===
+$ bun run --workspaces --sequential --if-present test
+@polis/apps-admin:test                 | ✔ complaints workbench renders hostile queue/detail values as text and binds assignment (119.953731ms)
+@polis/apps-admin:test                 | ✔ complaints workbench explains the full staff status workflow (6.570997ms)
+@polis/apps-admin:test                 | ✔ admin has required v1 routes (24.071979ms)
+@polis/apps-admin:test                 | ✔ admin has drafting + login pages (4.76759ms)
+@polis/apps-admin:test                 | ✔ admin drafting exposes M-RA official surfaces (7.271215ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes official drafting once (4.387731ms)
+@polis/apps-admin:test                 | ✔ assistant traces are fetched by authenticated browser client only (3.266902ms)
+@polis/apps-admin:test                 | ✔ assistant traces explain staff-only authorization failures (2.575377ms)
+@polis/apps-admin:test                 | ✔ assistant traces render loading, empty, and API values text-safely (3.635715ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes the complaints workbench once beside review (2.968656ms)
+@polis/apps-admin:test                 | ✔ admin has a complaints workbench page (3.273964ms)
+@polis/apps-admin:test                 | ✔ review queue renders malicious API values as text and binds decisions (26.584527ms)
+@polis/apps-admin:test                 | ℹ tests 12
+@polis/apps-admin:test                 | ℹ suites 0
+@polis/apps-admin:test                 | ℹ pass 12
+@polis/apps-admin:test                 | ℹ fail 0
+@polis/apps-admin:test                 | ℹ cancelled 0
+@polis/apps-admin:test                 | ℹ skipped 0
+@polis/apps-admin:test                 | ℹ todo 0
+@polis/apps-admin:test                 | ℹ duration_ms 385.676306
+@polis/apps-admin:test                 | Done in 537ms
+@polis/apps-vault:test                 | ✔ vault has required v1 routes (14.967865ms)
+@polis/apps-vault:test                 | ✔ vault documents renders malicious API values and errors as text (7.691939ms)
+@polis/apps-vault:test                 | ℹ tests 2
+@polis/apps-vault:test                 | ℹ suites 0
+@polis/apps-vault:test                 | ℹ pass 2
+@polis/apps-vault:test                 | ℹ fail 0
+@polis/apps-vault:test                 | ℹ cancelled 0
+@polis/apps-vault:test                 | ℹ skipped 0
+@polis/apps-vault:test                 | ℹ todo 0
+@polis/apps-vault:test                 | ℹ duration_ms 214.189102
+@polis/apps-vault:test                 | Done in 342ms
+@polis/apps-verifier:test              | ✔ verifier has required v1 routes (17.044388ms)
+@polis/apps-verifier:test              | ✔ verifier verify page never uploads file bytes (spec §15.5) (3.81543ms)
+@polis/apps-verifier:test              | ✔ verifier proof page renders from the shared verdict engine (2.552886ms)
+@polis/apps-verifier:test              | ℹ tests 3
+@polis/apps-verifier:test              | ℹ suites 0
+@polis/apps-verifier:test              | ℹ pass 3
+@polis/apps-verifier:test              | ℹ fail 0
+@polis/apps-verifier:test              | ℹ cancelled 0
+@polis/apps-verifier:test              | ℹ skipped 0
+@polis/apps-verifier:test              | ℹ todo 0
+@polis/apps-verifier:test              | ℹ duration_ms 193.345225
+@polis/apps-verifier:test              | Done in 328ms
+@polis/apps-web:test                   | ✔ complaint detail renders hostile API values as text (28.879577ms)
+@polis/apps-web:test                   | ✔ web has required phase 1 routes (26.996706ms)
+@polis/apps-web:test                   | ✔ web has trust-experience routes (2.887954ms)
+@polis/apps-web:test                   | ✔ resident complaints routes are client-fetched and linked from primary navigation (7.994554ms)
+@polis/apps-web:test                   | ✔ web verify page uses the client-side hashing flow (2.730585ms)
+@polis/apps-web:test                   | ✔ M-RA web surfaces carry accountability markers and trust links (6.550525ms)
+@polis/apps-web:test                   | ✔ mandate-holder detail scorecard counts deep-link to status evidence anchors (2.963452ms)
+@polis/apps-web:test                   | ✔ pilot demonstrator pages disclose their development-only status and resources (13.786716ms)
+@polis/apps-web:test                   | ℹ tests 8
+@polis/apps-web:test                   | ℹ suites 0
+@polis/apps-web:test                   | ℹ pass 8
+@polis/apps-web:test                   | ℹ fail 0
+@polis/apps-web:test                   | ℹ cancelled 0
+@polis/apps-web:test                   | ℹ skipped 0
+@polis/apps-web:test                   | ℹ todo 0
+@polis/apps-web:test                   | ℹ duration_ms 264.094758
+@polis/apps-web:test                   | Done in 375ms
+@polis/audit-service:test              | ✔ audit-service readiness reports only database failures (4.268342ms)
+@polis/audit-service:test              | ✔ computeAuditHash hashes previous hash plus canonical event JSON (2.203659ms)
+@polis/audit-service:test              | ✔ buildCanonicalAuditEvent normalizes nullable fields and stable JSON (1.15192ms)
+@polis/audit-service:test              | ✔ auditRoutes exposes append and public target read paths (1.12241ms)
+@polis/audit-service:test              | ✔ audit-service rejects unauthenticated internal audit event requests (118.775379ms)
+@polis/audit-service:test              | ℹ tests 5
+@polis/audit-service:test              | ℹ suites 0
+@polis/audit-service:test              | ℹ pass 5
+@polis/audit-service:test              | ℹ fail 0
+@polis/audit-service:test              | ℹ cancelled 0
+@polis/audit-service:test              | ℹ skipped 0
+@polis/audit-service:test              | ℹ todo 0
+@polis/audit-service:test              | ℹ duration_ms 2249.463076
+@polis/audit-service:test              | Done in 2.38s
+@polis/canonicalization-service:test   | ✔ canonicalization-service exposes §9.11 canonicalize route (2.175141ms)
+@polis/canonicalization-service:test   | ✔ same content yields the same hash bundle (16.62836ms)
+@polis/canonicalization-service:test   | ✔ manifestHash is deterministic across calls (4.114892ms)
+@polis/canonicalization-service:test   | ✔ different content yields a different originalFileHash (5.441785ms)
+@polis/canonicalization-service:test   | ✔ canonicalization-service rejects unauthenticated internal canonicalize requests (72.443593ms)
+@polis/canonicalization-service:test   | ℹ tests 5
+@polis/canonicalization-service:test   | ℹ suites 0
+@polis/canonicalization-service:test   | ℹ pass 5
+@polis/canonicalization-service:test   | ℹ fail 0
+@polis/canonicalization-service:test   | ℹ cancelled 0
+@polis/canonicalization-service:test   | ℹ skipped 0
+@polis/canonicalization-service:test   | ℹ todo 0
+@polis/canonicalization-service:test   | ℹ duration_ms 350.09826
+@polis/canonicalization-service:test   | Done in 479ms
+@polis/citizen-identity-service:test   | ✔ citizen-identity-service exposes §21 magic-link + M10 OIDC routes (3.102398ms)
+@polis/citizen-identity-service:test   | ✔ identity internal routes reject unauthenticated real HTTP requests (85.976232ms)
+@polis/citizen-identity-service:test   | ✔ magic-link audit request sends internal authentication (7.951573ms)
+@polis/citizen-identity-service:test   | ✔ missing internal token stays inside best-effort audit warning path (1.082212ms)
+@polis/citizen-identity-service:test   | ✔ direct startup rejects missing and weak identity HMAC keys (3572.987054ms)
+@polis/citizen-identity-service:test   | ✔ imported HMAC-dependent routes reject missing and weak keys (6.5052ms)
+@polis/citizen-identity-service:test   | ✔ explicit non-production stub exposes dev tokens without logging secrets (4.769904ms)
+@polis/citizen-identity-service:test   | ✔ production neither surfaces nor stores dev tokens when the flag is true (2.949737ms)
+@polis/citizen-identity-service:test   | ℹ tests 8
+@polis/citizen-identity-service:test   | ℹ suites 0
+@polis/citizen-identity-service:test   | ℹ pass 8
+@polis/citizen-identity-service:test   | ℹ fail 0
+@polis/citizen-identity-service:test   | ℹ cancelled 0
+@polis/citizen-identity-service:test   | ℹ skipped 0
+@polis/citizen-identity-service:test   | ℹ todo 0
+@polis/citizen-identity-service:test   | ℹ duration_ms 5324.025972
+@polis/citizen-identity-service:test   | Done in 5.43s
+@polis/citizen-vault-service:test      | ✔ citizen-vault-service exposes operational and vault routes (2.864414ms)
+@polis/citizen-vault-service:test      | {"service":"citizen-vault-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/citizen-vault-service:test      | {"service":"citizen-vault-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/citizen-vault-service:test      | ✔ citizen-vault-service guards internal routes while operational routes stay open (115.92871ms)
+@polis/citizen-vault-service:test      | ✔ vault proof_only verification never returns document content fields (4.639533ms)
+@polis/citizen-vault-service:test      | ✔ vault metadata verification never returns document content fields (1.131324ms)
+@polis/citizen-vault-service:test      | ℹ tests 4
+@polis/citizen-vault-service:test      | ℹ suites 0
+@polis/citizen-vault-service:test      | ℹ pass 4
+@polis/citizen-vault-service:test      | ℹ fail 0
+@polis/citizen-vault-service:test      | ℹ cancelled 0
+@polis/citizen-vault-service:test      | ℹ skipped 0
+@polis/citizen-vault-service:test      | ℹ todo 0
+@polis/citizen-vault-service:test      | ℹ duration_ms 2106.731549
+@polis/citizen-vault-service:test      | Done in 2.24s
+@polis/complaints-service:test         | ✔ complaints-service exposes exactly the required routes in safe order (5.498678ms)
+@polis/complaints-service:test         | ✔ complaint internal HTTP routes reject a missing service token (71.168611ms)
+@polis/complaints-service:test         | ✔ complaints-service readiness reports only database failures (0.612578ms)
+@polis/complaints-service:test         | ✔ complaint transition matrix permits only schema lifecycle edges (0.520223ms)
+@polis/complaints-service:test         | ✔ serializers expose private case content only in detail and strip internal ownership metadata (0.584016ms)
+@polis/complaints-service:test         | ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (7.428277ms)
+@polis/complaints-service:test         | ✔ creation rejects unverified actors and bounded-text violations before a transaction (0.628195ms)
+@polis/complaints-service:test         | ✔ detail enforces resident ownership and denies plain staff without an active reader binding (1.667791ms)
+@polis/complaints-service:test         | ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (3.14071ms)
+@polis/complaints-service:test         | ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (1.674475ms)
+@polis/complaints-service:test         | ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (4.00093ms)
+@polis/complaints-service:test         | ✔ information requests require the right, allow only one unanswered request, and never audit the question (3.930315ms)
+@polis/complaints-service:test         | ✔ information response requires the owning resident and preserves the assigned holder (2.098241ms)
+@polis/complaints-service:test         | ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (4.176958ms)
+@polis/complaints-service:test         | ✔ appeal requires ownership, an initial decision, and no existing appeal (1.248575ms)
+@polis/complaints-service:test         | ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (4.604961ms)
+@polis/complaints-service:test         | ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.113008ms)
+@polis/complaints-service:test         | ℹ tests 17
+@polis/complaints-service:test         | ℹ suites 0
+@polis/complaints-service:test         | ℹ pass 17
+@polis/complaints-service:test         | ℹ fail 0
+@polis/complaints-service:test         | ℹ cancelled 0
+@polis/complaints-service:test         | ℹ skipped 0
+@polis/complaints-service:test         | ℹ todo 0
+@polis/complaints-service:test         | ℹ duration_ms 1563.092583
+@polis/complaints-service:test         | Done in 1.66s
+@polis/contribution-service:test       | ✔ contribution-service exposes §19 contribution + M-RA filing routes (6.650002ms)
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+@polis/contribution-service:test       | ✔ contribution internal routes reject unauthenticated HTTP requests (120.665778ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects wrong-kind signed artifact (4.135692ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects revoked charter proof (1.433027ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects superseded charter proof (1.599948ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects unknown-registry charter proof (1.099163ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects direct terminal status instead of self-adjudicating (0.740417ms)
+@polis/contribution-service:test       | ✔ commitment filing denies an accepted charter without signing evidence (1.220387ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects non-covering charter scope before inserts (2.143582ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects missing charter scope (4.134375ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects null charter scope (1.346171ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed charter scope (1.220201ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed entry charter scope (1.289471ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed legacy scope without requested scope (1.727362ms)
+@polis/contribution-service:test       | ✔ commitment filing allows covering charter scope (3.047009ms)
+@polis/contribution-service:test       | ✔ commitment filing persists restricted evidence with restricted default visibility (2.228014ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (0.780524ms)
+@polis/contribution-service:test       | ✔ resolution filing records requested terminal status as a pending claim only (2.452037ms)
+@polis/contribution-service:test       | ✔ transactional representative gate rejects a stale earlier allowed view (1.194888ms)
+@polis/contribution-service:test       | ✔ representative authorization audit failures return 503 without mutation (1.920936ms)
+@polis/contribution-service:test       | ✔ representative completion audit failures roll back every staged mutation (4.141122ms)
+@polis/contribution-service:test       | ✔ representative writes audit authorization then staged completion with bound actor (5.604985ms)
+@polis/contribution-service:test       | ✔ submission handlers require trusted actors and reject caller contributor authority (2.842255ms)
+@polis/contribution-service:test       | ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (5.548762ms)
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+@polis/contribution-service:test       | ✔ required submission audit failures return 503 with zero DB mutation (5005.506525ms)
+@polis/contribution-service:test       | ✔ submission completion audit failures roll back every staged mutation (3.107262ms)
+@polis/contribution-service:test       | ✔ review completion audit failure rolls back review and status update (4.754536ms)
+@polis/contribution-service:test       | ✔ approved review completion audit failure rolls back successful apply mutations (2.683979ms)
+@polis/contribution-service:test       | ✔ review apply failure rolls back the decision and all apply mutations (3.135881ms)
+@polis/contribution-service:test       | ✔ review queue requires staff with a current review_contribution binding (3.585417ms)
+@polis/contribution-service:test       | ✔ review decide rejects body authority and self-review before audit or mutation (0.971789ms)
+@polis/contribution-service:test       | ✔ review decide returns existing conflict when the pending claim loses the race (1.210939ms)
+@polis/contribution-service:test       | ✔ review decide rechecks authority and self-review inside the transaction (2.406728ms)
+@polis/contribution-service:test       | ✔ review audit failure returns 503 and distinct authorized reviewer can decide (4.239283ms)
+@polis/contribution-service:test       | ✔ approved resolution review marks the referenced claim approved before status event is exposed (5.903387ms)
+@polis/contribution-service:test       | ℹ tests 35
+@polis/contribution-service:test       | ℹ suites 0
+@polis/contribution-service:test       | ℹ pass 35
+@polis/contribution-service:test       | ℹ fail 0
+@polis/contribution-service:test       | ℹ cancelled 0
+@polis/contribution-service:test       | ℹ skipped 0
+@polis/contribution-service:test       | ℹ todo 0
+@polis/contribution-service:test       | ℹ duration_ms 6760.155774
+@polis/contribution-service:test       | Done in 6.88s
+@polis/db:test                         | ✔ schema exports all private complaint tables (17.143679ms)
+@polis/db:test                         | ✔ complaint lifecycle values and checks are canonical (2.006901ms)
+@polis/db:test                         | ✔ complaint indexes enforce lookup and one-appeal contracts (2.56428ms)
+@polis/db:test                         | ✔ complaint event data is non-null and defaults to an empty object (0.914263ms)
+@polis/db:test                         | ✔ schema exposes the app_meta baseline table (3.367102ms)
+@polis/db:test                         | ✔ getClient throws when no DATABASE_URL is provided (2.170164ms)
+@polis/db:test                         | ✔ checkDatabase requires a URL and a bounded integer timeout (2.669051ms)
+@polis/db:test                         | ✔ checkDatabase queries through a short-lived single connection (4.320115ms)
+@polis/db:test                         | ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.414442ms)
+@polis/db:test                         | ✔ checkDatabase reports a bounded safe timeout and closes the connection (102.604911ms)
+@polis/db:test                         | ✔ inspectMigrationState reports an absent or latest Drizzle migration without mutation (2.825709ms)
+@polis/db:test                         | ✔ inspectMigrationState fails closed and closes the connection (103.134358ms)
+@polis/db:test                         | ✔ migration 0013 does not reset accepted charters to pending (13.688033ms)
+@polis/db:test                         | ▶ governance v1 seed data
+@polis/db:test                         |   ✔ parses every required JSON file (65.789953ms)
+@polis/db:test                         |   ✔ meets the §34 municipal duplication scenario minimums (13.15622ms)
+@polis/db:test                         |   ✔ uses only canonical relationship_type values (3.042004ms)
+@polis/db:test                         |   ✔ contains a pending normalized charter and staff reviewer (15.107628ms)
+@polis/db:test                         |   ✔ binds reviewer-demo to explicit demo-only contribution review authority (10.681183ms)
+@polis/db:test                         |   ✔ separates complaint intake, initial decision, and appeal authority (14.212804ms)
+@polis/db:test                         | ✔ governance v1 seed data (129.095267ms)
+@polis/db:test                         | ℹ tests 19
+@polis/db:test                         | ℹ suites 1
+@polis/db:test                         | ℹ pass 19
+@polis/db:test                         | ℹ fail 0
+@polis/db:test                         | ℹ cancelled 0
+@polis/db:test                         | ℹ skipped 0
+@polis/db:test                         | ℹ todo 0
+@polis/db:test                         | ℹ duration_ms 2995.157672
+@polis/db:test                         | Done in 3.13s
+@polis/document-ingestion-gateway:test | ✔ document-ingestion-gateway exposes §14.3 ingestion route (3.803558ms)
+@polis/document-ingestion-gateway:test | ✔ missing contentBase64 returns 400 missing_content (1.53121ms)
+@polis/document-ingestion-gateway:test | ✔ orchestrates paperless → canonicalization → proof and returns the manifest (16.890302ms)
+@polis/document-ingestion-gateway:test | ✔ rejects invalid ingestion input before any upstream call (1.712255ms)
+@polis/document-ingestion-gateway:test | ✔ document-ingestion-gateway rejects unauthenticated internal HTTP calls (107.009313ms)
+@polis/document-ingestion-gateway:test | ℹ tests 5
+@polis/document-ingestion-gateway:test | ℹ suites 0
+@polis/document-ingestion-gateway:test | ℹ pass 5
+@polis/document-ingestion-gateway:test | ℹ fail 0
+@polis/document-ingestion-gateway:test | ℹ cancelled 0
+@polis/document-ingestion-gateway:test | ℹ skipped 0
+@polis/document-ingestion-gateway:test | ℹ todo 0
+@polis/document-ingestion-gateway:test | ℹ duration_ms 518.875378
+@polis/document-ingestion-gateway:test | Done in 674ms
+@polis/document-signing-service:test   | ✔ S3 artifact retrieval rejects bytes that do not match the stored hash (101.560689ms)
+@polis/document-signing-service:test   | ✔ artifact store selection fails fast for incomplete S3 configuration (1.79383ms)
+@polis/document-signing-service:test   | ✔ charter PDF is deterministic and orders object keys (81.358118ms)
+@polis/document-signing-service:test   | ✔ charter PDF transliterates Croatian Latin text readably (3.407321ms)
+@polis/document-signing-service:test   | ✔ charter PDF has valid xref offsets and trailer position (4.963441ms)
+@polis/document-signing-service:test   | ✔ charter PDF wraps across pages and exports final-page signature fields (39.930726ms)
+@polis/document-signing-service:test   | ✔ charter PDF requires a mandate holder for signature placement (1.893345ms)
+@polis/document-signing-service:test   | ✔ create uses raw authorization and multipart payload/files on the v2 endpoint (208.413097ms)
+@polis/document-signing-service:test   | ✔ distribute posts the envelope id then reads authoritative envelope state (3.482533ms)
+@polis/document-signing-service:test   | ✔ getEnvelope maps Documenso terminal and active states (9.208726ms)
+@polis/document-signing-service:test   | ✔ signed download uses exact endpoint and returns PDF bytes only after completion (14.684949ms)
+@polis/document-signing-service:test   | ✔ signed download rejects wrong MIME and declared or streamed oversize bodies (18.260465ms)
+@polis/document-signing-service:test   | ✔ non-2xx errors expose safe status/code and redact response secrets (4.745578ms)
+@polis/document-signing-service:test   | ✔ constructor rejects missing or invalid Documenso configuration (4.745556ms)
+@polis/document-signing-service:test   | ✔ route table exposes the complete internal signing surface (5.167628ms)
+@polis/document-signing-service:test   | ✔ documenso provider mode fails when any required configuration is missing (2.737791ms)
+@polis/document-signing-service:test   | ✔ proof registration sends exact service provenance and requires active proof (22.269025ms)
+@polis/document-signing-service:test   | ✔ stub completion rejects a citizen who is not the signing recipient (2.668825ms)
+@polis/document-signing-service:test   | ✔ webhook secret mismatch makes no repository state change (4.067501ms)
+@polis/document-signing-service:test   | ✔ production stub mode omits the completion route unless explicitly allowed (0.916367ms)
+@polis/document-signing-service:test   | ✔ signing status is limited to the owner or staff (4.074489ms)
+@polis/document-signing-service:test   | ✔ artifact download verifies stored bytes against artifact metadata (4.844346ms)
+@polis/document-signing-service:test   | ✔ reconciliation failures persist and stop at the configured attempt cap (12.969253ms)
+@polis/document-signing-service:test   | ✔ stub charter flow finalizes once and preserves exact signed bytes (83.523624ms)
+@polis/document-signing-service:test   | ✔ webhook receipts deduplicate and never override authoritative pending state (4.687653ms)
+@polis/document-signing-service:test   | ✔ stale observations cannot regress a completed request (11.943928ms)
+@polis/document-signing-service:test   | ✔ storage failure leaves completion retryable (16.196823ms)
+@polis/document-signing-service:test   | ✔ non-owner cannot initiate charter signing (3.988194ms)
+@polis/document-signing-service:test   | ✔ same idempotency key cannot cross mandate-holder boundaries (3.567007ms)
+@polis/document-signing-service:test   | ✔ retry after a terminal outcome reuses the unsigned artifact (4.798705ms)
+@polis/document-signing-service:test   | ✔ concurrent reconciliation registers one proof and one terminal event pair (7.164726ms)
+@polis/document-signing-service:test   | ✔ webhook receipts associate known envelopes and cap unresolved events (6.289798ms)
+@polis/document-signing-service:test   | ✔ concurrent unresolved webhook receipts cannot exceed the cap (15.386283ms)
+@polis/document-signing-service:test   | ✔ accepted charter guard emits one acceptance across competing requests (1.417873ms)
+@polis/document-signing-service:test   | ✔ stub provider implements deterministic draft and distribution lifecycle (43.656594ms)
+@polis/document-signing-service:test   | ✔ stub completion produces a distinct parseable PDF derivative (7.175212ms)
+@polis/document-signing-service:test   | ✔ stub provider rejects invalid lifecycle operations and unknown items (14.152714ms)
+@polis/document-signing-service:test   | ℹ tests 37
+@polis/document-signing-service:test   | ℹ suites 0
+@polis/document-signing-service:test   | ℹ pass 37
+@polis/document-signing-service:test   | ℹ fail 0
+@polis/document-signing-service:test   | ℹ cancelled 0
+@polis/document-signing-service:test   | ℹ skipped 0
+@polis/document-signing-service:test   | ℹ todo 0
+@polis/document-signing-service:test   | ℹ duration_ms 3562.619618
+@polis/document-signing-service:test   | Done in 3.74s
+@polis/domain:test                     | ✔ proof manifests verify matching active hashes only (38.396468ms)
+@polis/domain:test                     | ✔ assessment scores stay bounded (2.023477ms)
+@polis/domain:test                     | ✔ charter signing summary contains public-safe proof metadata only (2.409611ms)
+@polis/domain:test                     | ✔ complaint constants define the complete lifecycle contract (0.859637ms)
+@polis/domain:test                     | ✔ complaint wire shapes expose case data without internal identifiers (1.346044ms)
+@polis/domain:test                     | ✔ not_found when proof is null (9.65189ms)
+@polis/domain:test                     | ✔ not_found when apiStatus is not_found even with proof object (1.517704ms)
+@polis/domain:test                     | ✔ private_or_restricted for private proofVisibility (1.406804ms)
+@polis/domain:test                     | ✔ private_or_restricted for commitment_only proofVisibility (0.693413ms)
+@polis/domain:test                     | ✔ private_or_restricted for sealed registryStatus (0.762963ms)
+@polis/domain:test                     | ✔ restricted precedence: never leaks failure details (§15.9) (0.857175ms)
+@polis/domain:test                     | ✔ integrity_failure when computed hash matches neither original nor canonical hash (5.683769ms)
+@polis/domain:test                     | ✔ hash match against originalFileHash passes, case/whitespace-insensitive (1.91159ms)
+@polis/domain:test                     | ✔ hash match against canonicalPdfHash passes (0.83458ms)
+@polis/domain:test                     | ✔ signature_invalid when any signature is invalid (2.690677ms)
+@polis/domain:test                     | ✔ timestamp_invalid when any timestamp is invalid (15.172175ms)
+@polis/domain:test                     | ✔ signature_invalid takes precedence over timestamp_invalid and revoked (2.826758ms)
+@polis/domain:test                     | ✔ integrity_failure takes precedence over signature_invalid (0.862851ms)
+@polis/domain:test                     | ✔ revoked registryStatus (0.481802ms)
+@polis/domain:test                     | ✔ valid_but_expired registryStatus (2.792152ms)
+@polis/domain:test                     | ✔ valid_but_superseded via registryStatus (3.106449ms)
+@polis/domain:test                     | ✔ valid_but_superseded via supersededBy pointer (1.032527ms)
+@polis/domain:test                     | ✔ revoked takes precedence over superseded (0.673428ms)
+@polis/domain:test                     | ✔ issuer_unknown when all signatures lack issuerId (0.442879ms)
+@polis/domain:test                     | ✔ no issuer_unknown when at least one signature has issuerId (0.432784ms)
+@polis/domain:test                     | ✔ status_unknown registryStatus (0.413199ms)
+@polis/domain:test                     | ✔ issuer_unknown takes precedence over status_unknown (1.098552ms)
+@polis/domain:test                     | ✔ valid: everything checks out, all five mechanisms reported (1.505748ms)
+@polis/domain:test                     | ✔ hash check is not_checked when verdict comes from proof-id lookup (2.022881ms)
+@polis/domain:test                     | ✔ empty signatures → signature not_present, issuer not_checked, still valid (0.923231ms)
+@polis/domain:test                     | ✔ empty timestamps → timestamp not_present, still valid (3.158419ms)
+@polis/domain:test                     | ✔ indeterminate signature status does not fail verdict but is reported (0.989568ms)
+@polis/domain:test                     | ✔ not_checked signature status is reported as not_checked (0.845764ms)
+@polis/domain:test                     | ✔ test-key signature forces §15.7 label and adds explanation note (2.817674ms)
+@polis/domain:test                     | ✔ every verdict carries the proof-not-truth note key (§15.4) (3.218096ms)
+@polis/domain:test                     | ℹ tests 35
+@polis/domain:test                     | ℹ suites 0
+@polis/domain:test                     | ℹ pass 35
+@polis/domain:test                     | ℹ fail 0
+@polis/domain:test                     | ℹ cancelled 0
+@polis/domain:test                     | ℹ skipped 0
+@polis/domain:test                     | ℹ todo 0
+@polis/domain:test                     | ℹ duration_ms 488.748795
+@polis/domain:test                     | Done in 668ms
+@polis/governance-graph-api:test       | ✔ governance-graph-api exposes §23.1 institutions + roles + processes + traverse (4.031042ms)
+@polis/governance-graph-api:test       | ✔ governance-graph-api readiness reports only database failures (2.712293ms)
+@polis/governance-graph-api:test       | ✔ scorecard counts read-derived overdue without grades or rankings (4.270351ms)
+@polis/governance-graph-api:test       | ✔ commitment detail derives overdue at read time without a status event (2.799192ms)
+@polis/governance-graph-api:test       | ✔ commitment detail includes public claim evidence projection with restricted fields redacted (1.822938ms)
+@polis/governance-graph-api:test       | ✔ public commitment resolution keeps restricted evidence identity but redacts sensitive fields (1.238631ms)
+@polis/governance-graph-api:test       | ✔ mandate-holder detail returns only safe evidence from the latest signed charter (2.347519ms)
+@polis/governance-graph-api:test       | ℹ tests 7
+@polis/governance-graph-api:test       | ℹ suites 0
+@polis/governance-graph-api:test       | ℹ pass 7
+@polis/governance-graph-api:test       | ℹ fail 0
+@polis/governance-graph-api:test       | ℹ cancelled 0
+@polis/governance-graph-api:test       | ℹ skipped 0
+@polis/governance-graph-api:test       | ℹ todo 0
+@polis/governance-graph-api:test       | ℹ duration_ms 4624.091953
+@polis/governance-graph-api:test       | Done in 4.81s
+@polis/paperless-adapter:test          | ✔ paperless-adapter exposes §23.9 consume + document routes (5.255151ms)
+@polis/paperless-adapter:test          | ✔ consume route derives its body cap from DOCUMENT_MAX_UPLOAD_BYTES (0.712572ms)
+@polis/paperless-adapter:test          | ✔ StubPaperlessClient.consume returns a doc with id + ocrText (3.115467ms)
+@polis/paperless-adapter:test          | ✔ fetchDocument round-trips a consumed id and rejects unknown ids (1.54355ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient defaults to stub when PAPERLESS_MODE is unset (0.975316ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient resolves PAPERLESS_MODE=stub to StubPaperlessClient (0.611681ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient resolves PAPERLESS_MODE=http to HttpPaperlessClient when token is set (1.978589ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient ctor requires PAPERLESS_API_TOKEN in http mode (2.596316ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient throws on an unsupported mode (1.164643ms)
+@polis/paperless-adapter:test          | ✔ archive route returns exact consumed bytes with MIME (111.745805ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient retrieves unmodified archive bytes and MIME (9.353029ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient rejects an oversized archive from Content-Length (2.195515ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient cancels a chunked archive when streamed bytes exceed the cap (3.152486ms)
+@polis/paperless-adapter:test          | ✔ paperless-adapter rejects unauthenticated internal HTTP calls (27.584392ms)
+@polis/paperless-adapter:test          | ℹ tests 14
+@polis/paperless-adapter:test          | ℹ suites 0
+@polis/paperless-adapter:test          | ℹ pass 14
+@polis/paperless-adapter:test          | ℹ fail 0
+@polis/paperless-adapter:test          | ℹ cancelled 0
+@polis/paperless-adapter:test          | ℹ skipped 0
+@polis/paperless-adapter:test          | ℹ todo 0
+@polis/paperless-adapter:test          | ℹ duration_ms 603.768003
+@polis/paperless-adapter:test          | Done in 783ms
+@polis/platform-api:test               | ✔ platform startup permits dev and only the approved public-read pilot shape (5.542445ms)
+@polis/platform-api:test               | ✔ platform-api preserves the exact ordered route contract (5.847317ms)
+@polis/platform-api:test               | ✔ platform-api exposes complaints routes in literal-before-id order (1.427576ms)
+@polis/platform-api:test               | ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (1.20645ms)
+@polis/platform-api:test               | ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (3.967515ms)
+@polis/platform-api:test               | ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (2.916903ms)
+@polis/platform-api:test               | ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (3.159551ms)
+@polis/platform-api:test               | ✔ same-path platform proxy sends the internal token upstream (23.057057ms)
+@polis/platform-api:test               | ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (4.61808ms)
+@polis/platform-api:test               | ✔ complaint routes enforce citizen and staff sessions (3.322381ms)
+@polis/platform-api:test               | ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (3.41692ms)
+@polis/platform-api:test               | ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (4.07632ms)
+@polis/platform-api:test               | ✔ contribution writes require a healthy verified session and reject caller authority (5.351763ms)
+@polis/platform-api:test               | ✔ review routes reject forged authority and forward only a verified distinct staff actor (4.138778ms)
+@polis/platform-api:test               | ✔ assistant administration routes require staff and forward trusted actor context (14.391378ms)
+@polis/platform-api:test               | ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.587984ms)
+@polis/platform-api:test               | ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.604495ms)
+@polis/platform-api:test               | ✔ complaint proxy returns safe 502 and 504 errors (2.654714ms)
+@polis/platform-api:test               | ✔ platform readiness checks the database and every pilot upstream with internal headers (1.189385ms)
+@polis/platform-api:test               | ✔ platform readiness fails with only the safe dependency label (1.195541ms)
+@polis/platform-api:test               | ✔ platform readiness checks complaints only outside PUBLIC_EDGE (1.307141ms)
+@polis/platform-api:test               | ✔ pilot migration failure propagates before service startup (1.591215ms)
+@polis/platform-api:test               | ✔ dev migration failure preserves warning-and-start tolerance (0.755191ms)
+@polis/platform-api:test               | ℹ tests 23
+@polis/platform-api:test               | ℹ suites 0
+@polis/platform-api:test               | ℹ pass 23
+@polis/platform-api:test               | ℹ fail 0
+@polis/platform-api:test               | ℹ cancelled 0
+@polis/platform-api:test               | ℹ skipped 0
+@polis/platform-api:test               | ℹ todo 0
+@polis/platform-api:test               | ℹ duration_ms 1659.249962
+@polis/platform-api:test               | Done in 1.77s
+@polis/policy-rules:test               | ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (57.979488ms)
+@polis/policy-rules:test               | ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (180.450486ms)
+@polis/policy-rules:test               | ✔ vault access allows active, started, unexpired, unrevoked grant (125.003774ms)
+@polis/policy-rules:test               | ✔ vault access denies future-dated grant (starts_at > now) (92.279192ms)
+@polis/policy-rules:test               | ✔ vault access denies expired grant (74.08834ms)
+@polis/policy-rules:test               | ✔ vault access denies revoked grant (72.207089ms)
+@polis/policy-rules:test               | ✔ vault proof_only scope reports no_bytes guard (180.432139ms)
+@polis/policy-rules:test               | ✔ access allows the owner (193.107283ms)
+@polis/policy-rules:test               | ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (455.084694ms)
+@polis/policy-rules:test               | ✔ polis conversation creation requires service-level trust (M2 §13) (255.697422ms)
+@polis/policy-rules:test               | ✔ contribute allow_submit accepts only real verified session levels (296.243783ms)
+@polis/policy-rules:test               | ✔ contribute allow_review requires staff right and distinct reviewer (173.010931ms)
+@polis/policy-rules:test               | ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.078928ms)
+@polis/policy-rules:test               | ✔ pilot redaction denies missing reason (M9 §30.10) (28.134404ms)
+@polis/policy-rules:test               | ✔ pilot redaction denies partner-alone request (M9 §30.10) (31.492539ms)
+@polis/policy-rules:test               | ✔ pilot redaction allows project governance with reason (M9 §30.10) (33.497058ms)
+@polis/policy-rules:test               | ✔ representative access allows only verified active accepted in-scope officials (M-RA) (441.732706ms)
+@polis/policy-rules:test               | ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (119.595329ms)
+@polis/policy-rules:test               | ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (154.926136ms)
+@polis/policy-rules:test               | ✔ representative overdue status is system-derived only (M-RA) (131.94413ms)
+@polis/policy-rules:test               | ✔ identity access allows stub mode and oidc with verified email (M10) (92.934471ms)
+@polis/policy-rules:test               | ✔ complaints permits verified creation and owner reads but denies owner mismatch (101.228497ms)
+@polis/policy-rules:test               | ✔ complaints staff reads require active in-jurisdiction decision authority (172.789297ms)
+@polis/policy-rules:test               | ✔ complaints assignment requires intake authority and a valid initial-decision target (136.016507ms)
+@polis/policy-rules:test               | ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (280.912011ms)
+@polis/policy-rules:test               | ℹ tests 25
+@polis/policy-rules:test               | ℹ suites 0
+@polis/policy-rules:test               | ℹ pass 25
+@polis/policy-rules:test               | ℹ fail 0
+@polis/policy-rules:test               | ℹ cancelled 0
+@polis/policy-rules:test               | ℹ skipped 0
+@polis/policy-rules:test               | ℹ todo 0
+@polis/policy-rules:test               | ℹ duration_ms 4284.579986
+@polis/policy-rules:test               | Done in 4.42s
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service readiness reports only database failures (3.740557ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service validates the internal fetch timeout (1.305151ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service bounds best-effort audit emission (10.275815ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service exposes §13 issues + conversation + internal sync routes (0.52448ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service rejects unauthenticated internal HTTP requests (106.732394ms)
+@polis/polis-bridge-service:test       | ℹ tests 5
+@polis/polis-bridge-service:test       | ℹ suites 0
+@polis/polis-bridge-service:test       | ℹ pass 5
+@polis/polis-bridge-service:test       | ℹ fail 0
+@polis/polis-bridge-service:test       | ℹ cancelled 0
+@polis/polis-bridge-service:test       | ℹ skipped 0
+@polis/polis-bridge-service:test       | ℹ todo 0
+@polis/polis-bridge-service:test       | ℹ duration_ms 1594.308351
+@polis/polis-bridge-service:test       | Done in 1.70s
+@polis/proof-service:test              | ✔ proof-service exposes §9.12 + §9.18 proof + verify routes (3.785122ms)
+@polis/proof-service:test              | ✔ proof-service readiness reports only database failures (1.819826ms)
+@polis/proof-service:test              | ✔ proof-service validates the internal fetch timeout (1.117844ms)
+@polis/proof-service:test              | ✔ non-public proofs are not_found on every public proof route (16.091468ms)
+@polis/proof-service:test              | ✔ hash verification reports revoked before valid (9.117272ms)
+@polis/proof-service:test              | ✔ manifest activates only after signature and timestamp creation succeed (6.874106ms)
+@polis/proof-service:test              | ✔ signature failure leaves the manifest unknown and emits its warning audit (3.365455ms)
+@polis/proof-service:test              | ✔ timestamp failure leaves the manifest unknown and emits its warning audit (2.942939ms)
+@polis/proof-service:test              | ✔ manifest creation rejects unknown creator services before inserting (0.655287ms)
+@polis/proof-service:test              | ✔ manifest and hash verification apply child then stored lifecycle precedence (3.297077ms)
+@polis/proof-service:test              | ✔ proof-service rejects unauthenticated internal HTTP calls (90.335706ms)
+@polis/proof-service:test              | ℹ tests 11
+@polis/proof-service:test              | ℹ suites 0
+@polis/proof-service:test              | ℹ pass 11
+@polis/proof-service:test              | ℹ fail 0
+@polis/proof-service:test              | ℹ cancelled 0
+@polis/proof-service:test              | ℹ skipped 0
+@polis/proof-service:test              | ℹ todo 0
+@polis/proof-service:test              | ℹ duration_ms 1588.867412
+@polis/proof-service:test              | Done in 1.72s
+@polis/rewards-service:test            | ✔ rewards-service exposes operational, public, and internal routes (2.695936ms)
+@polis/rewards-service:test            | ✔ rewards-service guards internal routes while operational routes stay open (112.564342ms)
+@polis/rewards-service:test            | ℹ tests 2
+@polis/rewards-service:test            | ℹ suites 0
+@polis/rewards-service:test            | ℹ pass 2
+@polis/rewards-service:test            | ℹ fail 0
+@polis/rewards-service:test            | ℹ cancelled 0
+@polis/rewards-service:test            | ℹ skipped 0
+@polis/rewards-service:test            | ℹ todo 0
+@polis/rewards-service:test            | ℹ duration_ms 1950.227099
+@polis/rewards-service:test            | Done in 2.07s
+@polis/service-runtime:test            | ✔ operationalRoutes exposes the four operational endpoints (3.726388ms)
+@polis/service-runtime:test            | ✔ versionMeta carries source/build transparency fields (0.679766ms)
+@polis/service-runtime:test            | ✔ open ops stay available while internal routes require the configured token (113.33913ms)
+@polis/service-runtime:test            | ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (32.463589ms)
+@polis/service-runtime:test            | ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (36.504225ms)
+@polis/service-runtime:test            | ✔ default JSON, raw, and none body modes reach handlers with the expected value (22.634704ms)
+@polis/service-runtime:test            | ✔ route-specific body caps produce a typed 413 response (10.16719ms)
+@polis/service-runtime:test            | ✔ unexpected handler errors are logged without leaking details to clients (12.5234ms)
+@polis/service-runtime:test            | ✔ binaryResult emits exact bytes, status, content type, and safe headers (10.290651ms)
+@polis/service-runtime:test            | ✔ internal header helpers require a token and protect trusted values (2.818102ms)
+@polis/service-runtime:test            | ✔ CORS preflight advertises the expanded methods and headers (13.828135ms)
+@polis/service-runtime:test            | ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (4.529251ms)
+@polis/service-runtime:test            | ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (18.222224ms)
+@polis/service-runtime:test            | ✔ readiness reports safe 200/503 state while liveness stays up (23.093908ms)
+@polis/service-runtime:test            | ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (22.608144ms)
+@polis/service-runtime:test            | ✔ startService applies configured HTTP limits and startup validation (1.848185ms)
+@polis/service-runtime:test            | ✔ signal drain is shared, marks readiness down, and force-closes after grace (38.23507ms)
+@polis/service-runtime:test            | ℹ tests 17
+@polis/service-runtime:test            | ℹ suites 0
+@polis/service-runtime:test            | ℹ pass 17
+@polis/service-runtime:test            | ℹ fail 0
+@polis/service-runtime:test            | ℹ cancelled 0
+@polis/service-runtime:test            | ℹ skipped 0
+@polis/service-runtime:test            | ℹ todo 0
+@polis/service-runtime:test            | ℹ duration_ms 670.604949
+@polis/service-runtime:test            | Done in 794ms
+@polis/signature-service:test          | ✔ signature-service exposes §9.13 signature routes (3.825024ms)
+@polis/signature-service:test          | ✔ signature-service rejects unauthenticated internal HTTP access (86.890117ms)
+@polis/signature-service:test          | ✔ createSignerClient defaults to stub when SIGNATURE_MODE is unset (0.603123ms)
+@polis/signature-service:test          | ✔ createSignerClient resolves SIGNATURE_MODE=stub to StubSignerClient (0.401362ms)
+@polis/signature-service:test          | ✔ createSignerClient resolves SIGNATURE_MODE=real to DssSignerClient (committed dev cert, no network) (0.725376ms)
+@polis/signature-service:test          | ✔ createSignerClient throws on an unsupported mode (1.401203ms)
+@polis/signature-service:test          | ✔ DssSignerClient produces a real eIDAS-eSeal CMS signature that validates (169.379823ms)
+@polis/signature-service:test          | ℹ tests 7
+@polis/signature-service:test          | ℹ suites 0
+@polis/signature-service:test          | ℹ pass 7
+@polis/signature-service:test          | ℹ fail 0
+@polis/signature-service:test          | ℹ cancelled 0
+@polis/signature-service:test          | ℹ skipped 0
+@polis/signature-service:test          | ℹ todo 0
+@polis/signature-service:test          | ℹ duration_ms 2090.411685
+@polis/signature-service:test          | Done in 2.21s
+@polis/timestamp-service:test          | ✔ timestamp-service exposes §9.14 timestamp routes (4.20396ms)
+@polis/timestamp-service:test          | ✔ timestamp-service rejects unauthenticated internal HTTP access (103.559226ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient defaults to stub when TIMESTAMP_MODE is unset (1.68823ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient resolves TIMESTAMP_MODE=stub to StubTimestampClient (0.555322ms)
+@polis/timestamp-service:test          | ✔ Rfc3161TimestampClient ctor requires TSA_URL in real mode (1.702095ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient resolves TIMESTAMP_MODE=real to Rfc3161TimestampClient when TSA_URL is set (0.691039ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient throws on an unsupported mode (0.79808ms)
+@polis/timestamp-service:test          | ℹ tests 7
+@polis/timestamp-service:test          | ℹ suites 0
+@polis/timestamp-service:test          | ℹ pass 7
+@polis/timestamp-service:test          | ℹ fail 0
+@polis/timestamp-service:test          | ℹ cancelled 0
+@polis/timestamp-service:test          | ℹ skipped 0
+@polis/timestamp-service:test          | ℹ todo 0
+@polis/timestamp-service:test          | ℹ duration_ms 1871.403495
+@polis/timestamp-service:test          | Done in 2.03s
+@polis/ui:test                         | ✔ all spec-mandated astro components exist (2.578198ms)
+@polis/ui:test                         | ✔ react verifier components exist (0.459887ms)
+@polis/ui:test                         | ✔ stylesheets exist and define both themes (0.791508ms)
+@polis/ui:test                         | ✔ package exports map covers styles, astro, react, and messages (0.613813ms)
+@polis/ui:test                         | ✔ ui components never use tailwind utility classes (plain-CSS app compatibility) (2.145282ms)
+@polis/ui:test                         | ✔ every verdict headline and explanation key exists in en (2.541729ms)
+@polis/ui:test                         | ✔ mechanism and status labels exist in en (0.636349ms)
+@polis/ui:test                         | ✔ every check labelKey producible by the verdict engine exists in en (0.485498ms)
+@polis/ui:test                         | ✔ badge catalogs cover all confidence and review states (0.468846ms)
+@polis/ui:test                         | ✔ hr keys are a subset of en keys (0.680018ms)
+@polis/ui:test                         | ✔ t() falls back to English for missing hr keys (0.921792ms)
+@polis/ui:test                         | ℹ tests 11
+@polis/ui:test                         | ℹ suites 0
+@polis/ui:test                         | ℹ pass 11
+@polis/ui:test                         | ℹ fail 0
+@polis/ui:test                         | ℹ cancelled 0
+@polis/ui:test                         | ℹ skipped 0
+@polis/ui:test                         | ℹ todo 0
+@polis/ui:test                         | ℹ duration_ms 352.627719
+@polis/ui:test                         | Done in 467ms
+@polis/vc-issuer-service:test          | ✔ vc-issuer-service exposes operational and issuance routes (3.521796ms)
+@polis/vc-issuer-service:test          | ✔ vc-issuer-service guards internal routes while operational routes stay open (163.427585ms)
+@polis/vc-issuer-service:test          | ℹ tests 2
+@polis/vc-issuer-service:test          | ℹ suites 0
+@polis/vc-issuer-service:test          | ℹ pass 2
+@polis/vc-issuer-service:test          | ℹ fail 0
+@polis/vc-issuer-service:test          | ℹ cancelled 0
+@polis/vc-issuer-service:test          | ℹ skipped 0
+@polis/vc-issuer-service:test          | ℹ todo 0
+@polis/vc-issuer-service:test          | ℹ duration_ms 1842.387032
+@polis/vc-issuer-service:test          | Done in 1.94s
+=== tests PASS 2026-08-10T07:30:51Z ===
+
+=== lint BEGIN 2026-08-10T07:30:51Z ===
+$ eslint . && prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+=== lint PASS 2026-08-10T07:31:13Z ===
+
+=== service_catalog BEGIN 2026-08-10T07:31:13Z ===
+$ node scripts/service-catalog.mjs --check
+[service-catalog] 18 services valid; generated docs current
+=== service_catalog PASS 2026-08-10T07:31:14Z ===
+
+=== ops_contracts BEGIN 2026-08-10T07:31:14Z ===
+$ bash scripts/ops/test-backup-restore.sh
+bun test v1.3.14 (0d9b296a)
+
+scripts/ops/ops-contract.test.mjs:
+(pass) audit verifier accepts valid JSON and NDJSON chains [171.83ms]
+(pass) audit verifier rejects recomputed hash tampering [74.08ms]
+(pass) audit verifier rejects previous-hash gaps [72.35ms]
+(pass) audit verifier rejects out-of-order records [67.30ms]
+(pass) audit verifier rejects malformed and empty input unless explicitly allowed [217.06ms]
+(pass) backup script is fail-closed and archives only named non-secret artifacts [11.43ms]
+(pass) backup script classifies repositories and refuses unsafe inputs before PostgreSQL/restic [576.43ms]
+(pass) backup script refuses a dirty release checkout before connecting to PostgreSQL [151.21ms]
+(pass) backup script fails closed when Git cannot verify worktree status [133.28ms]
+(pass) restore script gates destructive restore and verifies manifest, schema, counts, migrations, and audit [3.36ms]
+(pass) restore script refuses destructive inputs before restic restore and pg_restore [2575.33ms]
+(pass) restore script validates manifest v3 repository class before database actions [2134.90ms]
+(pass) clean DB drill script is source-hardened and explicit-Docker only [2.13ms]
+(pass) operator scripts contain no hard-coded credentials and are executable [1.19ms]
+(pass) root package exposes all operator commands without replacing existing commands [0.66ms]
+
+ 15 pass
+ 0 fail
+Ran 15 tests across 1 file. [6.28s]
+{"ok":true,"sourceTests":true,"fixtureToolsExercised":false}
+=== ops_contracts PASS 2026-08-10T07:31:20Z ===
+
+=== v1_smoke BEGIN 2026-08-10T07:31:20Z ===
+$ bun scripts/v1-smoke.mjs
+{"service":"platform-api","stage":"db-migrate","warning":"DATABASE_URL is required"}
+{"service":"platform-api","port":8080,"status":"listening"}
+[v1-smoke] checking §23 contract…
+  ok  GET /healthz → status=ok
+  ok  document-signing-service GET /healthz → status=ok
+  ok  GET /version → version present
+  ok  GET /version → gitSha present
+  ok  POST /api/v1/verify/hash route present + proxied (502 bad_gateway in hermetic smoke)
+[v1-smoke] all checks passed
+=== v1_smoke PASS 2026-08-10T07:31:25Z ===
+
+=== drizzle_generate BEGIN 2026-08-10T07:31:25Z ===
+@polis/db db:generate: No config path provided, using default 'drizzle.config.ts'
+@polis/db db:generate: Reading config file '/home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927/packages/db/drizzle.config.ts'
+@polis/db db:generate: 66 tables
+@polis/db db:generate: access_events 5 columns 1 indexes 0 fks
+@polis/db db:generate: access_grants 12 columns 2 indexes 0 fks
+@polis/db db:generate: ai_outputs 12 columns 1 indexes 0 fks
+@polis/db db:generate: ai_review_queue 7 columns 1 indexes 0 fks
+@polis/db db:generate: ai_traces 14 columns 1 indexes 0 fks
+@polis/db db:generate: app_meta 3 columns 0 indexes 0 fks
+@polis/db db:generate: audit_event_redactions 5 columns 0 indexes 0 fks
+@polis/db db:generate: audit_events 15 columns 1 indexes 0 fks
+@polis/db db:generate: budget_lines 13 columns 0 indexes 0 fks
+@polis/db db:generate: citizens 8 columns 1 indexes 0 fks
+@polis/db db:generate: claims 17 columns 0 indexes 0 fks
+@polis/db db:generate: commitment_answers 8 columns 1 indexes 0 fks
+@polis/db db:generate: commitment_questions 10 columns 1 indexes 0 fks
+@polis/db db:generate: commitment_status_events 8 columns 1 indexes 0 fks
+@polis/db db:generate: commitments 13 columns 2 indexes 0 fks
+@polis/db db:generate: complaint_appeals 8 columns 1 indexes 0 fks
+@polis/db db:generate: complaint_case_events 10 columns 1 indexes 0 fks
+@polis/db db:generate: complaint_cases 14 columns 4 indexes 0 fks
+@polis/db db:generate: complaint_decisions 9 columns 2 indexes 0 fks
+@polis/db db:generate: complaint_information_requests 9 columns 1 indexes 0 fks
+@polis/db db:generate: confidence_scores 10 columns 0 indexes 0 fks
+@polis/db db:generate: contributors 4 columns 0 indexes 0 fks
+@polis/db db:generate: controls 10 columns 0 indexes 0 fks
+@polis/db db:generate: conversation_results 5 columns 0 indexes 0 fks
+@polis/db db:generate: conversations 14 columns 0 indexes 0 fks
+@polis/db db:generate: decision_rights 10 columns 0 indexes 0 fks
+@polis/db db:generate: document_artifact_blobs 3 columns 0 indexes 0 fks
+@polis/db db:generate: document_artifacts 17 columns 3 indexes 0 fks
+@polis/db db:generate: document_types 11 columns 0 indexes 0 fks
+@polis/db db:generate: documents 12 columns 0 indexes 0 fks
+@polis/db db:generate: evidence_links 10 columns 0 indexes 0 fks
+@polis/db db:generate: external_identities 5 columns 2 indexes 0 fks
+@polis/db db:generate: failure_modes 10 columns 0 indexes 0 fks
+@polis/db db:generate: graph_proposals 8 columns 1 indexes 0 fks
+@polis/db db:generate: institutions 13 columns 0 indexes 0 fks
+@polis/db db:generate: issues 12 columns 1 indexes 0 fks
+@polis/db db:generate: jurisdictions 14 columns 1 indexes 0 fks
+@polis/db db:generate: laws 11 columns 0 indexes 0 fks
+@polis/db db:generate: mandate_holder_charter_events 7 columns 2 indexes 0 fks
+@polis/db db:generate: mandate_holder_charters 13 columns 5 indexes 0 fks
+@polis/db db:generate: mandate_holders 12 columns 2 indexes 0 fks
+@polis/db db:generate: mandates 10 columns 0 indexes 0 fks
+@polis/db db:generate: process_steps 11 columns 0 indexes 0 fks
+@polis/db db:generate: processes 14 columns 0 indexes 0 fks
+@polis/db db:generate: proof_issuers 6 columns 0 indexes 0 fks
+@polis/db db:generate: proof_manifests 21 columns 1 indexes 0 fks
+@polis/db db:generate: proof_revocations 5 columns 1 indexes 0 fks
+@polis/db db:generate: proof_signatures 12 columns 1 indexes 0 fks
+@polis/db db:generate: proof_supersessions 5 columns 2 indexes 0 fks
+@polis/db db:generate: proof_timestamps 10 columns 1 indexes 0 fks
+@polis/db db:generate: public_services 10 columns 0 indexes 0 fks
+@polis/db db:generate: relationships 17 columns 0 indexes 0 fks
+@polis/db db:generate: review_records 11 columns 0 indexes 0 fks
+@polis/db db:generate: reviews 7 columns 1 indexes 0 fks
+@polis/db db:generate: reward_eligibility_events 9 columns 2 indexes 0 fks
+@polis/db db:generate: reward_payouts 9 columns 2 indexes 0 fks
+@polis/db db:generate: risks 10 columns 0 indexes 0 fks
+@polis/db db:generate: roles 16 columns 0 indexes 0 fks
+@polis/db db:generate: signing_provider_events 9 columns 2 indexes 0 fks
+@polis/db db:generate: signing_recipients 10 columns 3 indexes 0 fks
+@polis/db db:generate: signing_requests 18 columns 5 indexes 0 fks
+@polis/db db:generate: source_snapshots 11 columns 0 indexes 0 fks
+@polis/db db:generate: sources 13 columns 0 indexes 0 fks
+@polis/db db:generate: submissions 8 columns 2 indexes 0 fks
+@polis/db db:generate: vault_documents 6 columns 1 indexes 0 fks
+@polis/db db:generate: verifiable_credentials 6 columns 1 indexes 0 fks
+@polis/db db:generate: 
+@polis/db db:generate: No schema changes, nothing to migrate 😴
+@polis/db db:generate: Exited with code 0
+=== drizzle_generate PASS 2026-08-10T07:31:27Z ===
+
+=== osv BEGIN 2026-08-10T07:31:27Z ===
+Scanned /src/bun.lock file and found 629 packages
+Scanned /src/uv.lock file and found 41 packages
+No issues found
+Exit code: 0
+=== osv PASS 2026-08-10T07:31:31Z ===
+
+=== gitleaks BEGIN 2026-08-10T07:31:31Z ===
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+9:31AM INF 45 commits scanned.
+9:31AM INF scanned ~210675305 bytes (210.68 MB) in 12.3s
+9:31AM INF no leaks found
+=== gitleaks PASS 2026-08-10T07:31:44Z ===
+
+=== diff_check BEGIN 2026-08-10T07:31:44Z ===
+=== diff_check PASS 2026-08-10T07:31:44Z ===
+candidate_final_sha=e4e05719348024ca51fc6eda17927073fd2e6927
+candidate_final_tree=2ee908f03e6a8eb3ce0930d303620ea4cb3c730c
+candidate_status_paths=0
+validation_complete_utc=2026-08-10T07:31:44Z

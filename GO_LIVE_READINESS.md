@@ -1,7 +1,9 @@
 # Go-live readiness
 
-**Decision: NO-GO**  
-**Assessment date:** 2026-08-09 UTC  
+**Decision: NO-GO**
+
+**Assessment date:** 2026-08-10 UTC
+
 **Current exposure:** none. The maximum surface before Task 18, after its own runbook gates pass, is the isolated public-read pilot.
 
 This ledger is a current status record, not launch approval. Keep every private or state-changing partner path closed until all critical gates below pass and Task 18 records an independent signed decision.
@@ -60,33 +62,27 @@ The initial report records the limitations that drove the clean-checkout and ver
 
 The future off-host operator report must use `docs/operations/recovery-drill-report-template.md`.
 
-### Current off-host preflight — 2026-08-09 UTC
+### Current off-host preflight — 2026-08-10 UTC
 
 - A Taskmaster recheck matches this ledger: Tasks 7–10 are done, Task 11 is in progress and is the only dependency-ready task, and Tasks 12–14, 17, and 18 are pending.
-- The reviewed 93-path release scope was committed from base HEAD `04993ec9dcb541b9ac5732714cbaf60e140f88b7` as candidate `d1ab6754b7350f4fde69339115b73f954766bf64` (`prepare fail-closed partner pilot release gates`).
-- The candidate has a clean checkout at `/home/ceii/dev/polis-release-candidates/d1ab6754b7350f4fde69339115b73f954766bf64`; its HEAD matches the immutable candidate commit and tree `62c727eebb9d27f21d8422c5c16b390ae8b79bb0`, and its worktree is clean. A live read-only `git ls-remote` check matched remote `main` to `f006ea5092244ff423de1655f603be6460065939` and confirmed that it contains the candidate.
-- Later `origin/main` commits `b8bef385755f25d7f9f524116f1b6e384d0d82b3`, `c0fd2a72452de90e6d5bf65bd0043cea6bd1de4f`, `a35a7734eb0d03659a879b224ec3b185aeaa52fd`, and `f006ea5092244ff423de1655f603be6460065939` change only `README.md`, `infra/compose/docker-compose.yml`, and `.omp/RULES.md` relative to the reviewed candidate. They are outside that candidate. Including them in a replacement candidate requires a separate scope review, validation, and operator approval.
-- `.env.pilot` is absent.
-- `RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE`, `SOURCE_DATABASE_URL`, `PRODUCTION_DATABASE_URL`, and `RESTORE_TARGET_DATABASE_URL` are unset in the operator environment.
-- The pre-commit release-scope review found 94 changed/untracked paths: 93 belonged to the accepted Tasks 7–11 source, Taskmaster state, and complete recovery-evidence lineage; the sole exclusion was the then-untracked unrelated `.omp/RULES.md`.
-- No required source or evidence file was ignored or missing; generated `dist`, `node_modules`, and `__pycache__` artifacts remained excluded.
-- The resulting 93-path candidate tree passed fresh builds for service-runtime, platform-api, contribution-service, complaints-service, document-signing-service, and database packages; their tests plus policy tests passed 173/173. Ops contracts passed 15/15, and the service catalog and diff checks passed.
-- A scoped release-content scan found no missing paths, symlinks, binary files, private-key blocks, provider tokens, JWTs, or live credentials. A fresh tracked non-binary candidate-tree scan classified all 37 PostgreSQL credential-URL pattern matches: 12 explicit `CHANGE_ME` examples, 8 test or disposable-drill fixtures, and 17 local-development defaults; none remained unclassified. A separate read-only agent reproduced that definition and breakdown and returned `CLEAN`. Only the three operator shell scripts are executable.
-- Candidate creation and local validation do not satisfy Task 11. Backup remains blocked until a named operator approves the exact candidate SHA for the drill and uses its separate clean checkout.
-- The named Task 11 operator and independent human reviewer remain missing.
-- No production/off-host connection or destructive operation was attempted during this preflight.
+- The historical 93-path Tasks 7–11 candidate `d1ab6754b7350f4fde69339115b73f954766bf64` is superseded. It contains the broken OSV action reference and vulnerable lock state and must not be used for the partner drill.
+- The corrected immutable candidate is `e4e05719348024ca51fc6eda17927073fd2e6927`, tree `2ee908f03e6a8eb3ce0930d303620ea4cb3c730c`. Its two new commits are security remediation `20beaab122123ec414c70e01ff205361b9c6cbe6` and evidence `e4e05719348024ca51fc6eda17927073fd2e6927` on base `f006ea5092244ff423de1655f603be6460065939`.
+- The corrected candidate has a clean detached checkout at `/home/ceii/dev/polis-release-candidates/e4e05719348024ca51fc6eda17927073fd2e6927`. Exact-candidate validation began and ended with the nominated SHA/tree and zero status paths. Frozen install, dependency-ordered build, typecheck, 326 tests, lint, 18-service catalog, 15 ops contracts, smoke, no-change Drizzle generation, OSV, gitleaks, and diff checks passed. An independent read-only evidence review returned `CLEAN`.
+- Corrected candidate `e4e05719348024ca51fc6eda17927073fd2e6927` is contained in remote `main`. GitHub Actions run [`31366532706`](https://github.com/basicalex/polis/actions/runs/31366532706) completed `success` for that exact head: dependency and secret scan job `93386001862` and build, lint, TypeScript/Python test, and smoke job `93386001949` both passed.
+- Current candidate evidence is `docs/operations/evidence/2026-08-10-task11-corrected-release-candidate-validation.md`. Its local transcript SHA-256 is `5846576a912fe9411a0a9891e76c248896ed90b1f765c08ea2464347bdee9ab4`; GitHub Actions metadata SHA-256 is `e50cbeef36b9fd3ea9774568f92c4cc41fa7546b4061900cb527638157e196de`.
+- GitHub emitted non-failing notices that several actions declare Node 20 and were forced onto Node 24. No step was skipped or failed; action-runtime maintenance remains open but is not a current repository-gate failure.
+- The exact gitleaks fingerprints and fixture classifications received independent read-only review. A named human key-custody owner must still confirm that the two development/test signing keys were never used outside tests; repository labels and passing scans cannot prove that fact.
+- `.env.pilot` is absent. `RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE`, `SOURCE_DATABASE_URL`, `PRODUCTION_DATABASE_URL`, and `RESTORE_TARGET_DATABASE_URL` are unset in the operator environment.
+- Candidate creation, local validation, push, and green remote CI satisfy the repository CI gate only. Task 11 remains blocked until a named operator approves exact candidate `e4e05719348024ca51fc6eda17927073fd2e6927`, runs the production-eligible off-host backup and exact-snapshot disposable restore from its clean checkout, retains provider/retention/destruction evidence, and obtains named independent human review.
+- No production/off-host connection or destructive operation was attempted during candidate validation.
 
-### Repository CI preflight — 2026-08-09 UTC
+### Repository CI evidence — 2026-08-10 UTC
 
-- GitHub Actions run [`31309114693`](https://github.com/basicalex/polis/actions/runs/31309114693) for current remote `main` commit `f006ea5092244ff423de1655f603be6460065939` concluded `failure`.
-- Its build, lint, TypeScript/Python test, and smoke job passed. The dependency and secret-scan job failed during setup before either scan ran because `google/osv-scanner-action@v2.0.0` resolves to a root manifest without a required `runs` section.
-- No standalone GitHub Actions run exists for candidate `d1ab6754b7350f4fde69339115b73f954766bf64`. Because that candidate contains the broken action reference and vulnerable lock state, it is superseded and must not be used for the partner drill; a corrected immutable candidate is required.
-- The unstaged local correction points to `google/osv-scanner-action/osv-scanner-action@v2.0.0`; the exact referenced manifest was fetched read-only and contains a Docker `runs` definition. An independent read-only review returned `CLEAN` for this minimal path correction and the preflight wording.
-- The first local run of that exact OSV v2.0.0 image exited `1` with 14 findings: 3 in `@astrojs/node` 9.5.5, 8 in Astro 5.18.2, 2 in esbuild versions 0.18.20 and 0.27.7, and 1 in sharp 0.34.5. The highest reported CVSS was 7.5.
-- The unstaged remediation upgrades Astro to 7.2.0, `@astrojs/node` to 11.1.0, and `@astrojs/react` to 6.0.2, and pins transitive esbuild 0.28.2 and sharp 0.35.3 with root Bun overrides. The final exact OSV scan exited `0` after scanning 629 Bun packages and 41 uv packages with no issues. Full build, typecheck, 326/326 workspace tests, lint, 15/15 ops contracts, smoke, service catalog, no-change Drizzle generation, and diff checks passed locally.
-- The first redacted full-history gitleaks 8.24.3 scan exited `2` with four findings: two explicit compose contract-test tokens and two keys that repository comments and paths label as test/development signing material. Four exact fingerprint suppressions now make the same local scan exit `0`. The fingerprint scope and labels still require independent review, and a human key owner must confirm the signing keys were never used outside tests; no agent may treat the labels or successful scan alone as that proof.
-- Local evidence is `docs/operations/evidence/2026-08-09-task11-ci-security-remediation-preflight.md`; its transcript SHA-256 is `c69f6693daf187fc6faae3027e1a0bd3a0183fb6f86a87fc37bb12087f064ddf`. This is dirty-worktree preflight, not a release candidate or remote result.
-- The workflow, dependency, lock, fingerprint, and test-timeout changes must be independently reviewed, explicitly approved for commit, bound to a replacement candidate, pushed only with approval, and followed by a successful GitHub Actions dependency and secret-scan job before the repository gate can pass.
+- Historical run [`31309114693`](https://github.com/basicalex/polis/actions/runs/31309114693) at commit `f006ea5092244ff423de1655f603be6460065939` failed during OSV action setup before dependency or secret scanning; its build/lint/test/smoke job passed.
+- The correction uses `google/osv-scanner-action/osv-scanner-action@v2.0.0`, upgrades Astro to 7.2.0, `@astrojs/node` to 11.1.0, and `@astrojs/react` to 6.0.2, and pins transitive esbuild 0.28.2 and sharp 0.35.3 through reviewed Bun overrides.
+- Initial exact local OSV v2.0.0 scanning found 14 advisories with highest reported CVSS 7.5. The corrected candidate's local and remote dependency scans pass; the local exact image scanned 629 Bun and 41 uv packages with no issues.
+- Initial redacted gitleaks 8.24.3 full-history scanning found four repository-labelled contract-test/development fixtures. Four exact historical fingerprints, with no broad path or rule suppression, make local and remote scans pass. Human key-use confirmation remains required.
+- Dirty-worktree remediation evidence remains at `docs/operations/evidence/2026-08-09-task11-ci-security-remediation-preflight.md`, transcript SHA-256 `c69f6693daf187fc6faae3027e1a0bd3a0183fb6f86a87fc37bb12087f064ddf`. The exact committed candidate and remote result supersede that preflight for the repository gate.
 
 ## Ownership still required
 
@@ -118,7 +114,7 @@ Until GO, keep the private partner profile undeployed and the public-read profil
 - No production credentials or provider contracts are present in the repository.
 - AI, upstream Polis mutation or sync, complaints, rewards, vault, verifiable credentials, graph edits, questions/answers, revocation, and supersession remain outside the enabled first-partner release surface.
 - The Task 11 local evidence is not off-host or production evidence.
-- No commit, push, deployment, DNS change, or production connection has been made by this work.
+- No deployment, DNS change, production connection, backup, restore, or destructive operation has been made by this work. The reviewed candidate commit and push are source-control evidence only.
 
 ## GO rule
 
