@@ -1,0 +1,2295 @@
+
+>>> bun install --frozen-lockfile
+bun install v1.3.14 (0d9b296a)
+
++ @astrojs/check@0.9.10
++ @eslint/js@9.39.5
++ @types/node@24.13.3
++ astro@5.18.2
++ eslint@9.39.5
++ globals@15.15.0
++ prettier@3.9.6
++ ts7@7.0.1-rc
++ typescript@5.9.3
++ typescript-eslint@8.66.0
++ zod@4.4.3
+
+1106 packages installed [2.55s]
+
+>>> bun run --filter @polis/service-runtime build
+@polis/service-runtime build $ node ../../node_modules/typescript/bin/tsc -p tsconfig.json
+└─ Done in 6.85 s
+
+>>> bun run --filter @polis/platform-api build
+@polis/platform-api build $ tsc -p tsconfig.json
+│ src/config.ts(1,50): error TS2307: Cannot find module '@polis/db' or its corresponding type declarations.
+└─ Running...
+@polis/platform-api build $ tsc -p tsconfig.json
+│ src/config.ts(1,50): error TS2307: Cannot find module '@polis/db' or its corresponding type declarations.
+└─ Exited with code 2
+
+>>> retry after dependency-order correction (domain/db before services)
+
+>>> bun run --filter @polis/domain build
+@polis/domain build $ node ../../node_modules/typescript/bin/tsc -p tsconfig.json
+└─ Done in 5.55 s
+
+>>> bun run --filter @polis/db build
+@polis/db build $ tsc -p tsconfig.json
+└─ Done in 15.76 s
+
+>>> bun run --filter @polis/service-runtime build
+@polis/service-runtime build $ node ../../node_modules/typescript/bin/tsc -p tsconfig.json
+└─ Done in 5.17 s
+
+>>> bun run --filter @polis/platform-api build
+@polis/platform-api build $ tsc -p tsconfig.json
+└─ Done in 8.03 s
+
+>>> bun run --filter @polis/contribution-service build
+@polis/contribution-service build $ tsc -p tsconfig.json
+└─ Done in 10.65 s
+
+>>> bun run --filter @polis/complaints-service build
+@polis/complaints-service build $ tsc -p tsconfig.json
+└─ Done in 7.74 s
+
+>>> bun run --filter @polis/document-signing-service build
+@polis/document-signing-service build $ tsc -p tsconfig.json
+└─ Done in 8.67 s
+
+>>> bun run --filter @polis/service-runtime test
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ (node:3165624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [1 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [2 lines elided]
+│ (node:3165630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [3 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [4 lines elided]
+│ ✔ operationalRoutes exposes the four operational endpoints (9.219829ms)
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [5 lines elided]
+│ ✔ versionMeta carries source/build transparency fields (1.569112ms)
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [6 lines elided]
+│ ✔ open ops stay available while internal routes require the configured token (181.726544ms)
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [7 lines elided]
+│ ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (49.431576ms)
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [8 lines elided]
+│ ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (92.777074ms)
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [9 lines elided]
+│ ✔ default JSON, raw, and none body modes reach handlers with the expected value (64.525065ms)
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [10 lines elided]
+│ ✔ route-specific body caps produce a typed 413 response (52.353676ms)
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [11 lines elided]
+│ ✔ unexpected handler errors are logged without leaking details to clients (55.222937ms)
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [12 lines elided]
+│ ✔ binaryResult emits exact bytes, status, content type, and safe headers (19.782678ms)
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [13 lines elided]
+│ ✔ internal header helpers require a token and protect trusted values (3.873161ms)
+│ ✔ CORS preflight advertises the expanded methods and headers (13.046873ms)
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [15 lines elided]
+│ ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (17.8326ms)
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [16 lines elided]
+│ ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (87.171208ms)
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [17 lines elided]
+│ ✔ readiness reports safe 200/503 state while liveness stays up (82.026999ms)
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [18 lines elided]
+│ ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (88.054455ms)
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [19 lines elided]
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 1467.292073
+└─ Running...
+@polis/service-runtime test $ node --test dist/**/*.test.js
+│ [19 lines elided]
+│ ✔ startService applies configured HTTP limits and startup validation (4.148795ms)
+│ ✔ signal drain is shared, marks readiness down, and force-closes after grace (68.016047ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 1467.292073
+└─ Done in 1.64 s
+
+>>> bun run --filter @polis/platform-api test
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ (node:3165709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [1 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [2 lines elided]
+│ (node:3165717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [3 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ platform startup permits dev and only the approved public-read pilot shape (11.149041ms)
+│ ✔ platform-api preserves the exact ordered route contract (7.419233ms)
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [6 lines elided]
+│ ✔ platform-api exposes complaints routes in literal-before-id order (3.239007ms)
+│ ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.455806ms)
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [8 lines elided]
+│ ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (7.844917ms)
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [9 lines elided]
+│ ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (5.889591ms)
+│ ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (6.103417ms)
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [11 lines elided]
+│ ✔ same-path platform proxy sends the internal token upstream (23.238537ms)
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [12 lines elided]
+│ ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (6.374459ms)
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [13 lines elided]
+│ ✔ complaint routes enforce citizen and staff sessions (3.974189ms)
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+│ ✔ platform readiness checks the database and every pilot upstream with internal headers (2.814457ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [14 lines elided]
+│ ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (5.503879ms)
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+│ ✔ platform readiness checks the database and every pilot upstream with internal headers (2.814457ms)
+│ ✔ platform readiness fails with only the safe dependency label (3.574064ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [15 lines elided]
+│ ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (8.56025ms)
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+│ ✔ platform readiness checks the database and every pilot upstream with internal headers (2.814457ms)
+│ ✔ platform readiness fails with only the safe dependency label (3.574064ms)
+│ ✔ platform readiness checks complaints only outside PUBLIC_EDGE (3.621519ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [16 lines elided]
+│ ✔ contribution writes require a healthy verified session and reject caller authority (13.151196ms)
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+│ ✔ platform readiness checks the database and every pilot upstream with internal headers (2.814457ms)
+│ ✔ platform readiness fails with only the safe dependency label (3.574064ms)
+│ ✔ platform readiness checks complaints only outside PUBLIC_EDGE (3.621519ms)
+│ ✔ pilot migration failure propagates before service startup (2.594407ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [17 lines elided]
+│ ✔ review routes reject forged authority and forward only a verified distinct staff actor (5.383901ms)
+│ ✔ assistant administration routes require staff and forward trusted actor context (14.00901ms)
+│ ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (3.540686ms)
+│ ✔ internal BFF calls use a validated timeout and return safe gateway errors (3.458465ms)
+│ ✔ complaint proxy returns safe 502 and 504 errors (6.233636ms)
+│ ✔ platform readiness checks the database and every pilot upstream with internal headers (2.814457ms)
+│ ✔ platform readiness fails with only the safe dependency label (3.574064ms)
+│ ✔ platform readiness checks complaints only outside PUBLIC_EDGE (3.621519ms)
+│ ✔ pilot migration failure propagates before service startup (2.594407ms)
+│ ✔ dev migration failure preserves warning-and-start tolerance (1.122306ms)
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [25 lines elided]
+│ ✔ pilot migration failure propagates before service startup (2.594407ms)
+│ ✔ dev migration failure preserves warning-and-start tolerance (1.122306ms)
+│ ℹ tests 23
+│ ℹ suites 0
+│ ℹ pass 23
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3434.165213
+└─ Running...
+@polis/platform-api test $ node --test dist/**/*.test.js
+│ [25 lines elided]
+│ ✔ pilot migration failure propagates before service startup (2.594407ms)
+│ ✔ dev migration failure preserves warning-and-start tolerance (1.122306ms)
+│ ℹ tests 23
+│ ℹ suites 0
+│ ℹ pass 23
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3434.165213
+└─ Done in 3.74 s
+
+>>> bun run --filter @polis/contribution-service test
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ (node:3165831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [1 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [2 lines elided]
+│ (node:3165858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [3 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [4 lines elided]
+│ ✔ contribution-service exposes §19 contribution + M-RA filing routes (11.84727ms)
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [5 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [6 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [7 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [8 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [10 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [11 lines elided]
+│ {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [13 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [14 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+│ ✔ commitment filing rejects direct terminal status instead of self-adjudicating (2.954166ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [15 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+│ ✔ commitment filing rejects direct terminal status instead of self-adjudicating (2.954166ms)
+│ ✔ commitment filing denies an accepted charter without signing evidence (2.896891ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [16 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+│ ✔ commitment filing rejects direct terminal status instead of self-adjudicating (2.954166ms)
+│ ✔ commitment filing denies an accepted charter without signing evidence (2.896891ms)
+│ ✔ commitment filing rejects non-covering charter scope before inserts (5.767248ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [17 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+│ ✔ commitment filing rejects direct terminal status instead of self-adjudicating (2.954166ms)
+│ ✔ commitment filing denies an accepted charter without signing evidence (2.896891ms)
+│ ✔ commitment filing rejects non-covering charter scope before inserts (5.767248ms)
+│ ✔ commitment filing rejects missing charter scope (13.408543ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [18 lines elided]
+│ ✔ contribution internal routes reject unauthenticated HTTP requests (260.034899ms)
+│ ✔ commitment filing rejects wrong-kind signed artifact (20.66922ms)
+│ ✔ commitment filing rejects revoked charter proof (9.598712ms)
+│ ✔ commitment filing rejects superseded charter proof (10.552066ms)
+│ ✔ commitment filing rejects unknown-registry charter proof (2.361191ms)
+│ ✔ commitment filing rejects direct terminal status instead of self-adjudicating (2.954166ms)
+│ ✔ commitment filing denies an accepted charter without signing evidence (2.896891ms)
+│ ✔ commitment filing rejects non-covering charter scope before inserts (5.767248ms)
+│ ✔ commitment filing rejects missing charter scope (13.408543ms)
+│ ✔ commitment filing rejects null charter scope (9.274503ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [24 lines elided]
+│ ✔ commitment filing denies an accepted charter without signing evidence (2.896891ms)
+│ ✔ commitment filing rejects non-covering charter scope before inserts (5.767248ms)
+│ ✔ commitment filing rejects missing charter scope (13.408543ms)
+│ ✔ commitment filing rejects null charter scope (9.274503ms)
+│ ✔ commitment filing rejects malformed charter scope (7.32253ms)
+│ ✔ commitment filing rejects malformed entry charter scope (3.972387ms)
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [25 lines elided]
+│ ✔ commitment filing rejects non-covering charter scope before inserts (5.767248ms)
+│ ✔ commitment filing rejects missing charter scope (13.408543ms)
+│ ✔ commitment filing rejects null charter scope (9.274503ms)
+│ ✔ commitment filing rejects malformed charter scope (7.32253ms)
+│ ✔ commitment filing rejects malformed entry charter scope (3.972387ms)
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [26 lines elided]
+│ ✔ commitment filing rejects missing charter scope (13.408543ms)
+│ ✔ commitment filing rejects null charter scope (9.274503ms)
+│ ✔ commitment filing rejects malformed charter scope (7.32253ms)
+│ ✔ commitment filing rejects malformed entry charter scope (3.972387ms)
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [27 lines elided]
+│ ✔ commitment filing rejects null charter scope (9.274503ms)
+│ ✔ commitment filing rejects malformed charter scope (7.32253ms)
+│ ✔ commitment filing rejects malformed entry charter scope (3.972387ms)
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [29 lines elided]
+│ ✔ commitment filing rejects malformed entry charter scope (3.972387ms)
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [30 lines elided]
+│ ✔ commitment filing rejects malformed legacy scope without requested scope (3.797173ms)
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [31 lines elided]
+│ ✔ commitment filing allows covering charter scope (12.53511ms)
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [32 lines elided]
+│ ✔ commitment filing persists restricted evidence with restricted default visibility (6.610115ms)
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [33 lines elided]
+│ ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (4.88874ms)
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [34 lines elided]
+│ ✔ resolution filing records requested terminal status as a pending claim only (9.468581ms)
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [35 lines elided]
+│ ✔ transactional representative gate rejects a stale earlier allowed view (4.898837ms)
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [36 lines elided]
+│ ✔ representative authorization audit failures return 503 without mutation (8.448094ms)
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [37 lines elided]
+│ ✔ representative completion audit failures roll back every staged mutation (5.953754ms)
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [38 lines elided]
+│ ✔ representative writes audit authorization then staged completion with bound actor (11.909147ms)
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [39 lines elided]
+│ ✔ submission handlers require trusted actors and reject caller contributor authority (4.520876ms)
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [40 lines elided]
+│ ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (14.552774ms)
+│ {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [42 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [44 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [45 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [47 lines elided]
+│ {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+│ ✔ required submission audit failures return 503 with zero DB mutation (5008.880144ms)
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [49 lines elided]
+│ ✔ submission completion audit failures roll back every staged mutation (6.140933ms)
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [50 lines elided]
+│ ✔ review completion audit failure rolls back review and status update (8.646483ms)
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [51 lines elided]
+│ ✔ approved review completion audit failure rolls back successful apply mutations (3.639084ms)
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [52 lines elided]
+│ ✔ review apply failure rolls back the decision and all apply mutations (3.021317ms)
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [53 lines elided]
+│ ✔ review queue requires staff with a current review_contribution binding (2.065733ms)
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [54 lines elided]
+│ ✔ review decide rejects body authority and self-review before audit or mutation (1.305391ms)
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+│ ℹ cancelled 0
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [55 lines elided]
+│ ✔ review decide returns existing conflict when the pending claim loses the race (1.409052ms)
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [56 lines elided]
+│ ✔ review decide rechecks authority and self-review inside the transaction (1.64077ms)
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [57 lines elided]
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 9402.228334
+└─ Running...
+@polis/contribution-service test $ node --test dist/**/*.test.js
+│ [57 lines elided]
+│ ✔ review audit failure returns 503 and distinct authorized reviewer can decide (2.123295ms)
+│ ✔ approved resolution review marks the referenced claim approved before status event is exposed (2.68902ms)
+│ ℹ tests 35
+│ ℹ suites 0
+│ ℹ pass 35
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 9402.228334
+└─ Done in 9.70 s
+
+>>> bun run --filter @polis/complaints-service test
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166169) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166169) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166169) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ complaints-service exposes exactly the required routes in safe order (11.712848ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166169) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ complaints-service exposes exactly the required routes in safe order (11.712848ms)
+│ ✔ complaint internal HTTP routes reject a missing service token (147.650148ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ (node:3166163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166169) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ complaints-service exposes exactly the required routes in safe order (11.712848ms)
+│ ✔ complaint internal HTTP routes reject a missing service token (147.650148ms)
+│ ✔ complaints-service readiness reports only database failures (1.586631ms)
+│ ✔ complaint transition matrix permits only schema lifecycle edges (0.652851ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [4 lines elided]
+│ ✔ complaints-service exposes exactly the required routes in safe order (11.712848ms)
+│ ✔ complaint internal HTTP routes reject a missing service token (147.650148ms)
+│ ✔ complaints-service readiness reports only database failures (1.586631ms)
+│ ✔ complaint transition matrix permits only schema lifecycle edges (0.652851ms)
+│ ✔ serializers expose private case content only in detail and strip internal ownership metadata (2.145323ms)
+│ ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (15.777224ms)
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [6 lines elided]
+│ ✔ complaints-service readiness reports only database failures (1.586631ms)
+│ ✔ complaint transition matrix permits only schema lifecycle edges (0.652851ms)
+│ ✔ serializers expose private case content only in detail and strip internal ownership metadata (2.145323ms)
+│ ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (15.777224ms)
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [7 lines elided]
+│ ✔ complaint transition matrix permits only schema lifecycle edges (0.652851ms)
+│ ✔ serializers expose private case content only in detail and strip internal ownership metadata (2.145323ms)
+│ ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (15.777224ms)
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [8 lines elided]
+│ ✔ serializers expose private case content only in detail and strip internal ownership metadata (2.145323ms)
+│ ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (15.777224ms)
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [9 lines elided]
+│ ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (15.777224ms)
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [10 lines elided]
+│ ✔ creation rejects unverified actors and bounded-text violations before a transaction (1.085632ms)
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [11 lines elided]
+│ ✔ detail enforces resident ownership and denies plain staff without an active reader binding (4.761634ms)
+│ ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (8.337994ms)
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [13 lines elided]
+│ ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (2.546343ms)
+│ ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (13.606551ms)
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [15 lines elided]
+│ ✔ information requests require the right, allow only one unanswered request, and never audit the question (5.003442ms)
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [16 lines elided]
+│ ✔ information response requires the owning resident and preserves the assigned holder (2.976887ms)
+│ ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (6.543052ms)
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [18 lines elided]
+│ ✔ appeal requires ownership, an initial decision, and no existing appeal (1.868575ms)
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [19 lines elided]
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 2710.873272
+└─ Running...
+@polis/complaints-service test $ node --test dist/**/*.test.js
+│ [19 lines elided]
+│ ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (6.892598ms)
+│ ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.320911ms)
+│ ℹ tests 17
+│ ℹ suites 0
+│ ℹ pass 17
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 2710.873272
+└─ Done in 2.88 s
+
+>>> bun run --filter @polis/document-signing-service test
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ (node:3166272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ (node:3166272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166278) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ (node:3166272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166278) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ S3 artifact retrieval rejects bytes that do not match the stored hash (154.200201ms)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ (node:3166272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166278) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ S3 artifact retrieval rejects bytes that do not match the stored hash (154.200201ms)
+│ ✔ artifact store selection fails fast for incomplete S3 configuration (2.33357ms)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ (node:3166272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166278) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ S3 artifact retrieval rejects bytes that do not match the stored hash (154.200201ms)
+│ ✔ artifact store selection fails fast for incomplete S3 configuration (2.33357ms)
+│ (node:3166279) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ charter PDF is deterministic and orders object keys (171.438763ms)
+│ ✔ charter PDF transliterates Croatian Latin text readably (3.345761ms)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ [12 lines elided]
+│ ✔ charter PDF requires a mandate holder for signature placement (6.987988ms)
+│ (node:3166280) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ create uses raw authorization and multipart payload/files on the v2 endpoint (281.65676ms)
+│ ✔ distribute posts the envelope id then reads authoritative envelope state (4.316059ms)
+│ ✔ getEnvelope maps Documenso terminal and active states (8.23002ms)
+│ ✔ signed download uses exact endpoint and returns PDF bytes only after completion (16.435945ms)
+│ ✔ signed download rejects wrong MIME and declared or streamed oversize bodies (6.947127ms)
+│ ✔ non-2xx errors expose safe status/code and redact response secrets (2.085369ms)
+│ ✔ constructor rejects missing or invalid Documenso configuration (1.114461ms)
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ [49 lines elided]
+│ ✔ stub completion produces a distinct parseable PDF derivative (9.652818ms)
+│ ✔ stub provider rejects invalid lifecycle operations and unknown items (5.169542ms)
+│ ℹ tests 37
+│ ℹ suites 0
+│ ℹ pass 37
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3534.921222
+└─ Running...
+@polis/document-signing-service test $ node --test dist/**/*.test.js
+│ [49 lines elided]
+│ ✔ stub completion produces a distinct parseable PDF derivative (9.652818ms)
+│ ✔ stub provider rejects invalid lifecycle operations and unknown items (5.169542ms)
+│ ℹ tests 37
+│ ℹ suites 0
+│ ℹ pass 37
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3534.921222
+└─ Done in 3.75 s
+
+>>> bun run --filter @polis/db test
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ (node:3166479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [1 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [2 lines elided]
+│ (node:3166505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [3 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [4 lines elided]
+│ ✔ schema exports all private complaint tables (12.748908ms)
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [5 lines elided]
+│ ✔ complaint lifecycle values and checks are canonical (2.346847ms)
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+│ ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.559676ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [6 lines elided]
+│ ✔ complaint indexes enforce lookup and one-appeal contracts (2.089296ms)
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+│ ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.559676ms)
+│ ✔ checkDatabase reports a bounded safe timeout and closes the connection (101.709933ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [7 lines elided]
+│ ✔ complaint event data is non-null and defaults to an empty object (0.942981ms)
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+│ ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.559676ms)
+│ ✔ checkDatabase reports a bounded safe timeout and closes the connection (101.709933ms)
+│ ✔ inspectMigrationState reports an absent or latest Drizzle migration without mutation (6.206163ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [8 lines elided]
+│ (node:3166506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ schema exposes the app_meta baseline table (9.315598ms)
+│ ✔ getClient throws when no DATABASE_URL is provided (3.514125ms)
+│ ✔ checkDatabase requires a URL and a bounded integer timeout (6.085886ms)
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+│ ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.559676ms)
+│ ✔ checkDatabase reports a bounded safe timeout and closes the connection (101.709933ms)
+│ ✔ inspectMigrationState reports an absent or latest Drizzle migration without mutation (6.206163ms)
+│ ✔ inspectMigrationState fails closed and closes the connection (101.93423ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [13 lines elided]
+│ ✔ checkDatabase queries through a short-lived single connection (5.42521ms)
+│ ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (1.559676ms)
+│ ✔ checkDatabase reports a bounded safe timeout and closes the connection (101.709933ms)
+│ ✔ inspectMigrationState reports an absent or latest Drizzle migration without mutation (6.206163ms)
+│ ✔ inspectMigrationState fails closed and closes the connection (101.93423ms)
+│ (node:3166507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ migration 0013 does not reset accepted charters to pending (43.009571ms)
+│ (node:3166513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [17 lines elided]
+│ ✔ inspectMigrationState fails closed and closes the connection (101.93423ms)
+│ (node:3166507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ migration 0013 does not reset accepted charters to pending (43.009571ms)
+│ (node:3166513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [18 lines elided]
+│ (node:3166507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ migration 0013 does not reset accepted charters to pending (43.009571ms)
+│ (node:3166513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [19 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ migration 0013 does not reset accepted charters to pending (43.009571ms)
+│ (node:3166513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [20 lines elided]
+│ ✔ migration 0013 does not reset accepted charters to pending (43.009571ms)
+│ (node:3166513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [22 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [23 lines elided]
+│ ▶ governance v1 seed data
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+│ ℹ suites 1
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [24 lines elided]
+│   ✔ parses every required JSON file (121.063223ms)
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+│ ℹ suites 1
+│ ℹ pass 19
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [25 lines elided]
+│   ✔ meets the §34 municipal duplication scenario minimums (18.063593ms)
+│   ✔ uses only canonical relationship_type values (5.9844ms)
+│   ✔ contains a pending normalized charter and staff reviewer (10.594527ms)
+│   ✔ binds reviewer-demo to explicit demo-only contribution review authority (15.841662ms)
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+│ ℹ suites 1
+│ ℹ pass 19
+│ ℹ fail 0
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [29 lines elided]
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+│ ℹ suites 1
+│ ℹ pass 19
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3179.126681
+└─ Running...
+@polis/db test $ node --test dist/**/*.test.js
+│ [29 lines elided]
+│   ✔ separates complaint intake, initial decision, and appeal authority (12.390277ms)
+│ ✔ governance v1 seed data (196.010609ms)
+│ ℹ tests 19
+│ ℹ suites 1
+│ ℹ pass 19
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3179.126681
+└─ Done in 3.45 s
+
+>>> bun run --filter @polis/policy-rules test
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ (node:3166659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [1 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [2 lines elided]
+│ (node:3166666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [3 lines elided]
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [4 lines elided]
+│ ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (126.100936ms)
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [5 lines elided]
+│ ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (179.883861ms)
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [6 lines elided]
+│ ✔ vault access allows active, started, unexpired, unrevoked grant (46.152675ms)
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+│ ✔ contribute allow_review requires staff right and distinct reviewer (181.172922ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [7 lines elided]
+│ ✔ vault access denies future-dated grant (starts_at > now) (37.641553ms)
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+│ ✔ contribute allow_review requires staff right and distinct reviewer (181.172922ms)
+│ ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.597407ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [8 lines elided]
+│ ✔ vault access denies expired grant (42.623537ms)
+│ ✔ vault access denies revoked grant (34.335788ms)
+│ ✔ vault proof_only scope reports no_bytes guard (72.991883ms)
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+│ ✔ contribute allow_review requires staff right and distinct reviewer (181.172922ms)
+│ ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.597407ms)
+│ ✔ pilot redaction denies missing reason (M9 §30.10) (75.414669ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [11 lines elided]
+│ ✔ access allows the owner (73.828137ms)
+│ ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (144.510531ms)
+│ ✔ polis conversation creation requires service-level trust (M2 §13) (58.359705ms)
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+│ ✔ contribute allow_review requires staff right and distinct reviewer (181.172922ms)
+│ ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.597407ms)
+│ ✔ pilot redaction denies missing reason (M9 §30.10) (75.414669ms)
+│ ✔ pilot redaction denies partner-alone request (M9 §30.10) (44.707197ms)
+│ ✔ pilot redaction allows project governance with reason (M9 §30.10) (34.669427ms)
+│ ✔ representative access allows only verified active accepted in-scope officials (M-RA) (460.362219ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [14 lines elided]
+│ ✔ contribute allow_submit accepts only real verified session levels (231.447933ms)
+│ ✔ contribute allow_review requires staff right and distinct reviewer (181.172922ms)
+│ ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.597407ms)
+│ ✔ pilot redaction denies missing reason (M9 §30.10) (75.414669ms)
+│ ✔ pilot redaction denies partner-alone request (M9 §30.10) (44.707197ms)
+│ ✔ pilot redaction allows project governance with reason (M9 §30.10) (34.669427ms)
+│ ✔ representative access allows only verified active accepted in-scope officials (M-RA) (460.362219ms)
+│ ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (164.807334ms)
+│ ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (218.951362ms)
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [16 lines elided]
+│ ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (102.597407ms)
+│ ✔ pilot redaction denies missing reason (M9 §30.10) (75.414669ms)
+│ ✔ pilot redaction denies partner-alone request (M9 §30.10) (44.707197ms)
+│ ✔ pilot redaction allows project governance with reason (M9 §30.10) (34.669427ms)
+│ ✔ representative access allows only verified active accepted in-scope officials (M-RA) (460.362219ms)
+│ ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (164.807334ms)
+│ ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (218.951362ms)
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [19 lines elided]
+│ ✔ pilot redaction allows project governance with reason (M9 §30.10) (34.669427ms)
+│ ✔ representative access allows only verified active accepted in-scope officials (M-RA) (460.362219ms)
+│ ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (164.807334ms)
+│ ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (218.951362ms)
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [20 lines elided]
+│ ✔ representative access allows only verified active accepted in-scope officials (M-RA) (460.362219ms)
+│ ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (164.807334ms)
+│ ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (218.951362ms)
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [22 lines elided]
+│ ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (218.951362ms)
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [23 lines elided]
+│ ✔ representative overdue status is system-derived only (M-RA) (174.969484ms)
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [24 lines elided]
+│ ✔ identity access allows stub mode and oidc with verified email (M10) (99.043386ms)
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+│ ℹ cancelled 0
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [25 lines elided]
+│ ✔ complaints permits verified creation and owner reads but denies owner mismatch (106.282286ms)
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [26 lines elided]
+│ ✔ complaints staff reads require active in-jurisdiction decision authority (197.738967ms)
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [27 lines elided]
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3823.14085
+└─ Running...
+@polis/policy-rules test $ node --test test/*.test.mjs
+│ [27 lines elided]
+│ ✔ complaints assignment requires intake authority and a valid initial-decision target (176.928053ms)
+│ ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (311.000417ms)
+│ ℹ tests 25
+│ ℹ suites 0
+│ ℹ pass 25
+│ ℹ fail 0
+│ ℹ cancelled 0
+│ ℹ skipped 0
+│ ℹ todo 0
+│ ℹ duration_ms 3823.14085
+└─ Done in 4.03 s
+
+>>> bun run ops:test
+$ bash scripts/ops/test-backup-restore.sh
+bun test v1.3.14 (0d9b296a)
+
+scripts/ops/ops-contract.test.mjs:
+Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+      at warnOnDeactivatedColors (internal:tty:33:24)
+      at getColorDepth (internal:tty:42:39)
+      at shouldColorize (internal:util/colors:14:109)
+      at refresh (internal:util/colors:18:31)
+      at internal:util/colors (internal:util/colors:24:16)
+      at internal:assert/assertion_error (internal:assert/assertion_error:2:187)
+      at loadAssertionError (node:assert:28:96)
+
+✓ audit verifier accepts valid JSON and NDJSON chains [322.27ms]
+✓ audit verifier rejects recomputed hash tampering [171.70ms]
+✓ audit verifier rejects previous-hash gaps [147.42ms]
+✓ audit verifier rejects out-of-order records [128.05ms]
+✓ audit verifier rejects malformed and empty input unless explicitly allowed [274.60ms]
+✓ backup script is fail-closed and archives only named non-secret artifacts [22.93ms]
+✓ backup script classifies repositories and refuses unsafe inputs before PostgreSQL/restic [715.31ms]
+✓ backup script refuses a dirty release checkout before connecting to PostgreSQL [171.48ms]
+✓ backup script fails closed when Git cannot verify worktree status [150.45ms]
+✓ restore script gates destructive restore and verifies manifest, schema, counts, migrations, and audit [11.21ms]
+✓ restore script refuses destructive inputs before restic restore and pg_restore [4359.89ms]
+✓ restore script validates manifest v3 repository class before database actions [3191.03ms]
+✓ clean DB drill script is source-hardened and explicit-Docker only [9.47ms]
+✓ operator scripts contain no hard-coded credentials and are executable [1.04ms]
+✓ root package exposes all operator commands without replacing existing commands [0.51ms]
+
+ 15 pass
+ 0 fail
+Ran 15 tests across 1 file. [9.86s]
+{"ok":true,"sourceTests":true,"fixtureToolsExercised":false}
+
+>>> bun run service-catalog:check
+$ node scripts/service-catalog.mjs --check
+[service-catalog] 18 services valid; generated docs current
+
+>>> git diff --check
+
+>>> final identity
+head=d1ab6754b7350f4fde69339115b73f954766bf64
+status_lines=0
+log_sha256_pre_footer=2ba1f8ab60e544fa3d2dbcfacbd0b9826cea5eb98049b40196faa47915cfa183

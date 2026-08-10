@@ -1,0 +1,1339 @@
+validation_started_utc=2026-08-09T12:50:11Z
+base_head=f006ea5092244ff423de1655f603be6460065939
+bun_version=1.3.14
+node_version=v26.1.0
+changed_paths_begin
+ M .github/workflows/ci.yml
+ M GO_LIVE_READINESS.md
+ M apps/admin/package.json
+ M apps/vault/package.json
+ M apps/verifier/package.json
+ M apps/web/package.json
+ M bun.lock
+ M package.json
+ M packages/ui/package.json
+?? .gitleaksignore
+?? docs/operations/evidence/2026-08-09-task11-release-candidate-validation.log
+?? docs/operations/evidence/2026-08-09-task11-release-candidate-validation.md
+changed_paths_end
+
+=== frozen_install BEGIN ===
+[0.99ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 507 installs across 630 packages (no changes) [83.00ms]
+=== frozen_install PASS elapsed_seconds=0 ===
+
+=== build BEGIN ===
+$ bun run --filter @polis/domain build && bun run --filter @polis/db build && bun run --filter @polis/service-runtime build && bun run --filter @polis/policy-rules build && bun run --filter './services/*' --sequential --if-present build && bun run --filter './apps/*' --sequential --if-present build
+@polis/domain build $ node ../../node_modules/typescript/bin/tsc -p tsconfig.json
+└─ Done in 7.25 s
+@polis/db build $ tsc -p tsconfig.json
+└─ Done in 18.63 s
+@polis/service-runtime build $ node ../../node_modules/typescript/bin/tsc -p tsconfig.json
+└─ Done in 6.43 s
+@polis/policy-rules build $ opa check .
+└─ Done in 178 ms
+@polis/audit-service:build              | Done in 7.87s
+@polis/canonicalization-service:build   | Done in 7.81s
+@polis/citizen-identity-service:build   | Done in 7.68s
+@polis/citizen-vault-service:build      | Done in 6.43s
+@polis/complaints-service:build         | Done in 14.24s
+@polis/contribution-service:build       | Done in 12.24s
+@polis/document-ingestion-gateway:build | Done in 8.42s
+@polis/document-signing-service:build   | Done in 19.59s
+@polis/governance-graph-api:build       | Done in 11.13s
+@polis/paperless-adapter:build          | Done in 5.46s
+@polis/platform-api:build               | Done in 20.61s
+@polis/polis-bridge-service:build       | Done in 10.43s
+@polis/proof-service:build              | Done in 9.00s
+@polis/rewards-service:build            | Done in 4.61s
+@polis/signature-service:build          | Done in 7.41s
+@polis/timestamp-service:build          | Done in 10.42s
+@polis/vc-issuer-service:build          | Done in 9.41s
+@polis/apps-admin:build    | (node:3473487) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:build    | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:build    | 14:53:43 [vite] Re-optimizing dependencies because lockfile has changed
+@polis/apps-admin:build    | 14:53:44 [types] Generated 999ms
+@polis/apps-admin:build    | 14:53:44 [build] output: "static"
+@polis/apps-admin:build    | 14:53:44 [build] mode: "static"
+@polis/apps-admin:build    | 14:53:44 [build] directory: /home/ceii/dev/polis/apps/admin/dist/
+@polis/apps-admin:build    | 14:53:44 [build] Collecting build info...
+@polis/apps-admin:build    | 14:53:44 [build] ✓ Completed in 1.25s.
+@polis/apps-admin:build    | 14:53:44 [build] Building static entrypoints...
+@polis/apps-admin:build    | 14:53:46 [vite] ✓ built in 1.94s
+@polis/apps-admin:build    | 14:53:46 [vite] ✓ built in 111ms
+@polis/apps-admin:build    | 14:53:47 [build] Rearranging server assets...
+@polis/apps-admin:build    | 
+@polis/apps-admin:build    |  generating static routes 
+@polis/apps-admin:build    | 14:53:47   ├─ /assistant/index.html (+351ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /audit/index.html (+94ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /complaints/index.html (+165ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /contribute/index.html (+23ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /deliberate/index.html (+59ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /docs/index.html (+37ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /drafting/index.html (+58ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /governance/index.html (+27ms) 
+@polis/apps-admin:build    | 14:53:47   ├─ /login/index.html (+29ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /privacy/index.html (+80ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /review/index.html (+51ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /rewards/index.html (+36ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /security/index.html (+17ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /transparency/index.html (+25ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /verify/index.html (+23ms) 
+@polis/apps-admin:build    | 14:53:48   ├─ /index.html (+20ms) 
+@polis/apps-admin:build    | 14:53:48 ✓ Completed in 1.24s.
+@polis/apps-admin:build    | 
+@polis/apps-admin:build    | 14:53:48 [build] ✓ Completed in 3.60s.
+@polis/apps-admin:build    | 14:53:48 [build] 16 page(s) built in 4.90s
+@polis/apps-admin:build    | 14:53:48 [build] Complete!
+@polis/apps-admin:build    | Done in 11.57s
+@polis/apps-vault:build    | (node:3473999) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:build    | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:build    | 14:53:57 [vite] Re-optimizing dependencies because lockfile has changed
+@polis/apps-vault:build    | 14:53:58 [types] Generated 1.40s
+@polis/apps-vault:build    | 14:53:58 [build] output: "static"
+@polis/apps-vault:build    | 14:53:58 [build] mode: "static"
+@polis/apps-vault:build    | 14:53:58 [build] directory: /home/ceii/dev/polis/apps/vault/dist/
+@polis/apps-vault:build    | 14:53:58 [build] Collecting build info...
+@polis/apps-vault:build    | 14:53:58 [build] ✓ Completed in 1.96s.
+@polis/apps-vault:build    | 14:53:58 [build] Building static entrypoints...
+@polis/apps-vault:build    | 14:54:00 [vite] ✓ built in 2.24s
+@polis/apps-vault:build    | 14:54:01 [vite] ✓ built in 327ms
+@polis/apps-vault:build    | 14:54:01 [build] Rearranging server assets...
+@polis/apps-vault:build    | 
+@polis/apps-vault:build    |  generating static routes 
+@polis/apps-vault:build    | 14:54:01   ├─ /audit/index.html (+233ms) 
+@polis/apps-vault:build    | 14:54:01   ├─ /contribute/index.html (+86ms) 
+@polis/apps-vault:build    | 14:54:01   ├─ /deliberate/index.html (+80ms) 
+@polis/apps-vault:build    | 14:54:01   ├─ /docs/index.html (+110ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /documents/index.html (+51ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /governance/index.html (+59ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /grants/index.html (+39ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /privacy/index.html (+20ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /rewards/index.html (+28ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /security/index.html (+37ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /transparency/index.html (+21ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /verify/index.html (+18ms) 
+@polis/apps-vault:build    | 14:54:02   ├─ /index.html (+27ms) 
+@polis/apps-vault:build    | 14:54:02 ✓ Completed in 1.01s.
+@polis/apps-vault:build    | 
+@polis/apps-vault:build    | 14:54:02 [build] ✓ Completed in 3.96s.
+@polis/apps-vault:build    | 14:54:02 [build] 13 page(s) built in 5.95s
+@polis/apps-vault:build    | 14:54:02 [build] Complete!
+@polis/apps-vault:build    | Done in 14.01s
+@polis/apps-verifier:build | (node:3474567) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:build | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:build | 14:54:08 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-verifier:build | 14:54:09 [vite] Re-optimizing dependencies because lockfile has changed
+@polis/apps-verifier:build | 14:54:10 [vite] [optimizer] bundling dependencies...
+@polis/apps-verifier:build | 14:54:11 [types] Generated 2.60s
+@polis/apps-verifier:build | 14:54:11 [build] output: "server"
+@polis/apps-verifier:build | 14:54:11 [build] mode: "server"
+@polis/apps-verifier:build | 14:54:11 [build] directory: /home/ceii/dev/polis/apps/verifier/dist/
+@polis/apps-verifier:build | 14:54:11 [build] adapter: @astrojs/node
+@polis/apps-verifier:build | 14:54:11 [build] Collecting build info...
+@polis/apps-verifier:build | 14:54:11 [build] ✓ Completed in 2.97s.
+@polis/apps-verifier:build | 14:54:11 [build] Building server entrypoints...
+@polis/apps-verifier:build | 14:54:15 [vite] ✓ built in 3.45s
+@polis/apps-verifier:build | 14:54:19 [vite] ✓ built in 4.63s
+@polis/apps-verifier:build | 14:54:21 [vite] ✓ built in 1.15s
+@polis/apps-verifier:build | 14:54:21 [build] Rearranging server assets...
+@polis/apps-verifier:build | 14:54:21 [build] ✓ Completed in 10.09s.
+@polis/apps-verifier:build | 14:54:21 [build] Server built in 13.11s
+@polis/apps-verifier:build | 14:54:21 [build] Complete!
+@polis/apps-verifier:build | Done in 19.12s
+@polis/apps-web:build      | (node:3475308) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:build      | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:build      | 14:54:31 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-web:build      | 14:54:32 [vite] Re-optimizing dependencies because lockfile has changed
+@polis/apps-web:build      | 14:54:34 [vite] [optimizer] bundling dependencies...
+@polis/apps-web:build      | 14:54:34 [types] Generated 1.78s
+@polis/apps-web:build      | 14:54:34 [build] output: "server"
+@polis/apps-web:build      | 14:54:34 [build] mode: "server"
+@polis/apps-web:build      | 14:54:34 [build] directory: /home/ceii/dev/polis/apps/web/dist/
+@polis/apps-web:build      | 14:54:34 [build] adapter: @astrojs/node
+@polis/apps-web:build      | 14:54:34 [build] Collecting build info...
+@polis/apps-web:build      | 14:54:34 [build] ✓ Completed in 3.16s.
+@polis/apps-web:build      | 14:54:34 [build] Building server entrypoints...
+@polis/apps-web:build      | 14:54:35 [vite] ✓ built in 987ms
+@polis/apps-web:build      | 14:54:38 [vite] ✓ built in 3.33s
+@polis/apps-web:build      | 14:54:39 [vite] ✓ built in 640ms
+@polis/apps-web:build      | 14:54:39 [build] Rearranging server assets...
+@polis/apps-web:build      | 14:54:39 [build] ✓ Completed in 5.45s.
+@polis/apps-web:build      | 14:54:39 [build] Server built in 8.70s
+@polis/apps-web:build      | 14:54:39 [build] Complete!
+@polis/apps-web:build      | Done in 18.31s
+=== build PASS elapsed_seconds=268 ===
+
+=== typecheck BEGIN ===
+$ bun run --workspaces --sequential --if-present typecheck
+@polis/apps-admin:typecheck                 | (node:3476085) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:typecheck                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:typecheck                 | 14:54:50 [types] Generated 627ms
+@polis/apps-admin:typecheck                 | 14:54:50 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis/apps/admin...
+@polis/apps-admin:typecheck                 | Result (18 files): 
+@polis/apps-admin:typecheck                 | - 0 errors
+@polis/apps-admin:typecheck                 | - 0 warnings
+@polis/apps-admin:typecheck                 | - 0 hints
+@polis/apps-admin:typecheck                 | 
+@polis/apps-admin:typecheck                 | Done in 30.82s
+@polis/apps-vault:typecheck                 | (node:3477327) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:typecheck                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:typecheck                 | 14:55:17 [types] Generated 279ms
+@polis/apps-vault:typecheck                 | 14:55:17 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis/apps/vault...
+@polis/apps-vault:typecheck                 | Result (15 files): 
+@polis/apps-vault:typecheck                 | - 0 errors
+@polis/apps-vault:typecheck                 | - 0 warnings
+@polis/apps-vault:typecheck                 | - 0 hints
+@polis/apps-vault:typecheck                 | 
+@polis/apps-vault:typecheck                 | Done in 24.15s
+@polis/apps-verifier:typecheck              | (node:3478300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:typecheck              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:typecheck              | 14:55:42 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-verifier:typecheck              | 14:55:43 [types] Generated 677ms
+@polis/apps-verifier:typecheck              | 14:55:43 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis/apps/verifier...
+@polis/apps-verifier:typecheck              | Result (14 files): 
+@polis/apps-verifier:typecheck              | - 0 errors
+@polis/apps-verifier:typecheck              | - 0 warnings
+@polis/apps-verifier:typecheck              | - 0 hints
+@polis/apps-verifier:typecheck              | 
+@polis/apps-verifier:typecheck              | Done in 27.38s
+@polis/apps-web:typecheck                   | (node:3479162) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:typecheck                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:typecheck                   | 14:56:08 [@astrojs/node] Enabling sessions with filesystem storage
+@polis/apps-web:typecheck                   | 14:56:08 [types] Generated 317ms
+@polis/apps-web:typecheck                   | 14:56:08 [check] Getting diagnostics for Astro files in /home/ceii/dev/polis/apps/web...
+@polis/apps-web:typecheck                   | Result (41 files): 
+@polis/apps-web:typecheck                   | - 0 errors
+@polis/apps-web:typecheck                   | - 0 warnings
+@polis/apps-web:typecheck                   | - 0 hints
+@polis/apps-web:typecheck                   | 
+@polis/apps-web:typecheck                   | Done in 57.84s
+@polis/audit-service:typecheck              | Done in 1.78s
+@polis/canonicalization-service:typecheck   | Done in 1.72s
+@polis/citizen-identity-service:typecheck   | Done in 3.67s
+@polis/citizen-vault-service:typecheck      | Done in 2.52s
+@polis/complaints-service:typecheck         | Done in 2.49s
+@polis/contribution-service:typecheck       | Done in 2.73s
+@polis/db:typecheck                         | Done in 12.96s
+@polis/document-ingestion-gateway:typecheck | Done in 894ms
+@polis/document-signing-service:typecheck   | Done in 2.08s
+@polis/domain:typecheck                     | Done in 1.07s
+@polis/governance-graph-api:typecheck       | Done in 2.28s
+@polis/paperless-adapter:typecheck          | Done in 1.17s
+@polis/platform-api:typecheck               | Done in 1.32s
+@polis/policy-rules:typecheck               | Done in 176ms
+@polis/polis-bridge-service:typecheck       | Done in 1.39s
+@polis/proof-service:typecheck              | Done in 1.53s
+@polis/rewards-service:typecheck            | Done in 1.83s
+@polis/service-runtime:typecheck            | Done in 1.92s
+@polis/signature-service:typecheck          | Done in 2.12s
+@polis/timestamp-service:typecheck          | Done in 1.89s
+@polis/ui:typecheck                         | Done in 1.17s
+@polis/vc-issuer-service:typecheck          | Done in 1.46s
+=== typecheck PASS elapsed_seconds=191 ===
+
+=== test BEGIN ===
+$ bun run --workspaces --sequential --if-present test
+@polis/apps-admin:test                 | (node:3483215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | (node:3483240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ complaints workbench renders hostile queue/detail values as text and binds assignment (290.523686ms)
+@polis/apps-admin:test                 | ✔ complaints workbench explains the full staff status workflow (32.186332ms)
+@polis/apps-admin:test                 | (node:3483243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ admin has required v1 routes (71.964284ms)
+@polis/apps-admin:test                 | ✔ admin has drafting + login pages (16.057423ms)
+@polis/apps-admin:test                 | ✔ admin drafting exposes M-RA official surfaces (38.754943ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes official drafting once (25.894819ms)
+@polis/apps-admin:test                 | ✔ assistant traces are fetched by authenticated browser client only (27.978123ms)
+@polis/apps-admin:test                 | ✔ assistant traces explain staff-only authorization failures (5.132785ms)
+@polis/apps-admin:test                 | ✔ assistant traces render loading, empty, and API values text-safely (13.156854ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes the complaints workbench once beside review (9.723122ms)
+@polis/apps-admin:test                 | ✔ admin has a complaints workbench page (19.65981ms)
+@polis/apps-admin:test                 | (node:3483248) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ review queue renders malicious API values as text and binds decisions (88.529192ms)
+@polis/apps-admin:test                 | ℹ tests 12
+@polis/apps-admin:test                 | ℹ suites 0
+@polis/apps-admin:test                 | ℹ pass 12
+@polis/apps-admin:test                 | ℹ fail 0
+@polis/apps-admin:test                 | ℹ cancelled 0
+@polis/apps-admin:test                 | ℹ skipped 0
+@polis/apps-admin:test                 | ℹ todo 0
+@polis/apps-admin:test                 | ℹ duration_ms 1215.447404
+@polis/apps-admin:test                 | Done in 1.65s
+@polis/apps-vault:test                 | (node:3483298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:test                 | (node:3483305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:test                 | ✔ vault has required v1 routes (47.025859ms)
+@polis/apps-vault:test                 | ✔ vault documents renders malicious API values and errors as text (34.514596ms)
+@polis/apps-vault:test                 | ℹ tests 2
+@polis/apps-vault:test                 | ℹ suites 0
+@polis/apps-vault:test                 | ℹ pass 2
+@polis/apps-vault:test                 | ℹ fail 0
+@polis/apps-vault:test                 | ℹ cancelled 0
+@polis/apps-vault:test                 | ℹ skipped 0
+@polis/apps-vault:test                 | ℹ todo 0
+@polis/apps-vault:test                 | ℹ duration_ms 607.578312
+@polis/apps-vault:test                 | Done in 1.03s
+@polis/apps-verifier:test              | (node:3483337) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:test              | (node:3483366) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:test              | ✔ verifier has required v1 routes (43.812293ms)
+@polis/apps-verifier:test              | ✔ verifier verify page never uploads file bytes (spec §15.5) (13.87023ms)
+@polis/apps-verifier:test              | ✔ verifier proof page renders from the shared verdict engine (31.768426ms)
+@polis/apps-verifier:test              | ℹ tests 3
+@polis/apps-verifier:test              | ℹ suites 0
+@polis/apps-verifier:test              | ℹ pass 3
+@polis/apps-verifier:test              | ℹ fail 0
+@polis/apps-verifier:test              | ℹ cancelled 0
+@polis/apps-verifier:test              | ℹ skipped 0
+@polis/apps-verifier:test              | ℹ todo 0
+@polis/apps-verifier:test              | ℹ duration_ms 850.675632
+@polis/apps-verifier:test              | Done in 1.40s
+@polis/apps-web:test                   | (node:3483400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | (node:3483407) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | ✔ complaint detail renders hostile API values as text (130.181196ms)
+@polis/apps-web:test                   | (node:3483426) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | ✔ web has required phase 1 routes (107.103102ms)
+@polis/apps-web:test                   | ✔ web has trust-experience routes (23.684729ms)
+@polis/apps-web:test                   | ✔ resident complaints routes are client-fetched and linked from primary navigation (40.640254ms)
+@polis/apps-web:test                   | ✔ web verify page uses the client-side hashing flow (10.084742ms)
+@polis/apps-web:test                   | ✔ M-RA web surfaces carry accountability markers and trust links (25.34624ms)
+@polis/apps-web:test                   | ✔ mandate-holder detail scorecard counts deep-link to status evidence anchors (10.084968ms)
+@polis/apps-web:test                   | ✔ pilot demonstrator pages disclose their development-only status and resources (84.050339ms)
+@polis/apps-web:test                   | ℹ tests 8
+@polis/apps-web:test                   | ℹ suites 0
+@polis/apps-web:test                   | ℹ pass 8
+@polis/apps-web:test                   | ℹ fail 0
+@polis/apps-web:test                   | ℹ cancelled 0
+@polis/apps-web:test                   | ℹ skipped 0
+@polis/apps-web:test                   | ℹ todo 0
+@polis/apps-web:test                   | ℹ duration_ms 1432.903019
+@polis/apps-web:test                   | Done in 1.92s
+@polis/audit-service:test              | (node:3483501) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/audit-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/audit-service:test              | (node:3483507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/audit-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/audit-service:test              | ✔ audit-service readiness reports only database failures (18.864249ms)
+@polis/audit-service:test              | ✔ computeAuditHash hashes previous hash plus canonical event JSON (3.180224ms)
+@polis/audit-service:test              | ✔ buildCanonicalAuditEvent normalizes nullable fields and stable JSON (1.535769ms)
+@polis/audit-service:test              | ✔ auditRoutes exposes append and public target read paths (2.271935ms)
+@polis/audit-service:test              | ✔ audit-service rejects unauthenticated internal audit event requests (307.74281ms)
+@polis/audit-service:test              | ℹ tests 5
+@polis/audit-service:test              | ℹ suites 0
+@polis/audit-service:test              | ℹ pass 5
+@polis/audit-service:test              | ℹ fail 0
+@polis/audit-service:test              | ℹ cancelled 0
+@polis/audit-service:test              | ℹ skipped 0
+@polis/audit-service:test              | ℹ todo 0
+@polis/audit-service:test              | ℹ duration_ms 7001.104164
+@polis/audit-service:test              | Done in 7.42s
+@polis/canonicalization-service:test   | (node:3483752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/canonicalization-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/canonicalization-service:test   | (node:3483758) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/canonicalization-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/canonicalization-service:test   | ✔ canonicalization-service exposes §9.11 canonicalize route (14.369453ms)
+@polis/canonicalization-service:test   | ✔ same content yields the same hash bundle (75.524419ms)
+@polis/canonicalization-service:test   | ✔ manifestHash is deterministic across calls (16.997156ms)
+@polis/canonicalization-service:test   | ✔ different content yields a different originalFileHash (22.543819ms)
+@polis/canonicalization-service:test   | ✔ canonicalization-service rejects unauthenticated internal canonicalize requests (202.762826ms)
+@polis/canonicalization-service:test   | ℹ tests 5
+@polis/canonicalization-service:test   | ℹ suites 0
+@polis/canonicalization-service:test   | ℹ pass 5
+@polis/canonicalization-service:test   | ℹ fail 0
+@polis/canonicalization-service:test   | ℹ cancelled 0
+@polis/canonicalization-service:test   | ℹ skipped 0
+@polis/canonicalization-service:test   | ℹ todo 0
+@polis/canonicalization-service:test   | ℹ duration_ms 1294.941994
+@polis/canonicalization-service:test   | Done in 1.68s
+@polis/citizen-identity-service:test   | (node:3483814) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-identity-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-identity-service:test   | (node:3483842) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-identity-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-identity-service:test   | ✔ citizen-identity-service exposes §21 magic-link + M10 OIDC routes (11.962651ms)
+@polis/citizen-identity-service:test   | ✔ identity internal routes reject unauthenticated real HTTP requests (356.884745ms)
+@polis/citizen-identity-service:test   | ✔ magic-link audit request sends internal authentication (11.911645ms)
+@polis/citizen-identity-service:test   | ✔ missing internal token stays inside best-effort audit warning path (1.713516ms)
+@polis/citizen-identity-service:test   | ✖ direct startup rejects missing and weak identity HMAC keys (3086.767695ms)
+@polis/citizen-identity-service:test   | ✔ imported HMAC-dependent routes reject missing and weak keys (9.360951ms)
+@polis/citizen-identity-service:test   | ✔ explicit non-production stub exposes dev tokens without logging secrets (5.76132ms)
+@polis/citizen-identity-service:test   | ✔ production neither surfaces nor stores dev tokens when the flag is true (10.893991ms)
+@polis/citizen-identity-service:test   | ℹ tests 8
+@polis/citizen-identity-service:test   | ℹ suites 0
+@polis/citizen-identity-service:test   | ℹ pass 7
+@polis/citizen-identity-service:test   | ℹ fail 1
+@polis/citizen-identity-service:test   | ℹ cancelled 0
+@polis/citizen-identity-service:test   | ℹ skipped 0
+@polis/citizen-identity-service:test   | ℹ todo 0
+@polis/citizen-identity-service:test   | ℹ duration_ms 8258.863773
+@polis/citizen-identity-service:test   | 
+@polis/citizen-identity-service:test   | ✖ failing tests:
+@polis/citizen-identity-service:test   | 
+@polis/citizen-identity-service:test   | test at dist/index.test.js:194:1
+@polis/citizen-identity-service:test   | ✖ direct startup rejects missing and weak identity HMAC keys (3086.767695ms)
+@polis/citizen-identity-service:test   |   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /IDENTITY_HMAC_KEY must be set to at least 32 bytes/. Input:
+@polis/citizen-identity-service:test   |   
+@polis/citizen-identity-service:test   |   ''
+@polis/citizen-identity-service:test   |   
+@polis/citizen-identity-service:test   |       at TestContext.<anonymous> (file:///home/ceii/dev/polis/services/citizen-identity-service/dist/index.test.js:198:16)
+@polis/citizen-identity-service:test   |       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+@polis/citizen-identity-service:test   |       at async Test.run (node:internal/test_runner/test:1313:7)
+@polis/citizen-identity-service:test   |       at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+@polis/citizen-identity-service:test   |     generatedMessage: true,
+@polis/citizen-identity-service:test   |     code: 'ERR_ASSERTION',
+@polis/citizen-identity-service:test   |     actual: '',
+@polis/citizen-identity-service:test   |     expected: /IDENTITY_HMAC_KEY must be set to at least 32 bytes/,
+@polis/citizen-identity-service:test   |     operator: 'match',
+@polis/citizen-identity-service:test   |     diff: 'simple'
+@polis/citizen-identity-service:test   |   }
+@polis/citizen-identity-service:test   | Exited with code 1
+error: script "test" exited with code 1
+
+validation_resumed_utc=2026-08-09T13:00:10Z
+correction=identity direct-startup fail-closed assertion timed out at 3 seconds under load; timeout raised to 10 seconds; production code unchanged
+
+=== identity_build BEGIN ===
+@polis/citizen-identity-service build $ tsc -p tsconfig.json
+└─ Done in 12.81 s
+=== identity_build PASS elapsed_seconds=13 ===
+
+=== test BEGIN ===
+$ bun run --workspaces --sequential --if-present test
+@polis/apps-admin:test                 | (node:3488640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | (node:3488647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ complaints workbench renders hostile queue/detail values as text and binds assignment (153.899047ms)
+@polis/apps-admin:test                 | ✔ complaints workbench explains the full staff status workflow (10.9987ms)
+@polis/apps-admin:test                 | (node:3488648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ admin has required v1 routes (33.823359ms)
+@polis/apps-admin:test                 | ✔ admin has drafting + login pages (15.559995ms)
+@polis/apps-admin:test                 | ✔ admin drafting exposes M-RA official surfaces (14.021673ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes official drafting once (9.23837ms)
+@polis/apps-admin:test                 | ✔ assistant traces are fetched by authenticated browser client only (11.111906ms)
+@polis/apps-admin:test                 | ✔ assistant traces explain staff-only authorization failures (4.11148ms)
+@polis/apps-admin:test                 | ✔ assistant traces render loading, empty, and API values text-safely (4.306635ms)
+@polis/apps-admin:test                 | ✔ admin nav exposes the complaints workbench once beside review (4.686924ms)
+@polis/apps-admin:test                 | ✔ admin has a complaints workbench page (5.981184ms)
+@polis/apps-admin:test                 | (node:3488649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-admin:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-admin:test                 | ✔ review queue renders malicious API values as text and binds decisions (38.050744ms)
+@polis/apps-admin:test                 | ℹ tests 12
+@polis/apps-admin:test                 | ℹ suites 0
+@polis/apps-admin:test                 | ℹ pass 12
+@polis/apps-admin:test                 | ℹ fail 0
+@polis/apps-admin:test                 | ℹ cancelled 0
+@polis/apps-admin:test                 | ℹ skipped 0
+@polis/apps-admin:test                 | ℹ todo 0
+@polis/apps-admin:test                 | ℹ duration_ms 563.591143
+@polis/apps-admin:test                 | Done in 756ms
+@polis/apps-vault:test                 | (node:3488695) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:test                 | (node:3488708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-vault:test                 | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-vault:test                 | ✔ vault has required v1 routes (101.744618ms)
+@polis/apps-vault:test                 | ✔ vault documents renders malicious API values and errors as text (31.915129ms)
+@polis/apps-vault:test                 | ℹ tests 2
+@polis/apps-vault:test                 | ℹ suites 0
+@polis/apps-vault:test                 | ℹ pass 2
+@polis/apps-vault:test                 | ℹ fail 0
+@polis/apps-vault:test                 | ℹ cancelled 0
+@polis/apps-vault:test                 | ℹ skipped 0
+@polis/apps-vault:test                 | ℹ todo 0
+@polis/apps-vault:test                 | ℹ duration_ms 926.831508
+@polis/apps-vault:test                 | Done in 1.19s
+@polis/apps-verifier:test              | (node:3488769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:test              | (node:3488783) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-verifier:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-verifier:test              | ✔ verifier has required v1 routes (40.297241ms)
+@polis/apps-verifier:test              | ✔ verifier verify page never uploads file bytes (spec §15.5) (6.452998ms)
+@polis/apps-verifier:test              | ✔ verifier proof page renders from the shared verdict engine (13.959276ms)
+@polis/apps-verifier:test              | ℹ tests 3
+@polis/apps-verifier:test              | ℹ suites 0
+@polis/apps-verifier:test              | ℹ pass 3
+@polis/apps-verifier:test              | ℹ fail 0
+@polis/apps-verifier:test              | ℹ cancelled 0
+@polis/apps-verifier:test              | ℹ skipped 0
+@polis/apps-verifier:test              | ℹ todo 0
+@polis/apps-verifier:test              | ℹ duration_ms 563.618809
+@polis/apps-verifier:test              | Done in 982ms
+@polis/apps-web:test                   | (node:3488795) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | (node:3488823) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | ✔ complaint detail renders hostile API values as text (50.078657ms)
+@polis/apps-web:test                   | (node:3488830) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/apps-web:test                   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/apps-web:test                   | ✔ web has required phase 1 routes (39.112705ms)
+@polis/apps-web:test                   | ✔ web has trust-experience routes (7.482189ms)
+@polis/apps-web:test                   | ✔ resident complaints routes are client-fetched and linked from primary navigation (15.388626ms)
+@polis/apps-web:test                   | ✔ web verify page uses the client-side hashing flow (3.618678ms)
+@polis/apps-web:test                   | ✔ M-RA web surfaces carry accountability markers and trust links (8.883719ms)
+@polis/apps-web:test                   | ✔ mandate-holder detail scorecard counts deep-link to status evidence anchors (5.018817ms)
+@polis/apps-web:test                   | ✔ pilot demonstrator pages disclose their development-only status and resources (34.811062ms)
+@polis/apps-web:test                   | ℹ tests 8
+@polis/apps-web:test                   | ℹ suites 0
+@polis/apps-web:test                   | ℹ pass 8
+@polis/apps-web:test                   | ℹ fail 0
+@polis/apps-web:test                   | ℹ cancelled 0
+@polis/apps-web:test                   | ℹ skipped 0
+@polis/apps-web:test                   | ℹ todo 0
+@polis/apps-web:test                   | ℹ duration_ms 638.771131
+@polis/apps-web:test                   | Done in 1.00s
+@polis/audit-service:test              | (node:3488864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/audit-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/audit-service:test              | (node:3488872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/audit-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/audit-service:test              | ✔ audit-service readiness reports only database failures (5.574099ms)
+@polis/audit-service:test              | ✔ computeAuditHash hashes previous hash plus canonical event JSON (2.043056ms)
+@polis/audit-service:test              | ✔ buildCanonicalAuditEvent normalizes nullable fields and stable JSON (0.994491ms)
+@polis/audit-service:test              | ✔ auditRoutes exposes append and public target read paths (1.131194ms)
+@polis/audit-service:test              | ✔ audit-service rejects unauthenticated internal audit event requests (159.881962ms)
+@polis/audit-service:test              | ℹ tests 5
+@polis/audit-service:test              | ℹ suites 0
+@polis/audit-service:test              | ℹ pass 5
+@polis/audit-service:test              | ℹ fail 0
+@polis/audit-service:test              | ℹ cancelled 0
+@polis/audit-service:test              | ℹ skipped 0
+@polis/audit-service:test              | ℹ todo 0
+@polis/audit-service:test              | ℹ duration_ms 3438.248548
+@polis/audit-service:test              | Done in 3.71s
+@polis/canonicalization-service:test   | (node:3489002) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/canonicalization-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/canonicalization-service:test   | (node:3489027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/canonicalization-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/canonicalization-service:test   | ✔ canonicalization-service exposes §9.11 canonicalize route (10.090753ms)
+@polis/canonicalization-service:test   | ✔ same content yields the same hash bundle (67.795214ms)
+@polis/canonicalization-service:test   | ✔ manifestHash is deterministic across calls (19.520064ms)
+@polis/canonicalization-service:test   | ✔ different content yields a different originalFileHash (14.903327ms)
+@polis/canonicalization-service:test   | ✔ canonicalization-service rejects unauthenticated internal canonicalize requests (246.76527ms)
+@polis/canonicalization-service:test   | ℹ tests 5
+@polis/canonicalization-service:test   | ℹ suites 0
+@polis/canonicalization-service:test   | ℹ pass 5
+@polis/canonicalization-service:test   | ℹ fail 0
+@polis/canonicalization-service:test   | ℹ cancelled 0
+@polis/canonicalization-service:test   | ℹ skipped 0
+@polis/canonicalization-service:test   | ℹ todo 0
+@polis/canonicalization-service:test   | ℹ duration_ms 984.72188
+@polis/canonicalization-service:test   | Done in 1.22s
+@polis/citizen-identity-service:test   | (node:3489062) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-identity-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-identity-service:test   | (node:3489097) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-identity-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-identity-service:test   | ✔ citizen-identity-service exposes §21 magic-link + M10 OIDC routes (5.597386ms)
+@polis/citizen-identity-service:test   | ✔ identity internal routes reject unauthenticated real HTTP requests (121.140632ms)
+@polis/citizen-identity-service:test   | ✔ magic-link audit request sends internal authentication (5.214931ms)
+@polis/citizen-identity-service:test   | ✔ missing internal token stays inside best-effort audit warning path (1.826481ms)
+@polis/citizen-identity-service:test   | ✔ direct startup rejects missing and weak identity HMAC keys (4638.062788ms)
+@polis/citizen-identity-service:test   | ✔ imported HMAC-dependent routes reject missing and weak keys (3.762399ms)
+@polis/citizen-identity-service:test   | ✔ explicit non-production stub exposes dev tokens without logging secrets (2.501198ms)
+@polis/citizen-identity-service:test   | ✔ production neither surfaces nor stores dev tokens when the flag is true (2.230848ms)
+@polis/citizen-identity-service:test   | ℹ tests 8
+@polis/citizen-identity-service:test   | ℹ suites 0
+@polis/citizen-identity-service:test   | ℹ pass 8
+@polis/citizen-identity-service:test   | ℹ fail 0
+@polis/citizen-identity-service:test   | ℹ cancelled 0
+@polis/citizen-identity-service:test   | ℹ skipped 0
+@polis/citizen-identity-service:test   | ℹ todo 0
+@polis/citizen-identity-service:test   | ℹ duration_ms 8338.823196
+@polis/citizen-identity-service:test   | Done in 8.57s
+@polis/citizen-vault-service:test      | (node:3489383) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-vault-service:test      | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-vault-service:test      | (node:3489411) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/citizen-vault-service:test      | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/citizen-vault-service:test      | ✔ citizen-vault-service exposes operational and vault routes (5.447293ms)
+@polis/citizen-vault-service:test      | {"service":"citizen-vault-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/citizen-vault-service:test      | {"service":"citizen-vault-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/citizen-vault-service:test      | ✔ citizen-vault-service guards internal routes while operational routes stay open (273.48996ms)
+@polis/citizen-vault-service:test      | ✔ vault proof_only verification never returns document content fields (8.483135ms)
+@polis/citizen-vault-service:test      | ✔ vault metadata verification never returns document content fields (3.196965ms)
+@polis/citizen-vault-service:test      | ℹ tests 4
+@polis/citizen-vault-service:test      | ℹ suites 0
+@polis/citizen-vault-service:test      | ℹ pass 4
+@polis/citizen-vault-service:test      | ℹ fail 0
+@polis/citizen-vault-service:test      | ℹ cancelled 0
+@polis/citizen-vault-service:test      | ℹ skipped 0
+@polis/citizen-vault-service:test      | ℹ todo 0
+@polis/citizen-vault-service:test      | ℹ duration_ms 2698.381763
+@polis/citizen-vault-service:test      | Done in 2.88s
+@polis/complaints-service:test         | (node:3489503) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/complaints-service:test         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/complaints-service:test         | (node:3489530) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/complaints-service:test         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/complaints-service:test         | ✔ complaints-service exposes exactly the required routes in safe order (19.090307ms)
+@polis/complaints-service:test         | ✔ complaint internal HTTP routes reject a missing service token (208.548626ms)
+@polis/complaints-service:test         | ✔ complaints-service readiness reports only database failures (2.489227ms)
+@polis/complaints-service:test         | ✔ complaint transition matrix permits only schema lifecycle edges (0.949503ms)
+@polis/complaints-service:test         | ✔ serializers expose private case content only in detail and strip internal ownership metadata (1.581874ms)
+@polis/complaints-service:test         | ✔ resident creation fixes ownership and scope from trusted headers and keeps audit/event payloads safe (28.912535ms)
+@polis/complaints-service:test         | ✔ creation rejects unverified actors and bounded-text violations before a transaction (2.545715ms)
+@polis/complaints-service:test         | ✔ detail enforces resident ownership and denies plain staff without an active reader binding (3.712414ms)
+@polis/complaints-service:test         | ✔ queue access accepts decision, intake, and evidence reader rights in the fixed jurisdiction (12.495056ms)
+@polis/complaints-service:test         | ✔ detail access accepts intake and evidence reader rights in the fixed jurisdiction (8.617401ms)
+@polis/complaints-service:test         | ✔ assignment validates intake authority, target role, and jurisdiction inside one transaction (20.822292ms)
+@polis/complaints-service:test         | ✔ information requests require the right, allow only one unanswered request, and never audit the question (11.228738ms)
+@polis/complaints-service:test         | ✔ information response requires the owning resident and preserves the assigned holder (10.818271ms)
+@polis/complaints-service:test         | ✔ initial decision requires assignment, no pending request, one decision, and the assigned authorized holder (42.782483ms)
+@polis/complaints-service:test         | ✔ appeal requires ownership, an initial decision, and no existing appeal (9.795867ms)
+@polis/complaints-service:test         | ✔ appeal decision enforces distinct citizen and holder and closes the case atomically (20.723137ms)
+@polis/complaints-service:test         | ✔ direct close requires the assigned initial decider, an initial decision, and no appeal (2.799383ms)
+@polis/complaints-service:test         | ℹ tests 17
+@polis/complaints-service:test         | ℹ suites 0
+@polis/complaints-service:test         | ℹ pass 17
+@polis/complaints-service:test         | ℹ fail 0
+@polis/complaints-service:test         | ℹ cancelled 0
+@polis/complaints-service:test         | ℹ skipped 0
+@polis/complaints-service:test         | ℹ todo 0
+@polis/complaints-service:test         | ℹ duration_ms 6049.31175
+@polis/complaints-service:test         | Done in 6.37s
+@polis/contribution-service:test       | (node:3489728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/contribution-service:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/contribution-service:test       | (node:3489736) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/contribution-service:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/contribution-service:test       | ✔ contribution-service exposes §19 contribution + M-RA filing routes (22.587797ms)
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-emit","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"INTERNAL_API_TOKEN is required"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+@polis/contribution-service:test       | ✔ contribution internal routes reject unauthenticated HTTP requests (369.43302ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects wrong-kind signed artifact (12.757525ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects revoked charter proof (3.033569ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects superseded charter proof (1.855704ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects unknown-registry charter proof (2.80429ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects direct terminal status instead of self-adjudicating (1.744015ms)
+@polis/contribution-service:test       | ✔ commitment filing denies an accepted charter without signing evidence (3.352384ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects non-covering charter scope before inserts (13.833015ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects missing charter scope (24.164094ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects null charter scope (1.752843ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed charter scope (7.085926ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed entry charter scope (21.701342ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects malformed legacy scope without requested scope (4.113463ms)
+@polis/contribution-service:test       | ✔ commitment filing allows covering charter scope (6.120936ms)
+@polis/contribution-service:test       | ✔ commitment filing persists restricted evidence with restricted default visibility (8.314056ms)
+@polis/contribution-service:test       | ✔ commitment filing rejects requested jurisdiction when object scope omits jurisdictions array (3.014887ms)
+@polis/contribution-service:test       | ✔ resolution filing records requested terminal status as a pending claim only (5.42358ms)
+@polis/contribution-service:test       | ✔ transactional representative gate rejects a stale earlier allowed view (2.340768ms)
+@polis/contribution-service:test       | ✔ representative authorization audit failures return 503 without mutation (4.009301ms)
+@polis/contribution-service:test       | ✔ representative completion audit failures roll back every staged mutation (12.33271ms)
+@polis/contribution-service:test       | ✔ representative writes audit authorization then staged completion with bound actor (18.794365ms)
+@polis/contribution-service:test       | ✔ submission handlers require trusted actors and reject caller contributor authority (2.203695ms)
+@polis/contribution-service:test       | ✔ trusted evidence and graph-edit submissions bind the verified citizen after audit (17.35101ms)
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"outbound request timed out after 5000ms"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"completion audit offline"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit-service returned 503"}
+@polis/contribution-service:test       | {"service":"contribution-service","stage":"audit-required","warning":"audit offline"}
+@polis/contribution-service:test       | ✔ required submission audit failures return 503 with zero DB mutation (5022.185366ms)
+@polis/contribution-service:test       | ✔ submission completion audit failures roll back every staged mutation (8.582102ms)
+@polis/contribution-service:test       | ✔ review completion audit failure rolls back review and status update (22.703548ms)
+@polis/contribution-service:test       | ✔ approved review completion audit failure rolls back successful apply mutations (11.926735ms)
+@polis/contribution-service:test       | ✔ review apply failure rolls back the decision and all apply mutations (4.979813ms)
+@polis/contribution-service:test       | ✔ review queue requires staff with a current review_contribution binding (6.707057ms)
+@polis/contribution-service:test       | ✔ review decide rejects body authority and self-review before audit or mutation (3.745398ms)
+@polis/contribution-service:test       | ✔ review decide returns existing conflict when the pending claim loses the race (6.801197ms)
+@polis/contribution-service:test       | ✔ review decide rechecks authority and self-review inside the transaction (3.378805ms)
+@polis/contribution-service:test       | ✔ review audit failure returns 503 and distinct authorized reviewer can decide (5.855603ms)
+@polis/contribution-service:test       | ✔ approved resolution review marks the referenced claim approved before status event is exposed (8.731534ms)
+@polis/contribution-service:test       | ℹ tests 35
+@polis/contribution-service:test       | ℹ suites 0
+@polis/contribution-service:test       | ℹ pass 35
+@polis/contribution-service:test       | ℹ fail 0
+@polis/contribution-service:test       | ℹ cancelled 0
+@polis/contribution-service:test       | ℹ skipped 0
+@polis/contribution-service:test       | ℹ todo 0
+@polis/contribution-service:test       | ℹ duration_ms 10545.183537
+@polis/contribution-service:test       | Done in 10.92s
+@polis/db:test                         | (node:3490154) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/db:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/db:test                         | (node:3490200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/db:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/db:test                         | ✔ schema exports all private complaint tables (12.404768ms)
+@polis/db:test                         | ✔ complaint lifecycle values and checks are canonical (5.255214ms)
+@polis/db:test                         | ✔ complaint indexes enforce lookup and one-appeal contracts (3.021723ms)
+@polis/db:test                         | ✔ complaint event data is non-null and defaults to an empty object (2.716132ms)
+@polis/db:test                         | (node:3490203) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/db:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/db:test                         | ✔ schema exposes the app_meta baseline table (6.961829ms)
+@polis/db:test                         | ✔ getClient throws when no DATABASE_URL is provided (3.936224ms)
+@polis/db:test                         | ✔ checkDatabase requires a URL and a bounded integer timeout (3.316523ms)
+@polis/db:test                         | ✔ checkDatabase queries through a short-lived single connection (28.068075ms)
+@polis/db:test                         | ✔ checkDatabase fails closed, sanitizes failures, and closes the connection (8.710356ms)
+@polis/db:test                         | ✔ checkDatabase reports a bounded safe timeout and closes the connection (102.849418ms)
+@polis/db:test                         | ✔ inspectMigrationState reports an absent or latest Drizzle migration without mutation (7.53982ms)
+@polis/db:test                         | ✔ inspectMigrationState fails closed and closes the connection (107.714507ms)
+@polis/db:test                         | (node:3490204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/db:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/db:test                         | ✔ migration 0013 does not reset accepted charters to pending (48.638336ms)
+@polis/db:test                         | (node:3490215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/db:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/db:test                         | ▶ governance v1 seed data
+@polis/db:test                         |   ✔ parses every required JSON file (160.048452ms)
+@polis/db:test                         |   ✔ meets the §34 municipal duplication scenario minimums (18.434609ms)
+@polis/db:test                         |   ✔ uses only canonical relationship_type values (8.838417ms)
+@polis/db:test                         |   ✔ contains a pending normalized charter and staff reviewer (12.072247ms)
+@polis/db:test                         |   ✔ binds reviewer-demo to explicit demo-only contribution review authority (11.062464ms)
+@polis/db:test                         |   ✔ separates complaint intake, initial decision, and appeal authority (17.064066ms)
+@polis/db:test                         | ✔ governance v1 seed data (236.222926ms)
+@polis/db:test                         | ℹ tests 19
+@polis/db:test                         | ℹ suites 1
+@polis/db:test                         | ℹ pass 19
+@polis/db:test                         | ℹ fail 0
+@polis/db:test                         | ℹ cancelled 0
+@polis/db:test                         | ℹ skipped 0
+@polis/db:test                         | ℹ todo 0
+@polis/db:test                         | ℹ duration_ms 5360.436132
+@polis/db:test                         | Done in 5.72s
+@polis/document-ingestion-gateway:test | (node:3490380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-ingestion-gateway:test | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-ingestion-gateway:test | (node:3490405) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-ingestion-gateway:test | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-ingestion-gateway:test | ✔ document-ingestion-gateway exposes §14.3 ingestion route (14.750786ms)
+@polis/document-ingestion-gateway:test | ✔ missing contentBase64 returns 400 missing_content (2.030435ms)
+@polis/document-ingestion-gateway:test | ✔ orchestrates paperless → canonicalization → proof and returns the manifest (32.176482ms)
+@polis/document-ingestion-gateway:test | ✔ rejects invalid ingestion input before any upstream call (3.631347ms)
+@polis/document-ingestion-gateway:test | ✔ document-ingestion-gateway rejects unauthenticated internal HTTP calls (239.484237ms)
+@polis/document-ingestion-gateway:test | ℹ tests 5
+@polis/document-ingestion-gateway:test | ℹ suites 0
+@polis/document-ingestion-gateway:test | ℹ pass 5
+@polis/document-ingestion-gateway:test | ℹ fail 0
+@polis/document-ingestion-gateway:test | ℹ cancelled 0
+@polis/document-ingestion-gateway:test | ℹ skipped 0
+@polis/document-ingestion-gateway:test | ℹ todo 0
+@polis/document-ingestion-gateway:test | ℹ duration_ms 1062.944036
+@polis/document-ingestion-gateway:test | Done in 1.41s
+@polis/document-signing-service:test   | (node:3490416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | (node:3490466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ S3 artifact retrieval rejects bytes that do not match the stored hash (133.640587ms)
+@polis/document-signing-service:test   | ✔ artifact store selection fails fast for incomplete S3 configuration (2.126056ms)
+@polis/document-signing-service:test   | (node:3490467) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ charter PDF is deterministic and orders object keys (161.626102ms)
+@polis/document-signing-service:test   | ✔ charter PDF transliterates Croatian Latin text readably (14.945357ms)
+@polis/document-signing-service:test   | ✔ charter PDF has valid xref offsets and trailer position (10.994902ms)
+@polis/document-signing-service:test   | ✔ charter PDF wraps across pages and exports final-page signature fields (23.287482ms)
+@polis/document-signing-service:test   | ✔ charter PDF requires a mandate holder for signature placement (6.608796ms)
+@polis/document-signing-service:test   | (node:3490473) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ create uses raw authorization and multipart payload/files on the v2 endpoint (364.708414ms)
+@polis/document-signing-service:test   | ✔ distribute posts the envelope id then reads authoritative envelope state (5.279355ms)
+@polis/document-signing-service:test   | ✔ getEnvelope maps Documenso terminal and active states (39.667832ms)
+@polis/document-signing-service:test   | ✔ signed download uses exact endpoint and returns PDF bytes only after completion (14.470579ms)
+@polis/document-signing-service:test   | ✔ signed download rejects wrong MIME and declared or streamed oversize bodies (16.368942ms)
+@polis/document-signing-service:test   | ✔ non-2xx errors expose safe status/code and redact response secrets (6.213742ms)
+@polis/document-signing-service:test   | ✔ constructor rejects missing or invalid Documenso configuration (4.299958ms)
+@polis/document-signing-service:test   | (node:3490479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ route table exposes the complete internal signing surface (7.741207ms)
+@polis/document-signing-service:test   | ✔ documenso provider mode fails when any required configuration is missing (5.06331ms)
+@polis/document-signing-service:test   | ✔ proof registration sends exact service provenance and requires active proof (39.740777ms)
+@polis/document-signing-service:test   | ✔ stub completion rejects a citizen who is not the signing recipient (6.554121ms)
+@polis/document-signing-service:test   | ✔ webhook secret mismatch makes no repository state change (2.737592ms)
+@polis/document-signing-service:test   | ✔ production stub mode omits the completion route unless explicitly allowed (1.733987ms)
+@polis/document-signing-service:test   | ✔ signing status is limited to the owner or staff (8.233865ms)
+@polis/document-signing-service:test   | ✔ artifact download verifies stored bytes against artifact metadata (2.720515ms)
+@polis/document-signing-service:test   | ✔ reconciliation failures persist and stop at the configured attempt cap (3.075558ms)
+@polis/document-signing-service:test   | (node:3490480) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ stub charter flow finalizes once and preserves exact signed bytes (122.314567ms)
+@polis/document-signing-service:test   | ✔ webhook receipts deduplicate and never override authoritative pending state (8.400207ms)
+@polis/document-signing-service:test   | ✔ stale observations cannot regress a completed request (5.695109ms)
+@polis/document-signing-service:test   | ✔ storage failure leaves completion retryable (13.446428ms)
+@polis/document-signing-service:test   | ✔ non-owner cannot initiate charter signing (1.709385ms)
+@polis/document-signing-service:test   | ✔ same idempotency key cannot cross mandate-holder boundaries (6.377215ms)
+@polis/document-signing-service:test   | ✔ retry after a terminal outcome reuses the unsigned artifact (5.939045ms)
+@polis/document-signing-service:test   | ✔ concurrent reconciliation registers one proof and one terminal event pair (7.175242ms)
+@polis/document-signing-service:test   | ✔ webhook receipts associate known envelopes and cap unresolved events (4.197865ms)
+@polis/document-signing-service:test   | ✔ concurrent unresolved webhook receipts cannot exceed the cap (4.427423ms)
+@polis/document-signing-service:test   | ✔ accepted charter guard emits one acceptance across competing requests (1.60974ms)
+@polis/document-signing-service:test   | (node:3490486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/document-signing-service:test   | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/document-signing-service:test   | ✔ stub provider implements deterministic draft and distribution lifecycle (35.127768ms)
+@polis/document-signing-service:test   | ✔ stub completion produces a distinct parseable PDF derivative (20.110784ms)
+@polis/document-signing-service:test   | ✔ stub provider rejects invalid lifecycle operations and unknown items (8.973357ms)
+@polis/document-signing-service:test   | ℹ tests 37
+@polis/document-signing-service:test   | ℹ suites 0
+@polis/document-signing-service:test   | ℹ pass 37
+@polis/document-signing-service:test   | ℹ fail 0
+@polis/document-signing-service:test   | ℹ cancelled 0
+@polis/document-signing-service:test   | ℹ skipped 0
+@polis/document-signing-service:test   | ℹ todo 0
+@polis/document-signing-service:test   | ℹ duration_ms 6080.508322
+@polis/document-signing-service:test   | Done in 6.96s
+@polis/domain:test                     | (node:3490701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/domain:test                     | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/domain:test                     | (node:3490748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/domain:test                     | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/domain:test                     | ✔ proof manifests verify matching active hashes only (53.419458ms)
+@polis/domain:test                     | ✔ assessment scores stay bounded (1.394703ms)
+@polis/domain:test                     | ✔ charter signing summary contains public-safe proof metadata only (4.029989ms)
+@polis/domain:test                     | ✔ complaint constants define the complete lifecycle contract (0.828154ms)
+@polis/domain:test                     | ✔ complaint wire shapes expose case data without internal identifiers (5.184126ms)
+@polis/domain:test                     | (node:3490749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/domain:test                     | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/domain:test                     | ✔ not_found when proof is null (12.478357ms)
+@polis/domain:test                     | ✔ not_found when apiStatus is not_found even with proof object (1.157834ms)
+@polis/domain:test                     | ✔ private_or_restricted for private proofVisibility (0.908567ms)
+@polis/domain:test                     | ✔ private_or_restricted for commitment_only proofVisibility (0.787264ms)
+@polis/domain:test                     | ✔ private_or_restricted for sealed registryStatus (1.041691ms)
+@polis/domain:test                     | ✔ restricted precedence: never leaks failure details (§15.9) (1.080024ms)
+@polis/domain:test                     | ✔ integrity_failure when computed hash matches neither original nor canonical hash (2.48868ms)
+@polis/domain:test                     | ✔ hash match against originalFileHash passes, case/whitespace-insensitive (1.195598ms)
+@polis/domain:test                     | ✔ hash match against canonicalPdfHash passes (1.010474ms)
+@polis/domain:test                     | ✔ signature_invalid when any signature is invalid (1.401143ms)
+@polis/domain:test                     | ✔ timestamp_invalid when any timestamp is invalid (1.288884ms)
+@polis/domain:test                     | ✔ signature_invalid takes precedence over timestamp_invalid and revoked (1.787978ms)
+@polis/domain:test                     | ✔ integrity_failure takes precedence over signature_invalid (5.423327ms)
+@polis/domain:test                     | ✔ revoked registryStatus (0.952762ms)
+@polis/domain:test                     | ✔ valid_but_expired registryStatus (0.947823ms)
+@polis/domain:test                     | ✔ valid_but_superseded via registryStatus (1.461351ms)
+@polis/domain:test                     | ✔ valid_but_superseded via supersededBy pointer (2.302461ms)
+@polis/domain:test                     | ✔ revoked takes precedence over superseded (0.962946ms)
+@polis/domain:test                     | ✔ issuer_unknown when all signatures lack issuerId (1.787293ms)
+@polis/domain:test                     | ✔ no issuer_unknown when at least one signature has issuerId (0.452571ms)
+@polis/domain:test                     | ✔ status_unknown registryStatus (0.411095ms)
+@polis/domain:test                     | ✔ issuer_unknown takes precedence over status_unknown (2.545569ms)
+@polis/domain:test                     | ✔ valid: everything checks out, all five mechanisms reported (0.615566ms)
+@polis/domain:test                     | ✔ hash check is not_checked when verdict comes from proof-id lookup (0.327243ms)
+@polis/domain:test                     | ✔ empty signatures → signature not_present, issuer not_checked, still valid (0.324109ms)
+@polis/domain:test                     | ✔ empty timestamps → timestamp not_present, still valid (0.314536ms)
+@polis/domain:test                     | ✔ indeterminate signature status does not fail verdict but is reported (0.347209ms)
+@polis/domain:test                     | ✔ not_checked signature status is reported as not_checked (1.474867ms)
+@polis/domain:test                     | ✔ test-key signature forces §15.7 label and adds explanation note (0.447926ms)
+@polis/domain:test                     | ✔ every verdict carries the proof-not-truth note key (§15.4) (1.775644ms)
+@polis/domain:test                     | ℹ tests 35
+@polis/domain:test                     | ℹ suites 0
+@polis/domain:test                     | ℹ pass 35
+@polis/domain:test                     | ℹ fail 0
+@polis/domain:test                     | ℹ cancelled 0
+@polis/domain:test                     | ℹ skipped 0
+@polis/domain:test                     | ℹ todo 0
+@polis/domain:test                     | ℹ duration_ms 538.521707
+@polis/domain:test                     | Done in 815ms
+@polis/governance-graph-api:test       | (node:3490767) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/governance-graph-api:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/governance-graph-api:test       | (node:3490773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/governance-graph-api:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/governance-graph-api:test       | ✔ governance-graph-api exposes §23.1 institutions + roles + processes + traverse (8.578524ms)
+@polis/governance-graph-api:test       | ✔ governance-graph-api readiness reports only database failures (6.413323ms)
+@polis/governance-graph-api:test       | ✔ scorecard counts read-derived overdue without grades or rankings (4.946905ms)
+@polis/governance-graph-api:test       | ✔ commitment detail derives overdue at read time without a status event (3.791431ms)
+@polis/governance-graph-api:test       | ✔ commitment detail includes public claim evidence projection with restricted fields redacted (5.08806ms)
+@polis/governance-graph-api:test       | ✔ public commitment resolution keeps restricted evidence identity but redacts sensitive fields (4.847801ms)
+@polis/governance-graph-api:test       | ✔ mandate-holder detail returns only safe evidence from the latest signed charter (6.946683ms)
+@polis/governance-graph-api:test       | ℹ tests 7
+@polis/governance-graph-api:test       | ℹ suites 0
+@polis/governance-graph-api:test       | ℹ pass 7
+@polis/governance-graph-api:test       | ℹ fail 0
+@polis/governance-graph-api:test       | ℹ cancelled 0
+@polis/governance-graph-api:test       | ℹ skipped 0
+@polis/governance-graph-api:test       | ℹ todo 0
+@polis/governance-graph-api:test       | ℹ duration_ms 3353.007256
+@polis/governance-graph-api:test       | Done in 3.61s
+@polis/paperless-adapter:test          | (node:3490902) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/paperless-adapter:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/paperless-adapter:test          | (node:3490927) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/paperless-adapter:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/paperless-adapter:test          | ✔ paperless-adapter exposes §23.9 consume + document routes (5.847889ms)
+@polis/paperless-adapter:test          | ✔ consume route derives its body cap from DOCUMENT_MAX_UPLOAD_BYTES (1.098711ms)
+@polis/paperless-adapter:test          | ✔ StubPaperlessClient.consume returns a doc with id + ocrText (46.825764ms)
+@polis/paperless-adapter:test          | ✔ fetchDocument round-trips a consumed id and rejects unknown ids (1.205312ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient defaults to stub when PAPERLESS_MODE is unset (2.398741ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient resolves PAPERLESS_MODE=stub to StubPaperlessClient (0.647106ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient resolves PAPERLESS_MODE=http to HttpPaperlessClient when token is set (12.691044ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient ctor requires PAPERLESS_API_TOKEN in http mode (15.988007ms)
+@polis/paperless-adapter:test          | ✔ createPaperlessClient throws on an unsupported mode (5.362531ms)
+@polis/paperless-adapter:test          | ✔ archive route returns exact consumed bytes with MIME (219.674561ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient retrieves unmodified archive bytes and MIME (17.503663ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient rejects an oversized archive from Content-Length (10.218481ms)
+@polis/paperless-adapter:test          | ✔ HttpPaperlessClient cancels a chunked archive when streamed bytes exceed the cap (9.025781ms)
+@polis/paperless-adapter:test          | ✔ paperless-adapter rejects unauthenticated internal HTTP calls (57.16327ms)
+@polis/paperless-adapter:test          | ℹ tests 14
+@polis/paperless-adapter:test          | ℹ suites 0
+@polis/paperless-adapter:test          | ℹ pass 14
+@polis/paperless-adapter:test          | ℹ fail 0
+@polis/paperless-adapter:test          | ℹ cancelled 0
+@polis/paperless-adapter:test          | ℹ skipped 0
+@polis/paperless-adapter:test          | ℹ todo 0
+@polis/paperless-adapter:test          | ℹ duration_ms 1279.420766
+@polis/paperless-adapter:test          | Done in 1.56s
+@polis/platform-api:test               | (node:3490975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/platform-api:test               | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/platform-api:test               | (node:3490991) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/platform-api:test               | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/platform-api:test               | ✔ platform startup permits dev and only the approved public-read pilot shape (7.210601ms)
+@polis/platform-api:test               | ✔ platform-api preserves the exact ordered route contract (8.166403ms)
+@polis/platform-api:test               | ✔ platform-api exposes complaints routes in literal-before-id order (2.483522ms)
+@polis/platform-api:test               | ✔ withPublicEdge is a no-op unless PUBLIC_EDGE=true (reference identity) (2.043178ms)
+@polis/platform-api:test               | ✔ public edge executable route matrix keeps every unapproved platform route pure 405 (25.511596ms)
+@polis/platform-api:test               | ✔ withPublicEdge blocks write/login/participation + dev-tokens (PUBLIC_EDGE=true) (3.411903ms)
+@polis/platform-api:test               | ✔ withPublicEdge permits only the exact allowlist and fails unknown routes closed (3.992372ms)
+@polis/platform-api:test               | ✔ same-path platform proxy sends the internal token upstream (34.598713ms)
+@polis/platform-api:test               | ✔ citizen-authenticated platform proxy verifies the session and authenticates the internal call (7.740282ms)
+@polis/platform-api:test               | ✔ complaint routes enforce citizen and staff sessions (3.364998ms)
+@polis/platform-api:test               | ✔ complaint proxy forwards trusted actor headers and ignores forged browser headers (12.593292ms)
+@polis/platform-api:test               | ✔ charter signing initiation requires an idempotency key and forwards the trusted actor (12.920783ms)
+@polis/platform-api:test               | ✔ contribution writes require a healthy verified session and reject caller authority (20.486309ms)
+@polis/platform-api:test               | ✔ review routes reject forged authority and forward only a verified distinct staff actor (4.6291ms)
+@polis/platform-api:test               | ✔ assistant administration routes require staff and forward trusted actor context (15.217264ms)
+@polis/platform-api:test               | ✔ Documenso webhook forwards raw bytes and secret with a bounded raw route (8.835697ms)
+@polis/platform-api:test               | ✔ internal BFF calls use a validated timeout and return safe gateway errors (5.262754ms)
+@polis/platform-api:test               | ✔ complaint proxy returns safe 502 and 504 errors (25.882342ms)
+@polis/platform-api:test               | ✔ platform readiness checks the database and every pilot upstream with internal headers (15.933748ms)
+@polis/platform-api:test               | ✔ platform readiness fails with only the safe dependency label (19.104447ms)
+@polis/platform-api:test               | ✔ platform readiness checks complaints only outside PUBLIC_EDGE (22.931053ms)
+@polis/platform-api:test               | ✔ pilot migration failure propagates before service startup (1.418977ms)
+@polis/platform-api:test               | ✔ dev migration failure preserves warning-and-start tolerance (1.152536ms)
+@polis/platform-api:test               | ℹ tests 23
+@polis/platform-api:test               | ℹ suites 0
+@polis/platform-api:test               | ℹ pass 23
+@polis/platform-api:test               | ℹ fail 0
+@polis/platform-api:test               | ℹ cancelled 0
+@polis/platform-api:test               | ℹ skipped 0
+@polis/platform-api:test               | ℹ todo 0
+@polis/platform-api:test               | ℹ duration_ms 5038.050166
+@polis/platform-api:test               | Done in 5.37s
+@polis/policy-rules:test               | (node:3491137) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/policy-rules:test               | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/policy-rules:test               | (node:3491163) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/policy-rules:test               | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/policy-rules:test               | ✔ rewards denies political_agreement even when approved + under cap (ADR-007) (119.196128ms)
+@polis/policy-rules:test               | ✔ rewards grants eligible for approved civic effort under cap; denies draft + over-cap (392.580367ms)
+@polis/policy-rules:test               | ✔ vault access allows active, started, unexpired, unrevoked grant (97.821907ms)
+@polis/policy-rules:test               | ✔ vault access denies future-dated grant (starts_at > now) (99.072273ms)
+@polis/policy-rules:test               | ✔ vault access denies expired grant (64.527445ms)
+@polis/policy-rules:test               | ✔ vault access denies revoked grant (63.38048ms)
+@polis/policy-rules:test               | ✔ vault proof_only scope reports no_bytes guard (380.882471ms)
+@polis/policy-rules:test               | ✔ access allows the owner (151.097239ms)
+@polis/policy-rules:test               | ✔ ai publish requires citations AND approved sources AND no injection AND approved review (ADR-005 / §30.6) (376.209553ms)
+@polis/policy-rules:test               | ✔ polis conversation creation requires service-level trust (M2 §13) (306.543578ms)
+@polis/policy-rules:test               | ✔ contribute allow_submit accepts only real verified session levels (704.499796ms)
+@polis/policy-rules:test               | ✔ contribute allow_review requires staff right and distinct reviewer (587.780234ms)
+@polis/policy-rules:test               | ✔ contribute auto_publish blocks political_agreement even when approved (M6 §22 / ADR-007) (330.380926ms)
+@polis/policy-rules:test               | ✔ pilot redaction denies missing reason (M9 §30.10) (154.274696ms)
+@polis/policy-rules:test               | ✔ pilot redaction denies partner-alone request (M9 §30.10) (180.639913ms)
+@polis/policy-rules:test               | ✔ pilot redaction allows project governance with reason (M9 §30.10) (103.263691ms)
+@polis/policy-rules:test               | ✔ representative access allows only verified active accepted in-scope officials (M-RA) (1579.324157ms)
+@polis/policy-rules:test               | ✔ representative access enforces charter jurisdiction and process coverage (M-RA Phase 4) (348.077191ms)
+@polis/policy-rules:test               | ✔ representative status terminal changes require approved resolution and no self-assignment (M-RA) (277.772411ms)
+@polis/policy-rules:test               | ✔ representative overdue status is system-derived only (M-RA) (286.010045ms)
+@polis/policy-rules:test               | ✔ identity access allows stub mode and oidc with verified email (M10) (182.108213ms)
+@polis/policy-rules:test               | ✔ complaints permits verified creation and owner reads but denies owner mismatch (232.067449ms)
+@polis/policy-rules:test               | ✔ complaints staff reads require active in-jurisdiction decision authority (247.676309ms)
+@polis/policy-rules:test               | ✔ complaints assignment requires intake authority and a valid initial-decision target (263.084651ms)
+@polis/policy-rules:test               | ✔ complaints lifecycle blocks pending work, duplicates, closed commands, and same appeal decider (522.544706ms)
+@polis/policy-rules:test               | ℹ tests 25
+@polis/policy-rules:test               | ℹ suites 0
+@polis/policy-rules:test               | ℹ pass 25
+@polis/policy-rules:test               | ℹ fail 0
+@polis/policy-rules:test               | ℹ cancelled 0
+@polis/policy-rules:test               | ℹ skipped 0
+@polis/policy-rules:test               | ℹ todo 0
+@polis/policy-rules:test               | ℹ duration_ms 8569.077473
+@polis/policy-rules:test               | Done in 8.85s
+@polis/polis-bridge-service:test       | (node:3492086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/polis-bridge-service:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/polis-bridge-service:test       | (node:3492092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/polis-bridge-service:test       | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service readiness reports only database failures (8.42314ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service validates the internal fetch timeout (6.680895ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service bounds best-effort audit emission (18.933708ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service exposes §13 issues + conversation + internal sync routes (1.293213ms)
+@polis/polis-bridge-service:test       | ✔ polis-bridge-service rejects unauthenticated internal HTTP requests (276.459564ms)
+@polis/polis-bridge-service:test       | ℹ tests 5
+@polis/polis-bridge-service:test       | ℹ suites 0
+@polis/polis-bridge-service:test       | ℹ pass 5
+@polis/polis-bridge-service:test       | ℹ fail 0
+@polis/polis-bridge-service:test       | ℹ cancelled 0
+@polis/polis-bridge-service:test       | ℹ skipped 0
+@polis/polis-bridge-service:test       | ℹ todo 0
+@polis/polis-bridge-service:test       | ℹ duration_ms 4003.448953
+@polis/polis-bridge-service:test       | Done in 4.21s
+@polis/proof-service:test              | (node:3492221) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/proof-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/proof-service:test              | (node:3492247) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/proof-service:test              | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/proof-service:test              | ✔ proof-service exposes §9.12 + §9.18 proof + verify routes (4.612042ms)
+@polis/proof-service:test              | ✔ proof-service readiness reports only database failures (3.636078ms)
+@polis/proof-service:test              | ✔ proof-service validates the internal fetch timeout (2.128608ms)
+@polis/proof-service:test              | ✔ non-public proofs are not_found on every public proof route (35.858826ms)
+@polis/proof-service:test              | ✔ hash verification reports revoked before valid (16.646602ms)
+@polis/proof-service:test              | ✔ manifest activates only after signature and timestamp creation succeed (10.822139ms)
+@polis/proof-service:test              | ✔ signature failure leaves the manifest unknown and emits its warning audit (8.232798ms)
+@polis/proof-service:test              | ✔ timestamp failure leaves the manifest unknown and emits its warning audit (8.989269ms)
+@polis/proof-service:test              | ✔ manifest creation rejects unknown creator services before inserting (0.884786ms)
+@polis/proof-service:test              | ✔ manifest and hash verification apply child then stored lifecycle precedence (2.68767ms)
+@polis/proof-service:test              | ✔ proof-service rejects unauthenticated internal HTTP calls (150.843881ms)
+@polis/proof-service:test              | ℹ tests 11
+@polis/proof-service:test              | ℹ suites 0
+@polis/proof-service:test              | ℹ pass 11
+@polis/proof-service:test              | ℹ fail 0
+@polis/proof-service:test              | ℹ cancelled 0
+@polis/proof-service:test              | ℹ skipped 0
+@polis/proof-service:test              | ℹ todo 0
+@polis/proof-service:test              | ℹ duration_ms 3871.757024
+@polis/proof-service:test              | Done in 4.07s
+@polis/rewards-service:test            | (node:3492379) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/rewards-service:test            | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/rewards-service:test            | (node:3492385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/rewards-service:test            | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/rewards-service:test            | ✔ rewards-service exposes operational, public, and internal routes (4.48616ms)
+@polis/rewards-service:test            | ✔ rewards-service guards internal routes while operational routes stay open (277.376671ms)
+@polis/rewards-service:test            | ℹ tests 2
+@polis/rewards-service:test            | ℹ suites 0
+@polis/rewards-service:test            | ℹ pass 2
+@polis/rewards-service:test            | ℹ fail 0
+@polis/rewards-service:test            | ℹ cancelled 0
+@polis/rewards-service:test            | ℹ skipped 0
+@polis/rewards-service:test            | ℹ todo 0
+@polis/rewards-service:test            | ℹ duration_ms 4130.462495
+@polis/rewards-service:test            | Done in 4.35s
+@polis/service-runtime:test            | (node:3492542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/service-runtime:test            | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/service-runtime:test            | (node:3492555) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/service-runtime:test            | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/service-runtime:test            | ✔ operationalRoutes exposes the four operational endpoints (5.930837ms)
+@polis/service-runtime:test            | ✔ versionMeta carries source/build transparency fields (1.327982ms)
+@polis/service-runtime:test            | ✔ open ops stay available while internal routes require the configured token (393.688305ms)
+@polis/service-runtime:test            | ✔ internal routes fail closed when INTERNAL_API_TOKEN is not configured (93.855616ms)
+@polis/service-runtime:test            | ✔ public-shaped routes reject forged or partial actor context and accept trusted actors (104.08684ms)
+@polis/service-runtime:test            | ✔ default JSON, raw, and none body modes reach handlers with the expected value (53.161714ms)
+@polis/service-runtime:test            | ✔ route-specific body caps produce a typed 413 response (25.751053ms)
+@polis/service-runtime:test            | ✔ unexpected handler errors are logged without leaking details to clients (48.513584ms)
+@polis/service-runtime:test            | ✔ binaryResult emits exact bytes, status, content type, and safe headers (28.632982ms)
+@polis/service-runtime:test            | ✔ internal header helpers require a token and protect trusted values (7.300139ms)
+@polis/service-runtime:test            | ✔ CORS preflight advertises the expanded methods and headers (31.169709ms)
+@polis/service-runtime:test            | ✔ deployment profiles preserve dev defaults and reject unsafe pilot configuration (9.997911ms)
+@polis/service-runtime:test            | ✔ fetchWithTimeout maps its deadline and preserves caller cancellation (29.23225ms)
+@polis/service-runtime:test            | ✔ readiness reports safe 200/503 state while liveness stays up (126.685663ms)
+@polis/service-runtime:test            | ✔ safe headers and explicit CORS apply to JSON, binary, text, and preflight (94.370341ms)
+@polis/service-runtime:test            | ✔ startService applies configured HTTP limits and startup validation (21.055406ms)
+@polis/service-runtime:test            | ✔ signal drain is shared, marks readiness down, and force-closes after grace (92.923906ms)
+@polis/service-runtime:test            | ℹ tests 17
+@polis/service-runtime:test            | ℹ suites 0
+@polis/service-runtime:test            | ℹ pass 17
+@polis/service-runtime:test            | ℹ fail 0
+@polis/service-runtime:test            | ℹ cancelled 0
+@polis/service-runtime:test            | ℹ skipped 0
+@polis/service-runtime:test            | ℹ todo 0
+@polis/service-runtime:test            | ℹ duration_ms 1895.747932
+@polis/service-runtime:test            | Done in 2.17s
+@polis/signature-service:test          | (node:3492654) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/signature-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/signature-service:test          | (node:3492665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/signature-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/signature-service:test          | ✔ signature-service exposes §9.13 signature routes (16.588415ms)
+@polis/signature-service:test          | ✔ signature-service rejects unauthenticated internal HTTP access (318.715198ms)
+@polis/signature-service:test          | ✔ createSignerClient defaults to stub when SIGNATURE_MODE is unset (1.304774ms)
+@polis/signature-service:test          | ✔ createSignerClient resolves SIGNATURE_MODE=stub to StubSignerClient (0.717366ms)
+@polis/signature-service:test          | ✔ createSignerClient resolves SIGNATURE_MODE=real to DssSignerClient (committed dev cert, no network) (0.86465ms)
+@polis/signature-service:test          | ✔ createSignerClient throws on an unsupported mode (7.118059ms)
+@polis/signature-service:test          | ✔ DssSignerClient produces a real eIDAS-eSeal CMS signature that validates (628.961542ms)
+@polis/signature-service:test          | ℹ tests 7
+@polis/signature-service:test          | ℹ suites 0
+@polis/signature-service:test          | ℹ pass 7
+@polis/signature-service:test          | ℹ fail 0
+@polis/signature-service:test          | ℹ cancelled 0
+@polis/signature-service:test          | ℹ skipped 0
+@polis/signature-service:test          | ℹ todo 0
+@polis/signature-service:test          | ℹ duration_ms 6027.322887
+@polis/signature-service:test          | Done in 6.36s
+@polis/timestamp-service:test          | (node:3492858) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/timestamp-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/timestamp-service:test          | (node:3492868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/timestamp-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/timestamp-service:test          | ✔ timestamp-service exposes §9.14 timestamp routes (13.158929ms)
+@polis/timestamp-service:test          | ✔ timestamp-service rejects unauthenticated internal HTTP access (354.853652ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient defaults to stub when TIMESTAMP_MODE is unset (2.418171ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient resolves TIMESTAMP_MODE=stub to StubTimestampClient (1.327851ms)
+@polis/timestamp-service:test          | ✔ Rfc3161TimestampClient ctor requires TSA_URL in real mode (3.920973ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient resolves TIMESTAMP_MODE=real to Rfc3161TimestampClient when TSA_URL is set (1.183915ms)
+@polis/timestamp-service:test          | ✔ createTimestampClient throws on an unsupported mode (0.757372ms)
+@polis/timestamp-service:test          | ℹ tests 7
+@polis/timestamp-service:test          | ℹ suites 0
+@polis/timestamp-service:test          | ℹ pass 7
+@polis/timestamp-service:test          | ℹ fail 0
+@polis/timestamp-service:test          | ℹ cancelled 0
+@polis/timestamp-service:test          | ℹ skipped 0
+@polis/timestamp-service:test          | ℹ todo 0
+@polis/timestamp-service:test          | ℹ duration_ms 5896.202624
+@polis/timestamp-service:test          | Done in 6.24s
+@polis/ui:test                         | (node:3493054) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/ui:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/ui:test                         | (node:3493087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/ui:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/ui:test                         | ✔ all spec-mandated astro components exist (11.515928ms)
+@polis/ui:test                         | ✔ react verifier components exist (1.132709ms)
+@polis/ui:test                         | ✔ stylesheets exist and define both themes (1.706423ms)
+@polis/ui:test                         | ✔ package exports map covers styles, astro, react, and messages (1.319974ms)
+@polis/ui:test                         | ✔ ui components never use tailwind utility classes (plain-CSS app compatibility) (5.373182ms)
+@polis/ui:test                         | (node:3493112) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/ui:test                         | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/ui:test                         | ✔ every verdict headline and explanation key exists in en (15.879665ms)
+@polis/ui:test                         | ✔ mechanism and status labels exist in en (1.002011ms)
+@polis/ui:test                         | ✔ every check labelKey producible by the verdict engine exists in en (1.964694ms)
+@polis/ui:test                         | ✔ badge catalogs cover all confidence and review states (1.187786ms)
+@polis/ui:test                         | ✔ hr keys are a subset of en keys (4.604026ms)
+@polis/ui:test                         | ✔ t() falls back to English for missing hr keys (1.371811ms)
+@polis/ui:test                         | ℹ tests 11
+@polis/ui:test                         | ℹ suites 0
+@polis/ui:test                         | ℹ pass 11
+@polis/ui:test                         | ℹ fail 0
+@polis/ui:test                         | ℹ cancelled 0
+@polis/ui:test                         | ℹ skipped 0
+@polis/ui:test                         | ℹ todo 0
+@polis/ui:test                         | ℹ duration_ms 1107.726867
+@polis/ui:test                         | Done in 1.36s
+@polis/vc-issuer-service:test          | (node:3493144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/vc-issuer-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/vc-issuer-service:test          | (node:3493152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+@polis/vc-issuer-service:test          | (Use `node --trace-warnings ...` to show where the warning was created)
+@polis/vc-issuer-service:test          | ✔ vc-issuer-service exposes operational and issuance routes (5.841633ms)
+@polis/vc-issuer-service:test          | ✔ vc-issuer-service guards internal routes while operational routes stay open (274.490097ms)
+@polis/vc-issuer-service:test          | ℹ tests 2
+@polis/vc-issuer-service:test          | ℹ suites 0
+@polis/vc-issuer-service:test          | ℹ pass 2
+@polis/vc-issuer-service:test          | ℹ fail 0
+@polis/vc-issuer-service:test          | ℹ cancelled 0
+@polis/vc-issuer-service:test          | ℹ skipped 0
+@polis/vc-issuer-service:test          | ℹ todo 0
+@polis/vc-issuer-service:test          | ℹ duration_ms 4102.841497
+@polis/vc-issuer-service:test          | Done in 4.38s
+=== test PASS elapsed_seconds=105 ===
+
+=== lint BEGIN ===
+$ eslint . && prettier --check .
+(node:3493286) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3493285) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Checking formatting...
+All matched files use Prettier code style!
+=== lint PASS elapsed_seconds=94 ===
+
+=== service_catalog BEGIN ===
+$ node scripts/service-catalog.mjs --check
+[service-catalog] 18 services valid; generated docs current
+=== service_catalog PASS elapsed_seconds=1 ===
+
+=== ops_contracts BEGIN ===
+$ bash scripts/ops/test-backup-restore.sh
+bun test v1.3.14 (0d9b296a)
+
+scripts/ops/ops-contract.test.mjs:
+Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+      at warnOnDeactivatedColors (internal:tty:33:24)
+      at getColorDepth (internal:tty:42:39)
+      at shouldColorize (internal:util/colors:14:109)
+      at refresh (internal:util/colors:18:31)
+      at internal:util/colors (internal:util/colors:24:16)
+      at internal:assert/assertion_error (internal:assert/assertion_error:2:187)
+      at loadAssertionError (node:assert:28:96)
+
+✓ audit verifier accepts valid JSON and NDJSON chains [989.76ms]
+✓ audit verifier rejects recomputed hash tampering [257.85ms]
+✓ audit verifier rejects previous-hash gaps [205.66ms]
+✓ audit verifier rejects out-of-order records [233.61ms]
+✓ audit verifier rejects malformed and empty input unless explicitly allowed [733.49ms]
+✓ backup script is fail-closed and archives only named non-secret artifacts [35.66ms]
+✓ backup script classifies repositories and refuses unsafe inputs before PostgreSQL/restic [2027.97ms]
+✓ backup script refuses a dirty release checkout before connecting to PostgreSQL [523.14ms]
+✓ backup script fails closed when Git cannot verify worktree status [580.53ms]
+✓ restore script gates destructive restore and verifies manifest, schema, counts, migrations, and audit [27.36ms]
+✗ restore script refuses destructive inputs before restic restore and pg_restore [9941.91ms]
+  ^ this test timed out after 5000ms, before its done callback was called. If a done callback was not intended, remove the last parameter from the test callback function
+✓ restore script validates manifest v3 repository class before database actions [4147.10ms]
+✓ clean DB drill script is source-hardened and explicit-Docker only [3.41ms]
+✓ operator scripts contain no hard-coded credentials and are executable [1.61ms]
+✓ root package exposes all operator commands without replacing existing commands [0.78ms]
+
+ 14 pass
+ 1 fail
+Ran 15 tests across 1 file. [20.28s]
+error: script "ops:test" exited with code 1
+
+validation_resumed_after_ops_timeout_corrections_utc=2026-08-09T13:06:16Z
+correction=two process-heavy ops contract tests exceeded the runner default five-second timeout; each now has an explicit 20-second test timeout; operator code unchanged
+
+=== lint BEGIN ===
+$ eslint . && prettier --check .
+(node:3503939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3503938) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Checking formatting...
+All matched files use Prettier code style!
+=== lint PASS elapsed_seconds=74 ===
+
+=== ops_contracts BEGIN ===
+$ bash scripts/ops/test-backup-restore.sh
+bun test v1.3.14 (0d9b296a)
+
+scripts/ops/ops-contract.test.mjs:
+Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+      at warnOnDeactivatedColors (internal:tty:33:24)
+      at getColorDepth (internal:tty:42:39)
+      at shouldColorize (internal:util/colors:14:109)
+      at refresh (internal:util/colors:18:31)
+      at internal:util/colors (internal:util/colors:24:16)
+      at internal:assert/assertion_error (internal:assert/assertion_error:2:187)
+      at loadAssertionError (node:assert:28:96)
+
+✓ audit verifier accepts valid JSON and NDJSON chains [628.71ms]
+✓ audit verifier rejects recomputed hash tampering [292.82ms]
+✓ audit verifier rejects previous-hash gaps [324.94ms]
+✓ audit verifier rejects out-of-order records [249.01ms]
+✓ audit verifier rejects malformed and empty input unless explicitly allowed [776.74ms]
+✓ backup script is fail-closed and archives only named non-secret artifacts [75.94ms]
+✓ backup script classifies repositories and refuses unsafe inputs before PostgreSQL/restic [1733.52ms]
+✓ backup script refuses a dirty release checkout before connecting to PostgreSQL [412.68ms]
+✓ backup script fails closed when Git cannot verify worktree status [396.36ms]
+✓ restore script gates destructive restore and verifies manifest, schema, counts, migrations, and audit [7.61ms]
+✓ restore script refuses destructive inputs before restic restore and pg_restore [7809.82ms]
+✓ restore script validates manifest v3 repository class before database actions [4732.48ms]
+✓ clean DB drill script is source-hardened and explicit-Docker only [2.77ms]
+✓ operator scripts contain no hard-coded credentials and are executable [1.21ms]
+✓ root package exposes all operator commands without replacing existing commands [0.69ms]
+
+ 15 pass
+ 0 fail
+Ran 15 tests across 1 file. [17.90s]
+{"ok":true,"sourceTests":true,"fixtureToolsExercised":false}
+=== ops_contracts PASS elapsed_seconds=18 ===
+
+=== v1_smoke BEGIN ===
+$ bun scripts/v1-smoke.mjs
+(node:3507880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"service":"platform-api","stage":"db-migrate","warning":"Failed query: CREATE SCHEMA IF NOT EXISTS \"drizzle\"\nparams: "}
+{"service":"platform-api","port":8080,"status":"listening"}
+[v1-smoke] checking §23 contract…
+  ok  GET /healthz → status=ok
+  ok  document-signing-service GET /healthz → status=ok
+  ok  GET /version → version present
+  ok  GET /version → gitSha present
+  ok  POST /api/v1/verify/hash route present + proxied (502 bad_gateway in hermetic smoke)
+[v1-smoke] all checks passed
+=== v1_smoke PASS elapsed_seconds=15 ===
+
+=== db_generate BEGIN ===
+$ bun run --filter @polis/db db:generate
+@polis/db db:generate $ drizzle-kit generate
+│ No config path provided, using default 'drizzle.config.ts'
+└─ Running...
+@polis/db db:generate $ drizzle-kit generate
+│ No config path provided, using default 'drizzle.config.ts'
+│ Reading config file '/home/ceii/dev/polis/packages/db/drizzle.config.ts'
+└─ Running...
+@polis/db db:generate $ drizzle-kit generate
+│ No config path provided, using default 'drizzle.config.ts'
+│ Reading config file '/home/ceii/dev/polis/packages/db/drizzle.config.ts'
+│ (node:3508418) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+│ (Use `node --trace-warnings ...` to show where the warning was created)
+└─ Running...
+@polis/db db:generate $ drizzle-kit generate
+│ [62 lines elided]
+│ roles 16 columns 0 indexes 0 fks
+│ signing_provider_events 9 columns 2 indexes 0 fks
+│ signing_recipients 10 columns 3 indexes 0 fks
+│ signing_requests 18 columns 5 indexes 0 fks
+│ source_snapshots 11 columns 0 indexes 0 fks
+│ sources 13 columns 0 indexes 0 fks
+│ submissions 8 columns 2 indexes 0 fks
+│ vault_documents 6 columns 1 indexes 0 fks
+│ verifiable_credentials 6 columns 1 indexes 0 fks
+└─ Running...
+@polis/db db:generate $ drizzle-kit generate
+│ [63 lines elided]
+│ signing_provider_events 9 columns 2 indexes 0 fks
+│ signing_recipients 10 columns 3 indexes 0 fks
+│ signing_requests 18 columns 5 indexes 0 fks
+│ source_snapshots 11 columns 0 indexes 0 fks
+│ sources 13 columns 0 indexes 0 fks
+│ submissions 8 columns 2 indexes 0 fks
+│ vault_documents 6 columns 1 indexes 0 fks
+│ verifiable_credentials 6 columns 1 indexes 0 fks
+│ 
+│ No schema changes, nothing to migrate 😴
+└─ Running...
+@polis/db db:generate $ drizzle-kit generate
+│ [63 lines elided]
+│ signing_provider_events 9 columns 2 indexes 0 fks
+│ signing_recipients 10 columns 3 indexes 0 fks
+│ signing_requests 18 columns 5 indexes 0 fks
+│ source_snapshots 11 columns 0 indexes 0 fks
+│ sources 13 columns 0 indexes 0 fks
+│ submissions 8 columns 2 indexes 0 fks
+│ vault_documents 6 columns 1 indexes 0 fks
+│ verifiable_credentials 6 columns 1 indexes 0 fks
+│ 
+│ No schema changes, nothing to migrate 😴
+└─ Done in 5.48 s
+=== db_generate PASS elapsed_seconds=5 ===
+
+=== diff_check BEGIN ===
+=== diff_check PASS elapsed_seconds=0 ===
+
+=== osv_v2 BEGIN ===
+Scanned /src/bun.lock file and found 629 packages
+Scanned /src/uv.lock file and found 41 packages
+No issues found
+Exit code: 0
+osv_log_sha256=e2b29f382158312120ada0dd751ca8e5b6a981a5dbbf830d8328fac35acf5d05
+=== osv_v2 PASS ===
+
+=== gitleaks_8.24.3 BEGIN ===
+10:3:08PM INF no leaks found
+gitleaks_log_sha256=11ad2b492da9e8b57495f1a2c774e931f856a7bba9179302106750ff566fcbcd
+=== gitleaks_8.24.3 PASS ===
+
+final_changed_paths_begin
+ M .github/workflows/ci.yml
+ M GO_LIVE_READINESS.md
+ M apps/admin/package.json
+ M apps/vault/package.json
+ M apps/verifier/package.json
+ M apps/web/package.json
+ M bun.lock
+ M package.json
+ M packages/ui/package.json
+ M scripts/ops/ops-contract.test.mjs
+ M services/citizen-identity-service/src/index.test.ts
+?? .gitleaksignore
+?? docs/operations/evidence/2026-08-09-task11-release-candidate-validation.log
+?? docs/operations/evidence/2026-08-09-task11-release-candidate-validation.md
+final_changed_paths_end
+validation_finished_utc=2026-08-09T13:08:37Z
+
+post_validation_diff_minimization_utc=2026-08-09T13:12:00Z
+ops_timeout_diff=minimized to one slowTest helper and two call-site changes; operator code unchanged
+prettier_ops_file=PASS
+ops_contracts_final=15_pass_0_fail
+ops_final_log_sha256=413f3098c6dcdf8e06f26406c2a04095ad8e88f8de2c1914b15ef67c808f7c60
+
+intended_files_gitleaks_dir_8.24.3=PASS
+intended_files_count=16
+intended_files_gitleaks_log_sha256=a2e0b48c2afef3fd2d52cff6f4c2411cc1c58f4b63a1564067457d834c6030e6
