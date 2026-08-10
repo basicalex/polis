@@ -71,6 +71,14 @@ completed `success` at exact head `02b26c5c922359357af3b52b7ba74b903036b696`:
 Every recorded step completed successfully. A post-run check found zero
 annotations for both jobs. The prior Node 20 forced-runtime notices are absent.
 
+GitHub reports a 90-day maximum Actions artifact/log retention for this
+repository. A sanitized transcript snapshot is retained at
+[`2026-08-10-task11-actions-pinning-github-run-31368674242.log`](2026-08-10-task11-actions-pinning-github-run-31368674242.log), SHA-256
+`dc31640c82d4706ec9f776bd26b7e8af5ff4a4a6d4f3ff40c69d5dcb9bc5d930`. Gitleaks 8.24.3 and targeted credential/private-key
+patterns found no secret-looking value in the retained transcript. The durable
+copy preserves review evidence after the provider log expires; it does not
+replace the run URL or claim GitHub signature/provenance for the copied bytes.
+
 ## Release meaning
 
 This closes the mutable action-reference and Node runtime warning in source and
