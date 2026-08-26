@@ -1,0 +1,1088 @@
+---
+/**
+ * `/demo/record` — the single place a full Trace renders.
+ *
+ * The record is chosen with `?id=<recordId>`. Without an id (or with an unknown one) the page
+ * lists every demo record instead. Everything below the static heading is built in the browser
+ * from the demo store, so the page reads whatever the visitor has filed in this browser.
+ *
+ * This surface mutates nothing: it reads `getState()` and re-renders on `subscribe()`, which also
+ * covers the language toggle and a second tab acting on the record.
+ *
+ * Chrome: `Base` gets `chrome="demo"` and `DemoShell` renders the single boundary line, so the
+ * demonstration boundary is stated exactly once. The page opens with its title, the institution
+ * anchor, and the working surface; provenance sits below the record.
+ */
+import Base from '../../layouts/Base.astro';
+import DemoShell from '../../components/demo/DemoShell.astro';
+import { institutionAnchor } from '../../content/demo-strings.mjs';
+
+const heading = {
+  en: 'Public record',
+  hr: 'Javni zapis',
+};
+
+const loading = {
+  en: 'Loading public record…',
+  hr: 'Učitavanje javnog zapisa…',
+};
+
+const provenance = {
+  en: 'One record, one path: voice, responsibility, response, independent check, public receipt. Each stage above is one appended public event; a dashed stage is proposed history that has not passed independent review.',
+  hr: 'Jedan zapis, jedan put: glas, odgovornost, odgovor, neovisna provjera, javna potvrda. Svaka faza iznad jedan je upisani javni događaj; isprekidana faza je predložena povijest koja nije prošla neovisnu provjeru.',
+};
+
+const noScript = {
+  en: 'This page builds the trace in your browser from demo state held in this browser. With JavaScript off there is no record to read here; the presentation walks the same five stages as static pages.',
+  hr: 'Ova stranica gradi trag u vašem pregledniku iz demo stanja pohranjenog u ovom pregledniku. Bez JavaScripta ovdje nema zapisa za čitanje; prezentacija prolazi istih pet faza kao statične stranice.',
+};
+---
+
+<Base
+  chrome="demo"
+  title="Public record — Polis demo"
+  description="The full trace of one synthetic demo record: voice, responsibility, response, independent check, public receipt."
+>
+  <DemoShell surface="record">
+    <section class="record-page" id="public-record" aria-labelledby="record-page-title">
+      <header class="record-page-head">
+        <h1 id="record-page-title">
+          <span data-lang="en">{heading.en}</span>
+          <span data-lang="hr" hidden>{heading.hr}</span>
+        </h1>
+        <p class="demo-anchor">
+          <span data-lang="en">{institutionAnchor.en}</span>
+          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+        </p>
+      </header>
+
+      <div class="record-region" data-record-root>
+        <p class="state">
+          <span data-lang="en">{loading.en}</span>
+          <span data-lang="hr" hidden>{loading.hr}</span>
+        </p>
+      </div>
+
+      <noscript>
+        <p class="state">
+          <span data-lang="en">{noScript.en}</span>
+          <span data-lang="hr" hidden>{noScript.hr}</span>
+        </p>
+      </noscript>
+
+      <footer class="record-provenance">
+        <p>
+          <span data-lang="en">{provenance.en}</span>
+          <span data-lang="hr" hidden>{provenance.hr}</span>
+        </p>
+      </footer>
+    </section>
+  </DemoShell>
+</Base>
+
+<style>
+  /* Template-owned elements ------------------------------------------------ */
+
+  .record-page {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-md);
+    max-width: 78rem;
+  }
+
+  .record-page-head {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-xs);
+  }
+
+  .record-page h1 {
+    margin: 0;
+  }
+
+  .record-region {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .record-provenance p {
+    max-width: 68ch;
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .record-page [hidden] {
+    display: none !important;
+  }
+
+  /* Browser-built content -------------------------------------------------- */
+  /* Everything below is created by the page script, so it is matched with
+     :global() inside the scoped region rather than by the scoping attribute.
+     The trace, stamps, chips, panels, and ledger rows come from the shared demo
+     material in styles.css; only record-specific pieces are styled here. */
+
+  .record-region :global(.state),
+  noscript :global(.state) {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .record-region :global(.state-warning) {
+    color: var(--polis-warning);
+  }
+
+  /* Record header ---------------------------------------------------------- */
+
+  .record-region :global(.record-view) {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .record-region :global(.record-head) {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-xs);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+  }
+
+  .record-region :global(.record-id) {
+    margin: 0;
+    color: var(--polis-trace);
+    font-family: var(--mono);
+    font-size: var(--type-data);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .record-region :global(.record-subject) {
+    max-width: 42ch;
+    margin: 0;
+    font-family: var(--display);
+    font-size: var(--type-heading-sm);
+  }
+
+  .record-region :global(.record-marks) {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-sm);
+    margin-top: 0.15rem;
+  }
+
+  .record-region :global(.record-filed) {
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A fixture mark is amber like every other fixture label; the shared stamp
+     set has no fixture modifier, so the record page names it locally. */
+  .record-region :global(.demo-stamp.is-fixture) {
+    color: var(--polis-warning);
+  }
+
+  /* The trace runs the full width; the evidence panels flow below it. DOM order
+     is reading order at every width. */
+
+  .record-region :global(.trace-panel .demo-trace) {
+    max-width: 68rem;
+  }
+
+  .record-region :global(.record-stack) {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(28rem, 1fr));
+    gap: var(--space-md);
+    align-items: start;
+  }
+
+  .record-region :global(.record-panel-head) {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-sm);
+    padding-bottom: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+  }
+
+  .record-region :global(.record-panel-head h2),
+  .record-region :global(.record-panel-head h3) {
+    max-width: 42ch;
+    margin: 0;
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.25;
+  }
+
+  .record-region :global(.record-note) {
+    margin: var(--space-sm) 0 0;
+    max-width: 68ch;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .record-region :global(.record-panel-head .record-note) {
+    margin: 0;
+  }
+
+  /* Field lists ------------------------------------------------------------ */
+
+  .record-region :global(.fields) {
+    display: grid;
+    gap: var(--space-sm);
+    margin: 0;
+  }
+
+  .record-region :global(.fields > div) {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.34fr) minmax(0, 1fr);
+    gap: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+  }
+
+  .record-region :global(.fields > div:last-child) {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .record-region :global(.fields dt) {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    font-weight: 600;
+  }
+
+  .record-region :global(.fields dd) {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* The trace -------------------------------------------------------------- */
+  /* Shared `.demo-trace` carries the spine, the numbered markers, and the
+     dashed connector for a proposed stage. The gate colour is the one thing the
+     shared set leaves neutral, so the amber of the pending family is added here. */
+
+  .record-region :global(.demo-trace-stage.is-proposed)::before {
+    border-left-color: var(--polis-warning);
+  }
+
+  .record-region :global(.demo-trace-stage.is-proposed .demo-trace-marker) {
+    border-color: var(--polis-warning);
+    background: var(--polis-surface);
+    color: var(--polis-warning);
+  }
+
+  .record-region :global(.trace-when) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Record switcher and cross-links ---------------------------------------- */
+
+  .record-region :global(.record-origin) {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+  }
+
+  .record-region :global(.act-links) {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--space-md);
+  }
+
+  .record-region :global(.act-links p) {
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+  }
+
+  .record-region :global(.act-links a) {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--polis-trace);
+    font-size: var(--type-data);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+
+  /* Phone ------------------------------------------------------------------ */
+
+  @media (max-width: 56.25rem) {
+    .record-region :global(.record-stack) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .record-region :global(.demo-panel) {
+      padding: var(--space-sm);
+    }
+
+    .record-region :global(.fields > div) {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-xs);
+    }
+  }
+
+  /* Reduced motion: nothing here animates, and nothing here is deferred. */
+  @media (prefers-reduced-motion: reduce) {
+    .record-region :global(*) {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Print ------------------------------------------------------------------ */
+
+  @media print {
+    .record-page {
+      max-width: none;
+    }
+
+    .record-region :global(.act-links) {
+      display: none !important;
+    }
+
+    /* Chrome fragments nested grids badly across page breaks: print in flow. */
+    .record-region,
+    .record-region :global(.record-view),
+    .record-region :global(.record-stack) {
+      display: block;
+    }
+
+    .record-region :global(.demo-panel),
+    .record-region :global(.record-head) {
+      margin-bottom: 6mm;
+      border: 1px solid #4b5563;
+      background: #ffffff;
+      color: #111827;
+    }
+
+    /* Evidence panels print whole; only the trace may run onto a second page,
+       and its stages stay intact when it does. */
+    .record-region :global(.demo-panel:not(.trace-panel)) {
+      break-inside: avoid;
+    }
+
+    /* Keep an event whole: never split stage, actor, action, time, or note. */
+    .record-region :global(.demo-trace-stage),
+    .record-region :global(.fields > div) {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .record-region :global(.record-id),
+    .record-region :global(.record-filed),
+    .record-region :global(.record-note),
+    .record-region :global(.record-origin),
+    .record-region :global(.state) {
+      color: #111827 !important;
+    }
+  }
+</style>
+
+<script>
+  import { getState, subscribe } from '../../lib/demo-store.mjs';
+  import {
+    categoryLabels,
+    originLabels,
+    resolveText,
+    stageLabels,
+    stampLabels,
+    statusLabels,
+  } from '../../content/demo-strings.mjs';
+
+  type Lang = 'en' | 'hr';
+  type Localized = { en: string; hr: string };
+  type Display = string | Localized;
+  type StageId = 'voice' | 'responsibility' | 'response' | 'check' | 'receipt';
+  type RecordStatus = 'open' | 'assigned' | 'commitment-pending-review' | 'returned' | 'published';
+
+  interface DemoEvent {
+    seq: number;
+    stage: StageId;
+    actor: Display;
+    action: Display;
+    at: string;
+    kind: 'appended' | 'proposed';
+    note?: Display;
+  }
+
+  interface DemoRecord {
+    id: string;
+    origin: 'seed' | 'app' | 'embed';
+    subject: Display;
+    narrative: Display;
+    category: 'roads' | 'water' | 'waste' | 'lighting' | 'other';
+    createdAt: string;
+    stage: StageId;
+    status: RecordStatus;
+    responsibility: { office: Display; role: Display } | null;
+    commitment: {
+      text: Display;
+      due: string;
+      filedBy: Display;
+      reviewStatus: 'pending' | 'accepted' | 'returned';
+    } | null;
+    review: { decision: 'accepted' | 'returned'; note: Display; reviewer: Display } | null;
+    events: DemoEvent[];
+  }
+
+  const STAGE_ORDER: StageId[] = ['voice', 'responsibility', 'response', 'check', 'receipt'];
+
+  /** Workflow status to the shared stamp modifier. Colour reinforces the label, never replaces it. */
+  const STATUS_STAMP: Record<RecordStatus, string> = {
+    open: 'demo-stamp--new',
+    assigned: 'demo-stamp--assigned',
+    'commitment-pending-review': 'demo-stamp--pending',
+    returned: 'demo-stamp--returned',
+    published: 'demo-stamp--published',
+  };
+
+  /** Page-local copy. Shared labels come from demo-strings; nothing here is paraphrased from it. */
+  const copy = {
+    indexHeading: { en: 'Every demo record', hr: 'Svi demo zapisi' },
+    switcherHeading: { en: 'Open another record', hr: 'Otvorite drugi zapis' },
+    notFound: {
+      en: 'No demo record in this browser carries that id.',
+      hr: 'Nijedan demo zapis u ovom pregledniku ne nosi taj identifikator.',
+    },
+    emptyIndex: {
+      en: 'This browser holds no demo records. Use the reset control above to bring the seeded fixtures back.',
+      hr: 'U ovom pregledniku nema demo zapisa. Upotrijebite gornju kontrolu za vraćanje na početak kako biste vratili početne primjere.',
+    },
+    recordLabel: { en: 'Record', hr: 'Zapis' },
+    filedLabel: { en: 'Filed', hr: 'Podneseno' },
+    traceHeading: { en: 'Trace', hr: 'Trag' },
+    traceCount: { en: 'appended public events', hr: 'upisanih javnih događaja' },
+    traceCountOne: { en: 'appended public event', hr: 'upisani javni događaj' },
+    traceCountFew: { en: 'appended public events', hr: 'upisana javna događaja' },
+    futureLine: {
+      en: 'No public event appended.',
+      hr: 'Nije upisan javni događaj.',
+    },
+    noteLabel: { en: 'Note', hr: 'Napomena' },
+    reportHeading: { en: 'The report', hr: 'Prijava' },
+    subjectLabel: { en: 'Subject', hr: 'Predmet' },
+    narrativeLabel: { en: 'Description', hr: 'Opis' },
+    reportBoundary: {
+      en: 'The demo keeps the whole description public so the loop stays readable. In the live product the reporter’s identity and the full narrative stay on the restricted rail; the public record carries the process, not the case file.',
+      hr: 'Demo cijeli opis drži javnim kako bi krug ostao čitljiv. U stvarnom proizvodu identitet prijavitelja i cjelovit opis ostaju u ograničenom, nejavnom dijelu spisa; javni zapis nosi postupak, a ne spis predmeta.',
+    },
+    responsibilityHeading: { en: 'Responsibility', hr: 'Odgovornost' },
+    officeLabel: { en: 'Responsible office', hr: 'Nadležni ured' },
+    roleLabel: { en: 'Responsible role', hr: 'Nadležna funkcija' },
+    noResponsibility: {
+      en: 'No responsible office is named on this record yet.',
+      hr: 'Na ovom zapisu još nije naveden nadležni ured.',
+    },
+    commitmentHeading: { en: 'Commitment', hr: 'Obveza' },
+    commitmentLabel: { en: 'Commitment', hr: 'Obveza' },
+    dueLabel: { en: 'Due', hr: 'Rok' },
+    filedByLabel: { en: 'Filed by', hr: 'Podnositelj' },
+    reviewStateLabel: { en: 'Review state', hr: 'Stanje provjere' },
+    noCommitment: {
+      en: 'No commitment is filed on this record yet.',
+      hr: 'Na ovom zapisu još nije podnesena obveza.',
+    },
+    commitmentPendingNote: {
+      en: 'A filed commitment is proposed history. It is not published and it is not a terminal outcome until a distinct independent reviewer accepts it.',
+      hr: 'Podnesena obveza je predložena povijest. Ne objavljuje se i nije konačan ishod dok je zaseban neovisni provjeritelj ne prihvati.',
+    },
+    reviewHeading: { en: 'Independent review', hr: 'Neovisna provjera' },
+    decisionLabel: { en: 'Decision', hr: 'Odluka' },
+    reviewerLabel: { en: 'Reviewer', hr: 'Provjeritelj' },
+    reviewNoteLabel: { en: 'Reviewer note', hr: 'Napomena provjeritelja' },
+    decisionAccepted: { en: 'Accepted', hr: 'Prihvaćeno' },
+    decisionReturned: { en: 'Returned to the filing office', hr: 'Vraćeno uredu koji je podnio obvezu' },
+    reviewIndependence: {
+      en: 'The reviewer is a distinct actor from the filing office. Review controls publication; the office cannot publish its own commitment.',
+      hr: 'Provjeritelj je sudionik odvojen od ureda koji podnosi obvezu. Provjera nadzire objavu; ured ne može objaviti vlastitu obvezu.',
+    },
+    reviewAcceptedLabel: {
+      en: 'ACCEPTED BY INDEPENDENT REVIEW',
+      hr: 'PRIHVAĆENO U NEOVISNOJ PROVJERI',
+    },
+    reviewReturnedLabel: {
+      en: 'RETURNED BY INDEPENDENT REVIEW',
+      hr: 'VRAĆENO S NEOVISNE PROVJERE',
+    },
+    receiptHeading: { en: 'Public receipt', hr: 'Javna potvrda' },
+    receiptHash: {
+      en: 'In the live product each appended event is hash-linked to the one before it, so a changed row is detectable. This demonstration shows no hash values and registers nothing.',
+      hr: 'U stvarnom proizvodu svaki je upisani događaj hash-povezan s prethodnim, pa je izmijenjen redak moguće otkriti. Ova demonstracija ne prikazuje vrijednosti sažetka (hash) i ništa ne registrira.',
+    },
+    receiptPublication: {
+      en: 'Published is a publication status. It does not claim the promise is fulfilled.',
+      hr: '„Objavljeno” je status objave. Ne tvrdi da je obećanje ispunjeno.',
+    },
+    actOnRecord: { en: 'Act on this record as…', hr: 'Djelujte na ovom zapisu kao…' },
+    actCitizen: { en: 'Citizen', hr: 'Građanin' },
+    actOfficial: { en: 'Official', hr: 'Dužnosnik' },
+    actReview: { en: 'Independent reviewer', hr: 'Neovisni provjeritelj' },
+  } as const;
+
+  const root = document.querySelector<HTMLElement>('[data-record-root]');
+
+  /* ------------------------------------------------------------------ utils */
+
+  function el<K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    className?: string,
+    text?: string,
+  ): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function locale(lang: Lang): string {
+    return lang === 'hr' ? 'hr-HR' : 'en-GB';
+  }
+
+  function formatMoment(iso: string, lang: Lang): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    try {
+      return new Intl.DateTimeFormat(locale(lang), {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
+    } catch {
+      return iso;
+    }
+  }
+
+  function formatDay(value: string, lang: Lang): string {
+    const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    const date = parts
+      ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+      : new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    try {
+      return new Intl.DateTimeFormat(locale(lang), { dateStyle: 'medium' }).format(date);
+    } catch {
+      return value;
+    }
+  }
+
+  function timeNode(iso: string, lang: Lang, className?: string): HTMLTimeElement {
+    const node = document.createElement('time');
+    if (className) node.className = className;
+    node.dateTime = iso;
+    node.textContent = formatMoment(iso, lang);
+    return node;
+  }
+
+  function dayNode(value: string, lang: Lang, className?: string): HTMLTimeElement {
+    const node = document.createElement('time');
+    if (className) node.className = className;
+    node.dateTime = value;
+    node.textContent = formatDay(value, lang);
+    return node;
+  }
+
+  /** A straight ink stamp. `modifier` is a shared `.demo-stamp--*` class or the local fixture mark. */
+  function stamp(text: string, modifier: string): HTMLSpanElement {
+    return el('span', `demo-stamp ${modifier}`, text);
+  }
+
+  function field(term: string, value: Node | string): HTMLDivElement {
+    const row = el('div');
+    row.append(el('dt', undefined, term));
+    const dd = el('dd');
+    if (typeof value === 'string') dd.textContent = value;
+    else dd.append(value);
+    row.append(dd);
+    return row;
+  }
+
+  function panelHead(title: string, id: string, mark?: Node, tag: 'h2' | 'h3' = 'h3'): HTMLDivElement {
+    const head = el('div', 'record-panel-head');
+    const heading = el(tag, undefined, title);
+    heading.id = id;
+    head.append(heading);
+    if (mark) head.append(mark);
+    return head;
+  }
+
+  /** Seeded material reads as a fixture; anything the visitor filed reads as their own input. */
+  function originText(record: DemoRecord, lang: Lang): string {
+    if (record.origin === 'seed') {
+      return resolveText(statusLabels.demonstrationFixture, lang);
+    }
+    return resolveText(originLabels[record.origin], lang);
+  }
+
+  /**
+   * Count agreement for the appended-event line.
+   *
+   * Croatian: 1 and any x1 except 11 take the singular; 2-4 and any x2-x4 except 12-14 take the
+   * paucal; everything else takes the genitive plural. English keeps its singular/plural split.
+   */
+  function traceCountLabel(count: number, lang: Lang) {
+    if (lang !== 'hr') return count === 1 ? copy.traceCountOne : copy.traceCount;
+    const lastTwo = count % 100;
+    const last = count % 10;
+    if (last === 1 && lastTwo !== 11) return copy.traceCountOne;
+    if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return copy.traceCountFew;
+    return copy.traceCount;
+  }
+
+  function traceCountText(count: number, lang: Lang): string {
+    return `${count} ${resolveText(traceCountLabel(count, lang), lang)}`;
+  }
+
+  function reviewStatusText(status: 'pending' | 'accepted' | 'returned', lang: Lang): string {
+    if (status === 'accepted') return resolveText(copy.reviewAcceptedLabel, lang);
+    if (status === 'returned') return resolveText(copy.reviewReturnedLabel, lang);
+    return resolveText(statusLabels.pendingReview, lang);
+  }
+
+  /** Short ink-stamp words for the same three states; chips never carry the sentence form. */
+  function reviewStampText(status: 'pending' | 'accepted' | 'returned', lang: Lang): string {
+    if (status === 'accepted') return resolveText(stampLabels.accepted, lang);
+    if (status === 'returned') return resolveText(stampLabels.returned, lang);
+    return resolveText(stampLabels['commitment-pending-review'], lang);
+  }
+
+  /* ------------------------------------------------------------------ trace */
+
+  interface Stage {
+    stage: StageId;
+    event: DemoEvent | null;
+    /** `appended` = public history, `proposed` = past the gate but unreviewed, `ahead` = no event. */
+    kind: 'appended' | 'proposed' | 'ahead';
+    /** The stage the record stands on now. A completed trace has none. */
+    active: boolean;
+  }
+
+  /**
+   * One entry per stage in trace order; a stage that carries an event renders that event, a stage
+   * without one renders empty and ahead. The store appends at most one event per stage, so the
+   * numbered markers read 1 to 5 for every record.
+   */
+  function buildStages(record: DemoRecord): Stage[] {
+    const events = [...record.events].sort((a, b) => a.seq - b.seq);
+    const newestSeq = events.length > 0 ? events[events.length - 1].seq : -1;
+    const complete = record.status === 'published';
+    const stages: Stage[] = [];
+    for (const stage of STAGE_ORDER) {
+      const staged = events.filter((event) => event.stage === stage);
+      if (staged.length === 0) {
+        stages.push({ stage, event: null, kind: 'ahead', active: false });
+        continue;
+      }
+      for (const event of staged) {
+        const proposed = event.kind === 'proposed';
+        stages.push({
+          stage,
+          event,
+          kind: proposed ? 'proposed' : 'appended',
+          // Proposed history always reads as the standing stage; appended history reads as the
+          // standing stage only while the trace is unfinished.
+          active: proposed || (!complete && event.seq === newestSeq),
+        });
+      }
+    }
+    return stages;
+  }
+
+  /** The stamp beside a stage line: the review gate, and the receipt that closed the trace. */
+  function stageStamp(entry: Stage, record: DemoRecord, lang: Lang): HTMLSpanElement | null {
+    if (entry.kind === 'proposed') {
+      if (record.status === 'returned') {
+        return stamp(resolveText(stampLabels.returned, lang), 'demo-stamp--returned');
+      }
+      return stamp(resolveText(statusLabels.pendingReview, lang), 'demo-stamp--pending');
+    }
+    if (entry.kind === 'appended' && entry.stage === 'receipt') {
+      return stamp(resolveText(stampLabels.published, lang), 'demo-stamp--published');
+    }
+    return null;
+  }
+
+  function renderTrace(record: DemoRecord, lang: Lang): HTMLElement {
+    const panel = el('section', 'demo-panel trace-panel');
+    panel.setAttribute('aria-labelledby', 'trace-heading');
+
+    const appendedCount = record.events.filter((event) => event.kind === 'appended').length;
+    const countText = traceCountText(appendedCount, lang);
+    panel.append(
+      panelHead(
+        resolveText(copy.traceHeading, lang),
+        'trace-heading',
+        el('p', 'record-note', countText),
+      ),
+    );
+
+    const list = el('ol', 'demo-trace');
+    for (const entry of buildStages(record)) {
+      const item = el('li', 'demo-trace-stage');
+      item.classList.add(
+        entry.kind === 'ahead' ? 'is-ahead' : entry.active ? 'is-active' : 'is-appended',
+      );
+      // A proposed transition beyond the review gate stays dashed, never solid history.
+      if (entry.kind === 'proposed') item.classList.add('is-proposed');
+      item.setAttribute('data-stage', entry.stage);
+
+      const marker = el('span', 'demo-trace-marker');
+      marker.setAttribute('aria-hidden', 'true');
+      item.append(marker);
+
+      const body = el('div', 'demo-trace-body');
+      const head = el('div', 'demo-trace-head');
+      head.append(el('p', 'demo-trace-line', resolveText(stageLabels[entry.stage], lang)));
+      const mark = stageStamp(entry, record, lang);
+      if (mark) head.append(mark);
+      body.append(head);
+
+      if (!entry.event) {
+        body.append(el('p', 'demo-trace-note', resolveText(copy.futureLine, lang)));
+      } else {
+        const note = el('p', 'demo-trace-note');
+        note.append(
+          document.createTextNode(
+            `${resolveText(entry.event.action, lang)} · ${resolveText(entry.event.actor, lang)} · `,
+          ),
+          timeNode(entry.event.at, lang, 'trace-when'),
+        );
+        body.append(note);
+
+        if (entry.event.note) {
+          body.append(
+            el(
+              'p',
+              'demo-trace-note',
+              `${resolveText(copy.noteLabel, lang)}: ${resolveText(entry.event.note, lang)}`,
+            ),
+          );
+        }
+      }
+
+      item.append(body);
+      list.append(item);
+    }
+
+    panel.append(list);
+    return panel;
+  }
+
+  /* ----------------------------------------------------------------- panels */
+
+  function renderReport(record: DemoRecord, lang: Lang): HTMLElement {
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'report-heading');
+    panel.append(
+      panelHead(
+        resolveText(copy.reportHeading, lang),
+        'report-heading',
+        stamp(resolveText(statusLabels.public, lang), 'demo-stamp--new'),
+      ),
+    );
+
+    const fields = el('dl', 'fields');
+    fields.append(field(resolveText(copy.subjectLabel, lang), resolveText(record.subject, lang)));
+    const narrative = resolveText(record.narrative, lang);
+    if (narrative) {
+      fields.append(field(resolveText(copy.narrativeLabel, lang), narrative));
+    }
+    panel.append(fields);
+    panel.append(el('p', 'record-note', resolveText(copy.reportBoundary, lang)));
+    return panel;
+  }
+
+  function renderResponsibility(record: DemoRecord, lang: Lang): HTMLElement {
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'responsibility-heading');
+    panel.append(
+      panelHead(resolveText(copy.responsibilityHeading, lang), 'responsibility-heading'),
+    );
+
+    if (!record.responsibility) {
+      panel.append(el('p', 'record-note', resolveText(copy.noResponsibility, lang)));
+      return panel;
+    }
+
+    const fields = el('dl', 'fields');
+    fields.append(
+      field(resolveText(copy.officeLabel, lang), resolveText(record.responsibility.office, lang)),
+    );
+    fields.append(
+      field(resolveText(copy.roleLabel, lang), resolveText(record.responsibility.role, lang)),
+    );
+    panel.append(fields);
+    return panel;
+  }
+
+  function renderCommitment(record: DemoRecord, lang: Lang): HTMLElement {
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'commitment-heading');
+
+    let mark: HTMLSpanElement | undefined;
+    if (record.commitment) {
+      const status = record.commitment.reviewStatus;
+      const modifier =
+        status === 'accepted'
+          ? 'demo-stamp--published'
+          : status === 'returned'
+            ? 'demo-stamp--returned'
+            : 'demo-stamp--pending';
+      mark = stamp(reviewStampText(status, lang), modifier);
+    }
+    panel.append(panelHead(resolveText(copy.commitmentHeading, lang), 'commitment-heading', mark));
+
+    if (!record.commitment) {
+      panel.append(el('p', 'record-note', resolveText(copy.noCommitment, lang)));
+      return panel;
+    }
+
+    const fields = el('dl', 'fields');
+    fields.append(
+      field(resolveText(copy.commitmentLabel, lang), resolveText(record.commitment.text, lang)),
+    );
+    fields.append(field(resolveText(copy.dueLabel, lang), dayNode(record.commitment.due, lang)));
+    fields.append(
+      field(resolveText(copy.filedByLabel, lang), resolveText(record.commitment.filedBy, lang)),
+    );
+    fields.append(
+      field(
+        resolveText(copy.reviewStateLabel, lang),
+        reviewStatusText(record.commitment.reviewStatus, lang),
+      ),
+    );
+    panel.append(fields);
+
+    if (record.commitment.reviewStatus === 'pending') {
+      panel.append(el('p', 'record-note', resolveText(copy.commitmentPendingNote, lang)));
+    }
+    return panel;
+  }
+
+  function renderReview(record: DemoRecord, lang: Lang): HTMLElement | null {
+    if (!record.review) return null;
+    const accepted = record.review.decision === 'accepted';
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'review-heading');
+    panel.append(
+      panelHead(
+        resolveText(copy.reviewHeading, lang),
+        'review-heading',
+        stamp(
+          reviewStampText(accepted ? 'accepted' : 'returned', lang),
+          accepted ? 'demo-stamp--published' : 'demo-stamp--returned',
+        ),
+      ),
+    );
+
+    const fields = el('dl', 'fields');
+    fields.append(
+      field(
+        resolveText(copy.decisionLabel, lang),
+        resolveText(accepted ? copy.decisionAccepted : copy.decisionReturned, lang),
+      ),
+    );
+    fields.append(
+      field(resolveText(copy.reviewerLabel, lang), resolveText(record.review.reviewer, lang)),
+    );
+    const note = resolveText(record.review.note, lang);
+    if (note) fields.append(field(resolveText(copy.reviewNoteLabel, lang), note));
+    panel.append(fields);
+    panel.append(el('p', 'record-note', resolveText(copy.reviewIndependence, lang)));
+    return panel;
+  }
+
+  /**
+   * The receipt panel carries what publication means and how the live product links the rows. The
+   * rows themselves are the trace above: one timeline, not a second copy of the same events.
+   */
+  function renderReceipt(record: DemoRecord, lang: Lang): HTMLElement | null {
+    if (record.status !== 'published') return null;
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'receipt-heading');
+    panel.append(
+      panelHead(
+        resolveText(copy.receiptHeading, lang),
+        'receipt-heading',
+        stamp(resolveText(statusLabels.demonstrationFixture, lang), 'is-fixture'),
+      ),
+    );
+    panel.append(el('p', 'record-note', resolveText(copy.receiptHash, lang)));
+    panel.append(el('p', 'record-note', resolveText(copy.receiptPublication, lang)));
+    return panel;
+  }
+
+  function renderActLinks(lang: Lang): HTMLElement {
+    const nav = el('nav', 'act-links');
+    nav.setAttribute('aria-label', resolveText(copy.actOnRecord, lang));
+    nav.append(el('p', undefined, resolveText(copy.actOnRecord, lang)));
+    const targets: Array<{ href: string; text: string }> = [
+      { href: '/demo/citizen', text: resolveText(copy.actCitizen, lang) },
+      { href: '/demo/official', text: resolveText(copy.actOfficial, lang) },
+      { href: '/demo/review', text: resolveText(copy.actReview, lang) },
+    ];
+    for (const target of targets) {
+      const link = document.createElement('a');
+      link.href = target.href;
+      link.textContent = target.text;
+      nav.append(link);
+    }
+    return nav;
+  }
+
+  function renderRecord(record: DemoRecord, lang: Lang): HTMLElement {
+    const view = el('article', 'record-view');
+
+    const header = el('header', 'record-head');
+    header.append(el('p', 'record-id', record.id));
+    header.append(el('h2', 'record-subject', resolveText(record.subject, lang)));
+
+    const marks = el('div', 'record-marks');
+    marks.append(
+      stamp(resolveText(stampLabels[record.status], lang), STATUS_STAMP[record.status]),
+    );
+    marks.append(el('span', 'demo-chip', resolveText(categoryLabels[record.category], lang)));
+    marks.append(stamp(originText(record, lang), 'is-fixture'));
+    const filed = el('p', 'record-filed');
+    filed.append(
+      document.createTextNode(`${resolveText(copy.filedLabel, lang)}: `),
+      timeNode(record.createdAt, lang),
+    );
+    marks.append(filed);
+    header.append(marks);
+    view.append(header);
+
+    // The trace is the spine: it runs the full width, and the evidence panels
+    // that support it sit below in reading order.
+    view.append(renderTrace(record, lang));
+
+    const stack = el('div', 'record-stack');
+    stack.append(renderReport(record, lang));
+    stack.append(renderResponsibility(record, lang));
+    stack.append(renderCommitment(record, lang));
+    const review = renderReview(record, lang);
+    if (review) stack.append(review);
+    const receipt = renderReceipt(record, lang);
+    if (receipt) stack.append(receipt);
+    view.append(stack);
+
+    view.append(renderActLinks(lang));
+    return view;
+  }
+
+  /* ---------------------------------------------------------------- ledger */
+
+  /** The record picker: every demo record as a ledger row, the open one marked current. */
+  function renderLedger(records: DemoRecord[], selectedId: string | null, lang: Lang): HTMLElement {
+    const panel = el('section', 'demo-panel');
+    panel.setAttribute('aria-labelledby', 'index-heading');
+    panel.append(
+      panelHead(
+        resolveText(selectedId ? copy.switcherHeading : copy.indexHeading, lang),
+        'index-heading',
+        undefined,
+        'h2',
+      ),
+    );
+
+    if (records.length === 0) {
+      panel.append(el('p', 'state', resolveText(copy.emptyIndex, lang)));
+      return panel;
+    }
+
+    const list = el('ul', 'demo-ledger');
+    for (const record of records) {
+      const item = document.createElement('li');
+      const row = document.createElement('a');
+      row.className = 'demo-ledger-row';
+      row.href = `/demo/record?id=${encodeURIComponent(record.id)}`;
+      if (record.id === selectedId) row.setAttribute('aria-current', 'page');
+      row.append(el('span', 'demo-ledger-id', record.id));
+      row.append(el('span', 'demo-ledger-subject', resolveText(record.subject, lang)));
+      row.append(el('span', 'demo-chip', resolveText(categoryLabels[record.category], lang)));
+      row.append(
+        stamp(resolveText(stampLabels[record.status], lang), STATUS_STAMP[record.status]),
+      );
+      row.append(el('span', 'record-origin', originText(record, lang)));
+      const when = el('span', 'demo-ledger-date');
+      when.append(dayNode(record.createdAt.slice(0, 10), lang));
+      row.append(when);
+      item.append(row);
+      list.append(item);
+    }
+    panel.append(list);
+    return panel;
+  }
+
+  /* ----------------------------------------------------------------- render */
+
+  function requestedId(): string {
+    try {
+      return (new URL(window.location.href).searchParams.get('id') ?? '').trim();
+    } catch {
+      return '';
+    }
+  }
+
+  function render(): void {
+    if (!root) return;
+    const state = getState() as { lang: Lang; records: DemoRecord[] };
+    const lang: Lang = state.lang === 'hr' ? 'hr' : 'en';
+    const records = [...state.records].sort((a, b) => {
+      const left = Date.parse(a.createdAt);
+      const right = Date.parse(b.createdAt);
+      if (Number.isFinite(left) && Number.isFinite(right) && left !== right) return right - left;
+      return b.id.localeCompare(a.id);
+    });
+
+    const id = requestedId();
+    const record = id ? (records.find((entry) => entry.id === id) ?? null) : null;
+
+    const parts: Node[] = [];
+    if (id && !record) {
+      parts.push(
+        el(
+          'p',
+          'state state-warning',
+          `${resolveText(copy.notFound, lang)} ${resolveText(copy.recordLabel, lang)}: ${id}`,
+        ),
+      );
+    }
+    if (record) {
+      parts.push(renderRecord(record, lang));
+      document.title = `${record.id} — ${resolveText(copy.recordLabel, lang)} · Polis demo`;
+    } else {
+      document.title = `${resolveText(copy.indexHeading, lang)} · Polis demo`;
+    }
+    parts.push(renderLedger(records, record ? record.id : null, lang));
+
+    root.replaceChildren(...parts);
+  }
+
+  if (root) {
+    subscribe(render);
+    render();
+  }
+</script>

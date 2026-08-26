@@ -1,0 +1,573 @@
+---
+import {
+  capabilityLabels,
+  commitment,
+  copy,
+  disclosureLabels,
+  pilotQuestions,
+  privateCategories,
+  receiptFixtureId,
+  receiptRows,
+  record,
+  stageLabels,
+  stages,
+  statusLabels,
+  verifierFixture,
+  vrsarBoundary,
+  type Lang,
+} from '../content/public-release';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props as Props;
+const text = copy[lang];
+const presenter = Astro.url.searchParams.get('present') === '1';
+const locale = lang === 'hr' ? 'hr-HR' : 'en-GB';
+const dateFormatter = new Intl.DateTimeFormat(locale, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'UTC',
+});
+const dateOnlyFormatter = new Intl.DateTimeFormat(locale, {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
+const formatDateTime = (value: string) => dateFormatter.format(new Date(value));
+const formatDate = (value: string) => dateOnlyFormatter.format(new Date(`${value}T00:00:00Z`));
+---
+
+<article
+  class="release-home"
+  data-release-home
+  data-mode={presenter ? 'presenter' : 'scroll'}
+  data-lang={lang}
+>
+  <nav class="release-stage-rail" aria-label={text.stageNavigation}>
+    <ol>
+      {
+        stages.map((stage, index) => (
+          <li>
+            <a
+              href={`#stage-${stage.id}`}
+              data-stage-link={index}
+              aria-current={index === 0 ? 'step' : undefined}
+            >
+              <span class="stage-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              <span class="stage-name">{stageLabels[stage.stage][lang]}</span>
+              <span class="stage-current-label" data-current-label hidden={index !== 0}>
+                {text.current}
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+    <span class="release-stage-overflow" aria-hidden="true">
+      {lang === 'hr' ? 'Dalje' : 'More'} →
+    </span>
+  </nav>
+
+  <div class="release-stage-list" id="public-record">
+    {
+      stages.map((stage, index) => {
+        const visibleEvents = record.events.slice(0, index + 1);
+        const isNewest = (eventIndex: number) => eventIndex === visibleEvents.length - 1;
+        const isProposedResponse = (eventStage: string) => index === 2 && eventStage === 'response';
+
+        return (
+          <section
+            class="release-stage"
+            id={`stage-${stage.id}`}
+            data-release-stage={index}
+            data-stage={stage.stage}
+            data-active={index === 0 ? 'true' : 'false'}
+            aria-labelledby={`stage-title-${stage.id}`}
+          >
+            <header class="release-stage-heading">
+              <h1 id={`stage-title-${stage.id}`}>{stage.headline[lang]}</h1>
+              <p class="release-stage-support">{stage.support[lang]}</p>
+            </header>
+
+            {index === 0 ? (
+              <div class="release-opening">
+                <section class="unanswered-record" aria-labelledby="unanswered-record-title">
+                  <header>
+                    <h2 id="unanswered-record-title">{text.report}</h2>
+                    <p class="record-id">{record.id}</p>
+                  </header>
+                  <p class="unanswered-status">{record.events[0].status[lang]}</p>
+                  <p class="record-meta">
+                    <time datetime={record.events[0].at}>{formatDateTime(record.events[0].at)}</time>
+                  </p>
+                  <div class="intake-node">
+                    <span>{text.intake}</span>
+                  </div>
+                  <p class="public-trail-stop">{text.publicTrailEnds}</p>
+                </section>
+
+                <div class="opening-trace" aria-hidden="true">
+                  <span class="opening-trace-line" />
+                  <span class="record-meta">
+                    {stageLabels.voice[lang]} · {text.appendedHere}
+                  </span>
+                </div>
+
+                <section class="public-record-trace" aria-labelledby="public-record-title-voice">
+                  <header class="record-panel-header">
+                    <div>
+                      <h2 id="public-record-title-voice">{text.record}</h2>
+                      <p class="record-id">{record.id}</p>
+                    </div>
+                    <p class="record-meta">1 {text.ofStages}</p>
+                  </header>
+                  <ol class="trace-events">
+                    <li class="trace-event" data-newest="true">
+                      <span class="trace-node" aria-hidden="true" />
+                      <article>
+                        <p class="trace-stage">
+                          {stageLabels.voice[lang]} · {text.appendedHere}
+                        </p>
+                        <h3>{record.events[0].action[lang]}</h3>
+                        <p class="trace-actor">{record.events[0].actor[lang]}</p>
+                        <dl class="event-state">
+                          <div>
+                            <dt>{text.eventStatus}</dt>
+                            <dd>{record.events[0].status[lang]}</dd>
+                          </div>
+                        </dl>
+                        <p class="event-meta">
+                          <time datetime={record.events[0].at}>{formatDateTime(record.events[0].at)}</time>
+                          {' · '}
+                          <span class="record-data">{record.events[0].hashFragment}</span>
+                        </p>
+                      </article>
+                    </li>
+                  </ol>
+                </section>
+              </div>
+            ) : (
+              <div class="release-evidence-grid">
+                <section class="public-record-trace" aria-labelledby={`public-record-title-${stage.id}`}>
+                  <header class="record-panel-header">
+                    <div>
+                      <h2 id={`public-record-title-${stage.id}`}>{text.record}</h2>
+                      <p class="record-id">{record.id}</p>
+                    </div>
+                    <p class="record-meta">
+                      {index === 2 ? text.proposedCount : `${visibleEvents.length} ${text.ofStages}`}
+                    </p>
+                  </header>
+                  <ol class="trace-events">
+                    {visibleEvents.map((event, eventIndex) => {
+                      const proposed = isProposedResponse(event.stage);
+                      return (
+                        <li
+                          class:list={['trace-event', { 'trace-event-proposed': proposed }]}
+                          data-newest={isNewest(eventIndex) ? 'true' : 'false'}
+                          data-history={proposed ? 'proposed' : 'accepted'}
+                        >
+                          <span class="trace-node" aria-hidden="true" />
+                          <article aria-label={isNewest(eventIndex) ? text.newestEvent : undefined}>
+                            <p class="trace-stage">{stageLabels[event.stage][lang]}</p>
+                            {proposed && (
+                              <p class="meaning-label" data-meaning="pending">
+                                <span class="meaning-mark" aria-hidden="true" />
+                                {statusLabels.awaitingReview[lang]}
+                              </p>
+                            )}
+                            <h3>{event.action[lang]}</h3>
+                            <p class="trace-actor">{event.actor[lang]}</p>
+                            <dl class="event-state">
+                              <div>
+                                <dt>{text.eventStatus}</dt>
+                                <dd>{event.status[lang]}</dd>
+                              </div>
+                            </dl>
+                            <p class="event-meta">
+                              <time datetime={event.at}>{formatDateTime(event.at)}</time>
+                              {' · '}
+                              <span class="record-data">{event.hashFragment}</span>
+                            </p>
+                          </article>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </section>
+
+                {stage.stage === 'responsibility' && (
+                  <div class="boundary-stack">
+                    <section class="evidence-panel" aria-labelledby="public-fields-title">
+                      <header>
+                        <h2 id="public-fields-title">{text.publicFields}</h2>
+                        <span class="meaning-label" data-meaning="public">
+                          <span class="meaning-mark" aria-hidden="true" />
+                          {statusLabels.public[lang]}
+                        </span>
+                      </header>
+                      <dl class="field-list">
+                        <div>
+                          <dt>{text.responsibleOffice}</dt>
+                          <dd>{text.officeValue}</dd>
+                        </div>
+                        <div>
+                          <dt>{text.responseObligation}</dt>
+                          <dd>{text.obligationValue}</dd>
+                        </div>
+                      </dl>
+                    </section>
+
+                    <section class="evidence-panel restricted-panel" aria-labelledby="restricted-title">
+                      <header>
+                        <h2 id="restricted-title">{text.withheld}</h2>
+                        <span class="meaning-label" data-meaning="restricted">
+                          <span class="meaning-mark" aria-hidden="true" />
+                          {statusLabels.privateRestricted[lang]}
+                        </span>
+                      </header>
+                      <ul class="restricted-list">
+                        {privateCategories.map((category) => (
+                          <li>
+                            <span>{category[lang]}</span>
+                            <span class="restricted-mask" aria-hidden="true" />
+                            <span class="record-meta">{text.notPublished}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </div>
+                )}
+
+                {stage.stage === 'response' && (
+                  <section class="evidence-panel commitment-panel" aria-labelledby="commitment-title">
+                    <header>
+                      <div>
+                        <h2 id="commitment-title">{text.commitment}</h2>
+                        <p class="record-id">{commitment.id}</p>
+                      </div>
+                      <span class="meaning-label" data-meaning="pending">
+                        <span class="meaning-mark" aria-hidden="true" />
+                        {statusLabels.pendingReview[lang]}
+                      </span>
+                    </header>
+                    <p class="commitment-title">{commitment.title[lang]}</p>
+                    <dl class="field-list">
+                      <div>
+                        <dt>{text.criterion}</dt>
+                        <dd>{commitment.criterion[lang]}</dd>
+                      </div>
+                      <div>
+                        <dt>{text.due}</dt>
+                        <dd>
+                          <time datetime={commitment.due}>{formatDate(commitment.due)}</time>
+                        </dd>
+                      </div>
+                    </dl>
+                    <p class="review-gate-copy">{text.reviewRule}</p>
+                    <p class="terminal-blocked">{text.terminalBlocked}</p>
+                  </section>
+                )}
+
+                {stage.stage === 'check' && (
+                  <section
+                    class="evidence-panel verifier-panel"
+                    aria-labelledby="verifier-title"
+                    data-verifier
+                    data-result="match"
+                    data-match-value={verifierFixture.matchComputed}
+                    data-mismatch-value={verifierFixture.mismatchComputed}
+                  >
+                    <header>
+                      <div>
+                        <h2 id="verifier-title">{text.localVerifier}</h2>
+                        <p class="record-id">{verifierFixture.fixtureId}</p>
+                        <p class="meaning-label panel-scope-label" data-meaning="local">
+                          <span class="meaning-mark" aria-hidden="true" />
+                          {statusLabels.localProofRegistry[lang]}
+                        </p>
+                      </div>
+                      <span class="meaning-label" data-meaning="local" data-verifier-label>
+                        <span class="meaning-mark" aria-hidden="true" />
+                        <span data-verifier-label-text>{statusLabels.verifiedLocal[lang]}</span>
+                      </span>
+                    </header>
+                    <dl class="field-list verifier-fields">
+                      <div>
+                        <dt>{text.checkedFile}</dt>
+                        <dd class="record-data">{verifierFixture.fileName}</dd>
+                      </div>
+                      <div>
+                        <dt>{text.registered}</dt>
+                        <dd class="record-data">{verifierFixture.registered}</dd>
+                      </div>
+                      <div>
+                        <dt>{text.computed}</dt>
+                        <dd class="record-data" data-computed>{verifierFixture.matchComputed}</dd>
+                      </div>
+                      <div>
+                        <dt>{text.mechanism}</dt>
+                        <dd>{verifierFixture.mechanism[lang]}</dd>
+                      </div>
+                      <div>
+                        <dt>{text.result}</dt>
+                        <dd class="verifier-result" role="status" aria-live="polite" data-verifier-result>
+                          {statusLabels.exactMatch[lang]}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p>{text.bytesStay}</p>
+                    <p class="proof-limit">{text.truthLimit}</p>
+                    <div class="verifier-actions" aria-label={text.localVerifier}>
+                      <button type="button" class="release-button" data-verifier-state="match" aria-pressed="true">
+                        {text.useOriginal}
+                      </button>
+                      <button type="button" class="release-button release-button-secondary" data-verifier-state="mismatch" aria-pressed="false">
+                        {text.changeByte}
+                      </button>
+                    </div>
+                  </section>
+                )}
+
+                {stage.stage === 'receipt' && (
+                  <div class="receipt-close">
+                    <section class="evidence-panel receipt-panel" aria-labelledby="receipt-title">
+                      <header>
+                        <div>
+                          <h2 id="receipt-title">{text.receipt}</h2>
+                          <p class="record-id">{record.id} · {receiptFixtureId}</p>
+                        </div>
+                      </header>
+                      <table class="receipt-table">
+                        <caption>{text.receiptCaption}</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">{text.sequence}</th>
+                            <th scope="col">{text.event}</th>
+                            <th scope="col">{text.time}</th>
+                            <th scope="col">{text.hash}</th>
+                            <th scope="col">{text.previousHash}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {receiptRows.map((row) => (
+                            <tr data-accepted={row.seq === 3 ? 'true' : 'false'}>
+                              <td data-label={text.sequence} class="record-meta">{row.seq}</td>
+                              <td data-label={text.event}>
+                                {row.event[lang]}
+                                {row.seq === 3 && <span class="accepted-review">{text.reviewAccepted}</span>}
+                                {row.seq === 4 && (
+                                  <span class="accepted-review">{text.publicationFollowedReview}</span>
+                                )}
+                              </td>
+                              <td data-label={text.time} class="record-meta">
+                                <time datetime={row.at}>{formatDateTime(row.at)}</time>
+                              </td>
+                              <td data-label={text.hash} class="record-data">{row.hash}</td>
+                              <td data-label={text.previousHash} class="record-data">{row.previousHash}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p class="publication-limit">{text.publicationLimit}</p>
+                    </section>
+
+                    <section class="evidence-panel pilot-worksheet" aria-labelledby="pilot-title">
+                      <header>
+                        <h2 id="pilot-title">{text.pilotWorksheet}</h2>
+                        <div class="worksheet-labels">
+                          <span class="meaning-label" data-meaning="pilot">
+                            <span class="meaning-mark" aria-hidden="true" />
+                            {statusLabels.pilotTarget[lang]}
+                          </span>
+                          <span class="meaning-label" data-meaning="not-live">
+                            <span class="meaning-mark" aria-hidden="true" />
+                            {statusLabels.notLive[lang]}
+                          </span>
+                        </div>
+                      </header>
+                      <p>{text.pilotInstruction}</p>
+                      <ol>
+                        {pilotQuestions.map((question) => <li>{question[lang]}</li>)}
+                      </ol>
+                      <p class="pilot-boundary">{vrsarBoundary[lang]}</p>
+                    </section>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <footer class="stage-provenance">
+              <p>
+                {text.fixture} <span class="record-data">{stage.fixtureId}</span>
+                {' · '}
+                {capabilityLabels[stage.capabilityState][lang]}
+                {' · '}
+                {stage.disclosure.map((value) => disclosureLabels[value][lang]).join(' · ')}
+                {' · '}
+                <a href="/transparency#provenance">{text.sources}</a>
+              </p>
+            </footer>
+          </section>
+        );
+      })
+    }
+  </div>
+
+  <div class="presenter-controls" hidden={!presenter} aria-label={text.presentationProgress}>
+    <button type="button" class="release-button release-button-secondary" data-presenter-previous>
+      {text.previous}
+    </button>
+    <p class="record-meta" aria-live="polite" data-presenter-progress>
+      1 / 5 · {stageLabels.voice[lang]}
+    </p>
+    <button type="button" class="release-button" data-presenter-next>{text.next}</button>
+    <button type="button" class="release-button release-button-secondary" data-presenter-fullscreen>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="square" />
+      </svg>
+      <span data-fullscreen-label>{text.fullscreen}</span>
+    </button>
+    <p class="presenter-error" role="status" aria-live="polite" data-fullscreen-error hidden />
+  </div>
+</article>
+
+<script
+  is:inline
+  define:vars={{
+    presenter,
+    lang,
+    stageNames: stages.map((stage) => stageLabels[stage.stage][lang]),
+    exactMatch: statusLabels.exactMatch[lang],
+    mismatch: statusLabels.mismatch[lang],
+    verifiedLocal: statusLabels.verifiedLocal[lang],
+    fullscreenLabel: text.fullscreen,
+    exitFullscreenLabel: text.exitFullscreen,
+    fullscreenDenied: text.fullscreenDenied,
+  }}
+>
+  (() => {
+    const root = document.querySelector('[data-release-home]');
+    if (!root) return;
+
+    const sections = Array.from(root.querySelectorAll('[data-release-stage]'));
+    const links = Array.from(root.querySelectorAll('[data-stage-link]'));
+    let activeIndex = 0;
+
+    const setActive = (nextIndex, moveViewport) => {
+      activeIndex = Math.max(0, Math.min(sections.length - 1, nextIndex));
+      sections.forEach((section, index) => {
+        const active = index === activeIndex;
+        section.dataset.active = active ? 'true' : 'false';
+        if (presenter) section.hidden = !active;
+      });
+      links.forEach((link, index) => {
+        const active = index === activeIndex;
+        if (active) link.setAttribute('aria-current', 'step');
+        else link.removeAttribute('aria-current');
+        const currentLabel = link.querySelector('[data-current-label]');
+        if (currentLabel) currentLabel.hidden = !active;
+      });
+      const progress = root.querySelector('[data-presenter-progress]');
+      if (progress) progress.textContent = `${activeIndex + 1} / ${sections.length} · ${stageNames[activeIndex]}`;
+      const previous = root.querySelector('[data-presenter-previous]');
+      const next = root.querySelector('[data-presenter-next]');
+      if (previous) previous.disabled = activeIndex === 0;
+      if (next) next.disabled = activeIndex === sections.length - 1;
+      if (moveViewport && presenter) root.scrollIntoView({ block: 'start' });
+    };
+
+    links.forEach((link, index) => {
+      link.addEventListener('click', (event) => {
+        if (!presenter) return;
+        event.preventDefault();
+        setActive(index, true);
+      });
+    });
+
+    if (presenter) {
+      root.classList.add('is-enhanced');
+      setActive(0, false);
+      root.querySelector('[data-presenter-previous]')?.addEventListener('click', () => setActive(activeIndex - 1, true));
+      root.querySelector('[data-presenter-next]')?.addEventListener('click', () => setActive(activeIndex + 1, true));
+
+      document.addEventListener('keydown', (event) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+        const nextKeys = ['ArrowRight', 'ArrowDown', 'PageDown', ' '];
+        const previousKeys = ['ArrowLeft', 'ArrowUp', 'PageUp'];
+        if (nextKeys.includes(event.key)) {
+          event.preventDefault();
+          setActive(activeIndex + 1, true);
+        } else if (previousKeys.includes(event.key)) {
+          event.preventDefault();
+          setActive(activeIndex - 1, true);
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          setActive(0, true);
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          setActive(sections.length - 1, true);
+        } else if (event.key.toLowerCase() === 'f') {
+          event.preventDefault();
+          root.querySelector('[data-presenter-fullscreen]')?.click();
+        }
+      });
+    } else if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!visible) return;
+          const index = Number(visible.target.getAttribute('data-release-stage'));
+          if (Number.isInteger(index)) setActive(index, false);
+        },
+        { rootMargin: '-20% 0px -55%', threshold: [0.15, 0.4, 0.7] },
+      );
+      sections.forEach((section) => observer.observe(section));
+    }
+
+    root.querySelectorAll('[data-verifier]').forEach((verifier) => {
+      const result = verifier.querySelector('[data-verifier-result]');
+      const computed = verifier.querySelector('[data-computed]');
+      const label = verifier.querySelector('[data-verifier-label-text]');
+      const labelContainer = verifier.querySelector('[data-verifier-label]');
+      verifier.querySelectorAll('[data-verifier-state]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const state = button.getAttribute('data-verifier-state');
+          const match = state === 'match';
+          verifier.dataset.result = match ? 'match' : 'mismatch';
+          if (computed) computed.textContent = match ? verifier.dataset.matchValue : verifier.dataset.mismatchValue;
+          if (result) result.textContent = match ? exactMatch : mismatch;
+          if (label) label.textContent = match ? verifiedLocal : mismatch;
+          if (labelContainer) labelContainer.dataset.meaning = match ? 'local' : 'failure';
+          verifier.querySelectorAll('[data-verifier-state]').forEach((candidate) => {
+            candidate.setAttribute('aria-pressed', candidate === button ? 'true' : 'false');
+          });
+        });
+      });
+    });
+
+    const fullscreenButton = root.querySelector('[data-presenter-fullscreen]');
+    const fullscreenError = root.querySelector('[data-fullscreen-error]');
+    const fullscreenText = root.querySelector('[data-fullscreen-label]');
+    fullscreenButton?.addEventListener('click', async () => {
+      if (fullscreenError) fullscreenError.hidden = true;
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await root.requestFullscreen();
+      } catch {
+        if (fullscreenError) {
+          fullscreenError.textContent = fullscreenDenied;
+          fullscreenError.hidden = false;
+        }
+      }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      if (fullscreenText) fullscreenText.textContent = document.fullscreenElement ? exitFullscreenLabel : fullscreenLabel;
+      if (!document.fullscreenElement && fullscreenError) fullscreenError.hidden = true;
+    });
+  })();
+</script>

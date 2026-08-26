@@ -1,104 +1,222 @@
 ---
 import '../styles.css';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import {
+  directionContract,
+  releaseBanner,
+  releaseBannerDetails,
+  statusLabels,
+  type Lang,
+} from '../content/public-release';
 
-const { title = 'Polis Interface', description = 'Local v1 civic infrastructure for source-linked governance maps, public audit trails, and proof-oriented transition pilots.' } = Astro.props;
+interface Props {
+  title?: string;
+  description?: string;
+  lang?: Lang;
+  /**
+   * Which chrome the page wants around its content.
+   *
+   * `'site'` (default) is every ordinary page: boundary banner or demo badge, site header with the
+   * primary navigation, main, footer.
+   *
+   * `'demo'` is for `/demo/*` pages, which render their own app bar and their own single boundary
+   * line through `DemoShell`. It suppresses the release boundary banner, the `DemoBadge`, and the
+   * site header so the boundary and the navigation are each stated exactly once. The skip link,
+   * head, main, and footer are unchanged. `DemoShell` does not set this — the page passes it.
+   */
+  chrome?: 'site' | 'demo';
+}
+
+const {
+  title = 'Polis Interface',
+  description = 'Follow one synthetic public response from community voice to an independently reviewed receipt.',
+  lang = 'en',
+  chrome = 'site',
+} = Astro.props as Props;
+const demoChrome = chrome === 'demo';
+const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
+const presenter = Astro.url.searchParams.get('present') === '1';
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+const homeHref = lang === 'hr' ? '/hr/' : '/';
+const presentationHref = lang === 'hr' ? '/hr/presentation' : '/presentation';
+const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const onPresentation = currentPath === '/presentation' || currentPath === '/hr/presentation';
+const otherLanguageHref = onPresentation
+  ? lang === 'hr'
+    ? '/presentation'
+    : '/hr/presentation'
+  : lang === 'hr'
+    ? '/'
+    : '/hr/';
+const presentHref = `${presentationHref}?present=1`;
+const releaseNavigation = {
+  en: {
+    primary: 'Public release',
+    boundary: 'Release boundary',
+    presentation: 'Presentation',
+    transparency: 'Transparency',
+    source: 'Source',
+    language: 'Hrvatski',
+    present: 'Present',
+    skip: 'Skip to the public record',
+    more: 'More',
+  },
+  hr: {
+    primary: 'Javno izdanje',
+    boundary: 'Granica izdanja',
+    presentation: 'Prezentacija',
+    transparency: 'Transparentnost',
+    source: 'Izvor',
+    language: 'English',
+    present: 'Izlaganje',
+    skip: 'Preskoči na javni zapis',
+    more: 'Dalje',
+  },
+}[lang];
 ---
 
-<html lang="en" data-theme="dark">
+<html
+  lang={lang}
+  data-theme={publicRelease ? 'light' : 'dark'}
+  data-release={publicRelease ? 'public' : 'local'}
+  data-presenter={publicRelease && presenter ? 'true' : undefined}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <style>
-      @media (max-width: 640px) {
-        .site-header {
-          display: grid;
-          justify-content: stretch;
-        }
-
-        .site-nav {
-          justify-content: flex-start;
-          gap: 0.5rem 0.75rem;
-        }
-      }
-    </style>
   </head>
-  <body>
-    <div class="site-shell">
-      <DemoBadge banner />
+  <body><Fragment set:html={`<!-- direction-contract\n${directionContract}\n-->`} />
+    <a class="skip-link" href="#public-record">{publicRelease ? releaseNavigation.skip : 'Skip to content'}</a>
+    <div class:list={['site-shell', { 'site-shell--presenter': publicRelease && presenter }]}>
+      {
+        demoChrome ? null : publicRelease ? (
+          <aside class="release-boundary-banner" aria-label={releaseNavigation.boundary}>
+            <p>
+              {releaseBanner[lang]}{' '}
+              <a href="/transparency">{releaseBannerDetails[lang]}</a>
+            </p>
+          </aside>
+        ) : (
+          <DemoBadge banner />
+        )
+      }
+
+      {!demoChrome && (
       <header class="site-header">
-        <a class="site-brand" href="/">Polis Interface</a>
-        <nav class="site-nav" aria-label="Primary">
-          <a href="/governance/jur-croatia-local">Governance</a>
-          <a href="/issues">Issues</a>
-          <a href="/complaints">Complaints</a>
-          <a href="/deliberate">Deliberate</a>
-          <a href="/audit">Audit</a>
-          <a href="/verify">Verify</a>
-          <a href="/proofs">Proofs</a>
-          <a href="/assistant">Assistant</a>
-          <a href="/docs">Docs</a>
-          <a href="/source">Source</a>
-          <a href="/methodology">Methodology</a>
-          <a href="/transparency">Transparency</a>
-          <a href="/privacy">Privacy</a>
-          <span id="auth-nav"></span>
-        </nav>
+        <a class="site-brand" href={homeHref}>Polis</a>
+        {
+          publicRelease ? (
+            <div class="release-nav-shell">
+              <nav class="site-nav release-nav" aria-label={releaseNavigation.primary}>
+                <a href={presentationHref} aria-current={onPresentation ? 'page' : undefined}>
+                  {releaseNavigation.presentation}
+                </a>
+                <a href="/transparency">{releaseNavigation.transparency}</a>
+                <a href="/source">{releaseNavigation.source}</a>
+                <a href={otherLanguageHref} hreflang={lang === 'hr' ? 'en' : 'hr'}>
+                  {releaseNavigation.language}
+                </a>
+                {!presenter && <a href={presentHref}>{releaseNavigation.present}</a>}
+              </nav>
+              <span class="release-nav-overflow" aria-hidden="true">{releaseNavigation.more} →</span>
+            </div>
+          ) : (
+            <nav class="site-nav" aria-label="Primary">
+              <a href="/governance/jur-croatia-local">Governance</a>
+              <a href="/issues">Issues</a>
+              <a href="/complaints">Complaints</a>
+              <a href="/deliberate">Deliberate</a>
+              <a href="/audit">Audit</a>
+              <a href="/verify">Verify</a>
+              <a href="/proofs">Proofs</a>
+              <a href="/assistant">Assistant</a>
+              <a href="/docs">Docs</a>
+              <a href="/source">Source</a>
+              <a href="/methodology">Methodology</a>
+              <a href="/transparency">Transparency</a>
+              <a href="/privacy">Privacy</a>
+              <span id="auth-nav" />
+            </nav>
+          )
+        }
       </header>
-      <main class="site-main"><slot /></main>
+      )}
+
+      <main class="site-main" id="main-content"><slot /></main>
+
       <footer class="site-footer" id="site-footer">
-        Source: https://github.com/basicalex/polis · AGPL-3.0-or-later · <span id="version-meta">version unavailable</span>
-        <script is:inline define:vars={{ apiUrl }}>
-          const target = document.getElementById('version-meta');
-          fetch(apiUrl + '/version')
-            .then((r) => (r.ok ? r.json() : null))
-            .then((v) => {
-              if (!v) return;
-              const meta = [
-                v.version ? 'v' + v.version : '',
-                v.gitSha ? 'git ' + v.gitSha : '',
-                v.buildTime ? 'built ' + v.buildTime : '',
-                v.environment ? v.environment : '',
-              ]
-                .filter(Boolean)
-                .join(' · ');
-              if (target && meta) target.textContent = meta;
-            })
-            .catch(() => {
-              /* offline/API down: keep static label */
-            });
-        </script>
+        {
+          publicRelease ? (
+            <>
+              <span class="footer-label">{statusLabels.demonstrationFixture[lang]}</span>
+              {' · '}
+              <span class="footer-label">{statusLabels.notLive[lang]}</span>
+              {' · AGPL-3.0-or-later · '}
+              <a href="/source">{releaseNavigation.source}</a>
+            </>
+          ) : (
+            <>
+              Source: https://github.com/basicalex/polis · AGPL-3.0-or-later ·{' '}
+              <span id="version-meta">version unavailable</span>
+              <script is:inline define:vars={{ apiUrl }}>
+                const target = document.getElementById('version-meta');
+                fetch(apiUrl + '/version')
+                  .then((response) => (response.ok ? response.json() : null))
+                  .then((version) => {
+                    if (!version) return;
+                    const meta = [
+                      version.version ? 'v' + version.version : '',
+                      version.gitSha ? 'git ' + version.gitSha : '',
+                      version.buildTime ? 'built ' + version.buildTime : '',
+                      version.environment ? version.environment : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ');
+                    if (target && meta) target.textContent = meta;
+                  })
+                  .catch(() => {
+                    /* offline/API down: keep static label */
+                  });
+              </script>
+            </>
+          )
+        }
       </footer>
     </div>
-    <script is:inline define:vars={{ apiUrl }}>
-      window.__API_URL = apiUrl;
-      const rawSession = sessionStorage.getItem('web_session');
-      const authNav = document.getElementById('auth-nav');
-      if (authNav) {
-        const login = document.createElement('a');
-        login.href = '/login';
-        login.textContent = 'Login';
-        if (!rawSession) {
-          authNav.replaceChildren(login);
-        } else {
-          const mandateHolders = document.createElement('a');
-          mandateHolders.href = '/mandate-holders';
-          mandateHolders.textContent = 'Mandate-holders';
-          const separator = document.createTextNode(' · ');
-          const logout = document.createElement('a');
-          logout.href = '#';
-          logout.textContent = 'Logout';
-          logout.addEventListener('click', (event) => {
-            event.preventDefault();
-            sessionStorage.removeItem('web_session');
-            location.reload();
-          });
-          authNav.replaceChildren(mandateHolders, separator, logout);
-        }
-      }
-    </script>
+
+    {
+      !publicRelease && (
+        <script is:inline define:vars={{ apiUrl }}>
+          window.__API_URL = apiUrl;
+          const rawSession = sessionStorage.getItem('web_session');
+          const authNav = document.getElementById('auth-nav');
+          if (authNav) {
+            const login = document.createElement('a');
+            login.href = '/login';
+            login.textContent = 'Login';
+            if (!rawSession) {
+              authNav.replaceChildren(login);
+            } else {
+              const mandateHolders = document.createElement('a');
+              mandateHolders.href = '/mandate-holders';
+              mandateHolders.textContent = 'Mandate-holders';
+              const separator = document.createTextNode(' · ');
+              const logout = document.createElement('a');
+              logout.href = '#';
+              logout.textContent = 'Logout';
+              logout.addEventListener('click', (event) => {
+                event.preventDefault();
+                sessionStorage.removeItem('web_session');
+                location.reload();
+              });
+              authNav.replaceChildren(mandateHolders, separator, logout);
+            }
+          }
+        </script>
+      )
+    }
   </body>
 </html>

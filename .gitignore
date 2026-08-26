@@ -39,3 +39,9 @@ The Iceberg Index/sections_us/images_us/iceberg_figmain.png
 
 
 
+
+# Wrangler local dev/deploy cache
+apps/web/.wrangler/
+
+# Design-lab working material (mockups, prompts, notes) — not product code
+design-lab/

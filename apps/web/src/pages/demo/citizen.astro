@@ -1,0 +1,1115 @@
+---
+/**
+ * Citizen demo surface — "My reports".
+ *
+ * A resident reads every report held in this browser as a stepper card, and files a new one. The
+ * record starts at stage `voice` with status `open`: nothing here assigns responsibility, files a
+ * commitment, or publishes anything, because the real meaning model forbids those moves from this
+ * role.
+ *
+ * Chrome comes from `DemoShell` (app bar, role switcher, one boundary line, language, reset), so
+ * `Base` runs with `chrome="demo"` and the shell renders the boundary itself.
+ *
+ * Static chrome renders both languages as `data-lang` siblings (EN visible without JavaScript);
+ * DemoShell's script shows the language held in the demo store. The report cards are built at
+ * runtime in the current language, styled through the shared `.demo-*` global classes because
+ * Astro scoped styles never reach runtime-built DOM.
+ */
+import Base from '../../layouts/Base.astro';
+import DemoShell from '../../components/demo/DemoShell.astro';
+import { DEMO_CATEGORIES } from '../../lib/demo-store.mjs';
+import { categoryLabels, institutionAnchor } from '../../content/demo-strings.mjs';
+
+const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
+---
+
+<Base
+  lang="en"
+  chrome="demo"
+  title="Polis demo — Citizen"
+  description="File a report in the Polis demonstration and follow it to the public record. Fictional data, held in your browser only."
+>
+  <DemoShell surface="citizen">
+    <article class="citizen" id="public-record">
+      <header class="citizen-head">
+        <h1>
+          <span data-lang="en">My reports</span>
+          <span data-lang="hr" hidden>Moje prijave</span>
+        </h1>
+        <p class="demo-anchor">
+          <span data-lang="en">{institutionAnchor.en}</span>
+          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+        </p>
+      </header>
+
+      <div class="reports-region" data-reports>
+        <p class="reports-state">
+          <span data-lang="en">Loading public record…</span>
+          <span data-lang="hr" hidden>Učitavanje javnog zapisa…</span>
+        </p>
+      </div>
+
+      <div class="citizen-actions">
+        <button
+          type="button"
+          class="citizen-primary"
+          data-report-toggle
+          aria-expanded="false"
+          aria-controls="citizen-report-form"
+        >
+          <span data-lang="en">Report an issue</span>
+          <span data-lang="hr" hidden>Prijavi problem</span>
+        </button>
+      </div>
+
+      <p class="citizen-filed" role="status" tabindex="-1" data-filed hidden></p>
+
+      <section
+        class="citizen-form-panel demo-panel"
+        id="citizen-report-form"
+        aria-labelledby="citizen-form-title"
+        hidden
+      >
+        <h2 class="citizen-form-title" id="citizen-form-title">
+          <span data-lang="en">Report an issue</span>
+          <span data-lang="hr" hidden>Prijavi problem</span>
+        </h2>
+
+        <form class="citizen-form" data-report-form novalidate>
+          <fieldset
+            class="field-tiles"
+            role="radiogroup"
+            aria-describedby="report-category-hint report-category-error"
+            data-field="category"
+          >
+            <legend>
+              <span data-lang="en">Category</span>
+              <span data-lang="hr" hidden>Kategorija</span>
+            </legend>
+            <p class="field-hint" id="report-category-hint">
+              <span data-lang="en">Pick the one closest to the problem.</span>
+              <span data-lang="hr" hidden>Odaberite onu najbližu problemu.</span>
+            </p>
+            <div class="tiles">
+              {
+                categoryIds.map((id) => (
+                  <label class="tile">
+                    <input type="radio" name="category" value={id} data-category={id} />
+                    <span class="tile-text">
+                      <span data-lang="en">{categoryLabels[id].en}</span>
+                      <span data-lang="hr" hidden>
+                        {categoryLabels[id].hr}
+                      </span>
+                    </span>
+                  </label>
+                ))
+              }
+            </div>
+            <p class="field-error" id="report-category-error" data-error-for="category"></p>
+          </fieldset>
+
+          <div class="field">
+            <label for="report-subject">
+              <span data-lang="en">Subject</span>
+              <span data-lang="hr" hidden>Predmet</span>
+            </label>
+            <p class="field-hint" id="report-subject-hint">
+              <span data-lang="en">One line naming the problem and where it is.</span>
+              <span data-lang="hr" hidden>Jedan redak s problemom i mjestom.</span>
+            </p>
+            <input
+              id="report-subject"
+              name="subject"
+              type="text"
+              required
+              maxlength="200"
+              autocomplete="off"
+              aria-describedby="report-subject-hint report-subject-error"
+              data-field="subject"
+            />
+            <p class="field-error" id="report-subject-error" data-error-for="subject"></p>
+          </div>
+
+          <div class="field">
+            <label for="report-narrative">
+              <span data-lang="en">What happened</span>
+              <span data-lang="hr" hidden>Što se dogodilo</span>
+            </label>
+            <p class="field-hint" id="report-narrative-hint">
+              <span data-lang="en">What you saw, when, and what it affects.</span>
+              <span data-lang="hr" hidden>Što ste vidjeli, kada i na što to utječe.</span>
+            </p>
+            <textarea
+              id="report-narrative"
+              name="narrative"
+              rows="4"
+              required
+              maxlength="2000"
+              aria-describedby="report-narrative-hint report-narrative-error"
+              data-field="narrative"></textarea>
+            <p class="field-error" id="report-narrative-error" data-error-for="narrative"></p>
+          </div>
+
+          <p class="form-error" role="alert" data-form-error></p>
+
+          <div class="form-actions">
+            <button type="submit" class="citizen-submit">
+              <span data-lang="en">File the report</span>
+              <span data-lang="hr" hidden>Podnesi prijavu</span>
+            </button>
+            <button type="button" class="citizen-cancel" data-report-cancel>
+              <span data-lang="en">Cancel</span>
+              <span data-lang="hr" hidden>Odustani</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <footer class="citizen-provenance">
+        <p>
+          <span data-lang="en"
+            >Seeded records are frozen synthetic fixtures. Records you file are your own demo input
+            and stay in this browser. Every record opens its full trace on the record surface.</span
+          >
+          <span data-lang="hr" hidden
+            >Početni zapisi zamrznuti su izmišljeni primjeri. Zapisi koje podnesete vaš su demo unos
+            i ostaju u ovom pregledniku. Svaki zapis otvara cijeli trag na prikazu zapisa.</span
+          >
+        </p>
+        <noscript>
+          <p class="citizen-noscript">
+            This demonstration needs JavaScript: the records are created and stored in your browser.
+            <span lang="hr"
+              >Ova demonstracija treba JavaScript: zapisi nastaju i ostaju u vašem pregledniku.</span
+            >
+          </p>
+        </noscript>
+      </footer>
+    </article>
+  </DemoShell>
+</Base>
+
+<style>
+  .citizen {
+    display: grid;
+    gap: var(--space-md);
+    max-width: 48rem;
+    min-width: 0;
+  }
+
+  .citizen-head {
+    display: grid;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
+  .citizen h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: var(--type-heading-lg);
+  }
+
+  /* reports --------------------------------------------------------------- */
+
+  .reports-region {
+    min-width: 0;
+  }
+
+  .reports-region :global(.reports-state) {
+    max-width: 68ch;
+    margin: 0;
+    padding-block: var(--space-xs);
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .reports-region :global(.report-list) {
+    display: grid;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The card is the shared panel; padding moves to the rows so the disclosure
+     control fills the card width. */
+  .reports-region :global(.report-card) {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .reports-region :global(.report-summary) {
+    min-height: var(--tap-target);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-xs) var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .reports-region :global(.report-summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  .reports-region :global(.report-summary:hover) {
+    background: var(--polis-surface-tint);
+  }
+
+  .reports-region :global(.report-headline) {
+    min-width: 0;
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .reports-region :global(.report-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--space-xs);
+    min-width: 0;
+  }
+
+  .reports-region :global(.report-id) {
+    color: var(--polis-muted);
+    font-family: var(--mono);
+    font-size: var(--type-data);
+    overflow-wrap: anywhere;
+  }
+
+  .reports-region :global(.report-subject) {
+    font-family: var(--display);
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .reports-region :global(.report-meta) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem var(--space-sm);
+    min-width: 0;
+  }
+
+  .reports-region :global(.report-origin) {
+    font-family: var(--body);
+    font-size: var(--type-label);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  .reports-region :global(.report-origin.is-fixture) {
+    color: var(--polis-warning);
+  }
+
+  .reports-region :global(.report-origin.is-yours) {
+    color: var(--polis-muted);
+  }
+
+  .reports-region :global(.report-date) {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+  }
+
+  .reports-region :global(.report-marks) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    max-width: 10rem;
+  }
+
+  .reports-region :global(.report-chevron) {
+    flex: 0 0 auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--polis-muted);
+  }
+
+  .reports-region :global(.report-card[open] .report-chevron) {
+    transform: rotate(180deg);
+  }
+
+  /* An open card carries the status on its active trace stage and the filing time
+     on its first stage, so the header would say both twice. */
+  .reports-region :global(.report-card[open] .report-summary .demo-stamp),
+  .reports-region :global(.report-card[open] .report-summary .report-date) {
+    display: none;
+  }
+
+  .reports-region :global(.report-body) {
+    display: grid;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-top: 1px solid var(--polis-border);
+  }
+
+  .reports-region :global(.report-open) {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--polis-trace);
+    font-size: var(--type-data);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  /* filing ---------------------------------------------------------------- */
+
+  .citizen-actions {
+    display: flex;
+  }
+
+  .citizen-primary {
+    min-height: var(--tap-target);
+    width: 100%;
+    max-width: 30rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xs) var(--space-lg);
+    border: 1px solid var(--polis-trace);
+    border-radius: var(--radius-sm);
+    background: var(--polis-trace);
+    color: var(--polis-on-primary);
+    font-family: var(--body);
+    font-size: var(--type-body);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .citizen-primary:hover,
+  .citizen-submit:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .citizen-form-panel {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .citizen-form-title {
+    margin: 0;
+    font-family: var(--body);
+    font-size: var(--type-label);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    color: var(--polis-muted);
+  }
+
+  .citizen-form {
+    display: grid;
+    gap: var(--space-sm);
+    min-width: 0;
+    margin: 0;
+  }
+
+  .field,
+  .field-tiles {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .field-tiles {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .field label,
+  .field-tiles legend {
+    padding: 0;
+    font-size: var(--type-data);
+    font-weight: 600;
+  }
+
+  .field-hint {
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-meta);
+    line-height: 1.4;
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--space-xs);
+    margin-top: 0.2rem;
+  }
+
+  .tile {
+    min-height: var(--tap-target);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--polis-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--polis-surface);
+    font-size: var(--type-body);
+    cursor: pointer;
+  }
+
+  .tile input {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--polis-trace);
+  }
+
+  .tile:has(input:checked) {
+    border-color: var(--polis-trace);
+    background: var(--polis-surface-tint);
+    font-weight: 600;
+  }
+
+  .field input[type='text'],
+  .field textarea {
+    min-height: var(--tap-target);
+    width: 100%;
+    max-width: 100%;
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--polis-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--polis-surface);
+    color: var(--polis-text);
+    font-family: var(--body);
+    font-size: var(--type-body);
+    line-height: 1.45;
+  }
+
+  .field textarea {
+    resize: vertical;
+  }
+
+  .field input:focus-visible,
+  .field textarea:focus-visible {
+    border-color: var(--polis-trace);
+  }
+
+  .field [aria-invalid='true'],
+  .field-tiles[aria-invalid='true'] .tile {
+    border-color: var(--polis-danger);
+  }
+
+  .field-error,
+  .form-error {
+    margin: 0;
+    color: var(--polis-danger);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .field-error:empty,
+  .form-error:empty {
+    display: none;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .citizen-submit,
+  .citizen-cancel {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xs) var(--space-lg);
+    border-radius: var(--radius-sm);
+    font-family: var(--body);
+    font-size: var(--type-body);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .citizen-submit {
+    border: 1px solid var(--polis-trace);
+    background: var(--polis-trace);
+    color: var(--polis-on-primary);
+  }
+
+  .citizen-cancel {
+    border: 1px solid var(--polis-border-strong);
+    background: transparent;
+    color: var(--polis-text);
+  }
+
+  .citizen-cancel:hover {
+    border-color: var(--polis-text);
+  }
+
+  .citizen-filed {
+    display: grid;
+    justify-items: start;
+    max-width: 68ch;
+    margin: 0;
+    color: var(--polis-text);
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .citizen-filed :global(a) {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--polis-trace);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .citizen-filed :global(.filed-id) {
+    font-family: var(--mono);
+    overflow-wrap: anywhere;
+  }
+
+  /* provenance ------------------------------------------------------------ */
+
+  .citizen-provenance {
+    display: grid;
+    gap: var(--space-xs);
+    max-width: 68ch;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--polis-border);
+  }
+
+  .citizen-provenance p {
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .citizen-noscript {
+    color: var(--polis-warning);
+  }
+
+  @media (max-width: 40rem) {
+    .reports-region :global(.report-summary) {
+      padding-inline: var(--space-sm);
+    }
+
+    .reports-region :global(.report-body) {
+      padding: var(--space-sm);
+    }
+
+    .citizen-primary,
+    .citizen-submit,
+    .citizen-cancel {
+      width: 100%;
+    }
+  }
+
+  /* Print keeps the record; the filing controls are chrome. */
+  @media print {
+    .citizen-actions,
+    .citizen-form-panel,
+    .reports-region :global(.report-chevron) {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  import { fileVoice, getState, subscribe, DEMO_CATEGORIES, DEMO_STAGES } from '../../lib/demo-store.mjs';
+  import {
+    originLabels,
+    resolveText,
+    stampLabels,
+    statusLabels,
+  } from '../../content/demo-strings.mjs';
+
+  type Lang = 'en' | 'hr';
+  type FieldName = 'category' | 'subject' | 'narrative';
+  type DemoRecord = ReturnType<typeof getState>['records'][number];
+  type StageId = 'voice' | 'responsibility' | 'response' | 'check' | 'receipt';
+
+  const strings = {
+    en: {
+      loading: 'Loading public record…',
+      empty: 'No reports in this browser yet. Report an issue to open the first one.',
+      subjectRequired: 'The subject is empty. Name the problem in one line.',
+      subjectTooLong: 'The subject is too long. Keep it to 200 characters or fewer.',
+      categoryRequired: 'No category is chosen. Pick the one closest to the problem.',
+      narrativeRequired: 'The description is empty. Say what happened and where.',
+      narrativeTooLong: 'The description is too long. Keep it to 2000 characters or fewer.',
+      filed: 'Filed as ',
+      filedTail: '. It is reported; no office has accepted responsibility yet.',
+      openRecord: 'Open the record',
+      openFullRecord: 'Open the full record',
+      failed: 'The report was not filed. ',
+      expand: 'Show the trace of ',
+    },
+    hr: {
+      loading: 'Učitavanje javnog zapisa…',
+      empty: 'U ovom pregledniku još nema prijava. Prijavite problem kako biste otvorili prvu.',
+      subjectRequired: 'Predmet je prazan. Imenujte problem u jednom retku.',
+      subjectTooLong: 'Predmet je predug. Zadržite ga na najviše 200 znakova.',
+      categoryRequired: 'Kategorija nije odabrana. Odaberite onu najbližu problemu.',
+      narrativeRequired: 'Opis je prazan. Napišite što se dogodilo i gdje.',
+      narrativeTooLong: 'Opis je predug. Zadržite ga na najviše 2000 znakova.',
+      filed: 'Podneseno kao ',
+      filedTail: '. Prijava je zabilježena; nijedan ured još nije prihvatio odgovornost.',
+      openRecord: 'Otvori zapis',
+      openFullRecord: 'Otvori cijeli zapis',
+      failed: 'Prijava nije podnesena. ',
+      expand: 'Prikaži trag zapisa ',
+    },
+  } as const;
+
+  /** Citizen-facing stage names. The store keeps the model names; these read them back. */
+  const stageNames = {
+    voice: { en: 'Reported', hr: 'Prijavljeno' },
+    responsibility: { en: 'Responsibility accepted', hr: 'Odgovornost prihvaćena' },
+    response: { en: 'Commitment filed', hr: 'Obveza podnesena' },
+    check: { en: 'Independent check', hr: 'Neovisna provjera' },
+    receipt: { en: 'Public receipt', hr: 'Javna potvrda' },
+  } as const;
+
+  /** One muted line for a stage the record has not reached. */
+  const stageAhead = {
+    voice: { en: 'Not reported', hr: 'Nije prijavljeno' },
+    responsibility: { en: 'No responsible office yet', hr: 'Još nema nadležnog ureda' },
+    response: { en: 'No commitment filed', hr: 'Obveza nije podnesena' },
+    check: { en: 'Review has not run', hr: 'Provjera nije provedena' },
+    receipt: {
+      en: 'Publishes after independent review',
+      hr: 'Objava slijedi nakon neovisne provjere',
+    },
+  } as const;
+
+  const returnedNote = { en: 'Returned for correction', hr: 'Vraćeno na ispravak' } as const;
+
+  /** Straight ink stamps. The words come from the shared `stampLabels` set. */
+  const stamps = {
+    open: { modifier: 'demo-stamp--new', text: stampLabels.open },
+    assigned: { modifier: 'demo-stamp--assigned', text: stampLabels.assigned },
+    'commitment-pending-review': {
+      modifier: 'demo-stamp--pending',
+      text: stampLabels['commitment-pending-review'],
+    },
+    returned: { modifier: 'demo-stamp--returned', text: stampLabels.returned },
+    published: { modifier: 'demo-stamp--published', text: stampLabels.published },
+  } as const;
+
+  const stages = DEMO_STAGES as readonly StageId[];
+
+  const formNode = document.querySelector('[data-report-form]');
+  const regionNode = document.querySelector('[data-reports]');
+
+  if (formNode instanceof HTMLFormElement && regionNode instanceof HTMLElement) {
+    const form: HTMLFormElement = formNode;
+    const reportsRegion: HTMLElement = regionNode;
+    const categoryGroup = form.querySelector('[data-field="category"]');
+    const subjectInput = form.querySelector('[data-field="subject"]');
+    const narrativeInput = form.querySelector('[data-field="narrative"]');
+    const formError = form.querySelector('[data-form-error]');
+    const filed = document.querySelector('[data-filed]');
+    const toggle = document.querySelector('[data-report-toggle]');
+    const cancel = document.querySelector('[data-report-cancel]');
+    const panel = document.getElementById('citizen-report-form');
+
+    const fieldErrors: Record<FieldName, keyof (typeof strings)['en'] | ''> = {
+      category: '',
+      subject: '',
+      narrative: '',
+    };
+    /** Cards the visitor opened or closed by hand; they win over the default. */
+    const cardChoice = new Map<string, boolean>();
+    let formErrorDetail = '';
+    let filedId = '';
+
+    function text(lang: Lang, key: keyof (typeof strings)['en']) {
+      return strings[lang][key];
+    }
+
+    function currentLang(): Lang {
+      return getState().lang === 'hr' ? 'hr' : 'en';
+    }
+
+    /* form ---------------------------------------------------------------- */
+
+    function radios() {
+      return [...form.querySelectorAll('input[name="category"]')].filter(
+        (node): node is HTMLInputElement => node instanceof HTMLInputElement,
+      );
+    }
+
+    function fieldControl(name: FieldName): HTMLElement | null {
+      if (name === 'category') return radios()[0] ?? null;
+      if (name === 'subject') return subjectInput instanceof HTMLInputElement ? subjectInput : null;
+      return narrativeInput instanceof HTMLTextAreaElement ? narrativeInput : null;
+    }
+
+    function renderErrors(lang: Lang) {
+      for (const name of ['category', 'subject', 'narrative'] as FieldName[]) {
+        const target = form.querySelector(`[data-error-for="${name}"]`);
+        const key = fieldErrors[name];
+        if (target instanceof HTMLElement) target.textContent = key ? text(lang, key) : '';
+        const control = name === 'category' ? categoryGroup : fieldControl(name);
+        if (control instanceof HTMLElement) {
+          if (key) control.setAttribute('aria-invalid', 'true');
+          else control.removeAttribute('aria-invalid');
+        }
+      }
+      if (formError instanceof HTMLElement) {
+        formError.textContent = formErrorDetail ? text(lang, 'failed') + formErrorDetail : '';
+      }
+    }
+
+    function setPanel(open: boolean) {
+      if (!(panel instanceof HTMLElement) || !(toggle instanceof HTMLElement)) return;
+      panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function renderFiled(lang: Lang) {
+      if (!(filed instanceof HTMLElement)) return;
+      if (!filedId) {
+        filed.hidden = true;
+        filed.replaceChildren();
+        return;
+      }
+      const id = document.createElement('span');
+      id.className = 'filed-id';
+      id.textContent = filedId;
+      const sentence = document.createElement('span');
+      sentence.append(
+        document.createTextNode(text(lang, 'filed')),
+        id,
+        document.createTextNode(text(lang, 'filedTail')),
+      );
+      const link = document.createElement('a');
+      link.href = `/demo/record?id=${encodeURIComponent(filedId)}`;
+      link.textContent = text(lang, 'openRecord');
+      filed.replaceChildren(sentence, link);
+      filed.hidden = false;
+    }
+
+    /* records -------------------------------------------------------------- */
+
+    function formatDate(iso: string, lang: Lang) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return iso;
+      try {
+        return new Intl.DateTimeFormat(lang === 'hr' ? 'hr-HR' : 'en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(date);
+      } catch {
+        return iso;
+      }
+    }
+
+    function span(className: string, value: string) {
+      const node = document.createElement('span');
+      node.className = className;
+      node.textContent = value;
+      return node;
+    }
+
+    function stampNode(record: DemoRecord, lang: Lang) {
+      const stamp = stamps[record.status as keyof typeof stamps] ?? stamps.open;
+      return span(`demo-stamp ${stamp.modifier}`, resolveText(stamp.text, lang));
+    }
+
+    function stageEvent(record: DemoRecord, stage: StageId) {
+      const matching = record.events.filter((event) => event.stage === stage);
+      return matching.length > 0 ? matching[matching.length - 1] : null;
+    }
+
+    /** One muted line per stage: office, reviewer, or the time the stage was appended. */
+    function stageNote(record: DemoRecord, stage: StageId, lang: Lang) {
+      if (stage === 'responsibility' && record.responsibility) {
+        return resolveText(record.responsibility.office, lang);
+      }
+      if (stage === 'check') {
+        if (record.status === 'returned') return resolveText(returnedNote, lang);
+        if (record.review) return resolveText(record.review.reviewer, lang);
+      }
+      const event = stageEvent(record, stage);
+      if (event) return formatDate(event.at, lang);
+      if (stage === 'voice') return formatDate(record.createdAt, lang);
+      return resolveText(stageAhead[stage], lang);
+    }
+
+    function buildTrace(record: DemoRecord, lang: Lang) {
+      const list = document.createElement('ol');
+      list.className = 'demo-trace';
+
+      const current = Math.max(0, stages.indexOf(record.stage as StageId));
+      const published = record.status === 'published';
+      // Nothing past the review gate is history: the connector below the gated stage is dashed.
+      const gated =
+        record.status === 'commitment-pending-review' || record.status === 'returned';
+
+      stages.forEach((stage, index) => {
+        const item = document.createElement('li');
+        const state =
+          (published && index <= current) || index < current
+            ? 'is-appended'
+            : index === current
+              ? 'is-active'
+              : 'is-ahead';
+        item.className = `demo-trace-stage ${state}`;
+        if (gated && index === current) item.classList.add('is-proposed');
+
+        const marker = document.createElement('span');
+        marker.className = 'demo-trace-marker';
+        marker.setAttribute('aria-hidden', 'true');
+
+        const body = document.createElement('div');
+        body.className = 'demo-trace-body';
+
+        const head = document.createElement('div');
+        head.className = 'demo-trace-head';
+        const line = document.createElement('p');
+        line.className = 'demo-trace-line';
+        line.textContent = resolveText(stageNames[stage], lang);
+        head.append(line);
+        if (index === current) head.append(stampNode(record, lang));
+
+        const note = document.createElement('p');
+        note.className = 'demo-trace-note';
+        note.textContent = stageNote(record, stage, lang);
+
+        body.append(head, note);
+        item.append(marker, body);
+        list.append(item);
+      });
+
+      return list;
+    }
+
+    function chevron() {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'report-chevron');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '1.75');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      path.setAttribute('points', '6 9 12 15 18 9');
+      svg.append(path);
+      return svg;
+    }
+
+    function buildCard(record: DemoRecord, lang: Lang, open: boolean) {
+      const item = document.createElement('li');
+      item.className = 'report-item';
+
+      const card = document.createElement('details');
+      card.className = 'report-card demo-panel';
+      card.dataset.recordId = record.id;
+      card.open = open;
+
+      const summary = document.createElement('summary');
+      summary.className = 'report-summary';
+
+      const headline = document.createElement('span');
+      headline.className = 'report-headline';
+
+      const head = document.createElement('span');
+      head.className = 'report-head';
+      head.append(
+        span('report-id', record.id),
+        span('report-subject', resolveText(record.subject, lang)),
+      );
+
+      const meta = document.createElement('span');
+      meta.className = 'report-meta';
+      if (record.origin === 'seed') {
+        meta.append(
+          span('report-origin is-fixture', resolveText(statusLabels.demonstrationFixture, lang)),
+        );
+      } else {
+        const origin = originLabels[record.origin as keyof typeof originLabels];
+        meta.append(span('report-origin is-yours', resolveText(origin, lang)));
+      }
+      const date = document.createElement('time');
+      date.className = 'report-date';
+      date.dateTime = record.createdAt;
+      date.textContent = formatDate(record.createdAt, lang);
+      meta.append(date);
+
+      headline.append(head, meta);
+
+      const marks = document.createElement('span');
+      marks.className = 'report-marks';
+      marks.append(stampNode(record, lang), chevron());
+
+      summary.append(headline, marks);
+
+      const body = document.createElement('div');
+      body.className = 'report-body';
+      body.append(buildTrace(record, lang));
+
+      const link = document.createElement('a');
+      link.className = 'report-open';
+      link.href = `/demo/record?id=${encodeURIComponent(record.id)}`;
+      link.textContent = text(lang, 'openFullRecord');
+      body.append(link);
+
+      card.append(summary, body);
+      item.append(card);
+      return item;
+    }
+
+    /** The newest report the visitor filed, else the seeded record standing at the review gate. */
+    function defaultOpenId(records: readonly DemoRecord[]) {
+      if (filedId && records.some((record) => record.id === filedId)) return filedId;
+      const own = records.find((record) => record.origin !== 'seed');
+      if (own) return own.id;
+      const pending = records.find((record) => record.status === 'commitment-pending-review');
+      if (pending) return pending.id;
+      return records[0]?.id ?? '';
+    }
+
+    function focusedCardId() {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !reportsRegion.contains(active)) return '';
+      return active.closest('details')?.dataset.recordId ?? '';
+    }
+
+    function renderReports(state: ReturnType<typeof getState>) {
+      const lang: Lang = state.lang === 'hr' ? 'hr' : 'en';
+      const records = [...state.records].sort((left, right) => {
+        const delta = Date.parse(right.createdAt) - Date.parse(left.createdAt);
+        if (Number.isFinite(delta) && delta !== 0) return delta;
+        return right.id.localeCompare(left.id);
+      });
+
+      if (records.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'reports-state';
+        empty.textContent = text(lang, 'empty');
+        reportsRegion.replaceChildren(empty);
+        return;
+      }
+
+      const restore = focusedCardId();
+      const defaultId = defaultOpenId(records);
+      const list = document.createElement('ul');
+      list.className = 'report-list';
+      for (const record of records) {
+        const open = cardChoice.get(record.id) ?? record.id === defaultId;
+        list.append(buildCard(record, lang, open));
+      }
+      reportsRegion.replaceChildren(list);
+
+      if (restore) {
+        const summary = reportsRegion.querySelector(
+          `details[data-record-id="${CSS.escape(restore)}"] > summary`,
+        );
+        if (summary instanceof HTMLElement) summary.focus();
+      }
+    }
+
+    function render(state: ReturnType<typeof getState>) {
+      const lang: Lang = state.lang === 'hr' ? 'hr' : 'en';
+      renderErrors(lang);
+      renderFiled(lang);
+      renderReports(state);
+    }
+
+    /* wiring --------------------------------------------------------------- */
+
+    // `toggle` does not bubble; the capture phase still reaches this region.
+    reportsRegion.addEventListener(
+      'toggle',
+      (event) => {
+        const card = event.target;
+        if (!(card instanceof HTMLDetailsElement)) return;
+        const id = card.dataset.recordId;
+        if (id) cardChoice.set(id, card.open);
+      },
+      true,
+    );
+
+    toggle?.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      setPanel(open);
+      if (open) radios()[0]?.focus();
+    });
+
+    cancel?.addEventListener('click', () => {
+      setPanel(false);
+      if (toggle instanceof HTMLElement) toggle.focus();
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const lang = currentLang();
+      const chosen = radios().find((radio) => radio.checked);
+      const category = chosen ? chosen.value : '';
+      const subject = subjectInput instanceof HTMLInputElement ? subjectInput.value.trim() : '';
+      const narrative =
+        narrativeInput instanceof HTMLTextAreaElement ? narrativeInput.value.trim() : '';
+
+      fieldErrors.category = DEMO_CATEGORIES.includes(category) ? '' : 'categoryRequired';
+      fieldErrors.subject = !subject
+        ? 'subjectRequired'
+        : subject.length > 200
+          ? 'subjectTooLong'
+          : '';
+      fieldErrors.narrative = !narrative
+        ? 'narrativeRequired'
+        : narrative.length > 2000
+          ? 'narrativeTooLong'
+          : '';
+      formErrorDetail = '';
+
+      const firstInvalid = (['category', 'subject', 'narrative'] as FieldName[]).find(
+        (name) => fieldErrors[name] !== '',
+      );
+      if (firstInvalid) {
+        filedId = '';
+        renderErrors(lang);
+        renderFiled(lang);
+        fieldControl(firstInvalid)?.focus();
+        return;
+      }
+
+      try {
+        const record = fileVoice({ subject, narrative, category, origin: 'app' });
+        filedId = record.id;
+        // The new report opens; hand-set cards fall back to the default again.
+        cardChoice.clear();
+        form.reset();
+        setPanel(false);
+      } catch (error) {
+        filedId = '';
+        formErrorDetail = error instanceof Error ? error.message : String(error);
+      }
+
+      render(getState());
+      if (filedId && filed instanceof HTMLElement) filed.focus();
+    });
+
+    // Print carries the whole record, so every card opens before the sheet is drawn.
+    window.addEventListener('beforeprint', () => {
+      for (const card of reportsRegion.querySelectorAll('details')) card.open = true;
+    });
+
+    subscribe(render);
+    render(getState());
+  }
+</script>

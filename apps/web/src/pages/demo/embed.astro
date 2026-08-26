@@ -1,0 +1,782 @@
+---
+/**
+ * `/demo/embed` — the embeddable-interface demonstration.
+ *
+ * An emulated browser frame (a styled div, never an iframe, never real browser branding) holds a
+ * fictional Grad Primjer municipal page with the Polis reporting widget embedded in it. The widget
+ * writes to the shared demo store with origin `embed`, so a report filed here shows up on the app
+ * surfaces — that continuity is the point.
+ *
+ * The emulated site is Croatian only and does not follow the demo language control; the widget
+ * inside it does. Both facts are stated on the page.
+ */
+import Base from '../../layouts/Base.astro';
+import DemoShell from '../../components/demo/DemoShell.astro';
+import { DEMO_CATEGORIES } from '../../lib/demo-store.mjs';
+import { categoryLabels, institutionAnchor } from '../../content/demo-strings.mjs';
+
+const categories = DEMO_CATEGORIES.map((id) => ({
+  id,
+  label: (categoryLabels as Record<string, { en: string; hr: string }>)[id],
+}));
+---
+
+<Base
+  chrome="demo"
+  title="Embedded reporting interface — Polis demo"
+  description="An emulated municipal website with the Polis reporting widget embedded in it. A report filed there lands in the same public register as one filed in the Polis app."
+>
+  <DemoShell surface="embed">
+    <article class="embed-page" id="public-record">
+      <header class="embed-head">
+        <h1>
+          <span data-lang="en" lang="en">Reporting interface on the municipality's own site</span>
+          <span data-lang="hr" hidden>Sučelje za prijave na mrežnim stranicama grada</span>
+        </h1>
+        <p class="demo-anchor">
+          <span data-lang="en">{institutionAnchor.en}</span>
+          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+        </p>
+      </header>
+
+      <!-- Emulated browser: schematic chrome, fictional .example address, no real browser marks. -->
+      <div class="frame demo-panel">
+        <div class="frame-chrome">
+          <span class="frame-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="frame-address">www.grad-primjer.example/komunalne-prijave</span>
+          <span class="frame-tag">
+            <span data-lang="en" lang="en">Emulated browser — demonstration</span>
+            <span data-lang="hr" hidden>Emulirani preglednik — demonstracija</span>
+          </span>
+        </div>
+
+        <!-- The framed site: fictional Grad Primjer, Croatian only, no seal, crest, or logo mark. -->
+        <div class="muni" lang="hr">
+          <header class="muni-head">
+            <span class="muni-name">Grad Primjer</span>
+            <span class="muni-kicker">Izmišljeni grad — prikaz sučelja</span>
+          </header>
+
+          <nav class="muni-nav" aria-label="Izmišljena navigacija, veze nisu aktivne">
+            <span>Naslovnica</span>
+            <span>Uprava</span>
+            <span aria-current="page">Komunalne prijave</span>
+            <span>Kontakt</span>
+            <span class="muni-nav-note">veze nisu aktivne</span>
+          </nav>
+
+          <div class="muni-body">
+            <h2 class="muni-h">Komunalne prijave</h2>
+            <p class="muni-p">
+              Komunalni odjel zaprima prijave o oštećenjima kolnika, kvarovima javne rasvjete,
+              curenju vode i nepropisno odloženom otpadu. Prijavu možete podnijeti putem obrasca
+              na ovoj stranici ili osobno u pisarnici, radnim danom.
+            </p>
+
+            <!-- The embedded Polis widget: Polis tokens, own fixture label, writes origin `embed`. -->
+            <aside class="pw" data-embed-widget data-state="loading">
+              <div class="pw-head">
+                <span class="pw-brand">
+                  <span data-lang="en" lang="en">Polis — public report</span>
+                  <span data-lang="hr" hidden>Polis — javna prijava</span>
+                </span>
+                <span class="demo-stamp pw-stamp">
+                  <span data-lang="en" lang="en">DEMONSTRATION FIXTURE</span>
+                  <span data-lang="hr" hidden>DEMONSTRACIJSKI PRIMJER</span>
+                </span>
+              </div>
+
+              <p class="pw-note">
+                <span data-lang="en" lang="en">
+                  On a real site the widget carries its own language control. Here it follows the
+                  demo language above, while the page around it stays Croatian.
+                </span>
+                <span data-lang="hr" hidden>
+                  Na stvarnim mrežnim stranicama obrazac ima vlastiti odabir jezika. Ovdje slijedi gornji jezik
+                  demonstracije, dok stranica oko njega ostaje na hrvatskom.
+                </span>
+              </p>
+
+              <form class="pw-form" data-embed-form novalidate>
+                <div class="pw-row">
+                  <div class="pw-field">
+                    <label for="embed-subject">
+                      <span data-lang="en" lang="en">Subject</span>
+                      <span data-lang="hr" hidden>Predmet</span>
+                    </label>
+                    <input
+                      id="embed-subject"
+                      name="subject"
+                      type="text"
+                      autocomplete="off"
+                      maxlength="120"
+                      data-embed-subject
+                    />
+                    <p class="pw-error" data-embed-error="subject" role="alert" hidden>
+                      <span data-lang="en" lang="en">Add a subject line so the report can be read.</span>
+                      <span data-lang="hr" hidden>Upišite predmet kako bi se prijava mogla pročitati.</span>
+                    </p>
+                  </div>
+
+                  <div class="pw-field">
+                    <label for="embed-category">
+                      <span data-lang="en" lang="en">Category</span>
+                      <span data-lang="hr" hidden>Kategorija</span>
+                    </label>
+                    <select id="embed-category" name="category" data-embed-category>
+                      <option value="" data-embed-placeholder>Choose a category</option>
+                      {
+                        categories.map((entry) => (
+                          <option value={entry.id} data-embed-option={entry.id}>
+                            {entry.label.en}
+                          </option>
+                        ))
+                      }
+                    </select>
+                    <p class="pw-error" data-embed-error="category" role="alert" hidden>
+                      <span data-lang="en" lang="en">Choose a category.</span>
+                      <span data-lang="hr" hidden>Odaberite kategoriju.</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="pw-field">
+                  <label for="embed-narrative">
+                    <span data-lang="en" lang="en">Description (optional)</span>
+                    <span data-lang="hr" hidden>Opis (neobavezno)</span>
+                  </label>
+                  <textarea id="embed-narrative" name="narrative" rows="3" data-embed-narrative
+                  ></textarea>
+                </div>
+
+                <p class="pw-loading" data-embed-loading>
+                  <span data-lang="en" lang="en">Preparing the demo form…</span>
+                  <span data-lang="hr" hidden>Priprema demo obrasca…</span>
+                </p>
+
+                <button type="submit" class="pw-submit" data-embed-submit disabled>
+                  <span data-lang="en" lang="en">File the report</span>
+                  <span data-lang="hr" hidden>Podnesi prijavu</span>
+                </button>
+
+                <p class="pw-error" data-embed-error="store" role="alert" hidden>
+                  <span data-lang="en" lang="en">The demo store refused this report:</span>
+                  <span data-lang="hr" hidden>Pohrana demonstracije odbila je ovu prijavu:</span>
+                  <span class="record-data" data-embed-store-message></span>
+                </p>
+
+                <noscript>
+                  <p class="pw-noscript">
+                    This embedded form needs JavaScript: the demo store lives in your browser and
+                    there is no server to post to. · Ovaj ugrađeni obrazac traži JavaScript: demo
+                    pohrana je u vašem pregledniku i nema poslužitelja kojem bi se prijava slala.
+                  </p>
+                </noscript>
+              </form>
+
+              <div class="pw-done" data-embed-done role="status" hidden>
+                <p class="pw-done-line">
+                  <span data-lang="en" lang="en">Filed in the demo register as record</span>
+                  <span data-lang="hr" hidden>Zabilježeno u demo registru kao zapis</span>{' '}
+                  <span class="record-id" data-embed-record-id></span>
+                </p>
+                <p class="pw-done-note">
+                  <span data-lang="en" lang="en">
+                    It is at stage Voice, with no responsible office yet.
+                  </span>
+                  <span data-lang="hr" hidden>
+                    Zapis je u fazi Glas i još nema nadležnog ureda.
+                  </span>
+                </p>
+                <a class="pw-done-link" href="/demo/record" data-embed-record-link>
+                  <span data-lang="en" lang="en">Follow this record on Polis</span>
+                  <span data-lang="hr" hidden>Prati ovaj zapis na Polisu</span>
+                </a>
+                <button type="button" class="pw-again" data-embed-again>
+                  <span data-lang="en" lang="en">File another report</span>
+                  <span data-lang="hr" hidden>Podnesi novu prijavu</span>
+                </button>
+              </div>
+            </aside>
+
+            <h3 class="muni-h muni-h-sm">Što slijedi nakon prijave</h3>
+            <p class="muni-p">
+              Prijavu preuzima nadležni odjel i uz nju upisuje rok za odgovor. Tijek prijave možete
+              pratiti u javnom zapisu; podaci iz internog postupka ostaju izvan javnog dijela.
+            </p>
+          </div>
+
+          <footer class="muni-foot">
+            Grad Primjer · Komunalni odjel · izmišljena stranica u prikazu sučelja
+          </footer>
+        </div>
+      </div>
+
+      <footer class="embed-provenance">
+        <p>
+          <span data-lang="en" lang="en">
+            The reporting interface can live on the municipality's own website, beside the services
+            people already use there. A report filed in that embedded form lands in the same public
+            register as one filed in the Polis app — same record, same trace, same independent
+            review before anything is published. The site above is an emulation, with a fictional
+            municipality.
+          </span>
+          <span data-lang="hr" hidden>
+            Sučelje za prijave može stajati na vlastitim stranicama grada, uz usluge koje stanovnici
+            ondje već koriste. Prijava podnesena putem tog ugrađenog obrasca upisuje se u isti javni
+            registar kao i prijava iz aplikacije Polis — isti zapis, isti trag, ista neovisna
+            provjera prije objave. Stranica iznad je emulacija, s izmišljenim gradom.
+          </span>
+        </p>
+
+        <p class="embed-footnote">
+          <span data-lang="en" lang="en">
+            The emulated site is Croatian only, as a small municipality's site usually is, so it does
+            not follow the demo language control. The embedded Polis widget does.
+          </span>
+          <span data-lang="hr" hidden>
+            Emulirana stranica samo je na hrvatskom, kao što stranice manjih gradova obično i jesu,
+            pa ne prati odabir jezika u demonstraciji. Ugrađeni obrazac Polisa prati taj odabir.
+          </span>
+        </p>
+
+        <p class="embed-followup">
+          <span data-lang="en" lang="en">
+            Open the <a href="/demo/official">official surface</a> to watch the report you filed here
+            arrive in the municipal inbox, marked as embedded input rather than a seeded fixture.
+          </span>
+          <span data-lang="hr" hidden>
+            Otvorite <a href="/demo/official">prikaz za dužnosnika</a> i pogledajte kako ovdje podnesena
+            prijava stiže među pristigle zapise grada, označena kao unos iz ugrađenog obrasca, a ne kao
+            početni primjer.
+          </span>
+        </p>
+      </footer>
+    </article>
+  </DemoShell>
+</Base>
+
+<style>
+  .embed-page {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .embed-page [hidden] {
+    display: none !important;
+  }
+
+  .embed-head {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-xs);
+  }
+
+  .embed-page h1 {
+    margin: 0;
+  }
+
+  /* Provenance sits below the working surface, never above it. */
+  .embed-provenance {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .embed-provenance p {
+    max-width: 68ch;
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .embed-provenance a {
+    color: var(--polis-trace);
+  }
+
+  /* ---- emulated browser frame ------------------------------------------- */
+
+  /* The Polis page around the emulation is panel material; the emulated site
+     inside keeps its own palette so it never reads as a Polis surface. */
+  .frame {
+    min-width: 0;
+    width: 100%;
+    max-width: 74rem;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .frame-chrome {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+    background: var(--polis-surface-tint);
+  }
+
+  .frame-dots {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 0.3rem;
+  }
+
+  .frame-dots span {
+    width: 0.6rem;
+    height: 0.6rem;
+    border: 1px solid var(--polis-border-strong);
+  }
+
+  .frame-address {
+    min-width: 0;
+    flex: 1 1 14rem;
+    padding: 0.35rem var(--space-sm);
+    border: 1px solid var(--polis-border);
+    border-radius: var(--radius-sm);
+    background: var(--polis-bg);
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .frame-tag {
+    flex: 0 1 auto;
+    color: var(--polis-muted);
+    font-size: var(--type-meta);
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- the framed municipal site: its own local palette, no Polis tokens -- */
+
+  .muni {
+    --muni-bg: #f4f6f9;
+    --muni-surface: #ffffff;
+    --muni-ink: #16233a;
+    --muni-quiet: #55627a;
+    --muni-line: #d2d9e4;
+    --muni-band: #1f3a63;
+    --muni-band-ink: #ffffff;
+
+    min-width: 0;
+    background: var(--muni-bg);
+    color: var(--muni-ink);
+    font-family: var(--body);
+  }
+
+  :global(html[data-theme='dark']) .muni {
+    --muni-bg: #0f172a;
+    --muni-surface: #16203a;
+    --muni-ink: #e2e8f0;
+    --muni-quiet: #94a3b8;
+    --muni-line: #2b3855;
+    --muni-band: #12203c;
+    --muni-band-ink: #e2e8f0;
+  }
+
+  .muni-head {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--muni-band);
+    color: var(--muni-band-ink);
+  }
+
+  .muni-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .muni-kicker {
+    font-size: var(--type-meta);
+    letter-spacing: 0.06em;
+    opacity: 0.85;
+    text-transform: uppercase;
+  }
+
+  .muni-nav {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem var(--space-md);
+    padding: 0.55rem var(--space-md);
+    border-bottom: 1px solid var(--muni-line);
+    background: var(--muni-surface);
+    color: var(--muni-quiet);
+    font-size: var(--type-data);
+  }
+
+  .muni-nav span[aria-current='page'] {
+    color: var(--muni-ink);
+    font-weight: 700;
+  }
+
+  .muni-nav-note {
+    font-size: var(--type-meta);
+    font-style: italic;
+  }
+
+  .muni-body {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+
+  .muni-h {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--muni-ink);
+    font-family: var(--body);
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.3;
+  }
+
+  .muni-h-sm {
+    font-size: 1rem;
+  }
+
+  .muni-p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--muni-ink);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .muni-foot {
+    padding: var(--space-sm) var(--space-md);
+    border-top: 1px solid var(--muni-line);
+    background: var(--muni-surface);
+    color: var(--muni-quiet);
+    font-size: var(--type-meta);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- the embedded Polis widget: Polis tokens inside the host page ------ */
+
+  .pw {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-sm);
+    margin: var(--space-sm) 0;
+    padding: var(--space-md);
+    border: 1px solid var(--polis-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--polis-surface);
+    color: var(--polis-text);
+    font-size: 1rem;
+  }
+
+  .pw-head {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-sm);
+  }
+
+  .pw-brand {
+    font-family: var(--display);
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  /* Fixture is the amber meaning family; the shared stamp set has no fixture
+     modifier, so the widget names the colour locally. */
+  .pw-stamp {
+    color: var(--polis-warning);
+  }
+
+  .pw-note,
+  .pw-loading {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .pw-form {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .pw-row {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-sm);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .pw-field {
+    min-width: 0;
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .pw-field label {
+    color: var(--polis-text);
+    font-size: var(--type-data);
+    font-weight: 600;
+  }
+
+  .pw-field input,
+  .pw-field select,
+  .pw-field textarea {
+    min-width: 0;
+    width: 100%;
+    min-height: var(--tap-target);
+    padding: 0.5rem var(--space-sm);
+    border: 1px solid var(--polis-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--polis-bg);
+    color: var(--polis-text);
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .pw-field textarea {
+    resize: vertical;
+  }
+
+  .pw-field [aria-invalid='true'] {
+    border-color: var(--polis-danger);
+  }
+
+  .pw-error {
+    margin: 0;
+    color: var(--polis-danger);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .pw-submit,
+  .pw-again {
+    min-height: var(--tap-target);
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xs) var(--space-md);
+    border: 1px solid var(--polis-trace);
+    border-radius: var(--radius-sm);
+    background: var(--polis-trace);
+    color: var(--polis-on-primary);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .pw-again {
+    border-color: var(--polis-border-strong);
+    background: var(--polis-surface);
+    color: var(--polis-text);
+  }
+
+  .pw-submit[disabled] {
+    border-color: var(--polis-border-strong);
+    background: var(--polis-surface-tint);
+    color: var(--polis-muted);
+    cursor: not-allowed;
+  }
+
+  .pw-noscript {
+    margin: 0;
+    color: var(--polis-warning);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .pw-done {
+    min-width: 0;
+    display: grid;
+    justify-items: start;
+    gap: var(--space-xs);
+  }
+
+  .pw-done-line,
+  .pw-done-note {
+    margin: 0;
+    font-size: var(--type-data);
+    line-height: 1.5;
+  }
+
+  .pw-done-note {
+    color: var(--polis-muted);
+  }
+
+  .pw-done-line .record-id {
+    color: var(--polis-trace);
+    font-family: var(--mono);
+  }
+
+  .pw-done-link {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--polis-trace);
+    font-size: 0.9375rem;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+
+  @media (max-width: 40rem) {
+    .pw-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .muni-head,
+    .muni-nav,
+    .muni-body,
+    .muni-foot {
+      padding-inline: var(--space-sm);
+    }
+
+    .pw {
+      padding: var(--space-sm);
+    }
+
+    .pw-submit,
+    .pw-again,
+    .pw-done-link {
+      justify-self: stretch;
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  import { fileVoice, getState, subscribe } from '../../lib/demo-store.mjs';
+  import { categoryLabels, resolveText } from '../../content/demo-strings.mjs';
+
+  const widget = document.querySelector<HTMLElement>('[data-embed-widget]');
+
+  if (widget) {
+    const form = widget.querySelector<HTMLFormElement>('[data-embed-form]');
+    const subject = widget.querySelector<HTMLInputElement>('[data-embed-subject]');
+    const category = widget.querySelector<HTMLSelectElement>('[data-embed-category]');
+    const narrative = widget.querySelector<HTMLTextAreaElement>('[data-embed-narrative]');
+    const submit = widget.querySelector<HTMLButtonElement>('[data-embed-submit]');
+    const loading = widget.querySelector<HTMLElement>('[data-embed-loading]');
+    const done = widget.querySelector<HTMLElement>('[data-embed-done]');
+    const recordId = widget.querySelector<HTMLElement>('[data-embed-record-id]');
+    const recordLink = widget.querySelector<HTMLAnchorElement>('[data-embed-record-link]');
+    const again = widget.querySelector<HTMLButtonElement>('[data-embed-again]');
+    const storeMessage = widget.querySelector<HTMLElement>('[data-embed-store-message]');
+
+    const errors = {
+      subject: widget.querySelector<HTMLElement>('[data-embed-error="subject"]'),
+      category: widget.querySelector<HTMLElement>('[data-embed-error="category"]'),
+      store: widget.querySelector<HTMLElement>('[data-embed-error="store"]'),
+    };
+
+    /** The category placeholder in both languages; the option list itself comes from the store. */
+    const placeholder = { en: 'Choose a category', hr: 'Odaberite kategoriju' };
+    const labels = categoryLabels as Record<string, { en: string; hr: string }>;
+
+    function showError(key: 'subject' | 'category' | 'store', shown: boolean) {
+      const node = errors[key];
+      if (node) node.hidden = !shown;
+      if (key === 'subject' && subject) subject.setAttribute('aria-invalid', String(shown));
+      if (key === 'category' && category) category.setAttribute('aria-invalid', String(shown));
+    }
+
+    function clearErrors() {
+      showError('subject', false);
+      showError('category', false);
+      showError('store', false);
+    }
+
+    /** Option text is the one string the shell's data-lang siblings cannot carry. */
+    function applyOptionLang(lang: 'en' | 'hr') {
+      const blank = widget?.querySelector<HTMLOptionElement>('[data-embed-placeholder]');
+      if (blank) blank.textContent = lang === 'hr' ? placeholder.hr : placeholder.en;
+      for (const option of widget?.querySelectorAll<HTMLOptionElement>('[data-embed-option]') ?? []) {
+        const id = option.getAttribute('data-embed-option') ?? '';
+        const label = labels[id];
+        if (label) option.textContent = resolveText(label, lang);
+      }
+    }
+
+    function ready() {
+      if (loading) loading.hidden = true;
+      if (submit) submit.disabled = false;
+      widget?.setAttribute('data-state', 'ready');
+    }
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      clearErrors();
+
+      const subjectText = subject?.value.trim() ?? '';
+      const categoryValue = category?.value ?? '';
+      let blocked = false;
+      if (!subjectText) {
+        showError('subject', true);
+        blocked = true;
+      }
+      if (!categoryValue) {
+        showError('category', true);
+        blocked = true;
+      }
+      if (blocked) {
+        (subjectText ? category : subject)?.focus();
+        return;
+      }
+
+      try {
+        const record = fileVoice({
+          subject: subjectText,
+          narrative: narrative?.value.trim() ?? '',
+          category: categoryValue,
+          origin: 'embed',
+        });
+        if (recordId) recordId.textContent = record.id;
+        if (recordLink) recordLink.href = `/demo/record?id=${encodeURIComponent(record.id)}`;
+        if (form) form.hidden = true;
+        if (done) {
+          done.hidden = false;
+          done.setAttribute('tabindex', '-1');
+          done.focus();
+        }
+      } catch (error) {
+        if (storeMessage) {
+          storeMessage.textContent = error instanceof Error ? error.message : String(error);
+        }
+        showError('store', true);
+      }
+    });
+
+    again?.addEventListener('click', () => {
+      if (done) done.hidden = true;
+      if (form) form.hidden = false;
+      if (subject) subject.value = '';
+      if (category) category.value = '';
+      if (narrative) narrative.value = '';
+      clearErrors();
+      subject?.focus();
+    });
+
+    subscribe((state) => {
+      applyOptionLang(state.lang);
+    });
+
+    applyOptionLang(getState().lang);
+    ready();
+  }
+</script>

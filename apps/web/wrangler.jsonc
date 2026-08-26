@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "polis-interface-web",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-08-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "polis.intrface.eu/*",
+      "zone_name": "intrface.eu"
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "env": {
+    "preview": {
+      "name": "polis-interface-web-preview",
+      "main": "@astrojs/cloudflare/entrypoints/server",
+      "compatibility_date": "2026-08-21",
+      "compatibility_flags": ["nodejs_compat"],
+      "workers_dev": true,
+      "preview_urls": true,
+      "routes": [],
+      "assets": {
+        "binding": "ASSETS",
+        "directory": "./dist"
+      },
+      "observability": {
+        "enabled": true
+      }
+    }
+  }
+}

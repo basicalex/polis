@@ -1,18 +1,18 @@
 ---
-import Base from '../layouts/Base.astro';
+import Base from '../../layouts/Base.astro';
 import {
   landing,
   landingEntryIds,
   stageLabels,
   stages,
   type LandingEntryId,
-} from '../content/public-release';
+} from '../../content/public-release';
 
 if (Astro.url.searchParams.get('present') === '1') {
-  return Astro.redirect('/presentation?present=1', 302);
+  return Astro.redirect('/hr/presentation?present=1', 302);
 }
 
-const lang = 'en' as const;
+const lang = 'hr' as const;
 const text = landing[lang];
 const loopStages = stages.map((stage) => stage.stage);
 const entryHrefs: Record<LandingEntryId, string> = {
@@ -21,14 +21,14 @@ const entryHrefs: Record<LandingEntryId, string> = {
   review: '/demo/review',
   record: '/demo/record',
   embed: '/demo/embed',
-  presentation: '/presentation',
+  presentation: '/hr/presentation',
 };
 ---
 
 <Base
   lang={lang}
-  title="Polis — The public response layer"
-  description="Follow one public response from the first report to an independently reviewed public receipt, then open the demonstration as a citizen, an official, or the reviewer."
+  title="Polis — Sloj javnog odgovora"
+  description="Pratite jedan javni odgovor od prve prijave do neovisno provjerene javne potvrde, pa otvorite demonstraciju kao stanovnik, dužnosnik ili provjeritelj."
 >
   <article class="landing" id="public-record">
     <header class="landing-lead">

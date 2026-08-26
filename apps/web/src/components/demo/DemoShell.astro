@@ -1,0 +1,570 @@
+---
+/**
+ * Shared chrome for every `/demo/*` surface.
+ *
+ * Renders the app bar — `Polis` wordmark, the five-segment role switcher, the `EN | HR` toggle and
+ * the reset control — then one boundary line and the page content. Both languages are in the HTML
+ * as `data-lang` siblings: EN is visible without JavaScript, and the shell script shows the
+ * language held in the demo store.
+ *
+ * Below the 40rem phone breakpoint the five-segment row gives way to a role pill — a `<details>`
+ * disclosure naming the current role that opens the same five destinations in a layered panel.
+ * Both variants are in the HTML and CSS picks one, so the store subscription and the `data-lang`
+ * siblings keep working unchanged for either.
+ *
+ * Wave 2 note for the page slices: pass `chrome="demo"` to `Base` so the layout drops its own
+ * banner and site header, and drop `banner={false}` here so this shell owns the single boundary
+ * line. Until a page does both, it keeps the layout banner and this shell renders no boundary line
+ * — the boundary is still stated exactly once.
+ */
+import {
+  demoBannerDetails,
+  demoBoundary,
+  demoChrome,
+  demoSurfaces,
+  languageToggle,
+  resetDemoCopy,
+} from '../../content/demo-strings.mjs';
+
+interface Props {
+  /** Which demo surface is being rendered; marks the switcher segment with `aria-current`. */
+  surface: 'citizen' | 'official' | 'review' | 'record' | 'embed';
+  /** Render the boundary line. Set false while the layout still renders its own banner. */
+  banner?: boolean;
+  /** Where the boundary line's details link points. */
+  detailsHref?: string;
+}
+
+const { surface, banner = true, detailsHref = '/transparency' } = Astro.props as Props;
+
+/** The role the pill names while it is closed. Same label the active segment carries. */
+const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demoSurfaces[0];
+---
+
+<div class="demo-shell" data-demo-shell data-surface={surface}>
+  <header class="demo-appbar">
+    <a class="demo-wordmark" href="/">Polis</a>
+
+    <nav class="demo-switcher" aria-label={demoChrome.roleStrip.en} data-demo-roles>
+      <ul class="demo-segments">
+        {
+          demoSurfaces.map((entry) => (
+            <li>
+              <a
+                class="demo-segment"
+                href={entry.href}
+                aria-current={entry.id === surface ? 'page' : undefined}
+                data-demo-role={entry.id}
+              >
+                <span data-lang="en">{entry.label.en}</span>
+                <span data-lang="hr" hidden>
+                  {entry.label.hr}
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    {/* Phone variant of the same five destinations: a role pill that discloses the list. */}
+    <nav class="demo-role-nav" aria-label={demoChrome.roleStrip.en} data-demo-roles>
+      <details class="demo-role-menu" data-demo-role-menu>
+        <summary class="demo-role-pill">
+          <span class="demo-role-pill-label">
+            <span data-lang="en">{activeSurface.label.en}</span>
+            <span data-lang="hr" hidden>
+              {activeSurface.label.hr}
+            </span>
+          </span>
+          <svg
+            class="demo-role-caret"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.25"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </summary>
+        <ul class="demo-role-list">
+          {
+            demoSurfaces.map((entry) => (
+              <li>
+                <a
+                  class="demo-role-item"
+                  href={entry.href}
+                  aria-current={entry.id === surface ? 'page' : undefined}
+                  data-demo-role={entry.id}
+                >
+                  <span data-lang="en">{entry.label.en}</span>
+                  <span data-lang="hr" hidden>
+                    {entry.label.hr}
+                  </span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </details>
+    </nav>
+
+    <div class="demo-controls">
+      <div class="demo-lang" role="group" aria-label={languageToggle.groupLabel.en} data-demo-lang-group>
+        <button
+          type="button"
+          class="demo-lang-button"
+          data-demo-lang="en"
+          aria-pressed="true"
+          lang="en"
+        >
+          {languageToggle.short.en}
+        </button>
+        <span class="demo-lang-separator" aria-hidden="true">|</span>
+        <button
+          type="button"
+          class="demo-lang-button"
+          data-demo-lang="hr"
+          aria-pressed="false"
+          lang="hr"
+        >
+          {languageToggle.short.hr}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="demo-icon-button"
+        data-demo-reset
+        aria-label={resetDemoCopy.label.en}
+        title={resetDemoCopy.label.en}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  {
+    banner && (
+      <p class="demo-boundary">
+        <span data-lang="en">{demoBoundary.en}</span>
+        <span data-lang="hr" hidden>
+          {demoBoundary.hr}
+        </span>{' '}
+        <a href={detailsHref}>
+          <span data-lang="en">{demoBannerDetails.en}</span>
+          <span data-lang="hr" hidden>
+            {demoBannerDetails.hr}
+          </span>
+        </a>
+      </p>
+    )
+  }
+
+  <p class="demo-shell-status" role="status" data-demo-status></p>
+
+  <div class="demo-surface"><slot /></div>
+</div>
+
+<style>
+  .demo-shell {
+    min-width: 0;
+    display: grid;
+  }
+
+  .demo-shell [hidden] {
+    display: none !important;
+  }
+
+  /* App bar. Wordmark, switcher, controls keep DOM order when the row wraps. */
+  .demo-appbar {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-md);
+    padding-block: var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+  }
+
+  .demo-wordmark {
+    flex: 0 0 auto;
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--polis-text);
+    font-family: var(--display);
+    font-size: var(--type-heading-sm);
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+  }
+
+  /* The switcher scrolls sideways on narrow viewports instead of collapsing. */
+  .demo-switcher {
+    flex: 1 1 20rem;
+    min-width: 0;
+    display: flex;
+    justify-content: safe center;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  /* `flex: 0 0 auto` keeps the row at its intrinsic width so the switcher scrolls
+     instead of squeezing or clipping the last segments on a narrow viewport. */
+  .demo-segments {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: nowrap;
+    width: max-content;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--polis-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--polis-surface);
+    list-style: none;
+  }
+
+  .demo-segment {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: var(--space-md);
+    border-left: 1px solid var(--polis-border-strong);
+    color: var(--polis-text);
+    font-family: var(--body);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .demo-segments li:first-child .demo-segment {
+    border-left: 0;
+    border-start-start-radius: var(--radius-sm);
+    border-end-start-radius: var(--radius-sm);
+  }
+
+  .demo-segments li:last-child .demo-segment {
+    border-start-end-radius: var(--radius-sm);
+    border-end-end-radius: var(--radius-sm);
+  }
+
+  .demo-segment:hover {
+    background: var(--polis-surface-tint);
+  }
+
+  .demo-segment[aria-current='page'] {
+    background: var(--polis-trace);
+    color: var(--polis-on-primary);
+  }
+
+  /* Phone-only role pill. Hidden by default so the desktop bar is untouched. */
+  .demo-role-nav {
+    display: none;
+  }
+
+  .demo-role-menu {
+    position: relative;
+    min-width: 0;
+  }
+
+  .demo-role-pill {
+    max-width: 100%;
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding-inline: var(--space-sm);
+    border: 1px solid var(--polis-trace);
+    border-radius: 999px;
+    background: var(--polis-trace);
+    color: var(--polis-on-primary);
+    font-family: var(--body);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .demo-role-pill::-webkit-details-marker {
+    display: none;
+  }
+
+  .demo-role-pill-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .demo-role-caret {
+    flex: 0 0 auto;
+  }
+
+  /* Static state change, not a transition — nothing to gate for reduced motion. */
+  .demo-role-menu[open] .demo-role-caret {
+    transform: rotate(180deg);
+  }
+
+  /* A layered panel under the pill, not a full-screen takeover. */
+  .demo-role-list {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + var(--space-xs));
+    inset-inline-start: 0;
+    min-width: max(11rem, 100%);
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--polis-border);
+    border-radius: var(--radius-sm);
+    background: var(--polis-surface);
+    box-shadow: var(--shadow-soft);
+    list-style: none;
+  }
+
+  .demo-role-item {
+    min-height: var(--tap-target);
+    display: flex;
+    align-items: center;
+    padding-inline: var(--space-sm);
+    border-top: 1px solid var(--polis-border);
+    color: var(--polis-text);
+    font-family: var(--body);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .demo-role-list li:first-child .demo-role-item {
+    border-top: 0;
+  }
+
+  .demo-role-item:hover {
+    background: var(--polis-surface-tint);
+  }
+
+  .demo-role-item[aria-current='page'] {
+    background: var(--polis-surface-tint);
+    box-shadow: inset 0.1875rem 0 0 var(--polis-trace);
+  }
+
+  /* Below the phone breakpoint the segment row gives way to the pill, and the tighter
+     column gap keeps wordmark, pill, EN | HR and reset on one row at 390px. */
+  @media (max-width: 39.99rem) {
+    .demo-appbar {
+      column-gap: var(--space-sm);
+    }
+
+    .demo-switcher {
+      display: none;
+    }
+
+    .demo-role-nav {
+      flex: 0 1 auto;
+      min-width: 0;
+      display: block;
+    }
+  }
+
+  .demo-controls {
+    flex: 0 0 auto;
+    margin-left: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .demo-lang {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .demo-lang-button {
+    min-width: var(--tap-target);
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--space-xs);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--polis-muted);
+    font-family: var(--body);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+
+  .demo-lang-button[aria-pressed='true'] {
+    color: var(--polis-text);
+    font-weight: 700;
+  }
+
+  .demo-lang-separator {
+    color: var(--polis-border-strong);
+  }
+
+  .demo-icon-button {
+    min-width: var(--tap-target);
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--polis-muted);
+    cursor: pointer;
+  }
+
+  .demo-icon-button:hover {
+    border-color: var(--polis-border-strong);
+    color: var(--polis-text);
+  }
+
+  /* One boundary line, stated once, directly under the app bar. */
+  .demo-boundary {
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    padding-block: var(--space-sm);
+    border-bottom: 1px solid var(--polis-border);
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .demo-boundary a {
+    color: var(--polis-trace);
+    text-decoration: underline;
+  }
+
+  .demo-shell-status {
+    max-width: 68ch;
+    margin: var(--space-sm) 0 0;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+  }
+
+  .demo-shell-status:empty {
+    display: none;
+  }
+
+  .demo-surface {
+    min-width: 0;
+    margin-top: var(--space-md);
+  }
+
+  /* Print keeps the demonstration boundary; navigation and controls are chrome, not record. */
+  @media print {
+    .demo-appbar,
+    .demo-role-nav,
+    .demo-shell-status {
+      display: none;
+    }
+
+    .demo-boundary {
+      color: currentColor;
+      text-align: start;
+    }
+  }
+</style>
+
+<script>
+  import { getState, resetDemo, setLang, subscribe } from '../../lib/demo-store.mjs';
+  import {
+    demoChrome,
+    languageToggle,
+    resetDemoCopy,
+    resolveText,
+  } from '../../content/demo-strings.mjs';
+
+  const shell = document.querySelector('[data-demo-shell]');
+  if (shell) {
+    const status = shell.querySelector('[data-demo-status]');
+    const roleStrips = shell.querySelectorAll('[data-demo-roles]');
+    const roleMenu = shell.querySelector('[data-demo-role-menu]');
+    const langGroup = shell.querySelector('[data-demo-lang-group]');
+    const langButtons = shell.querySelectorAll('[data-demo-lang]');
+    const reset = shell.querySelector('[data-demo-reset]');
+
+    function applyLang(lang: 'en' | 'hr') {
+      document.documentElement.lang = lang;
+      for (const node of document.querySelectorAll('[data-lang]')) {
+        if (node instanceof HTMLElement) node.hidden = node.getAttribute('data-lang') !== lang;
+      }
+      const roleStripLabel = resolveText(demoChrome.roleStrip, lang);
+      for (const strip of roleStrips) strip.setAttribute('aria-label', roleStripLabel);
+      langGroup?.setAttribute('aria-label', resolveText(languageToggle.groupLabel, lang));
+      for (const button of langButtons) {
+        button.setAttribute('aria-pressed', button.getAttribute('data-demo-lang') === lang ? 'true' : 'false');
+      }
+      const resetLabel = resolveText(resetDemoCopy.label, lang);
+      reset?.setAttribute('aria-label', resetLabel);
+      reset?.setAttribute('title', resetLabel);
+    }
+
+    for (const button of langButtons) {
+      button.addEventListener('click', () => {
+        const next = button.getAttribute('data-demo-lang');
+        if (next === 'en' || next === 'hr') setLang(next);
+      });
+    }
+
+    reset?.addEventListener('click', () => {
+      const lang = getState().lang;
+      if (!window.confirm(resolveText(resetDemoCopy.confirm, lang))) return;
+      resetDemo();
+      if (status) status.textContent = resolveText(resetDemoCopy.done, getState().lang);
+    });
+
+    // `<details>` carries the disclosure semantics; it only needs closing on Escape and on a
+    // click outside, which native `<details>` does not do on its own.
+    if (roleMenu instanceof HTMLDetailsElement) {
+      document.addEventListener('click', (event) => {
+        if (!roleMenu.open) return;
+        if (event.target instanceof Node && roleMenu.contains(event.target)) return;
+        roleMenu.open = false;
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || !roleMenu.open) return;
+        roleMenu.open = false;
+        roleMenu.querySelector('summary')?.focus();
+      });
+    }
+
+    subscribe((state) => {
+      applyLang(state.lang);
+    });
+
+    applyLang(getState().lang);
+  }
+</script>

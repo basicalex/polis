@@ -4,13 +4,19 @@
   "type": "module",
   "scripts": {
     "build": "astro build",
+    "build:release": "PUBLIC_RELEASE=1 PUBLIC_SITE_URL=https://polis.intrface.eu astro build",
     "dev": "astro dev --port 4321 --host 0.0.0.0",
     "preview": "astro preview --port 4321",
     "typecheck": "astro check || node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "qa:release": "PUBLIC_RELEASE=1 PUBLIC_RELEASE_LOCAL_QA=1 PUBLIC_SITE_URL=http://127.0.0.1:8787 astro build && bun scripts/run-with-timeout.mjs 600 -- bun scripts/release-smoke.mjs",
+    "smoke:release": "bun scripts/run-with-timeout.mjs 600 -- bun scripts/release-smoke.mjs",
+    "deploy:preview": "CLOUDFLARE_ENV=preview bun run build:release && wrangler deploy --env preview",
+    "deploy:production": "bun run build:release && wrangler deploy --env=\"\"",
+    "rollback:list": "wrangler deployments list --env=\"\""
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.0",
+    "@astrojs/cloudflare": "^14.2.3",
     "@astrojs/react": "^6.0.2",
     "@polis/domain": "workspace:*",
     "@polis/ui": "workspace:*",
@@ -22,7 +28,9 @@
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "playwright-core": "^1.62.1",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.125.0"
   }
 }
