@@ -166,7 +166,7 @@ export function representativeRoutes(db: DbClient): Route[] {
                       subjectId: params.id,
                       confidence: '0.5',
                       confidenceState: 'unsupported_draft',
-                      reviewState: 'approved',
+                      reviewState: 'draft',
                       visibility: 'public',
                       methodVersion: 'm-ra-phase2',
                     })
@@ -211,9 +211,9 @@ export function representativeRoutes(db: DbClient): Route[] {
                   id: sql`gen_random_uuid()::text`,
                   contributorId: citizenId,
                   type: 'claim',
-                  status: 'approved',
+                  status: 'pending',
                   contributionClass: 'mandate_commitment',
-                  decidedAt: new Date(),
+                  decidedAt: null,
                   payload,
                 })
                 .returning();

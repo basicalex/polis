@@ -575,11 +575,11 @@ test('commitment filing allows covering charter scope', async () => {
   assert.equal(httpStatus(out), 201);
   assert.ok(out && typeof out === 'object' && 'body' in out);
   assert.ok(out.body && typeof out.body === 'object' && 'decidedAt' in out.body);
-  assert.notEqual(out.body.decidedAt, null);
+  assert.equal(out.body.decidedAt, null);
   assert.equal(
     inserts.length,
     4,
-    'publish path creates claim, commitment, initial status event, and submission',
+    'filing path creates claim, commitment, initial status event, and submission',
   );
   const commitmentSubmission = inserts.find((entry) => {
     const values = entry.values;
@@ -590,8 +590,20 @@ test('commitment filing allows covering charter scope', async () => {
       values.contributionClass === 'mandate_commitment'
     );
   });
-  assert.equal(insertedSubmission(commitmentSubmission?.values).status, 'approved');
-  assert.ok(insertedSubmission(commitmentSubmission?.values).decidedAt instanceof Date);
+  assert.equal(insertedSubmission(commitmentSubmission?.values).status, 'pending');
+  assert.equal(insertedSubmission(commitmentSubmission?.values).decidedAt, null);
+  const commitmentClaim = inserts.find((entry) => {
+    const values = entry.values;
+    return values !== null && typeof values === 'object' && 'reviewState' in values;
+  });
+  assert.ok(commitmentClaim);
+  const commitmentClaimValues = commitmentClaim.values;
+  assert.ok(
+    commitmentClaimValues !== null &&
+      typeof commitmentClaimValues === 'object' &&
+      'reviewState' in commitmentClaimValues,
+  );
+  assert.equal(commitmentClaimValues.reviewState, 'draft');
   assert.ok(
     inserts.some((entry) => {
       const values = entry.values;
@@ -979,8 +991,8 @@ test('representative writes audit authorization then staged completion with boun
       return values !== null && typeof values === 'object' && 'contributionClass' in values;
     })?.values,
   );
-  assert.equal(commitmentSubmission.status, 'approved');
-  assert.ok(commitmentSubmission.decidedAt instanceof Date);
+  assert.equal(commitmentSubmission.status, 'pending');
+  assert.equal(commitmentSubmission.decidedAt, null);
   assert.equal(commitmentSubmission.contributorId, 'citizen-1');
   assert.deepEqual(commitmentEvents[1]?.data, {
     mandateHolderId: 'holder-1',
@@ -1820,6 +1832,71 @@ test('review audit failure returns 503 and distinct authorized reviewer can deci
   );
   assert.equal(completionData.decision, 'approved');
   assert.equal(completionData.applied, false);
+});
+
+test('reviewer approval promotes the pending commitment submission and its claim', async () => {
+  const submission = {
+    id: 'submission-commitment-1',
+    contributorId: 'citizen-1',
+    type: 'claim',
+    status: 'pending',
+    contributionClass: 'mandate_commitment',
+    payload: {
+      kind: 'commitment',
+      commitmentId: 'commitment-1',
+      claimId: 'claim-1',
+    },
+    submittedAt: new Date('2026-01-01T00:00:00Z'),
+    decidedAt: null,
+  };
+  const approved = {
+    ...submission,
+    status: 'approved',
+    decidedAt: new Date('2026-01-02T00:00:00Z'),
+  };
+  const { db, updates } = queuedDb([[activeReviewBinding], [submission], [activeReviewBinding]], {
+    updateReturningRows: [[{ ...submission, status: 'in_review' }], [approved]],
+  });
+  await withAudit(
+    (async () => new Response(null, { status: 204 })) as typeof fetch,
+    async () => {
+      const route = contributionRoutes(db as never).find(
+        (candidate) =>
+          candidate.method === 'POST' && candidate.path === '/internal/review/:id/decide',
+      );
+      assert.ok(route);
+      const out = await route.handler(
+        reqWithActor('staff-reviewer', 'staff'),
+        { decision: 'approve' },
+        { id: submission.id },
+      );
+      assert.equal(httpStatus(out), 201);
+      assert.ok(out && typeof out === 'object' && 'body' in out);
+      const responseBody = out.body;
+      assert.ok(
+        responseBody &&
+          typeof responseBody === 'object' &&
+          'status' in responseBody &&
+          'decidedAt' in responseBody &&
+          'applied' in responseBody,
+      );
+      assert.equal(responseBody.status, 'approved');
+      assert.notEqual(responseBody.decidedAt, null);
+      assert.equal(responseBody.applied, true);
+    },
+  );
+  assert.ok(
+    updates.some((entry) => {
+      const values = entry.values;
+      return (
+        values !== null &&
+        typeof values === 'object' &&
+        'reviewState' in values &&
+        values.reviewState === 'approved'
+      );
+    }),
+    'approval must promote the filed commitment claim',
+  );
 });
 
 test('approved resolution review marks the referenced claim approved before status event is exposed', async () => {

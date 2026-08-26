@@ -151,9 +151,18 @@ export async function applySubmission(
     const payload = (sub.payload ?? {}) as {
       kind?: string;
       commitmentId?: string;
+      claimId?: string;
       status?: string;
       resolutionClaimId?: string;
     };
+    if (payload.kind === 'commitment') {
+      if (!payload.claimId) return false;
+      await db
+        .update(schema.claims)
+        .set({ reviewState: 'approved' })
+        .where(eq(schema.claims.id, payload.claimId));
+      return true;
+    }
     if (
       payload.kind === 'resolution' &&
       (!payload.status || !(payload.status in RESOLUTION_STATUSES) || !payload.resolutionClaimId)
