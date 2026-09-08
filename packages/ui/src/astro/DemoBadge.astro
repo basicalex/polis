@@ -14,6 +14,6 @@ const { label, banner = false, locale = 'en' } = Astro.props as Props;
   banner ? (
     <div class="demo-banner" role="note">{label ?? t('demo.banner', locale)}</div>
   ) : (
-    <span class="trust-badge" data-tone="warning">{label ?? 'demonstration'}</span>
+    <span class="status-label trust-badge" data-tone="warning">{label ?? 'demonstration'}</span>
   )
 }

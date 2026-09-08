@@ -1,0 +1,1923 @@
+/*
+ * Demo surfaces: one stylesheet for `/demo/*`.
+ *
+ * Wave W3 pulled the page-local `<style>` blocks out of DemoShell and the five
+ * demo pages into this file, one definition per selector. The queue surfaces
+ * (`/demo/official`, `/demo/review`) used to carry two near-identical copies of
+ * 33 `.queue-*` selectors; they share one copy here.
+ *
+ * Tokens, buttons, status labels, fields, panels, and the empty state come from
+ * `@polis/ui/styles/base.css`. Shared demo material (`.demo-panel`,
+ * `.demo-ledger*`, `.demo-trace*`, `.demo-stamp*`, `.demo-anchor`) comes from
+ * `apps/web/src/styles.css`. Only what is specific to a demo surface lives here.
+ *
+ * Every rule is scoped under `.demo-shell` — the root DemoShell renders — so
+ * these global names cannot reach a non-demo page, and so a rule that has to
+ * beat a single-class recipe in base.css wins on specificity rather than on
+ * bundle order.
+ */
+
+.demo-shell {
+  min-width: 0;
+  display: grid;
+}
+
+.demo-shell [hidden] {
+  display: none !important;
+}
+
+/* ===========================================================================
+   App bar, boundary line, shell status
+   =========================================================================== */
+
+/* Wordmark, switcher, controls keep DOM order when the row wraps. */
+.demo-shell .demo-appbar {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.demo-shell .demo-wordmark {
+  flex: 0 0 auto;
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+}
+
+/* The switcher scrolls sideways on narrow viewports instead of collapsing. */
+.demo-shell .demo-switcher {
+  flex: 1 1 20rem;
+  min-width: 0;
+  display: flex;
+  justify-content: safe center;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* `flex: 0 0 auto` keeps the row at its intrinsic width so the switcher scrolls
+   instead of squeezing or clipping the last segments on a narrow viewport. */
+.demo-shell .demo-segments {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  list-style: none;
+}
+
+.demo-shell .demo-segment {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-5);
+  border-left: 1px solid var(--polis-border-strong);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.demo-shell .demo-segments li:first-child .demo-segment {
+  border-left: 0;
+  border-start-start-radius: var(--radius-sm);
+  border-end-start-radius: var(--radius-sm);
+}
+
+.demo-shell .demo-segments li:last-child .demo-segment {
+  border-start-end-radius: var(--radius-sm);
+  border-end-end-radius: var(--radius-sm);
+}
+
+.demo-shell .demo-segment:hover {
+  background: var(--polis-surface-tint);
+}
+
+.demo-shell .demo-segment[aria-current='page'] {
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+/* Phone-only role pill. Hidden by default so the desktop bar is untouched. */
+.demo-shell .demo-role-nav {
+  display: none;
+}
+
+.demo-shell .demo-role-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.demo-shell .demo-role-pill {
+  max-width: 100%;
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--polis-trace);
+  border-radius: var(--radius-pill);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.demo-shell .demo-role-pill::-webkit-details-marker {
+  display: none;
+}
+
+.demo-shell .demo-role-pill-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-shell .demo-role-caret {
+  flex: 0 0 auto;
+}
+
+/* Static state change, not a transition — nothing to gate for reduced motion. */
+.demo-shell .demo-role-menu[open] .demo-role-caret {
+  transform: rotate(180deg);
+}
+
+/* A layered panel under the pill, not a full-screen takeover. */
+.demo-shell .demo-role-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + var(--space-2));
+  inset-inline-start: 0;
+  min-width: max(11rem, 100%);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  box-shadow: var(--shadow-1);
+  list-style: none;
+}
+
+.demo-shell .demo-role-item {
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--space-3);
+  border-top: 1px solid var(--polis-border);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.demo-shell .demo-role-list li:first-child .demo-role-item {
+  border-top: 0;
+}
+
+.demo-shell .demo-role-item:hover {
+  background: var(--polis-surface-tint);
+}
+
+.demo-shell .demo-role-item[aria-current='page'] {
+  background: var(--polis-surface-tint);
+  box-shadow: inset 0.1875rem 0 0 var(--polis-trace);
+}
+
+.demo-shell .demo-controls {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.demo-shell .demo-lang {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Extends the shared `.btn` tertiary variant; only the deltas live here. */
+.demo-shell .demo-lang-button {
+  min-width: var(--tap-target);
+  padding-inline: var(--space-2);
+  color: var(--polis-muted);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.demo-shell .demo-lang-button[aria-pressed='true'] {
+  color: var(--polis-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* A hairline, not a glyph: a decorative divider carries no text contrast. */
+.demo-shell .demo-lang-separator {
+  width: 1px;
+  height: 1rem;
+  align-self: center;
+  background: var(--polis-border-strong);
+}
+
+/* Extends the shared `.btn` tertiary variant; only the deltas live here. */
+.demo-shell .demo-icon-button {
+  min-width: var(--tap-target);
+  padding-inline: 0;
+  color: var(--polis-muted);
+}
+
+.demo-shell .demo-icon-button:hover {
+  border-color: var(--polis-border-strong);
+  color: var(--polis-text);
+  text-decoration: none;
+}
+
+/* One boundary line, stated once, directly under the app bar. */
+.demo-shell .demo-boundary {
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.demo-shell .demo-boundary a {
+  color: var(--polis-trace);
+  text-decoration: underline;
+}
+
+.demo-shell .demo-shell-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  max-width: 68ch;
+  margin: var(--space-3) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.demo-shell .demo-shell-status:empty {
+  display: none;
+}
+
+.demo-shell .demo-surface {
+  min-width: 0;
+  margin-top: var(--space-5);
+}
+
+/* Below the phone breakpoint the segment row gives way to the pill, and the
+   tighter column gap keeps wordmark, pill, EN | HR and reset on one row. */
+@media (max-width: 39.99rem) {
+  .demo-shell .demo-appbar {
+    column-gap: var(--space-3);
+  }
+
+  .demo-shell .demo-switcher {
+    display: none;
+  }
+
+  .demo-shell .demo-role-nav {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: block;
+  }
+}
+
+/* ===========================================================================
+   Shared demo pieces: groups, field lists, fixture labels, status lines
+   =========================================================================== */
+
+/*
+ * Grouping (rule H7, D5): whitespace and one hairline separate a group from the
+ * next. A group is never a bordered panel inside a bordered panel.
+ */
+.demo-shell .demo-group {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.demo-shell .demo-group + .demo-group {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--polis-border);
+}
+
+/*
+ * A group title is a heading, not another field label: it keeps the meta size
+ * but takes full ink and wider tracking so the muted uppercase labels beneath
+ * it read as its content (rule H7).
+ */
+.demo-shell .demo-group-title {
+  margin: 0;
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* Breathing room between the heading and the first row it covers. */
+.demo-shell .demo-group > .demo-group-title,
+.demo-shell .demo-group > .demo-group-head {
+  margin-bottom: var(--space-2);
+}
+
+/* The group title and the mark that qualifies it share one row. */
+.demo-shell .demo-group-head {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The grid gap spaces a group's children; the base margins would double it. */
+.demo-shell .demo-group > .record-note,
+.demo-shell .demo-group > p {
+  margin: 0;
+}
+
+/*
+ * Empty states run at the task/operate density: the shared recipe, one step
+ * quieter than the reading surfaces so a queue column keeps its rhythm.
+ */
+.demo-shell .empty-state {
+  padding-block: var(--space-4);
+}
+
+.demo-shell .empty-state-title {
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.demo-shell .empty-state-tips {
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+/*
+ * Field lists. The label is the quiet part (`--type-meta`, muted, uppercase);
+ * the value carries the ink (rule H3). The commitment text reads at body size
+ * and the due date is the loudest datum on the panel, because those are the two
+ * things a reviewer reads first (finding F9).
+ */
+.demo-shell .queue-fields,
+.demo-shell .fields {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.demo-shell .queue-fields > div,
+.demo-shell .fields > div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.demo-shell .queue-fields dt,
+.demo-shell .fields dt {
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.demo-shell .queue-fields dd,
+.demo-shell .fields dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Fixture and origin labels are disclosures, not status. DESIGN.md principle 5:
+ * a disclosure label may never be louder than the claim it qualifies, so this
+ * one drops the stamp box and sits at `--type-meta` (finding F3, F14).
+ */
+.demo-shell .demo-stamp.is-fixture {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--polis-warning);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* A `role="status"` line reads as a state plus a sentence (rule P4, S2). */
+.demo-shell .demo-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.demo-shell .demo-status-line .status-label {
+  flex: 0 0 auto;
+}
+
+/*
+ * Field recipe from base.css, in the demo's label → hint → control → error
+ * order. One gap inside a field group (8px), a clearly larger one to the next
+ * group (24px), rule H6.
+ */
+.demo-shell .field,
+.demo-shell .field-tiles {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.demo-shell .field-tiles {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.demo-shell .field > label,
+.demo-shell .field-tiles > legend {
+  margin-bottom: 0;
+  padding: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.demo-shell .field-hint,
+.demo-shell .field-error {
+  margin: 0;
+}
+
+/* The grid gap already spaces the fields; the base margin would double it. */
+.demo-shell .field + .field,
+.demo-shell .field-tiles + .field {
+  margin-top: 0;
+}
+
+/* ===========================================================================
+   Queue surfaces: /demo/official and /demo/review
+   =========================================================================== */
+
+.demo-shell .queue {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+  max-width: 74rem;
+}
+
+.demo-shell .queue-lead {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.demo-shell .queue-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  line-height: 1.15;
+}
+
+.demo-shell .queue-noscript {
+  max-width: 68ch;
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--polis-surface-tint);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+}
+
+.demo-shell .queue-grid {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+  align-items: start;
+}
+
+/* Rail: a vertical bucket list on desktop, a horizontal chip row below 56.25rem. */
+.demo-shell .queue-rail {
+  min-width: 0;
+}
+
+.demo-shell .queue-buckets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demo-shell .queue-column-title {
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-data);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.demo-shell .queue-loading,
+.demo-shell .queue-status {
+  margin: 0 0 var(--space-3);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .queue-status {
+  color: var(--polis-text);
+}
+
+.demo-shell .queue-status:empty,
+.demo-shell .queue-loading[hidden] {
+  display: none;
+}
+
+.demo-shell .queue-status a {
+  color: var(--polis-trace);
+}
+
+.demo-shell .queue-detail {
+  display: grid;
+  min-width: 0;
+}
+
+.demo-shell .queue-detail[hidden] {
+  display: none;
+}
+
+/* The hairline closes the whole surface; the sentences keep their measure. */
+.demo-shell .queue-foot {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--polis-border);
+}
+
+.demo-shell .queue-role-note {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  line-height: 1.55;
+}
+
+.demo-shell .queue-provenance {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.demo-shell .queue-provenance a {
+  color: var(--polis-trace);
+}
+
+/* Bucket rail */
+
+.demo-shell .queue-bucket {
+  min-width: 0;
+  width: 100%;
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.demo-shell .queue-bucket:hover {
+  background: var(--polis-surface-tint);
+}
+
+.demo-shell .queue-bucket[aria-pressed='true'] {
+  border-color: var(--polis-trace);
+  color: var(--polis-trace);
+}
+
+.demo-shell .queue-bucket-count {
+  margin-left: auto;
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+}
+
+.demo-shell .queue-bucket[aria-pressed='true'] .queue-bucket-count {
+  color: var(--polis-trace);
+}
+
+/* Detail panel */
+
+.demo-shell .queue-detail-card {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.demo-shell .queue-detail-id {
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.demo-shell .queue-detail-subject {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.demo-shell .queue-detail-head {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.demo-shell .queue-detail-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-top: var(--space-1);
+}
+
+.demo-shell .queue-note {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+/* The reviewer's return note: a quiet tint, one enclosure, no second border. */
+.demo-shell .queue-returned {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface-tint);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .queue-returned-label {
+  color: var(--polis-warning);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* What the reviewer must read before deciding: role, independence, scope,
+   consequence. Review surface only. */
+/*
+ * The reviewer's briefing is four short statements, not a panel inside a panel:
+ * hairlines and whitespace separate them (rules H7, D5).
+ */
+.demo-shell .queue-preamble {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 62ch;
+  margin: 0;
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .queue-preamble dt {
+  color: var(--polis-muted);
+  font-weight: 600;
+}
+
+.demo-shell .queue-preamble dt + dd {
+  margin-top: 0;
+}
+
+.demo-shell .queue-preamble dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--polis-text);
+}
+
+.demo-shell .queue-preamble dd + dt {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--polis-border);
+}
+
+/* Forms in the detail panel */
+
+.demo-shell .queue-form {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+}
+
+/* The briefing ends, the decision begins: the gap says so. */
+.demo-shell .queue-preamble + .queue-form {
+  margin-top: var(--space-3);
+}
+
+.demo-shell .queue-form-title {
+  margin: 0;
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* A sentence about the whole step, not about one control. */
+.demo-shell .queue-form-note {
+  max-width: 62ch;
+  margin: calc(var(--space-6) * -1 + var(--space-2)) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+/* Decision radios: visible choices, not a dropdown (rule C4). */
+.demo-shell .queue-decision {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.demo-shell .queue-decision legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.demo-shell .queue-choice {
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-bottom: 0;
+  font-size: var(--type-data);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.demo-shell .queue-choice input {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--polis-trace);
+}
+
+/* `.queue-submit` and `.queue-link-action` extend the shared `.btn` primary and
+   secondary variants; only the deltas live here. */
+.demo-shell .queue-submit,
+.demo-shell .queue-link-action {
+  min-width: 0;
+  justify-self: start;
+}
+
+.demo-shell .queue-error {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-danger);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+@media (min-width: 56.25rem) {
+  .demo-shell .queue-grid {
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) minmax(0, 24rem);
+    gap: var(--space-8);
+  }
+
+  .demo-shell .queue-buckets {
+    display: grid;
+    gap: 0;
+  }
+
+  .demo-shell .queue-bucket {
+    border: 0;
+    border-bottom: 1px solid var(--polis-border);
+    border-left: 0.1875rem solid transparent;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .demo-shell .queue-bucket[aria-pressed='true'] {
+    border-left-color: var(--polis-trace);
+    background: var(--polis-surface-tint);
+  }
+}
+
+@media (max-width: 56.24rem) {
+  .demo-shell .queue-detail-card {
+    margin: 0 0 var(--space-3) var(--space-3);
+  }
+}
+
+/* ===========================================================================
+   /demo/citizen — my reports
+   =========================================================================== */
+
+.demo-shell .citizen {
+  display: grid;
+  gap: var(--space-6);
+  max-width: 48rem;
+  min-width: 0;
+}
+
+/*
+ * The page header carries the primary action on desktop; the phone keeps its
+ * copy of the action under the list, inside the thumb zone. Exactly one of the
+ * two renders at any width, and neither renders while the form is open or while
+ * the empty state carries the action (rules H2, I1, L9).
+ */
+.demo-shell .citizen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.demo-shell .citizen-head-text {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.demo-shell .citizen h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-lg);
+}
+
+.demo-shell .citizen-head-action {
+  flex: 0 0 auto;
+}
+
+.demo-shell .citizen-actions {
+  display: flex;
+}
+
+@media (min-width: 40rem) {
+  .demo-shell .citizen-actions {
+    display: none;
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .demo-shell .citizen-head-action {
+    display: none;
+  }
+}
+
+.demo-shell .citizen[data-form-open='true'] .citizen-head-action,
+.demo-shell .citizen[data-form-open='true'] .citizen-actions,
+.demo-shell .citizen[data-empty='true'] .citizen-head-action,
+.demo-shell .citizen[data-empty='true'] .citizen-actions {
+  display: none;
+}
+
+/* Extends the shared `.btn` primary variant; only the width lives here. */
+.demo-shell .citizen-primary {
+  width: 100%;
+  max-width: 30rem;
+  padding-inline: var(--space-8);
+}
+
+/* reports */
+
+.demo-shell .reports-region {
+  min-width: 0;
+}
+
+.demo-shell .reports-state {
+  max-width: 68ch;
+  margin: 0;
+  padding-block: var(--space-2);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.demo-shell .report-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The card is the shared panel; padding moves to the rows so the disclosure
+   control fills the card width. */
+.demo-shell .report-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.demo-shell .report-summary {
+  min-height: var(--tap-target);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  list-style: none;
+  cursor: pointer;
+}
+
+.demo-shell .report-summary::-webkit-details-marker {
+  display: none;
+}
+
+.demo-shell .report-summary:hover {
+  background: var(--polis-surface-tint);
+}
+
+.demo-shell .report-headline {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.demo-shell .report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.demo-shell .report-id {
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.demo-shell .report-subject {
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.demo-shell .report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+/*
+ * The row's own date reads at body size in muted ink; the fixture disclosure
+ * beside it stays at `--type-meta` so it never outshouts the title or the date
+ * (DESIGN.md principle 5, finding F3).
+ */
+.demo-shell .report-date {
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+  line-height: 1.4;
+}
+
+.demo-shell .report-origin {
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.demo-shell .report-origin.is-fixture {
+  color: var(--polis-warning);
+  letter-spacing: 0.04em;
+}
+
+.demo-shell .report-origin.is-yours {
+  color: var(--polis-muted);
+  letter-spacing: 0.04em;
+}
+
+/* The stamp keeps one line so a two-word status cannot squeeze the title. */
+.demo-shell .report-marks {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.demo-shell .report-marks .demo-stamp {
+  white-space: nowrap;
+}
+
+.demo-shell .report-chevron {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--polis-muted);
+}
+
+.demo-shell .report-card[open] .report-chevron {
+  transform: rotate(180deg);
+}
+
+/* An open card carries the status on its active trace stage and the filing time
+   on its first stage, so the header would say both twice. */
+.demo-shell .report-card[open] .report-summary .demo-stamp,
+.demo-shell .report-card[open] .report-summary .report-date {
+  display: none;
+}
+
+.demo-shell .report-body {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-top: 1px solid var(--polis-border);
+}
+
+.demo-shell .report-open {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-trace);
+  font-size: var(--type-data);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* filing */
+
+.demo-shell .citizen-form-panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.demo-shell .citizen-form-title {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.demo-shell .citizen-form {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+}
+
+.demo-shell .tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-2);
+}
+
+.demo-shell .tile {
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  font-size: var(--type-body);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.demo-shell .tile input {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--polis-trace);
+}
+
+.demo-shell .tile:has(input:checked) {
+  border-color: var(--polis-trace);
+  background: var(--polis-surface-tint);
+  font-weight: 600;
+}
+
+.demo-shell .field [aria-invalid='true'],
+.demo-shell .field-tiles[aria-invalid='true'] .tile {
+  border-color: var(--polis-danger);
+}
+
+.demo-shell .form-error {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-danger);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.demo-shell .form-error:empty {
+  display: none;
+}
+
+.demo-shell .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.demo-shell .citizen-filed {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .citizen-filed a {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-trace);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.demo-shell .citizen-filed .filed-id {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+/* provenance */
+
+.demo-shell .citizen-provenance {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--polis-border);
+}
+
+.demo-shell .citizen-provenance p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.demo-shell .citizen-noscript {
+  color: var(--polis-warning);
+}
+
+/* ===========================================================================
+   /demo/record — the full trace
+   =========================================================================== */
+
+.demo-shell .record-page {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+  max-width: 78rem;
+}
+
+.demo-shell .record-page-head {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.demo-shell .record-page h1 {
+  margin: 0;
+}
+
+.demo-shell .record-region {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.demo-shell .record-provenance p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .state {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .state-warning {
+  color: var(--polis-warning);
+}
+
+.demo-shell .record-view {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.demo-shell .record-head {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.demo-shell .record-id {
+  margin: 0;
+  color: var(--polis-trace);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.demo-shell .record-subject {
+  max-width: 42ch;
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+}
+
+.demo-shell .record-marks {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.demo-shell .record-filed {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-shell .trace-panel .demo-trace {
+  max-width: 68rem;
+}
+
+.demo-shell .record-stack {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.demo-shell .record-panel-head {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.demo-shell .record-panel-head h2,
+.demo-shell .record-panel-head h3 {
+  max-width: 42ch;
+  margin: 0;
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.demo-shell .record-note {
+  max-width: 68ch;
+  margin: var(--space-3) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .record-panel-head .record-note,
+.demo-shell .demo-group > .record-note:first-child {
+  margin: 0;
+}
+
+/* The gate colour is the one thing the shared trace set leaves neutral, so the
+   amber of the pending family is added here. */
+.demo-shell .record-region .demo-trace-stage.is-proposed::before {
+  border-left-color: var(--polis-warning);
+}
+
+.demo-shell .record-region .demo-trace-stage.is-proposed .demo-trace-marker {
+  border-color: var(--polis-warning);
+  background: var(--polis-surface);
+  color: var(--polis-warning);
+}
+
+.demo-shell .trace-when {
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-shell .record-origin {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.demo-shell .record-origin.is-fixture {
+  color: var(--polis-warning);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.demo-shell .act-links {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-5);
+}
+
+.demo-shell .act-links p {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.demo-shell .act-links a {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-trace);
+  font-size: var(--type-data);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+/* ===========================================================================
+   /demo/embed — emulated municipal site with the Polis widget
+   =========================================================================== */
+
+.demo-shell .embed-page {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.demo-shell .embed-head {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.demo-shell .embed-page h1 {
+  margin: 0;
+}
+
+/* Provenance sits below the working surface, never above it. */
+.demo-shell .embed-provenance {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.demo-shell .embed-provenance p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .embed-provenance a {
+  color: var(--polis-trace);
+}
+
+/* The Polis page around the emulation is panel material; the emulated site
+   inside keeps its own palette so it never reads as a Polis surface. */
+.demo-shell .frame {
+  min-width: 0;
+  width: 100%;
+  max-width: 74rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.demo-shell .frame-chrome {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--polis-border);
+  background: var(--polis-surface-tint);
+}
+
+.demo-shell .frame-dots {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+}
+
+.demo-shell .frame-dots span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 1px solid var(--polis-border-strong);
+}
+
+.demo-shell .frame-address {
+  min-width: 0;
+  flex: 1 1 14rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-sm);
+  background: var(--polis-bg);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.demo-shell .frame-tag {
+  flex: 0 1 auto;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  letter-spacing: 0.04em;
+}
+
+/* The framed municipal site: its own local palette, no Polis tokens. */
+.demo-shell .muni {
+  --muni-bg: #f4f6f9;
+  --muni-surface: #ffffff;
+  --muni-ink: #16233a;
+  --muni-quiet: #55627a;
+  --muni-line: #d2d9e4;
+  --muni-band: #1f3a63;
+  --muni-band-ink: #ffffff;
+
+  min-width: 0;
+  background: var(--muni-bg);
+  color: var(--muni-ink);
+  font-family: var(--body);
+}
+
+html[data-theme='dark'] .demo-shell .muni {
+  --muni-bg: #0f172a;
+  --muni-surface: #16203a;
+  --muni-ink: #e2e8f0;
+  --muni-quiet: #94a3b8;
+  --muni-line: #2b3855;
+  --muni-band: #12203c;
+  --muni-band-ink: #e2e8f0;
+}
+
+.demo-shell .muni-head {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--muni-band);
+  color: var(--muni-band-ink);
+}
+
+.demo-shell .muni-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.demo-shell .muni-kicker {
+  font-size: var(--type-meta);
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+
+.demo-shell .muni-nav {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--muni-line);
+  background: var(--muni-surface);
+  color: var(--muni-quiet);
+  font-size: var(--type-data);
+}
+
+.demo-shell .muni-nav span[aria-current='page'] {
+  color: var(--muni-ink);
+  font-weight: 700;
+}
+
+.demo-shell .muni-nav-note {
+  font-size: var(--type-meta);
+  font-style: italic;
+}
+
+.demo-shell .muni-body {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.demo-shell .muni-h {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--muni-ink);
+  font-family: var(--body);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.demo-shell .muni-h-sm {
+  font-size: var(--type-body);
+}
+
+.demo-shell .muni-p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--muni-ink);
+  font-size: var(--type-body);
+  line-height: 1.6;
+}
+
+.demo-shell .muni-foot {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--muni-line);
+  background: var(--muni-surface);
+  color: var(--muni-quiet);
+  font-size: var(--type-meta);
+  overflow-wrap: anywhere;
+}
+
+/* The embedded Polis widget: Polis tokens inside the host page. */
+.demo-shell .pw {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-5);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font-size: var(--type-body);
+}
+
+.demo-shell .pw-head {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.demo-shell .pw-brand {
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.demo-shell .pw-note,
+.demo-shell .pw-loading {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.demo-shell .pw-form {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.demo-shell .pw-row {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.demo-shell .pw-field {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.demo-shell .pw-field label {
+  margin-bottom: 0;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.demo-shell .pw-field input,
+.demo-shell .pw-field select,
+.demo-shell .pw-field textarea {
+  min-width: 0;
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--polis-bg);
+  color: var(--polis-text);
+  font-size: var(--type-body);
+  line-height: 1.45;
+}
+
+.demo-shell .pw-field textarea {
+  resize: vertical;
+}
+
+.demo-shell .pw-field [aria-invalid='true'] {
+  border-color: var(--polis-danger);
+}
+
+.demo-shell .pw-error {
+  margin: 0;
+  color: var(--polis-danger);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* `.pw-submit` and `.pw-again` extend the shared `.btn` primary and secondary
+   variants; only the deltas live here. */
+.demo-shell .pw-submit,
+.demo-shell .pw-again {
+  justify-self: start;
+}
+
+.demo-shell .pw-noscript {
+  margin: 0;
+  color: var(--polis-warning);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.demo-shell .pw-done {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.demo-shell .pw-done-line,
+.demo-shell .pw-done-note {
+  margin: 0;
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+.demo-shell .pw-done-note {
+  color: var(--polis-muted);
+}
+
+.demo-shell .pw-done-line .record-id {
+  color: var(--polis-trace);
+  font-family: var(--mono);
+}
+
+.demo-shell .pw-done-link {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-trace);
+  font-size: 0.9375rem;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+/* ===========================================================================
+   Phone
+   =========================================================================== */
+
+@media (max-width: 56.25rem) {
+  .demo-shell .record-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .demo-shell .queue-fields,
+  .demo-shell .fields {
+    gap: var(--space-3);
+  }
+
+  /* On a phone the title takes the full width and the marks drop below it,
+     so a two-word status cannot narrow the subject to four lines. */
+  .demo-shell .report-summary {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--space-3);
+  }
+
+  .demo-shell .report-chevron {
+    margin-left: auto;
+  }
+
+  .demo-shell .report-body {
+    padding: var(--space-3);
+  }
+
+  .demo-shell .citizen-primary,
+  .demo-shell .form-actions .btn {
+    width: 100%;
+  }
+
+  .demo-shell .record-region .demo-panel {
+    padding: var(--space-3);
+  }
+
+  .demo-shell .pw-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demo-shell .muni-head,
+  .demo-shell .muni-nav,
+  .demo-shell .muni-body,
+  .demo-shell .muni-foot {
+    padding-inline: var(--space-3);
+  }
+
+  .demo-shell .pw {
+    padding: var(--space-3);
+  }
+
+  .demo-shell .pw-submit,
+  .demo-shell .pw-again,
+  .demo-shell .pw-done-link {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+/* ===========================================================================
+   Reduced motion and print
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-shell .record-region * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media print {
+  /* Print keeps the demonstration boundary; navigation and controls are chrome. */
+  .demo-shell .demo-appbar,
+  .demo-shell .demo-role-nav,
+  .demo-shell .demo-shell-status {
+    display: none;
+  }
+
+  .demo-shell .demo-boundary {
+    color: currentColor;
+    text-align: start;
+  }
+
+  /* Print keeps the record; the filing controls are chrome. */
+  .demo-shell .citizen-actions,
+  .demo-shell .citizen-head-action,
+  .demo-shell .citizen-form-panel,
+  .demo-shell .report-chevron,
+  .demo-shell .act-links {
+    display: none !important;
+  }
+
+  .demo-shell .record-page {
+    max-width: none;
+  }
+
+  /* Chrome fragments nested grids badly across page breaks: print in flow. */
+  .demo-shell .record-region,
+  .demo-shell .record-view,
+  .demo-shell .record-stack {
+    display: block;
+  }
+
+  .demo-shell .record-region .demo-panel,
+  .demo-shell .record-head {
+    margin-bottom: 6mm;
+    border: 1px solid #4b5563;
+    background: #ffffff;
+    color: #111827;
+  }
+
+  /* Evidence panels print whole; only the trace may run onto a second page,
+     and its stages stay intact when it does. */
+  .demo-shell .record-region .demo-panel:not(.trace-panel) {
+    break-inside: avoid;
+  }
+
+  /* Keep an event whole: never split stage, actor, action, time, or note. */
+  .demo-shell .demo-trace-stage,
+  .demo-shell .fields > div,
+  .demo-shell .queue-fields > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .demo-shell .record-id,
+  .demo-shell .record-filed,
+  .demo-shell .record-note,
+  .demo-shell .record-origin,
+  .demo-shell .state {
+    color: #111827 !important;
+  }
+}

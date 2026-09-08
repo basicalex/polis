@@ -270,6 +270,21 @@
       },
       "devPortEnv": "COMPLAINTS_SERVICE_PORT",
       "internalUrlEnv": "COMPLAINTS_INTERNAL_URL"
+    },
+    {
+      "name": "trace-service",
+      "path": "services/trace-service",
+      "workspace": "@polis/trace-service",
+      "runtime": "node-24",
+      "defaultPort": 8980,
+      "role": "Runs the isolated Vrsar report, commitment, review, and resolution trace loop.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": false,
+        "order": null
+      },
+      "devPortEnv": "TRACE_SERVICE_PORT",
+      "internalUrlEnv": "TRACE_INTERNAL_URL"
     }
   ]
 }

@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type Institution = { id: string; name: string };
 type AuditEvent = {
@@ -31,38 +33,77 @@ const auditTarget = institutions?.items[0] ?? null;
 const audit = auditTarget
   ? ((await fetchJson(`/api/v1/audit/institution/${encodeURIComponent(auditTarget.id)}`)) as { items: AuditEvent[] } | null)
   : null;
+const unavailable = audit === null;
+const events = audit?.items ?? [];
+const actorOf = (event: AuditEvent) =>
+  event.actor
+    ? `${event.actor.type}:${event.actor.id}`
+    : `${event.actorType ?? 'unknown'}:${event.actorId ?? 'unknown'}`;
 ---
 
 <Base title="Public audit trail">
-  <section class="stack">
-    <p class="badge">Append-only public audit</p>
-    <h1>Audit trail</h1>
-    <p class="muted">
-      Public redacted audit events for {auditTarget?.name ?? 'the seeded institution'}.
-      <a href="/governance/jur-croatia-local"> Back to the governance map.</a>
-    </p>
-  </section>
-  <section class="panel">
-    {audit?.items?.length ? (
-      <table class="data-table">
-        <thead>
-          <tr><th>Actor</th><th>Action</th><th>Hash</th><th>Previous hash</th><th>Created</th><th>Visibility</th></tr>
-        </thead>
-        <tbody>
-          {audit.items.map((event) => (
-            <tr>
-              <td>{event.actor ? `${event.actor.type}:${event.actor.id}` : `${event.actorType ?? 'unknown'}:${event.actorId ?? 'unknown'}`}</td>
-              <td>{event.action}</td>
-              <td><code>{event.hash ?? 'null'}</code></td>
-              <td><code>{event.previousHash ?? 'null'}</code></td>
-              <td>{event.createdAt}</td>
-              <td>{event.visibility}</td>
-            </tr>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">Append-only public audit</p>
+      <h1>Audit trail</h1>
+      {auditTarget && <p class="page-header-institution">{auditTarget.name}</p>}
+      <p class="page-header-lede">
+        Public, redacted audit events in the order they were appended. Each event carries its own
+        hash and the hash before it, so a removed event breaks the chain.
+      </p>
+    </header>
+
+    <section class="task-section">
+      {unavailable ? (
+        <EmptyState
+          title="Audit data is unavailable"
+          purpose="This page reads the public audit chain from the local services, which are not answering right now. No event was hidden."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'The chain needs platform-api, audit-service, and governance-graph-api.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+          ]}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
+      ) : events.length > 0 ? (
+        <ol class="ledger">
+          {events.map((event) => (
+            <li>
+              <p class="ledger-title">{event.action}</p>
+              <p class="ledger-meta">
+                <span class="ledger-value">{actorOf(event)}</span>
+                <time datetime={event.createdAt}>{event.createdAt}</time>
+                <span class="status-label" data-tone={event.visibility === 'public' ? 'unknown' : 'restricted'}>
+                  {event.visibility}
+                </span>
+              </p>
+              <p class="ledger-meta">
+                <span class="hash-value">hash {event.hash ?? 'not recorded'}</span>
+              </p>
+              <p class="ledger-meta">
+                <span class="hash-value">previous {event.previousHash ?? 'none — first event'}</span>
+              </p>
+            </li>
           ))}
-        </tbody>
-      </table>
-    ) : (
-      <p class="muted">Audit data unavailable. Run platform-api, audit-service, governance-graph-api, and the Phase 1 seed.</p>
+        </ol>
+      ) : (
+        <EmptyState
+          title="No public audit events yet"
+          purpose="The audit trail appends one row per public action: a filing, a review decision, a published receipt. It stays empty until the first action happens."
+          tips={[
+            'Seeded fixtures append the first events: bun run db:seed.',
+            'Restricted case events never appear here; only their public boundary does.',
+            'Each row links to the hash before it, so the order can be checked.',
+          ]}
+          actionLabel="Open the governance map"
+          actionHref="/governance/jur-croatia-local"
+        />
+      )}
+    </section>
+
+    {events.length > 0 && (
+      <p class="link-row"><a href="/governance/jur-croatia-local">Back to the governance map</a></p>
     )}
-  </section>
+  </div>
 </Base>

@@ -16,6 +16,4 @@
   --color-warning: var(--trust-warning-fg);
   --color-danger: var(--trust-invalid-fg);
   --color-on-primary: var(--polis-on-primary);
-  --radius-sm: 4px;
-  --radius-md: 8px;
 }

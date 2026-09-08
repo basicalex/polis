@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type StatusEvent = {
   id: string;
@@ -57,139 +59,226 @@ async function fetchJson(path: string) {
 
 const id = Astro.params.id ?? '';
 const commitment = (await fetchJson(`/api/v1/commitments/${encodeURIComponent(id)}`)) as CommitmentDetail | null;
+const latestDecision = commitment?.statusTimeline?.[commitment.statusTimeline.length - 1] ?? null;
+const statusTone = (status: string) =>
+  status === 'delivered'
+    ? 'valid'
+    : status === 'not_delivered' || status === 'overdue'
+      ? 'danger'
+      : status === 'partial' || status === 'proposed'
+        ? 'warning'
+        : 'unknown';
 ---
 
 <Base title={`Commitment · ${commitment?.id ?? id}`}>
-  {commitment ? (
-    <Fragment>
-      <section class="stack">
-        <DemoBadge label="accountability, not endorsement" />
-        <h1>Commitment</h1>
-        <p>{commitment.successCriterion}</p>
-        <p>
-          <span class="badge">{commitment.effectiveStatus}</span>
-          {commitment.dueAt && <span class="muted"> · due {commitment.dueAt}</span>}
-        </p>
-        <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
-      </section>
+  <div class="task-page">
+    {commitment ? (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Commitment</h1>
+          <p class="record-id">{commitment.id}</p>
+          <p class="record-statement">{commitment.successCriterion}</p>
+          <DemoBadge label="accountability, not endorsement" />
+        </header>
 
-      <section class="stack">
-        <h2>Status timeline</h2>
-        {commitment.statusTimeline.length > 0 ? (
-          <table class="data-table">
-            <thead>
-              <tr><th>Status</th><th>Decided by</th><th>Decided at</th></tr>
-            </thead>
-            <tbody>
-              {commitment.statusTimeline.map((event) => (
-                <tr>
-                  <td><span class="badge">{event.status}</span></td>
-                  <td>{event.decidedBy ?? '—'}</td>
-                  <td>{event.decidedAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p class="panel muted">No status events recorded.</p>
-        )}
-      </section>
-
-      <section class="stack">
-        <h2>Resolution evidence</h2>
-        {commitment.resolution ? (
-          <div class="card stack">
-            <p>{commitment.resolution.claim.text}</p>
-            <p><span class="badge">{commitment.resolution.claim.reviewState}</span></p>
-            {commitment.resolution.evidence.length > 0 && (
-              <ul>
-                {commitment.resolution.evidence.map((e) => (
-                  <li class="muted">{e.quote ?? e.paraphrase ?? e.id}</li>
-                ))}
-              </ul>
-            )}
+        <dl class="record-facts">
+          <div>
+            <dt>Status</dt>
+            <dd>
+              <span class="status-label" data-tone={statusTone(commitment.effectiveStatus)}>
+                {commitment.effectiveStatus}
+              </span>
+            </dd>
           </div>
-        ) : (
-          <p class="panel muted">No resolution evidence published (commitment not yet resolved).</p>
-        )}
-      </section>
+          <div>
+            <dt>Due</dt>
+            <dd>{commitment.dueAt ?? 'no date recorded'}</dd>
+          </div>
+          <div>
+            <dt>Last decided by</dt>
+            <dd>{latestDecision?.decidedBy ?? 'not recorded'}</dd>
+          </div>
+          <div>
+            <dt>Boundary</dt>
+            <dd>
+              <span class="status-label" data-tone="unknown">public-read</span>{' '}
+              <span class="status-label" data-tone="unknown">verifiable</span>
+            </dd>
+          </div>
+        </dl>
 
-      <section class="stack">
-        <h2>Questions</h2>
-        <p class="muted">Citizens ask; the mandate-holder answers; answers are adjudicated before publication.</p>
-        {commitment.questions.length > 0 ? (
-          <ul class="stack">
-            {commitment.questions.map((q) => (
-              <li class="card stack">
-                <p>{q.body}</p>
-                <p class="muted">asked by <code>{q.askedByCitizenId}</code> · {q.createdAt}</p>
-                {q.answer ? (
-                  <blockquote>
-                    <p>{q.answer.body}</p>
-                    <p class="muted">answered · decided {q.answer.decidedAt ?? '—'}</p>
-                  </blockquote>
-                ) : (
-                  <p class="panel muted">Not yet answered.</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="panel muted">No questions asked yet.</p>
-        )}
-        <DemoBadge label="demonstration" />
-        <div id="ask-logged-out" style="display:none">
-          <p class="muted"><a href="/login">Log in</a> to ask a question.</p>
-        </div>
-        <form id="ask-form" class="stack" style="display:none">
-          <label>Ask a question <textarea name="body" rows="2" style="width:100%"></textarea></label>
-          <button type="submit">Submit question</button>
-          <p class="muted" id="ask-msg"></p>
-        </form>
-      </section>
-      <script is:inline define:vars={{ API, id }}>
-        (function () {
-          var form = document.getElementById('ask-form');
-          var loggedOut = document.getElementById('ask-logged-out');
-          if (!form) return;
-          var raw = sessionStorage.getItem('web_session');
-          var session = raw ? JSON.parse(raw) : null;
-          if (!session || !session.token) {
-            loggedOut.style.display = 'block';
-            return;
-          }
-          form.style.display = 'block';
-          form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            var msg = document.getElementById('ask-msg');
-            var body = form.body.value.trim();
-            if (!body) { msg.textContent = 'Question text required.'; return; }
-            try {
-              var r = await fetch(API + '/api/v1/commitments/' + id + '/questions', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
-                body: JSON.stringify({ body: body }),
-              });
-              var b = await r.json();
-              if (r.status === 401) { location.href = '/login'; return; }
-              if (!r.ok) { msg.textContent = (b && b.error) || 'submit failed'; return; }
-              location.reload();
-            } catch (err) { msg.textContent = String(err); }
-          });
-        })();
-      </script>
+        <section class="task-section">
+          <h2>Status timeline</h2>
+          {commitment.statusTimeline.length > 0 ? (
+            <ol class="ledger">
+              {commitment.statusTimeline.map((event) => (
+                <li>
+                  <p class="ledger-meta">
+                    <span class="status-label" data-tone={statusTone(event.status)}>{event.status}</span>
+                    <span class="ledger-value">{event.decidedBy ?? 'decider not recorded'}</span>
+                    <time datetime={event.decidedAt}>{event.decidedAt}</time>
+                  </p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No status events yet"
+              purpose="The timeline appends one row each time an independent review changes this commitment's status."
+              tips={[
+                'A commitment starts pending review; it is never published as delivered by its own author.',
+                'Every change records who decided it and when.',
+              ]}
+            />
+          )}
+        </section>
 
-      <section class="stack">
-        <p class="muted">
-          <a href="/audit">audit trail</a> · <a href="/proofs">proofs</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
+        <section class="task-section">
+          <h2>Resolution evidence</h2>
+          {commitment.resolution ? (
+            <div class="task-section">
+              <p class="record-statement">{commitment.resolution.claim.text}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{commitment.resolution.claim.reviewState}</span>
+              </p>
+              {commitment.resolution.evidence.length > 0 && (
+                <ul class="ledger">
+                  {commitment.resolution.evidence.map((e) => (
+                    <li><p class="ledger-summary">{e.quote ?? e.paraphrase ?? e.id}</p></li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No resolution evidence published"
+              purpose="This commitment is not resolved yet, so no evidence has been reviewed and published against it."
+              tips={[
+                'Evidence is published only after an independent review accepts it.',
+                'The status timeline above shows where the commitment stands today.',
+              ]}
+            />
+          )}
+        </section>
+
+        <section class="task-section">
+          <h2>Questions</h2>
+          <p class="task-lede">
+            Citizens ask; the mandate-holder answers; answers are adjudicated before publication.
+          </p>
+          {commitment.questions.length > 0 ? (
+            <ul class="ledger">
+              {commitment.questions.map((q) => (
+                <li>
+                  <p class="record-statement">{q.body}</p>
+                  <p class="ledger-meta">
+                    <span>asked by <code class="hash-value">{q.askedByCitizenId}</code></span>
+                    <time datetime={q.createdAt}>{q.createdAt}</time>
+                  </p>
+                  {q.answer ? (
+                    <blockquote class="citations">
+                      <p>{q.answer.body}</p>
+                      <p class="ledger-meta">
+                        <span class="status-label" data-tone="valid">answered</span>
+                        <time>{q.answer.decidedAt ?? 'decision date not recorded'}</time>
+                      </p>
+                    </blockquote>
+                  ) : (
+                    <p class="ledger-meta">
+                      <span class="status-label" data-tone="warning">not yet answered</span>
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No questions asked yet"
+              purpose="A signed-in citizen can ask the mandate-holder about this commitment. Questions and answers are published together."
+              tips={[
+                'Answers are adjudicated before they appear here.',
+                'Asking requires a session; reading never does.',
+              ]}
+            />
+          )}
+          <DemoBadge label="demonstration" />
+          <div id="ask-logged-out" class="link-row" hidden>
+            <a href="/login">Sign in to ask a question</a>
+          </div>
+          <form id="ask-form" class="task-section" hidden>
+            <div class="field">
+              <label class="field-label" for="ask-body">Ask a question</label>
+              <textarea id="ask-body" name="body" rows="3"></textarea>
+              <p class="field-hint">Your question is published with the answer once it is adjudicated.</p>
+            </div>
+            <p class="field-error" role="alert" id="ask-msg"></p>
+            <div class="form-actions">
+              <button type="submit" class="btn" data-variant="primary">Submit question</button>
+            </div>
+          </form>
+        </section>
+
+        <script is:inline define:vars={{ API, id }}>
+          (function () {
+            var form = document.getElementById('ask-form');
+            var loggedOut = document.getElementById('ask-logged-out');
+            if (!form) return;
+            var raw = sessionStorage.getItem('web_session');
+            var session = raw ? JSON.parse(raw) : null;
+            if (!session || !session.token) {
+              loggedOut.hidden = false;
+              return;
+            }
+            form.hidden = false;
+            form.addEventListener('submit', async function (e) {
+              e.preventDefault();
+              var msg = document.getElementById('ask-msg');
+              var body = form.body.value.trim();
+              if (!body) { msg.textContent = 'Write the question before submitting.'; return; }
+              try {
+                var r = await fetch(API + '/api/v1/commitments/' + id + '/questions', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+                  body: JSON.stringify({ body: body }),
+                });
+                var b = await r.json();
+                if (r.status === 401) { location.href = '/login'; return; }
+                if (!r.ok) { msg.textContent = ((b && b.error) || 'The question was not accepted') + '. Nothing was recorded — try again.'; return; }
+                location.reload();
+              } catch (err) { msg.textContent = 'The question could not be sent: ' + String(err) + '. Check that the services are running.'; }
+            });
+          })();
+        </script>
+
+        <p class="link-row">
+          <a href="/audit">Audit trail</a>
+          <a href="/proofs">Proofs</a>
+          <a href="/verify">Verify</a>
+          <a href="/methodology">Methodology</a>
         </p>
-      </section>
-    </Fragment>
-  ) : (
-    <section class="stack">
-      <h1>Commitment not found</h1>
-      <p class="panel muted">No commitment record for <code>{id}</code>.</p>
-      <p><a href="/mandate-holders">← mandate-holders</a></p>
-    </section>
-  )}
+      </Fragment>
+    ) : (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Commitment not found</h1>
+          <p class="record-id">{id}</p>
+        </header>
+        <EmptyState
+          title="No commitment record for this id"
+          purpose="Either no commitment was published under this reference, or the local services that hold the record are not running."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'Commitments are listed on each mandate-holder page.',
+          ]}
+          actionLabel="Back to mandate-holders"
+          actionHref="/mandate-holders"
+          actionVariant="primary"
+        />
+      </Fragment>
+    )}
+  </div>
 </Base>

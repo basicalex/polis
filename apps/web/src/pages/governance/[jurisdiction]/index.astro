@@ -1,5 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../../styles/tasks.css';
 
 type Jurisdiction = { id: string; name: string; slug: string; description: string | null; confidenceState: string; reviewState: string };
 type Institution = { id: string; name: string; jurisdictionId: string | null; description: string | null; confidenceState: string; reviewState: string };
@@ -25,46 +27,125 @@ const institutions = (await fetchJson(
 const visibleInstitutions = institutions?.items ?? [];
 const processes = (await fetchJson('/api/v1/processes')) as { items: ProcessSummary[] } | null;
 const visibleProcesses = processes?.items ?? [];
+
+const unavailable = jurisdiction === null;
+
+const setupTips = [
+  'Start the backend from the repository root: bun run dev:services.',
+  'Load the fixtures once the services are up: bun run db:seed.',
+  'The map needs platform-api and governance-graph-api together.',
+];
 ---
 
 <Base title={`Governance · ${jurisdiction?.name ?? slug}`}>
-  <section class="stack">
-    <p class="badge">Public governance map</p>
-    <h1>{jurisdiction?.name ?? 'Governance map unavailable'}</h1>
-    <p class="muted">{jurisdiction?.description ?? 'Data unavailable. Run the services and seed the governance database.'}</p>
-    {jurisdiction && <p><span class="badge">{jurisdiction.confidenceState}</span> <span class="badge">{jurisdiction.reviewState}</span></p>}
-    <p><a href={`/governance/${slug}/document-requirements`}>Open domain graph explorer</a></p>
-  </section>
-  <section class="stack">
-    <h2>Institutions</h2>
-    {visibleInstitutions.length > 0 ? (
-      <div class="grid">
-        {visibleInstitutions.map((institution) => (
-          <article class="card stack">
-            <h3><a href={`/governance/${slug}/institutions/${institution.id}`}>{institution.name}</a></h3>
-            <p class="muted">{institution.description ?? 'No description recorded.'}</p>
-            <p><span class="badge">{institution.confidenceState}</span> <span class="badge">{institution.reviewState}</span></p>
-          </article>
-        ))}
-      </div>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">Public governance map</p>
+      <h1>{jurisdiction?.name ?? 'Governance map unavailable'}</h1>
+      <p class="page-header-institution">Jurisdiction <span class="hash-value">{slug}</span></p>
+      {jurisdiction?.description && <p class="page-header-lede">{jurisdiction.description}</p>}
+    </header>
+
+    {jurisdiction ? (
+      <Fragment>
+        <dl class="record-facts">
+          <div>
+            <dt>Confidence</dt>
+            <dd><span class="status-label" data-tone="unknown">{jurisdiction.confidenceState}</span></dd>
+          </div>
+          <div>
+            <dt>Review state</dt>
+            <dd><span class="status-label" data-tone="unknown">{jurisdiction.reviewState}</span></dd>
+          </div>
+          <div>
+            <dt>Institutions</dt>
+            <dd>{visibleInstitutions.length}</dd>
+          </div>
+          <div>
+            <dt>Processes</dt>
+            <dd>{visibleProcesses.length}</dd>
+          </div>
+        </dl>
+
+        <p class="link-row">
+          <a href={`/governance/${slug}/document-requirements`}>Open the domain graph explorer</a>
+        </p>
+      </Fragment>
     ) : (
-      <p class="panel muted">Data unavailable. Start platform-api and governance-graph-api, then run the Phase 1 seed.</p>
+      <EmptyState
+        title="Governance data is unavailable"
+        purpose="This map reads jurisdictions, institutions, and processes from the local services, which are not answering right now."
+        tips={setupTips}
+        actionLabel="Read the local setup steps"
+        actionHref="/docs"
+      />
     )}
-  </section>
-  <section class="stack">
-    <h2>Processes</h2>
-    {visibleProcesses.length > 0 ? (
-      <div class="grid">
-        {visibleProcesses.map((process) => (
-          <article class="card stack">
-            <h3><a href={`/governance/${slug}/processes/${process.id}`}>{process.name}</a></h3>
-            <p class="muted">{process.need ?? 'No public need statement recorded.'}</p>
-            <p><span class="badge">{process.reviewState}</span></p>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p class="panel muted">Process data unavailable. Run the services to load required-document flows.</p>
+
+    {!unavailable && (
+    <section class="task-section">
+      <h2>Institutions</h2>
+      {visibleInstitutions.length > 0 ? (
+        <ul class="ledger">
+          {visibleInstitutions.map((institution) => (
+            <li>
+              <h3 class="ledger-title">
+                <a href={`/governance/${slug}/institutions/${institution.id}`}>{institution.name}</a>
+              </h3>
+              <p class="ledger-summary">{institution.description ?? 'No description recorded.'}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{institution.confidenceState}</span>
+                <span class="status-label" data-tone="unknown">{institution.reviewState}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="No institutions recorded"
+          purpose="Institutions carry the roles and mandates that answer for a process. None are recorded for this jurisdiction."
+          tips={[
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'An institution enters the map as a source-linked contribution.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+        />
+      )}
+    </section>
     )}
-  </section>
+
+    {!unavailable && (
+    <section class="task-section">
+      <h2>Processes</h2>
+      {visibleProcesses.length > 0 ? (
+        <ul class="ledger">
+          {visibleProcesses.map((process) => (
+            <li>
+              <h3 class="ledger-title">
+                <a href={`/governance/${slug}/processes/${process.id}`}>{process.name}</a>
+              </h3>
+              <p class="ledger-summary">{process.need ?? 'No public need statement recorded.'}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{process.reviewState}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="No processes recorded"
+          purpose="A process records the public need, the required documents, and the steps a resident goes through. None are recorded for this jurisdiction."
+          tips={[
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'A process enters the map as a source-linked contribution.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+        />
+      )}
+    </section>
+    )}
+  </div>
 </Base>

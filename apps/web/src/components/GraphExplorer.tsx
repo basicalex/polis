@@ -71,7 +71,22 @@ export default function GraphExplorer({ nodes, edges, jurisdiction }: GraphExplo
   );
 
   if (nodes.length === 0) {
-    return <p className="muted">Graph data unavailable. Run the services and seed the governance map.</p>;
+    return (
+      <div className="empty-state">
+        <h3 className="empty-state-title">No relationships to draw</h3>
+        <p className="empty-state-purpose">
+          The graph draws typed relationships between governance entities. None were returned for
+          this jurisdiction, so there is nothing to place.
+        </p>
+        <ul className="empty-state-tips">
+          <li>Load the fixtures once the services are up: bun run db:seed.</li>
+          <li>Every edge names its relationship type; nothing is inferred.</li>
+        </ul>
+        <a className="btn empty-state-action" data-variant="tertiary" href="/contribute/graph-edit">
+          Propose a graph edit
+        </a>
+      </div>
+    );
   }
 
   const width = 920;
@@ -157,7 +172,8 @@ export default function GraphExplorer({ nodes, edges, jurisdiction }: GraphExplo
         </fieldset>
         <button
           type="button"
-          className="graph-view-toggle"
+          className="btn graph-view-toggle"
+          data-variant="secondary"
           aria-pressed={showTable}
           onClick={() => setShowTable((current) => !current)}
         >
@@ -260,103 +276,6 @@ export default function GraphExplorer({ nodes, edges, jurisdiction }: GraphExplo
           </g>
         </svg>
       )}
-      <style>{`
-        .graph-explorer {
-          overflow-x: auto;
-        }
-        .graph-explorer svg {
-          min-width: 720px;
-          color: var(--polis-primary);
-        }
-        .graph-toolbar {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
-          margin-bottom: 0.75rem;
-          flex-wrap: wrap;
-        }
-        .graph-legend {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem 1rem;
-          border: 1px solid var(--polis-border);
-          border-radius: var(--radius-md, 12px);
-          padding: 0.5rem 0.75rem;
-        }
-        .graph-legend legend {
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          color: var(--polis-muted);
-          padding: 0 0.25rem;
-        }
-        .graph-legend-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          font-size: 0.85rem;
-        }
-        .graph-view-toggle {
-          flex-shrink: 0;
-        }
-        .graph-edges line {
-          stroke: var(--polis-accent);
-          stroke-opacity: 0.55;
-          stroke-width: 1.5;
-        }
-        .graph-edge.is-active line {
-          stroke-opacity: 1;
-          stroke-width: 2.5;
-        }
-        .graph-edge.is-dimmed {
-          opacity: 0.25;
-        }
-        .graph-edges text {
-          fill: var(--polis-muted);
-          font-size: 10px;
-          paint-order: stroke;
-          stroke: var(--polis-bg);
-          stroke-width: 4px;
-        }
-        .graph-node circle {
-          fill: var(--polis-surface);
-          stroke: var(--polis-accent);
-          stroke-width: 2px;
-        }
-        .graph-node[data-reviewed='false'] circle {
-          stroke-dasharray: 6 4;
-        }
-        .graph-node[data-tone='valid'] circle { stroke: var(--trust-valid-border); }
-        .graph-node[data-tone='warning'] circle { stroke: var(--trust-warning-border); }
-        .graph-node[data-tone='invalid'] circle { stroke: var(--trust-invalid-border); }
-        .graph-node.is-active circle,
-        .graph-node:focus circle {
-          stroke-width: 4px;
-        }
-        .graph-node:focus {
-          outline: none;
-        }
-        .graph-node:focus-visible circle {
-          stroke: var(--polis-text);
-        }
-        .graph-node-label {
-          fill: var(--polis-text);
-          font-size: 12px;
-          font-weight: 700;
-        }
-        .graph-node-type {
-          fill: var(--polis-muted);
-          font-size: 10px;
-          text-transform: uppercase;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .graph-explorer *, .graph-explorer *::before, .graph-explorer *::after {
-            animation: none !important;
-            transition: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import Claim from '../../../../components/Claim.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../../../styles/tasks.css';
 import type { ConfidenceState, ReviewState } from '@polis/domain';
 
 type Evidence = { sourceId: string; quote: string | null; sourceHash: string | null; retrievedAt: string | null };
@@ -38,6 +40,7 @@ async function fetchClaims(subjectId: string) {
   return res?.items ?? [];
 }
 
+const slug = Astro.params.jurisdiction ?? 'jur-croatia-local';
 const processId = Astro.params.processId ?? '';
 const process = (await fetchJson(`/api/v1/processes/${encodeURIComponent(processId)}`)) as Process | null;
 
@@ -46,62 +49,139 @@ const failureModesWithClaims = process ? await Promise.all(process.failureModes.
 ---
 
 <Base title={`Process · ${process?.name ?? processId}`}>
-  <section class="stack">
-    <p class="badge">§11.4 process</p>
-    <h1>{process?.name ?? 'Process unavailable'}</h1>
-    {process ? <p><span class="badge">{process.confidenceState}</span> <span class="badge">{process.reviewState}</span></p> : <p class="panel muted">Data unavailable. Run the services and seed the governance database.</p>}
-  </section>
-  {process && (
-    <div class="stack">
-      <section class="panel">
-        <dl class="kv">
-          <dt>Need</dt><dd>{process.need ?? 'Not recorded'}</dd>
-          <dt>Legal basis</dt><dd>{process.legalBasis ?? 'Not recorded'}</dd>
-          <dt>Confidence state</dt><dd><span class="badge">{process.confidenceState}</span></dd>
-          <dt>Review state</dt><dd><span class="badge">{process.reviewState}</span></dd>
-          <dt>Visibility</dt><dd>{process.visibility}</dd>
+  <div class="task-page">
+    <header class="page-header record-head">
+      <p class="page-header-eyebrow status-label">§11.4 process</p>
+      <h1>{process?.name ?? 'Process unavailable'}</h1>
+      <p class="record-id">{processId}</p>
+      {process?.need && <p class="page-header-lede">{process.need}</p>}
+    </header>
+
+    {process ? (
+      <Fragment>
+        <dl class="record-facts">
+          <div>
+            <dt>Legal basis</dt>
+            <dd>{process.legalBasis ?? 'not recorded'}</dd>
+          </div>
+          <div>
+            <dt>Review state</dt>
+            <dd><span class="status-label" data-tone="unknown">{process.reviewState}</span></dd>
+          </div>
+          <div>
+            <dt>Confidence</dt>
+            <dd><span class="status-label" data-tone="unknown">{process.confidenceState}</span></dd>
+          </div>
+          <div>
+            <dt>Visibility</dt>
+            <dd>{process.visibility}</dd>
+          </div>
         </dl>
-      </section>
-      <section class="panel stack">
-        <h2>Steps</h2>
-        {stepsWithClaims.length ? (
-          <ol>
-            {stepsWithClaims.map(({ step, claims }) => (
-              <li class="stack">
-                <strong>{step.ordinal ?? '?'}. {step.name}</strong>
-                <p class="muted">{step.description ?? 'No description recorded.'}</p>
-                {claims.length > 0 && (
-                  <div class="stack">
-                    {claims.map((claim) => <Claim claim={claim} />)}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        ) : <p class="muted">No steps recorded.</p>}
-      </section>
-      <section class="panel stack">
-        <h2>Required documents</h2>
-        {process.requiredDocuments.length ? <ul>{process.requiredDocuments.map((doc) => <li><strong>{doc.name}</strong><p class="muted">{doc.description ?? 'No description recorded.'} Legal basis: {doc.legalBasis ?? 'not recorded'}.</p></li>)}</ul> : <p class="muted">No required documents recorded.</p>}
-      </section>
-      <section class="panel stack">
-        <h2>Failure modes</h2>
-        {failureModesWithClaims.length ? (
-          <ul>
-            {failureModesWithClaims.map(({ mode, claims }) => (
-              <li class="stack">
-                <strong>{mode.name}</strong>
-                <p class="muted">{mode.description ?? 'No description recorded.'}</p>
-                {claims.length > 0 && (
-                  <div class="stack">
-                    {claims.map((claim) => <Claim claim={claim} />)}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : <p class="muted">No failure modes recorded.</p>}
-      </section>
-    </div>
-  )}
+
+        <section class="task-section">
+          <h2>Steps</h2>
+          {stepsWithClaims.length ? (
+            <ol class="ledger">
+              {stepsWithClaims.map(({ step, claims }) => (
+                <li>
+                  <h3 class="ledger-title">{step.ordinal ?? '?'}. {step.name}</h3>
+                  <p class="ledger-summary">{step.description ?? 'No description recorded.'}</p>
+                  {claims.length > 0 && (
+                    <div class="task-section">
+                      {claims.map((claim) => <Claim claim={claim} />)}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No steps recorded"
+              purpose="Steps describe what a resident actually goes through, in order. None are recorded for this process yet."
+              tips={[
+                'Each step can carry source-linked claims.',
+                'Anyone can contribute a step as an evidence submission.',
+              ]}
+              actionLabel="Contribute evidence"
+              actionHref="/contribute/evidence"
+            />
+          )}
+        </section>
+
+        <section class="task-section">
+          <h2>Required documents</h2>
+          {process.requiredDocuments.length ? (
+            <ul class="ledger">
+              {process.requiredDocuments.map((doc) => (
+                <li>
+                  <h3 class="ledger-title">{doc.name}</h3>
+                  <p class="ledger-summary">{doc.description ?? 'No description recorded.'}</p>
+                  <p class="ledger-meta">
+                    <span>legal basis <span class="ledger-value">{doc.legalBasis ?? 'not recorded'}</span></span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No required documents recorded"
+              purpose="This list names what a resident must bring, and the legal basis for asking. Nothing is recorded for this process yet."
+              tips={[
+                'A document requirement without a legal basis is worth challenging.',
+                'Contribute one with its source so a reviewer can publish it.',
+              ]}
+              actionLabel="Contribute evidence"
+              actionHref="/contribute/evidence"
+            />
+          )}
+        </section>
+
+        <section class="task-section">
+          <h2>Failure modes</h2>
+          {failureModesWithClaims.length ? (
+            <ul class="ledger">
+              {failureModesWithClaims.map(({ mode, claims }) => (
+                <li>
+                  <h3 class="ledger-title">{mode.name}</h3>
+                  <p class="ledger-summary">{mode.description ?? 'No description recorded.'}</p>
+                  {claims.length > 0 && (
+                    <div class="task-section">
+                      {claims.map((claim) => <Claim claim={claim} />)}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No failure modes recorded"
+              purpose="A failure mode names where this process usually goes wrong for residents, so a control can be attached to it."
+              tips={[
+                'Failure modes carry claims like any other subject.',
+                'Report one with its source through the evidence form.',
+              ]}
+              actionLabel="Contribute evidence"
+              actionHref="/contribute/evidence"
+            />
+          )}
+        </section>
+      </Fragment>
+    ) : (
+      <EmptyState
+        title="Process data is unavailable"
+        purpose="This record is read from the local services, which are not answering right now. No step was withheld."
+        tips={[
+          'Start the backend from the repository root: bun run dev:services.',
+          'Load the fixtures once the services are up: bun run db:seed.',
+          'Processes are listed on the governance map for this jurisdiction.',
+        ]}
+        actionLabel="Back to the governance map"
+        actionHref={`/governance/${slug}`}
+        actionVariant="primary"
+      />
+    )}
+  </div>
 </Base>

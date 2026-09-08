@@ -91,6 +91,7 @@ const expectedRouteSignatures = [
   'GET /api/v1/rewards/public-ledger',
   'POST /api/v1/identity/magic-link',
   'POST /api/v1/identity/exchange',
+  'POST /api/v1/identity/logout',
   'GET /api/v1/identity/authorize',
   'POST /api/v1/identity/callback',
   'GET /api/v1/identity/dev-tokens',

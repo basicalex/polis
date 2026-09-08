@@ -139,10 +139,12 @@ export const en = {
     'Parts of this content were produced with AI assistance. It carries source traceability and a review state, and can be challenged.',
 
   // ---- verifier flow ----
+  'verifier.mode': 'How to verify',
   'verifier.tab.file': 'Check a file',
   'verifier.tab.hash': 'Paste a hash',
   'verifier.tab.reference': 'Proof link or ID',
-  'verifier.dropzone': 'Drop a file here or choose one',
+  'verifier.dropzone': 'Drop a file here',
+  'verifier.choose_file': 'Choose file',
   'verifier.privacy':
     'Your file is hashed on your device and never uploaded. Only the hash is sent for verification.',
   'verifier.computed_hash': 'Computed SHA-256 hash',
@@ -183,16 +185,42 @@ export const en = {
   'manifest.tsa': 'Time-stamping authority',
   'manifest.timestamped_at': 'Timestamped at',
   'manifest.validation': 'Validation',
+  'manifest.signatures.empty': 'No signatures attached',
+  'manifest.signatures.empty.purpose':
+    'A signature binds a named signer to this document, so a reader can tell who stands behind it. This proof carries none.',
+  'manifest.signatures.empty.tip.hashes':
+    'The hashes above still show whether the file has changed since it was recorded.',
+  'manifest.signatures.empty.tip.issuer':
+    'Ask the issuer whether a signed version of this document exists.',
+  'manifest.timestamps.empty': 'No timestamps attached',
+  'manifest.timestamps.empty.purpose':
+    'A timestamp shows the document existed in this exact form at a given moment. This proof carries none, so the registration date below is the only time on record.',
+  'manifest.timestamps.empty.tip.registered':
+    'The registered date says when this proof entered the registry, not when the document was signed.',
+  'manifest.timestamps.empty.tip.absence':
+    'A missing timestamp is stated here rather than assumed.',
 
   // ---- audit trail ----
   'audit.title': 'Audit trail',
-  'audit.empty': 'No audit events recorded for this object.',
+  'audit.empty': 'No audit events yet',
+  'audit.empty.purpose':
+    'The audit trail appends one row for every recorded action on this object. It stays empty until the first action happens.',
+  'audit.empty.tip.chain':
+    'Each row carries its own hash and the hash of the row before it, so a removed event is visible.',
+  'audit.empty.tip.redacted':
+    'Restricted case events never appear here; only the public boundary they crossed does.',
   'audit.chained': 'Hash-chained',
   'audit.redacted': 'Redacted event',
 
   // ---- sources ----
   'sources.title': 'Sources & evidence',
-  'sources.empty': 'No evidence links attached.',
+  'sources.empty': 'No sources attached yet',
+  'sources.empty.purpose':
+    'A claim is source-linked once at least one evidence link points at a public source. Until then, read it as a draft.',
+  'sources.empty.tip.quote':
+    'Evidence carries a quote or paraphrase, the time it was retrieved, and a hash of the source.',
+  'sources.empty.tip.review':
+    'Anyone can contribute a source; an independent reviewer decides whether it is published.',
   'sources.retrieved': 'Retrieved',
   'sources.hash': 'Source hash',
   'sources.locator': 'Location',

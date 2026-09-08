@@ -1,0 +1,385 @@
+/*
+ * Site chrome (wave W1): boundary banner, header, navigation, footer.
+ *
+ * Owned by `apps/web/src/layouts/Base.astro`. Every token comes from
+ * `packages/ui/src/styles/base.css`; nothing is redefined here. Spacing uses
+ * the 4px ladder only (rule L3).
+ *
+ * One navigation recipe serves both worlds: the local demonstrator groups 14
+ * destinations into four disclosure menus, the public release keeps its five
+ * flat links. Both use `.nav-link`/`.nav-item` for target size, type, and the
+ * current-page mark, so the two navs cannot drift apart (rules K6, I2, S3).
+ */
+
+/* ---------------------------------------------------------------------------
+   Boundary banner
+   --------------------------------------------------------------------------- */
+
+/* The local demonstrator band. One line of ladder padding, label type, and a
+   warning colour that clears 4.5:1 on the dark field. */
+.demo-banner {
+  padding: var(--space-2) clamp(1rem, 4vw, 2.5rem);
+  font-size: var(--type-label);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+/* The public release band keeps its quiet paper treatment; only the rhythm
+   moves onto the ladder. */
+html[data-release='public'] .release-boundary-banner {
+  padding-block: var(--space-2);
+}
+
+html[data-release='public'] .release-boundary-banner p {
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------
+   Header
+   --------------------------------------------------------------------------- */
+
+.site-header.site-header--chrome {
+  position: relative;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-3);
+}
+
+/* The wordmark keeps the display face in both worlds, and a full target: at
+ * the phone type size the word alone is a couple of pixels short (rule I1). */
+.site-header--chrome .site-brand {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--display);
+}
+
+/* ---------------------------------------------------------------------------
+   Navigation: shared recipe
+   --------------------------------------------------------------------------- */
+
+.site-nav a.nav-link,
+.site-nav a.nav-item {
+  min-height: var(--tap-target);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.site-nav a.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.site-nav a.nav-link:hover,
+.site-nav a.nav-item:hover {
+  background: var(--polis-surface-2);
+  text-decoration: none;
+}
+
+/* Current page: weight and an underline carry the state, colour only echoes
+   it (rules P1, P4). */
+.site-nav a.nav-link[aria-current='page'],
+.site-nav a.nav-item[aria-current='page'] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.25em;
+}
+
+.site-nav a.nav-item[aria-current='page'] {
+  background: var(--polis-surface-2);
+  text-decoration: none;
+}
+
+.site-nav a.nav-item[aria-current='page'] .nav-item-label {
+  text-decoration: underline;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.25em;
+}
+
+/* ---------------------------------------------------------------------------
+   Navigation: grouped disclosure menus (local demonstrator)
+   --------------------------------------------------------------------------- */
+
+/*
+ * `.nav-root` ships open so the navigation is complete without JavaScript.
+ * The inline chrome script closes it below 40rem, where the "Menu" summary
+ * appears; above 40rem that summary is hidden and the groups sit in the row.
+ */
+.nav-root {
+  min-width: 0;
+}
+
+.nav-root > summary,
+.nav-group > summary {
+  list-style: none;
+}
+
+.nav-root > summary::-webkit-details-marker,
+.nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-root-summary {
+  min-height: var(--tap-target);
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  width: max-content;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-nav--groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.nav-group {
+  position: relative;
+  min-width: 0;
+}
+
+.nav-group-summary {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nav-group-summary:hover {
+  background: var(--polis-surface-2);
+}
+
+/* The group holding the current page is marked by weight and an underline. */
+.nav-group[data-current='true'] > .nav-group-summary {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.25em;
+}
+
+.nav-group-summary::after {
+  content: '';
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  border-right: 0.125rem solid currentColor;
+  border-bottom: 0.125rem solid currentColor;
+  transform: translateY(-0.15em) rotate(45deg);
+}
+
+.nav-group[open] > .nav-group-summary::after {
+  transform: translateY(0.1em) rotate(-135deg);
+}
+
+/*
+ * Desktop menu: a temporary overlay, so the one allowed shadow level for
+ * menus over dense content applies (DESIGN.md colour system, `--shadow-3`).
+ */
+.nav-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 70;
+  width: max-content;
+  min-width: 17rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+  box-shadow: var(--shadow-3);
+}
+
+/* Label sits close to its own description; the next item is clearly further
+   away (rule H6: 4px inside, 20px between). */
+.site-nav a.nav-item {
+  display: grid;
+  gap: var(--space-1);
+  align-content: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.nav-item-label {
+  font-size: var(--type-body);
+  font-weight: 600;
+}
+
+.nav-item-note {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------------------
+   Navigation: public release row
+   --------------------------------------------------------------------------- */
+
+.release-nav {
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ---------------------------------------------------------------------------
+   Footer: one row, ladder spacing, muted text
+   --------------------------------------------------------------------------- */
+
+.site-footer--chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding-block: var(--space-3);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.site-footer--chrome .footer-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A footer link is a standalone control, not a word inside a sentence, so it
+ * carries a full target instead of the line height of the row (rule I1). */
+.site-footer--chrome .footer-item a {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The separator is a visible glyph, so it keeps the footer's own contrast. */
+.site-footer--chrome .footer-separator {
+  color: var(--polis-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Phone: one Menu disclosure, the same grouped list stacked
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .site-header.site-header--chrome {
+    column-gap: var(--space-2);
+    row-gap: 0;
+    padding-block: var(--space-2);
+  }
+
+  /* styles.css stacks the local header into a column below 56.25rem; the
+     grouped nav needs the brand and the Menu button on one row. */
+  html[data-release='local'] .site-header--chrome {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  /* The disclosure takes its own full-width row; its button is lifted into
+     the wordmark row so a closed menu costs one row, not two. */
+  .nav-root {
+    flex: 1 1 100%;
+    order: 2;
+    min-width: 100%;
+  }
+
+  .nav-root-summary {
+    position: absolute;
+    top: var(--space-2);
+    right: clamp(1rem, 4vw, 2.5rem);
+    display: inline-flex;
+    margin-left: 0;
+  }
+
+  .site-nav--groups {
+    width: 100%;
+    margin-top: var(--space-3);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .nav-group-summary {
+    display: flex;
+    justify-content: space-between;
+    padding-block: var(--space-2);
+    border-bottom: 1px solid var(--polis-border);
+    border-radius: 0;
+  }
+
+  /* Stacked accordion: no overlay, so no shadow and no floating panel. */
+  .nav-menu {
+    position: static;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: var(--space-2) 0 var(--space-3);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .site-nav a.nav-item {
+    padding-inline: var(--space-3);
+  }
+
+  /* The public row scrolls behind the overflow cue; tighter padding keeps
+     more of each label visible before the reader scrolls. */
+  .release-nav a.nav-link {
+    padding-inline: var(--space-2);
+  }
+}
+
+@media (min-width: 40.0625rem) {
+  /* Above the phone breakpoint the root disclosure is structural only. */
+  .nav-root {
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-root-summary {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Compact desktop: the local header stays a single row
+   --------------------------------------------------------------------------- */
+
+@media (min-width: 40.0625rem) and (max-width: 56.25rem) {
+  html[data-release='local'] .site-header--chrome {
+    flex-direction: row;
+    align-items: center;
+  }
+}

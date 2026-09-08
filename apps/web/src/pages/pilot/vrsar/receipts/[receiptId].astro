@@ -1,0 +1,23 @@
+---
+import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarReceipt from '../../../../components/pilot/vrsar/VrsarReceipt.astro';
+import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell lang={lang} page="receipt-detail" title={`${pilotCopy.receipts.heading[lang]} — Polis`} description={pilotCopy.receipts.intro[lang]}>
+  <article class="pilot-page">
+    <div class="pilot-actions pilot-print-hidden">
+      <a class="btn" data-variant="secondary" href={pilotHref('/pilot/vrsar/receipts', lang)}>{pilotCopy.common.back[lang]}</a>
+      <button class="btn" data-variant="secondary" type="button" data-print hidden>{pilotCopy.receipts.print[lang]}</button>
+    </div>
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
+    <VrsarReceipt lang={lang} />
+    <div class="pilot-state-actions"><button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button></div>
+  </article>
+  <script>
+    import { initVrsarReceiptDetail } from '../../../../scripts/pilot/vrsar/receipt-detail';
+    initVrsarReceiptDetail();
+  </script>
+</VrsarPilotShell>

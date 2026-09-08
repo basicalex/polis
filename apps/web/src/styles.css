@@ -3,24 +3,8 @@
 @import '@polis/ui/styles/tailwind.css';
 @source '../../../packages/ui/src';
 
-/* Barlow Condensed remains the local demonstrator display face only.
-   Public release surfaces use Source Serif 4 (see below). */
-@font-face {
-  font-family: 'Barlow Condensed';
-  src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Barlow Condensed';
-  src: url('/fonts/BarlowCondensed-Bold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
+/* One display face in both worlds: Source Serif 4, self-hosted, no external
+   request. Barlow Condensed is retired. */
 @font-face {
   font-family: 'Source Serif 4';
   src: url('/fonts/SourceSerif4-SemiBold-latin.woff2') format('woff2');
@@ -40,69 +24,6 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
     U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
     U+2C60-2C7F, U+A720-A7FF;
-}
-
-:root,
-[data-theme='dark'] {
-  --polis-bg: #0b0f14;
-  --polis-surface: #121923;
-  --polis-surface-2: #18212e;
-  --polis-surface-tint: #18212e;
-  --polis-surface-raised: #18212e;
-  --polis-text: #e6ebf1;
-  --polis-muted: #a8b3c0;
-  --polis-border: rgba(168, 179, 192, 0.22);
-  --polis-border-strong: rgba(168, 179, 192, 0.4);
-  --polis-primary: #22d3ee;
-  --polis-trace: #22d3ee;
-  --polis-valid: #4ade80;
-  --polis-warning: #fbbf24;
-  --polis-danger: #f87171;
-  --polis-restricted: #c4b5fd;
-  --polis-unknown: #a5b4c4;
-  --polis-on-primary: #071018;
-  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.42);
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --space-xs: 0.375rem;
-  --space-sm: 0.75rem;
-  --space-md: 1.25rem;
-  --space-lg: 2rem;
-  --space-xl: 3.25rem;
-  --tap-target: 2.75rem;
-  --type-meta: 0.75rem;
-  --type-data: 0.875rem;
-  --type-label: 0.8125rem;
-  --type-body-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
-  --type-heading-sm: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
-  --type-heading-lg: clamp(1.9rem, 1.4rem + 2.4vw, 3.1rem);
-  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-  --body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  font-size: 100%;
-}
-
-/* Public release: the light civic world. Scoped so the local demonstrator keeps its own palette. */
-html[data-release='public'] {
-  --polis-bg: #faf8f5;
-  --polis-surface: #ffffff;
-  --polis-surface-2: #f2efe9;
-  --polis-surface-tint: #f2efe9;
-  --polis-surface-raised: #f2efe9;
-  --polis-text: #1c2024;
-  --polis-muted: #5a6472;
-  --polis-border: #e4e0d8;
-  --polis-border-strong: #c9c3b8;
-  --polis-primary: #0e7490;
-  --polis-trace: #0e7490;
-  --polis-valid: #15803d;
-  --polis-warning: #9a6700;
-  --polis-danger: #b91c1c;
-  --polis-restricted: #6d28d9;
-  --polis-unknown: #64748b;
-  --polis-on-primary: #ffffff;
-  --shadow-soft: 0 2px 6px rgba(28, 32, 36, 0.07);
-  --display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 }
 
 html {
@@ -265,17 +186,6 @@ a {
   align-items: center;
   gap: var(--space-xs) var(--space-sm);
 }
-
-.site-nav a {
-  min-height: var(--tap-target);
-  display: inline-flex;
-  align-items: center;
-  padding-inline: var(--space-xs);
-  color: var(--polis-text);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
 .site-main {
   width: min(94rem, 100%);
   min-width: 0;
@@ -304,30 +214,6 @@ a {
 .muted {
   color: var(--polis-muted);
 }
-
-.badge-warning {
-  background: var(--trust-warning-bg);
-  color: var(--trust-warning-fg);
-}
-
-.badge-success {
-  background: var(--trust-valid-bg);
-  color: var(--trust-valid-fg);
-}
-
-.panel,
-.hero,
-.card {
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-md);
-  background: var(--polis-surface);
-  padding: var(--space-md);
-}
-
-.hero {
-  background: var(--polis-surface);
-}
-
 /* ---------------------------------------------------------------------------
    Public release shell: paper header, one slim boundary line, quiet footer.
    --------------------------------------------------------------------------- */
@@ -357,13 +243,6 @@ html[data-release='public'] .site-footer {
   border-top: 1px solid var(--polis-border);
   color: var(--polis-muted);
   font-size: var(--type-data);
-}
-
-html[data-release='public'] .panel {
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-md);
-  background: var(--polis-surface);
-  padding: clamp(1.5rem, 1.2rem + 1vw, 2rem);
 }
 
 .footer-label {
@@ -398,15 +277,6 @@ html[data-release='public'] .panel {
   flex: 1 1 auto;
   position: relative;
 }
-
-.release-nav a {
-  min-height: var(--tap-target);
-  padding-inline: var(--space-sm);
-  color: var(--polis-text);
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
 .release-nav-overflow {
   display: none;
 }
@@ -415,22 +285,8 @@ html[data-release='public'] .panel {
    Status labels: quiet colored text with a meaning mark. No box, no fill.
    --------------------------------------------------------------------------- */
 
-.meaning-label {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--polis-unknown);
-  font-family: var(--body);
-  font-size: var(--type-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
+/* `.meaning-label` inherits the `.status-label` recipe from @polis/ui; only
+   the meaning-specific colour and mark live here. */
 
 .meaning-label[data-meaning='fixture'],
 .meaning-label[data-meaning='pending'],
@@ -813,7 +669,7 @@ html[data-release='public'] .panel {
 }
 
 .trace-event h3 {
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-1);
   font-family: var(--body);
   font-size: 1rem;
   font-weight: 600;
@@ -830,7 +686,7 @@ html[data-release='public'] .panel {
 }
 
 .trace-stage {
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-1);
   color: var(--polis-muted);
   font-family: var(--body);
   font-size: var(--type-label);
@@ -898,7 +754,7 @@ html[data-release='public'] .panel {
 }
 
 .trace-event .meaning-label {
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-1);
 }
 
 .boundary-stack,
@@ -1041,47 +897,8 @@ html[data-release='public'] .panel {
   margin-top: var(--space-md);
 }
 
-.release-button {
-  min-width: var(--tap-target);
-  min-height: var(--tap-target);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--polis-trace);
-  border-radius: var(--radius-sm);
-  background: var(--polis-trace);
-  color: var(--polis-on-primary);
-  font-family: var(--body);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.release-button-secondary {
-  border-color: var(--polis-border-strong);
-  background: var(--polis-surface);
-  color: var(--polis-text);
-}
-
-.release-button[aria-pressed='true'] {
-  text-decoration: underline;
-  text-underline-offset: 0.3em;
-}
-
-.release-button-secondary[aria-pressed='true'] {
-  border-color: var(--polis-trace);
-  color: var(--polis-trace);
-}
-
-.release-button:disabled {
-  border-style: dashed;
-  border-color: var(--polis-border-strong);
-  background: var(--polis-surface);
-  color: var(--polis-muted);
-  cursor: not-allowed;
-}
+/* `.release-button` / `.release-button-secondary` are aliases of the shared
+   `.btn` primary and secondary variants in @polis/ui. */
 
 .receipt-panel {
   min-width: 0;
@@ -1345,7 +1162,7 @@ html[data-presenter='true'] body {
 .release-home.is-enhanced[data-mode='presenter'] .trace-event h3,
 .release-home.is-enhanced[data-mode='presenter'] .trace-event p,
 .release-home.is-enhanced[data-mode='presenter'] .event-state {
-  margin-bottom: 0.1rem;
+  margin-bottom: 0;
 }
 
 .release-home.is-enhanced[data-mode='presenter'] .field-list {
@@ -1369,7 +1186,7 @@ html[data-presenter='true'] body {
 
 .release-home.is-enhanced[data-mode='presenter'] .receipt-table th,
 .release-home.is-enhanced[data-mode='presenter'] .receipt-table td {
-  padding: 0.25rem 0.4rem 0.25rem 0;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
   font-size: 0.75rem;
 }
 
@@ -1380,7 +1197,7 @@ html[data-presenter='true'] body {
 }
 
 .release-home.is-enhanced[data-mode='presenter'] .pilot-worksheet li {
-  padding: 0.2rem 0;
+  padding: var(--space-1) 0;
   font-size: 0.875rem;
 }
 
@@ -1410,101 +1227,10 @@ html[data-presenter='true'] body {
 }
 
 /* ---------------------------------------------------------------------------
-   Release support pages
-   --------------------------------------------------------------------------- */
-
-.release-boundary-page,
-.transparency-page,
-.source-page {
-  max-width: 74rem;
-  display: grid;
-  gap: var(--space-lg);
-  margin-inline: auto;
-}
-
-.release-boundary-page {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.boundary-definitions,
-.source-register {
-  display: grid;
-  gap: var(--space-sm);
-  margin: var(--space-md) 0 0;
-}
-
-.boundary-definitions > div,
-.source-register > div {
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--polis-border);
-}
-
-.boundary-definitions dt,
-.source-register dt {
-  font-weight: 600;
-}
-
-.boundary-definitions dd,
-.source-register dd {
-  margin: var(--space-xs) 0 0;
-  color: var(--polis-muted);
-}
-
-.boundary-data-rule {
-  margin: var(--space-md) 0 0;
-  padding: 0;
-  border: 0;
-  color: var(--polis-warning);
-  font-weight: 600;
-}
-
-.provenance-list {
-  display: grid;
-  gap: var(--space-lg);
-  margin: var(--space-md) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.provenance-list > li {
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--polis-border);
-}
-
-.provenance-list h3 {
-  margin-bottom: var(--space-xs);
-}
-
-.provenance-meta {
-  margin: 0 0 var(--space-sm);
-  color: var(--polis-muted);
-  font-size: var(--type-data);
-}
-
-.provenance-sources {
-  display: grid;
-  gap: 0.2rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.provenance-sources li {
-  color: var(--polis-muted);
-  font-family: var(--mono);
-  font-size: var(--type-data);
-}
-
-/* ---------------------------------------------------------------------------
    Compact and phone layouts
    --------------------------------------------------------------------------- */
 
 @media (max-width: 56.25rem) {
-  html[data-release='local'] .site-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .site-nav {
     justify-content: flex-start;
   }
@@ -1597,10 +1323,6 @@ html[data-presenter='true'] body {
   .opening-trace-line::after {
     top: auto;
     bottom: 0;
-  }
-
-  .release-boundary-page {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1804,7 +1526,7 @@ html[data-presenter='true'] body {
     display: grid;
     grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
     gap: var(--space-xs);
-    padding: 0.2rem 0;
+    padding: var(--space-1) 0;
     border-bottom: 0;
   }
 
@@ -1902,23 +1624,6 @@ html[data-presenter='true'] body {
 }
 
 @media print {
-  :root {
-    --polis-bg: #ffffff;
-    --polis-surface: #ffffff;
-    --polis-surface-2: #f3f4f6;
-    --polis-surface-tint: #f3f4f6;
-    --polis-surface-raised: #f3f4f6;
-    --polis-text: #111827;
-    --polis-muted: #374151;
-    --polis-border: #9ca3af;
-    --polis-border-strong: #4b5563;
-    --polis-trace: #075985;
-    --polis-warning: #92400e;
-    --polis-valid: #166534;
-    --polis-danger: #991b1b;
-    --polis-restricted: #5b21b6;
-  }
-
   html,
   body {
     background: #ffffff;
@@ -2105,37 +1810,10 @@ a.demo-ledger-row:hover {
   font-size: var(--type-data);
 }
 
-/* Category chip: hairline outline, mono, never a status meaning. */
+/* Category chip and status stamp both reuse the shared
+   `.status-label[data-style='stamp']` recipe; only the colours live here. */
 .demo-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.4rem;
-  border: 1px solid var(--polis-border-strong);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--polis-muted);
-  font-family: var(--mono);
-  font-size: var(--type-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Status marks: straight ink-stamp chips. Colour reinforces the text, never replaces it. */
-.demo-stamp {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1875rem 0.5rem;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--polis-unknown);
-  font-family: var(--mono);
-  font-size: var(--type-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-  text-transform: uppercase;
-  transform: none;
+  border-color: var(--polis-border-strong);
 }
 
 .demo-stamp--new {
@@ -2151,11 +1829,6 @@ a.demo-ledger-row:hover {
 .demo-stamp--published {
   color: var(--polis-valid);
 }
-
-.demo-stamp--restricted {
-  color: var(--polis-restricted);
-}
-
 /* Trace timeline: one continuous spine, numbered stage dots, two lines per stage. */
 .demo-trace {
   min-width: 0;

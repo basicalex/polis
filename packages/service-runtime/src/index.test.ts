@@ -563,6 +563,25 @@ test('safe headers and explicit CORS apply to JSON, binary, text, and preflight'
   );
 });
 
+test('SERVICE_HOST binds only the configured IP and rejects ambiguous hosts', async () => {
+  await withEnvironment({ SERVICE_HOST: '127.0.0.1' }, async () => {
+    const server = startService('loopback-test', 0, []);
+    try {
+      await once(server, 'listening');
+      assert.equal((server.address() as AddressInfo).address, '127.0.0.1');
+    } finally {
+      const closed = once(server, 'close');
+      server.close();
+      await closed;
+    }
+  });
+  for (const host of ['', 'localhost', '127.0.0.1:3000', ' 127.0.0.1']) {
+    await withEnvironment({ SERVICE_HOST: host }, async () => {
+      assert.throws(() => startService('invalid-host-test', 0, []), /SERVICE_HOST/);
+    });
+  }
+});
+
 test('startService applies configured HTTP limits and startup validation', async () => {
   let validated = 0;
   const server = startService('runtime-test', 0, [], {

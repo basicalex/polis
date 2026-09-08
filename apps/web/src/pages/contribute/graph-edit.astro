@@ -1,63 +1,89 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import '../../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
 <Base title="Propose a graph edit">
-  <section class="page-hero">
-    <DemoBadge />
-    <h1>Propose a graph edit</h1>
-    <p class="lede">
-      Propose an addition to the governance graph (spec §11/§19). Insert-only in
-      v0 — a reviewer approves the proposal before it is applied.
-    </p>
-  </section>
+  <div class="task-page form-narrow">
+    <header class="page-header">
+      <h1>Propose a graph edit</h1>
+      <p class="page-header-lede">
+        Propose an addition to the governance graph (spec §11/§19). Insert-only in v0 — a reviewer
+        approves the proposal before it is applied.
+      </p>
+      <DemoBadge />
+    </header>
 
-  <section class="contribute-form">
-    <form id="graph-edit-form">
-      <div class="form-row">
-        <label>
-          Display name
-          <input name="displayName" required />
-        </label>
-        <label>
-          Identity level
-          <select name="identityLevel">
-            <option value="casual">Casual</option>
-            <option value="verified">Verified</option>
-          </select>
-        </label>
+    <form id="graph-edit-form" class="task-page">
+      <section class="task-section">
+        <h2>What you are proposing</h2>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="targetTable">Target table</label>
+            <select id="targetTable" name="targetTable">
+              <option value="sources">sources</option>
+              <option value="claims">claims</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="op">Operation</label>
+            <select id="op" name="op">
+              <option value="insert">insert</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="proposedPayload">Proposed payload (JSON)</label>
+          <textarea
+            id="proposedPayload"
+            name="proposedPayload"
+            rows="6"
+            placeholder='{"title":"…","url":"https://…","sourceType":"official"}'
+            required></textarea>
+          <p class="field-hint">One JSON object with the row to insert. Invalid JSON is rejected here, before it reaches the reviewer.</p>
+        </div>
+      </section>
+
+      <section class="task-section">
+        <h2>Who is proposing</h2>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="displayName">Display name</label>
+            <input id="displayName" name="displayName" required />
+          </div>
+          <div class="field">
+            <label class="field-label" for="identityLevel">Identity level</label>
+            <select id="identityLevel" name="identityLevel">
+              <option value="casual">Casual</option>
+              <option value="verified">Verified</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button type="submit" class="btn" data-variant="primary">Submit proposal</button>
+        <a class="btn" data-variant="tertiary" href="/governance/jur-croatia-local">
+          Open the governance map
+        </a>
       </div>
-      <div class="form-row">
-        <label>
-          Target table
-          <select name="targetTable">
-            <option value="sources">sources</option>
-            <option value="claims">claims</option>
-          </select>
-        </label>
-        <label>
-          Operation
-          <select name="op">
-            <option value="insert">insert</option>
-          </select>
-        </label>
-      </div>
-      <label>
-        Proposed payload (JSON)
-        <textarea name="proposedPayload" rows="6" placeholder='{"title":"…","url":"https://…","sourceType":"official"}' required></textarea>
-      </label>
-      <button type="submit">Submit proposal</button>
     </form>
     <div id="result" class="contribute-result" aria-live="polite"></div>
-  </section>
+  </div>
 </Base>
 
 <script is:inline define:vars={{ API }}>
   const form = document.getElementById('graph-edit-form');
   const result = document.getElementById('result');
+  function fail(message) {
+    result.replaceChildren();
+    result.className = 'contribute-result notice';
+    result.dataset.tone = 'warning';
+    result.textContent = message;
+  }
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
@@ -65,7 +91,7 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
     try {
       payload = JSON.parse(fd.get('proposedPayload'));
     } catch {
-      result.textContent = 'Error: proposed payload is not valid JSON.';
+      fail('The proposed payload is not valid JSON. Fix the object and submit again.');
       return;
     }
     const body = {
@@ -79,6 +105,9 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         proposedPayload: payload,
       },
     };
+    result.replaceChildren();
+    result.className = 'contribute-result';
+    delete result.dataset.tone;
     result.textContent = 'Submitting…';
     try {
       const r = await fetch(API + '/api/v1/contribute/graph-edit', {
@@ -88,58 +117,25 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
       });
       const data = await r.json();
       if (r.ok) {
-        result.innerHTML =
-          '<p>Submitted. Status: <strong>' +
-          data.status +
-          '</strong>.</p><p><a href="/contributions/' +
-          data.id +
-          '">View submission →</a></p>';
+        result.replaceChildren();
+        result.className = 'contribute-result notice';
+        delete result.dataset.tone;
+        const status = document.createElement('p');
+        status.append(document.createTextNode('Submitted for review. Status: '));
+        const strong = document.createElement('strong');
+        strong.textContent = String(data.status);
+        status.append(strong, document.createTextNode('.'));
+        const link = document.createElement('a');
+        link.href = '/contributions/' + data.id;
+        link.textContent = 'View submission';
+        const linkLine = document.createElement('p');
+        linkLine.append(link);
+        result.append(status, linkLine);
       } else {
-        result.textContent = 'Error: ' + (data.error || r.status);
+        fail('The proposal was not accepted: ' + (data.error || r.status) + '. Nothing was recorded — fix the field and send it again.');
       }
     } catch (err) {
-      result.textContent = 'Error: ' + err.message;
+      fail('The proposal could not be sent: ' + err.message + '. Check that the services are running, then try again.');
     }
   });
 </script>
-
-<style>
-  .contribute-form form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin: 1.5rem 0;
-  }
-  .contribute-form label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.9rem;
-  }
-  .form-row {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  .form-row label {
-    flex: 1;
-    min-width: 12rem;
-  }
-  .contribute-form input,
-  .contribute-form select,
-  .contribute-form textarea {
-    padding: 0.6rem;
-    font-size: 1rem;
-    border: 1px solid var(--border, #ccc);
-    border-radius: 4px;
-  }
-  .contribute-form button {
-    align-self: flex-start;
-    padding: 0.6rem 1.4rem;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  .contribute-result {
-    margin-top: 1rem;
-  }
-</style>

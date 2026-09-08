@@ -1,6 +1,8 @@
 ---
 import GraphExplorer from '../../../../components/GraphExplorer';
 import Base from '../../../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../../../styles/tasks.css';
 
 type Relationship = {
   id: string;
@@ -39,16 +41,35 @@ const nodes = Object.values(nodeById);
 ---
 
 <Base title={`Governance domain · ${domain}`}>
-  <section class="stack">
-    <p class="badge">Typed relationships</p>
-    <h1>{domain.replaceAll('-', ' ')}</h1>
-    <p class="muted">
-      Static-first domain overview for {slug}. Nodes are governance entities; arrows are explicit relationship_type values,
-      never processes-as-edges.
-    </p>
-  </section>
-  <section class="panel stack">
-    <h2>Graph explorer</h2>
-    {relationships ? <GraphExplorer client:load nodes={nodes} edges={edges} jurisdiction={slug} /> : <p class="muted">Data unavailable. Run the services to load relationships.</p>}
-  </section>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">Typed relationships</p>
+      <h1>{domain.replaceAll('-', ' ')}</h1>
+      <p class="page-header-institution">Jurisdiction <span class="hash-value">{slug}</span></p>
+      <p class="page-header-lede">
+        Static-first domain overview. Nodes are governance entities; arrows are explicit
+        relationship_type values, never processes-as-edges.
+      </p>
+    </header>
+
+    <section class="task-section">
+      <h2>Graph explorer</h2>
+      {relationships ? (
+        <GraphExplorer client:load nodes={nodes} edges={edges} jurisdiction={slug} />
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="Relationship data is unavailable"
+          purpose="The graph reads typed relationships from the local services, which are not answering right now. No edge was hidden."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'Every edge names its relationship type; nothing is inferred.',
+          ]}
+          actionLabel="Back to the governance map"
+          actionHref={`/governance/${slug}`}
+        />
+      )}
+    </section>
+  </div>
 </Base>

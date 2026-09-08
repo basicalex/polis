@@ -1,0 +1,59 @@
+---
+import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarTraceSummary from '../../../components/pilot/vrsar/VrsarTraceSummary.astro';
+import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell
+  lang={lang}
+  page="home"
+  title={`${pilotCopy.appTitle[lang]} — Polis`}
+  description={pilotCopy.entry.intro[lang]}
+>
+  <article class="pilot-page">
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.entry.heading[lang]}</h1>
+      <p class="pilot-lead">{pilotCopy.entry.intro[lang]}</p>
+    </header>
+
+    <section class="pilot-section" aria-labelledby="pilot-config-title">
+      <h2 id="pilot-config-title">{pilotCopy.entry.contextHeading[lang]}</h2>
+      <p class="pilot-state" tabindex="-1" data-config-state>{pilotCopy.common.loading[lang]}</p>
+      <dl class="pilot-meta" data-config-details hidden>
+        <div><dt data-config-municipality-label></dt><dd data-config-municipality></dd></div>
+        <div><dt>{pilotCopy.common.category[lang]}</dt><dd data-config-category></dd></div>
+        <div><dt>{pilotCopy.common.office[lang]}</dt><dd data-config-office></dd></div>
+      </dl>
+      <p class="pilot-state" data-intake-state></p>
+      <ul class="pilot-source-list" data-config-sources></ul>
+
+      <div class="pilot-alert" role="alert" tabindex="-1" data-runtime-alert hidden>
+        <h3>{pilotCopy.entry.runtimeDownTitle[lang]}</h3>
+        <p class="pilot-alert-detail" data-runtime-alert-detail>{pilotCopy.common.connectionError[lang]}</p>
+        <p class="field-hint">{pilotCopy.entry.runtimeDownFix[lang]}</p>
+        <div class="pilot-actions">
+          <button class="btn" data-variant="primary" type="button" data-config-retry>{pilotCopy.common.retry[lang]}</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pilot-section" aria-labelledby="pilot-path-title">
+      <h2 id="pilot-path-title">{pilotCopy.receipts.events[lang]}</h2>
+      <VrsarTraceSummary lang={lang} />
+      <p>{pilotCopy.entry.publicationRule[lang]}</p>
+    </section>
+
+    <section class="pilot-section panel" aria-labelledby="pilot-session-title">
+      <h2 id="pilot-session-title">{pilotCopy.common.role[lang]}</h2>
+      <p class="pilot-state" tabindex="-1" data-page-state>{pilotCopy.entry.sessionChecking[lang]}</p>
+      <div class="pilot-actions" data-entry-actions></div>
+    </section>
+  </article>
+
+  <script>
+    import { initVrsarEntry } from '../../../scripts/pilot/vrsar/index';
+    initVrsarEntry();
+  </script>
+</VrsarPilotShell>

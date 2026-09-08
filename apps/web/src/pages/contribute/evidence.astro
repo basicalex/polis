@@ -1,71 +1,87 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import '../../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
 <Base title="Contribute evidence">
-  <section class="page-hero">
-    <DemoBadge />
-    <h1>Contribute evidence</h1>
-    <p class="lede">
-      Submit evidence for human review (spec §19). Approved evidence is published
-      to the public governance graph with a full audit trail.
-    </p>
-  </section>
+  <div class="task-page form-narrow">
+    <header class="page-header">
+      <h1>Contribute evidence</h1>
+      <p class="page-header-lede">
+        Submit evidence for human review (spec §19). Approved evidence is published to the public
+        governance graph with a full audit trail.
+      </p>
+      <DemoBadge />
+    </header>
 
-  <section class="contribute-form">
-    <form id="evidence-form">
-      <div class="form-row">
-        <label>
-          Display name
-          <input name="displayName" required />
-        </label>
-        <label>
-          Identity level
-          <select name="identityLevel">
-            <option value="casual">Casual</option>
-            <option value="verified">Verified</option>
+    <form id="evidence-form" class="task-page">
+      <section class="task-section">
+        <h2>What you are submitting</h2>
+        <div class="field">
+          <label class="field-label" for="text">Evidence text</label>
+          <textarea id="text" name="text" rows="5" required></textarea>
+          <p class="field-hint">Quote or paraphrase the source. A reviewer reads this first.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="claimType">Claim type</label>
+          <select id="claimType" name="claimType">
+            <option value="legal_mandate">Legal mandate</option>
+            <option value="budget_amount">Budget amount</option>
+            <option value="role_responsibility">Role responsibility</option>
+            <option value="process_step">Process step</option>
+            <option value="document_requirement">Document requirement</option>
+            <option value="risk_assessment">Risk assessment</option>
+            <option value="proposal_assertion">Proposal assertion</option>
+            <option value="public_statement">Public statement</option>
+            <option value="other">Other</option>
           </select>
-        </label>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="subjectType">Subject type</label>
+            <input id="subjectType" name="subjectType" placeholder="e.g. process_step" required />
+          </div>
+          <div class="field">
+            <label class="field-label" for="subjectId">Subject id</label>
+            <input id="subjectId" name="subjectId" placeholder="e.g. step-registry-validation" required />
+          </div>
+        </div>
+        <div class="field field--narrow">
+          <label class="field-label" for="confidence">Confidence (0–1)</label>
+          <input id="confidence" name="confidence" type="number" min="0" max="1" step="0.1" value="0.5" required />
+          <p class="field-hint">How sure you are, before review. Reviewers set the published state.</p>
+        </div>
+      </section>
+
+      <section class="task-section">
+        <h2>Who is submitting</h2>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="displayName">Display name</label>
+            <input id="displayName" name="displayName" required />
+          </div>
+          <div class="field">
+            <label class="field-label" for="identityLevel">Identity level</label>
+            <select id="identityLevel" name="identityLevel">
+              <option value="casual">Casual</option>
+              <option value="verified">Verified</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button type="submit" class="btn" data-variant="primary">Submit evidence</button>
+        <a class="btn" data-variant="tertiary" href="/governance/jur-croatia-local">
+          Find the subject on the governance map
+        </a>
       </div>
-      <label>
-        Claim type
-        <select name="claimType">
-          <option value="legal_mandate">Legal mandate</option>
-          <option value="budget_amount">Budget amount</option>
-          <option value="role_responsibility">Role responsibility</option>
-          <option value="process_step">Process step</option>
-          <option value="document_requirement">Document requirement</option>
-          <option value="risk_assessment">Risk assessment</option>
-          <option value="proposal_assertion">Proposal assertion</option>
-          <option value="public_statement">Public statement</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
-      <div class="form-row">
-        <label>
-          Subject type
-          <input name="subjectType" placeholder="e.g. process_step" required />
-        </label>
-        <label>
-          Subject id
-          <input name="subjectId" placeholder="e.g. step-registry-validation" required />
-        </label>
-        <label>
-          Confidence (0–1)
-          <input name="confidence" type="number" min="0" max="1" step="0.1" value="0.5" required />
-        </label>
-      </div>
-      <label>
-        Evidence text
-        <textarea name="text" rows="4" required></textarea>
-      </label>
-      <button type="submit">Submit evidence</button>
     </form>
     <div id="result" class="contribute-result" aria-live="polite"></div>
-  </section>
+  </div>
 </Base>
 
 <script is:inline define:vars={{ API }}>
@@ -87,6 +103,7 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         confidence: Number(fd.get('confidence')),
       },
     };
+    result.className = 'contribute-result';
     result.textContent = 'Submitting…';
     try {
       const r = await fetch(API + '/api/v1/contribute/evidence', {
@@ -95,59 +112,31 @@ const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
         body: JSON.stringify(body),
       });
       const data = await r.json();
+      result.replaceChildren();
       if (r.ok) {
-        result.innerHTML =
-          '<p>Submitted. Status: <strong>' +
-          data.status +
-          '</strong>.</p><p><a href="/contributions/' +
-          data.id +
-          '">View submission →</a></p>';
+        result.className = 'contribute-result notice';
+        const status = document.createElement('p');
+        status.append(document.createTextNode('Submitted for review. Status: '));
+        const strong = document.createElement('strong');
+        strong.textContent = String(data.status);
+        status.append(strong, document.createTextNode('.'));
+        const link = document.createElement('a');
+        link.href = '/contributions/' + data.id;
+        link.textContent = 'View submission';
+        const linkLine = document.createElement('p');
+        linkLine.append(link);
+        result.append(status, linkLine);
       } else {
-        result.textContent = 'Error: ' + (data.error || r.status);
+        result.className = 'contribute-result notice';
+        result.dataset.tone = 'warning';
+        result.textContent =
+          'The submission was not accepted: ' + (data.error || r.status) + '. Nothing was recorded — fix the field and send it again.';
       }
     } catch (err) {
-      result.textContent = 'Error: ' + err.message;
+      result.className = 'contribute-result notice';
+      result.dataset.tone = 'warning';
+      result.textContent =
+        'The submission could not be sent: ' + err.message + '. Check that the services are running, then try again.';
     }
   });
 </script>
-
-<style>
-  .contribute-form form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin: 1.5rem 0;
-  }
-  .contribute-form label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.9rem;
-  }
-  .form-row {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  .form-row label {
-    flex: 1;
-    min-width: 12rem;
-  }
-  .contribute-form input,
-  .contribute-form select,
-  .contribute-form textarea {
-    padding: 0.6rem;
-    font-size: 1rem;
-    border: 1px solid var(--border, #ccc);
-    border-radius: 4px;
-  }
-  .contribute-form button {
-    align-self: flex-start;
-    padding: 0.6rem 1.4rem;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  .contribute-result {
-    margin-top: 1rem;
-  }
-</style>

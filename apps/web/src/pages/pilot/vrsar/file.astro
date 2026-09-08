@@ -1,0 +1,76 @@
+---
+import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarPrivateBoundary from '../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
+import { parsePilotLang, pilotCopy, pilotHref } from '../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell
+  lang={lang}
+  page="file"
+  title={`${pilotCopy.filing.heading[lang]} — Polis`}
+  description={pilotCopy.filing.privacy[lang]}
+>
+  <article class="pilot-page form-narrow">
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.filing.heading[lang]}</h1>
+      <p class="pilot-lead">{pilotCopy.common.syntheticOnly[lang]}</p>
+    </header>
+
+    <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
+
+    <form class="pilot-form panel" data-report-form hidden novalidate>
+      <div class="field" data-width="code">
+        <label for="report-category">{pilotCopy.common.category[lang]}</label>
+        <input id="report-category" type="text" value={pilotCopy.common.loading[lang]} disabled aria-describedby="fixed-category-hint" data-fixed-category />
+        <p class="field-hint" id="fixed-category-hint" data-fixed-office>{pilotCopy.common.loading[lang]}</p>
+      </div>
+
+      <div class="field">
+        <label for="report-subject">{pilotCopy.filing.subject[lang]}</label>
+        <input id="report-subject" name="subject" type="text" required maxlength="200" autocomplete="off" aria-describedby="subject-hint subject-error" />
+        <p class="field-hint" id="subject-hint">{pilotCopy.filing.subjectHint[lang]}</p>
+        <p class="field-error" id="subject-error" data-error-for="subject"></p>
+      </div>
+
+      <div class="field">
+        <label for="report-narrative">{pilotCopy.filing.narrative[lang]}</label>
+        <textarea id="report-narrative" name="narrative" rows="7" required maxlength="10000" aria-describedby="narrative-hint narrative-error"></textarea>
+        <p class="field-hint" id="narrative-hint">{pilotCopy.filing.narrativeHint[lang]}</p>
+        <p class="field-error" id="narrative-error" data-error-for="narrative"></p>
+      </div>
+
+      <div class="field" data-width="code">
+        <label for="report-location">{pilotCopy.filing.location[lang]}</label>
+        <input id="report-location" name="location" type="text" required maxlength="500" autocomplete="off" placeholder="TEST-LOKACIJA-01" aria-describedby="location-hint location-error" />
+        <p class="field-hint" id="location-hint">{pilotCopy.filing.locationHint[lang]}</p>
+        <p class="field-error" id="location-error" data-error-for="location"></p>
+      </div>
+
+      <div class="field" data-width="email">
+        <label for="report-contact">{pilotCopy.filing.contact[lang]}</label>
+        <input id="report-contact" name="contactEmail" type="email" maxlength="254" autocomplete="email" aria-describedby="contact-error" />
+        <p class="field-error" id="contact-error" data-error-for="contactEmail"></p>
+      </div>
+
+      <div class="field">
+        <label for="report-attachments">{pilotCopy.filing.attachments[lang]}</label>
+        <input id="report-attachments" name="attachments" type="file" multiple accept="image/png,image/jpeg,application/pdf,text/plain" aria-describedby="attachments-hint attachments-error" />
+        <p class="field-hint" id="attachments-hint">{pilotCopy.filing.attachmentHint[lang]}</p>
+        <p class="field-error" id="attachments-error" data-error-for="attachments"></p>
+      </div>
+
+      <div class="pilot-actions">
+        <button class="btn" data-variant="primary" type="submit" data-report-submit>{pilotCopy.filing.submit[lang]}</button>
+        <a class="btn" data-variant="secondary" href={pilotHref('/pilot/vrsar/cases', lang)}>{pilotCopy.nav.cases[lang]}</a>
+      </div>
+    </form>
+  </article>
+
+  <script>
+    import { initVrsarFile } from '../../../scripts/pilot/vrsar/file';
+    initVrsarFile();
+  </script>
+</VrsarPilotShell>

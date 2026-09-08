@@ -104,7 +104,7 @@ docker compose -f infra/compose/docker-compose.yml up -d --build --wait
 docker compose -f infra/compose/docker-compose.yml run --rm seed
 ```
 
-This starts Postgres and all 18 backend services (17 Node plus the Python AI gateway) on an internal network, with the public API on `:8080`, then seeds the Grad Primjer demo data (the seed job is idempotent — safe to re-run). The UIs still run with `bun run dev:web` / `dev:verifier` as above. Postgres is not published to the host — for direct service access (and the `scripts/phase*-acceptance.mjs` scripts, which expect service ports on localhost) add `--profile debug`.
+This starts Postgres and the 18 default backend services (17 Node plus the Python AI gateway) on an internal network, with the public API on `:8080`, then seeds the Grad Primjer demo data (the seed job is idempotent — safe to re-run). The 19th catalogued backend, `trace-service`, is opt-in and remains outside this Compose profile. The UIs still run with `bun run dev:web` / `dev:verifier` as above. Postgres is not published to the host — for direct service access (and the `scripts/phase*-acceptance.mjs` scripts, which expect service ports on localhost) add `--profile debug`.
 
 ### Checks
 
@@ -278,6 +278,7 @@ flowchart TB
 | `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | Yes (12) |
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | Yes (15) |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | Yes (16) |
+| `trace-service` | Node 24 | 8980 | Runs the isolated Vrsar report, commitment, review, and resolution trace loop. | No (opt-in) |
 <!-- service-catalog:readme:end -->
 
 The "Dev launcher" number is the service's start order in `bun run dev:services`. PostgreSQL 16 with pgvector listens on `:5432` inside the local stack.

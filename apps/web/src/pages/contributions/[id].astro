@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -45,62 +47,134 @@ if (id) {
   }
 }
 
-const statusClass = (s: string) =>
-  s === 'approved' ? 'badge-success' : s === 'rejected' ? 'badge-warning' : 'badge';
+const statusTone = (s: string) => (s === 'approved' ? 'valid' : s === 'rejected' ? 'danger' : 'warning');
 ---
 
 <Base title={submission ? `Submission ${submission.id.slice(0, 8)}` : 'Submission'}>
-  {notFound && (
-    <section class="panel">
-      <h1>Submission not found</h1>
-      <p class="muted">No contribution matches this id.</p>
-    </section>
-  )}
+  <div class="task-page">
+    {submission ? (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Submission</h1>
+          <p class="record-id">{submission.id}</p>
+        </header>
 
-  {submission && (
-    <section class="panel">
-      <h1>Submission <code>{submission.id.slice(0, 12)}</code></h1>
-      <dl class="kv">
-        <dt>Type</dt>
-        <dd>{submission.type}</dd>
-        <dt>Status</dt>
-        <dd><span class={statusClass(submission.status)}>{submission.status}</span></dd>
-        <dt>Contribution class</dt>
-        <dd>{submission.contributionClass}</dd>
-        <dt>Contributor</dt>
-        <dd><a href={`/contributors/${submission.contributorId}`}>{submission.contributorId.slice(0, 12)}</a></dd>
-        <dt>Submitted</dt>
-        <dd>{submission.submittedAt}</dd>
-        {submission.decidedAt && (<><dt>Decided</dt><dd>{submission.decidedAt}</dd></>)}
-      </dl>
+        <dl class="record-facts">
+          <div>
+            <dt>Status</dt>
+            <dd><span class="status-label" data-tone={statusTone(submission.status)}>{submission.status}</span></dd>
+          </div>
+          <div>
+            <dt>Type</dt>
+            <dd>{submission.type}</dd>
+          </div>
+          <div>
+            <dt>Submitted</dt>
+            <dd>{submission.submittedAt}</dd>
+          </div>
+          <div>
+            <dt>Decided</dt>
+            <dd>{submission.decidedAt ?? 'not decided'}</dd>
+          </div>
+        </dl>
 
-      <h2>Payload</h2>
-      <pre>{JSON.stringify(submission.payload, null, 2)}</pre>
+        <dl class="detail-list">
+          <div>
+            <dt>Contribution class</dt>
+            <dd>{submission.contributionClass}</dd>
+          </div>
+          <div>
+            <dt>Contributor</dt>
+            <dd>
+              <a href={`/contributors/${submission.contributorId}`}>
+                {submission.contributorId.slice(0, 12)}
+              </a>
+            </dd>
+          </div>
+        </dl>
 
-      {submission.review && (
-        <div>
+        <section class="task-section">
+          <h2>Payload</h2>
+          <pre>{JSON.stringify(submission.payload, null, 2)}</pre>
+        </section>
+
+        <section class="task-section">
           <h2>Review</h2>
-          <dl class="kv">
-            <dt>Decision</dt>
-            <dd><span class={statusClass(submission.review.decision)}>{submission.review.decision}</span></dd>
-            <dt>Reviewer</dt>
-            <dd>{submission.review.reviewerId ?? '—'}</dd>
-            {submission.review.notes && (<><dt>Notes</dt><dd>{submission.review.notes}</dd></>)}
-          </dl>
-        </div>
-      )}
+          {submission.review ? (
+            <dl class="detail-list">
+              <div>
+                <dt>Decision</dt>
+                <dd>
+                  <span class="status-label" data-tone={statusTone(submission.review.decision)}>
+                    {submission.review.decision}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Reviewer</dt>
+                <dd>{submission.review.reviewerId ?? 'not recorded'}</dd>
+              </div>
+              <div>
+                <dt>Decided</dt>
+                <dd>{submission.review.decidedAt}</dd>
+              </div>
+              {submission.review.notes && (
+                <div>
+                  <dt>Notes</dt>
+                  <dd>{submission.review.notes}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="Not reviewed yet"
+              purpose="This submission is waiting for an independent reviewer. Nothing has been published from it."
+              tips={[
+                'A reviewer must be a different person from the contributor.',
+                'The decision and its notes appear here once it is made.',
+              ]}
+            />
+          )}
+        </section>
 
-      {submission.proposal && (
-        <div>
-          <h2>Graph proposal</h2>
-          <dl class="kv">
-            <dt>Target</dt>
-            <dd>{submission.proposal.targetTable} · {submission.proposal.op}</dd>
-            <dt>Applied</dt>
-            <dd>{submission.proposal.appliedAt ? submission.proposal.appliedAt : 'not yet'}</dd>
-          </dl>
-        </div>
-      )}
-    </section>
-  )}
+        {submission.proposal && (
+          <section class="task-section">
+            <h2>Graph proposal</h2>
+            <dl class="detail-list">
+              <div>
+                <dt>Target</dt>
+                <dd>{submission.proposal.targetTable} · {submission.proposal.op}</dd>
+              </div>
+              <div>
+                <dt>Applied</dt>
+                <dd>{submission.proposal.appliedAt ?? 'not applied'}</dd>
+              </div>
+            </dl>
+          </section>
+        )}
+      </Fragment>
+    ) : (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Submission not found</h1>
+          <p class="record-id">{id}</p>
+        </header>
+        <EmptyState
+          title="No contribution matches this id"
+          purpose={notFound
+            ? 'The contribution service answered, and it holds no submission under this reference.'
+            : 'The contribution service did not answer, so the submission could not be read.'}
+          tips={[
+            'Check the id in the address bar against the link you followed.',
+            'Start the backend from the repository root: bun run dev:services.',
+            'A submission link is shown right after you submit a contribution.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+          actionVariant="primary"
+        />
+      </Fragment>
+    )}
+  </div>
 </Base>

@@ -12,6 +12,11 @@ The architecture is feature-complete for the current prototype. New services and
 
 This workflow remains local/demo-only until trusted identity, role-aware review, fail-closed audit for sensitive writes, backup/restore evidence, and a reviewed partner charter are executable release gates. The isolated `pilot` deployment remains synthetic and public-read only.
 
+2026-09-05: `docs/pilot/prepartner-readiness.md` defines a synthetic,
+controlled pre-partner acceptance track. It may prove engineering readiness;
+it does not change the municipal **NO-GO** or authorize a partner or public
+release.
+
 ## Completed local v1 slice
 
 - Astro app shells for public web, verifier, vault, and admin surfaces, including verifier proof detail and assistant pages.

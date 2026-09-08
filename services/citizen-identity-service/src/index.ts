@@ -1,21 +1,5 @@
-/**
- * @polis/citizen-identity-service — §21 persistent citizen identity (M8, Option A).
- *
- * Owns the `citizens` table. v1 login is email magic-link (single-use, hashed at
- * rest, 15m TTL) with optional passcode. Successful exchange mints an HMAC-signed
- * session token that the BFF validates on every authenticated route via
- * /internal/identity/verify-session. This is real persistent identity (DB
- * accounts, hashed credentials) without an external IdP; it upgrades cleanly to
- * OIDC later (swap the login provider, keep the citizens row + session contract).
- *
- * No SMTP in v1: the magic token is surfaced only by the explicitly enabled
- * non-production stub /internal/identity/dev-tokens route. The exchange +
- * session-token contract is production-shaped; only delivery is stubbed.
- */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { getClient, schema } from '@polis/db';
-import type { DbClient } from '@polis/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { getClient, type DbClient } from '@polis/db';
 import {
   internalHeaders,
   operationalRoutes,
@@ -24,87 +8,152 @@ import {
   type Route,
 } from '@polis/service-runtime';
 
+import {
+  identityHmacKey,
+  identityMode,
+  magicLinkDeliveryMode,
+  publicAppOrigin as configuredPublicAppOrigin,
+  type IdentityEnvironment,
+} from './config.js';
+import { createMagicLinkDelivery, magicLinkUrl, type MagicLinkDelivery } from './delivery.js';
+import {
+  DbIdentityRepository,
+  type CitizenRow,
+  type IdentityRepository,
+} from './identity-repository.js';
+import {
+  createIdentityProvider,
+  validateOidcConfiguration,
+  type IdentityProvider,
+} from './identity-provider.js';
+import { DbOidcLoginStateStore, type OidcLoginStateStore } from './oidc-state-store.js';
 import { citizenWire } from './serialize.js';
-import { createIdentityProvider } from './identity-provider.js';
 
-const MIN_IDENTITY_HMAC_KEY_BYTES = 32;
-const MAGIC_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const MAGIC_TOKEN_TTL_MS = 15 * 60 * 1000;
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const MAX_SESSION_TOKEN_LENGTH = 8_192;
 
-/** In-memory dev token store — populated only by the explicitly enabled non-production stub. */
+/** Raw tokens exist only for the explicit local dev-token route. */
 const devTokens = new Map<string, string>();
 
-function identityHmacKey(): string {
-  const key = process.env.IDENTITY_HMAC_KEY;
-  if (!key || Buffer.byteLength(key, 'utf8') < MIN_IDENTITY_HMAC_KEY_BYTES) {
-    throw new Error(
-      `IDENTITY_HMAC_KEY must be set to at least ${MIN_IDENTITY_HMAC_KEY_BYTES} bytes`,
-    );
-  }
-  return key;
-}
+type AuthenticationMethod = 'magic_link' | 'passcode' | 'oidc';
 
-function devTokensEnabled(): boolean {
-  return (
-    process.env.IDENTITY_DEV_TOKENS === 'true' &&
-    process.env.IDENTITY_MODE === 'stub' &&
-    process.env.NODE_ENV !== 'production'
-  );
-}
+type SessionClaims = {
+  citizenId: string;
+  expiresAt: Date;
+  method: AuthenticationMethod | null;
+};
 
-function sha256(value: string): string {
-  return createHmac('sha256', identityHmacKey()).update(value).digest('hex');
-}
-
-/** Constant-time string equality (hashed values only). */
-function safeEqualHex(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
-  } catch {
-    return false;
-  }
-}
-
-/** Sign {citizenId, exp} → "payload.sig" (both base64url). */
-function signSession(citizenId: string): string {
-  const payload = Buffer.from(JSON.stringify({ citizenId, exp: Date.now() + SESSION_TTL_MS }));
-  const sig = createHmac('sha256', identityHmacKey()).update(payload).digest();
-  return `${payload.toString('base64url')}.${sig.toString('base64url')}`;
-}
-
-/** Verify a session token → citizenId, or null if tampered/expired. */
-function verifySession(sessionToken: string): string | null {
-  const dot = sessionToken.indexOf('.');
-  if (dot < 0) return null;
-  const payloadB64 = sessionToken.slice(0, dot);
-  const sigB64 = sessionToken.slice(dot + 1);
-  const payload = Buffer.from(payloadB64, 'base64url');
-  const expected = createHmac('sha256', identityHmacKey()).update(payload).digest();
-  const provided = Buffer.from(sigB64, 'base64url');
-  if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) return null;
-  let parsed: { citizenId?: string; exp?: number };
-  try {
-    parsed = JSON.parse(payload.toString('utf8'));
-  } catch {
-    return null;
-  }
-  if (!parsed.citizenId || typeof parsed.exp !== 'number' || Date.now() > parsed.exp) return null;
-  return parsed.citizenId;
-}
-
-/**
- * Best-effort audit emit. Failures (audit-service unreachable) are logged and
- * never fail the originating request — matches contribution/rewards services.
- */
-async function emitAudit(event: {
+type AuditEvent = {
   eventType: string;
   action: string;
   target: { type: string; id: string };
   data: Record<string, unknown>;
   visibility: 'public' | 'restricted';
-}): Promise<void> {
-  const base = process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
+};
+
+type AuditEmitter = (event: AuditEvent) => Promise<void>;
+
+export type IdentityRouteDependencies = {
+  repository?: IdentityRepository;
+  delivery?: MagicLinkDelivery;
+  oidcStateStore?: OidcLoginStateStore;
+  identityProviderFactory?: () => IdentityProvider;
+  auditEmitter?: AuditEmitter;
+  now?: () => Date;
+  randomMagicToken?: () => string;
+  publicAppOrigin?: string;
+  env?: IdentityEnvironment;
+};
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const email = value.trim().toLowerCase();
+  if (!email || email.length > 254 || /[\s\0]/.test(email)) return null;
+  const at = email.indexOf('@');
+  if (at < 1 || at !== email.lastIndexOf('@') || at === email.length - 1) return null;
+  return email;
+}
+
+function keyedHash(value: string, env: IdentityEnvironment): string {
+  return createHmac('sha256', identityHmacKey(env)).update(value).digest('hex');
+}
+
+function signSession(
+  citizenId: string,
+  issuedAt: Date,
+  method: AuthenticationMethod,
+  env: IdentityEnvironment,
+): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      citizenId,
+      exp: issuedAt.getTime() + SESSION_TTL_MS,
+      jti: randomBytes(16).toString('base64url'),
+      method,
+    }),
+  );
+  const signature = createHmac('sha256', identityHmacKey(env)).update(payload).digest();
+  return `${payload.toString('base64url')}.${signature.toString('base64url')}`;
+}
+
+function verifySignedSession(
+  sessionToken: string,
+  checkedAt: Date,
+  env: IdentityEnvironment,
+): SessionClaims | null {
+  if (!sessionToken || sessionToken.length > MAX_SESSION_TOKEN_LENGTH) return null;
+  const segments = sessionToken.split('.');
+  if (segments.length !== 2 || !segments[0] || !segments[1]) return null;
+
+  let payload: Buffer;
+  let provided: Buffer;
+  try {
+    payload = Buffer.from(segments[0], 'base64url');
+    provided = Buffer.from(segments[1], 'base64url');
+  } catch {
+    return null;
+  }
+  const expected = createHmac('sha256', identityHmacKey(env)).update(payload).digest();
+  if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) return null;
+
+  let parsed: { citizenId?: unknown; exp?: unknown; method?: unknown };
+  try {
+    parsed = JSON.parse(payload.toString('utf8')) as typeof parsed;
+  } catch {
+    return null;
+  }
+  if (
+    typeof parsed.citizenId !== 'string' ||
+    !parsed.citizenId ||
+    typeof parsed.exp !== 'number' ||
+    !Number.isFinite(parsed.exp) ||
+    checkedAt.getTime() >= parsed.exp
+  ) {
+    return null;
+  }
+  const method =
+    parsed.method === undefined
+      ? null
+      : parsed.method === 'magic_link' || parsed.method === 'passcode' || parsed.method === 'oidc'
+        ? parsed.method
+        : null;
+  if (parsed.method !== undefined && method === null) return null;
+  return { citizenId: parsed.citizenId, expiresAt: new Date(parsed.exp), method };
+}
+
+function devTokensEnabled(env: IdentityEnvironment, delivery: MagicLinkDelivery): boolean {
+  return (
+    delivery.mode === 'dev' &&
+    magicLinkDeliveryMode(env) === 'dev' &&
+    env.IDENTITY_DEV_TOKENS === 'true' &&
+    identityMode(env) === 'stub' &&
+    env.NODE_ENV !== 'production'
+  );
+}
+
+async function emitAudit(event: AuditEvent, env: IdentityEnvironment): Promise<void> {
+  const base = env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600';
   try {
     await fetch(base + '/internal/audit/events', {
       method: 'POST',
@@ -119,105 +168,128 @@ async function emitAudit(event: {
         correlationId: null,
       }),
     });
-  } catch (err) {
+  } catch {
     console.error(
       JSON.stringify({
         service: 'citizen-identity-service',
         stage: 'audit-emit',
-        warning: err instanceof Error ? err.message : 'unknown',
+        warning: 'audit_unavailable',
       }),
     );
   }
 }
 
-/** Build the §21 identity route table bound to a DB client. */
-export function identityRoutes(db: DbClient): Route[] {
+export function validateIdentityConfig(env: IdentityEnvironment = process.env): MagicLinkDelivery {
+  identityHmacKey(env);
+  const mode = identityMode(env);
+  const delivery = createMagicLinkDelivery(env);
+  if (mode === 'oidc') validateOidcConfiguration(env);
+  return delivery;
+}
+
+/** Build the identity route table against a DB client and explicit test seams. */
+export function identityRoutes(
+  db: DbClient,
+  dependencies: IdentityRouteDependencies = {},
+): Route[] {
+  const env = dependencies.env ?? process.env;
+  const repository = dependencies.repository ?? new DbIdentityRepository(db);
+  const delivery = dependencies.delivery ?? createMagicLinkDelivery(env);
+  const oidcStateStore = dependencies.oidcStateStore ?? new DbOidcLoginStateStore(db);
+  const providerFactory =
+    dependencies.identityProviderFactory ??
+    (() => createIdentityProvider({ stateStore: oidcStateStore, env }));
+  const auditEmitter = dependencies.auditEmitter ?? ((event) => emitAudit(event, env));
+  const now = dependencies.now ?? (() => new Date());
+  const randomMagicToken =
+    dependencies.randomMagicToken ?? (() => randomBytes(32).toString('base64url'));
+  const publicAppOrigin =
+    delivery.mode === 'smtp'
+      ? (dependencies.publicAppOrigin ?? configuredPublicAppOrigin(env))
+      : undefined;
+
   return [
     ...operationalRoutes('citizen-identity-service'),
-
-    // §21.2 magic-link mint. Always returns {sent:true} (no email enumeration).
     {
       method: 'POST',
       path: '/internal/identity/magic-link',
       handler: async (_req, body) => {
-        const input = body as { email?: string };
-        const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
-        if (!email || !email.includes('@')) {
-          return result(400, { error: 'invalid_email' });
+        if (identityMode(env) === 'oidc') return result(403, { error: 'oidc_required' });
+        const input = body as { email?: unknown };
+        const email = normalizeEmail(input.email);
+        if (!email) return result(400, { error: 'invalid_email' });
+
+        const rawToken = randomMagicToken();
+        const requestedAt = now();
+        const expiresAt = new Date(requestedAt.getTime() + MAGIC_TOKEN_TTL_MS);
+        const citizen = await repository.issueMagicToken({
+          email,
+          displayName: email.split('@')[0] || 'Citizen',
+          tokenHash: keyedHash(rawToken, env),
+          expiresAt,
+        });
+
+        if (devTokensEnabled(env, delivery)) devTokens.set(email, rawToken);
+        if (delivery.mode === 'smtp' && publicAppOrigin) {
+          try {
+            await delivery.sendMagicLink({
+              to: email,
+              loginUrl: magicLinkUrl(publicAppOrigin, email, rawToken),
+              expiresAt,
+            });
+          } catch {
+            console.error(
+              JSON.stringify({
+                service: 'citizen-identity-service',
+                stage: 'magic-link-delivery',
+                warning: 'delivery_failed',
+              }),
+            );
+          }
         }
-        const rawToken = randomBytes(32).toString('hex');
-        const tokenHash = sha256(rawToken);
-        const expiresAt = new Date(Date.now() + MAGIC_TOKEN_TTL_MS);
-        // Upsert by email (unique index). New citizen defaults to verified_resident.
-        const existing = await db
-          .select()
-          .from(schema.citizens)
-          .where(eq(schema.citizens.email, email))
-          .limit(1);
-        const citizenId = existing[0]?.id ?? `cit-${randomBytes(8).toString('hex')}`;
-        if (existing[0]) {
-          await db
-            .update(schema.citizens)
-            .set({ magicTokenHash: tokenHash, magicTokenExpiresAt: expiresAt })
-            .where(eq(schema.citizens.id, citizenId));
-        } else {
-          await db.insert(schema.citizens).values({
-            id: citizenId,
-            email,
-            displayName: email.split('@')[0],
-            magicTokenHash: tokenHash,
-            magicTokenExpiresAt: expiresAt,
-          });
-        }
-        if (devTokensEnabled()) devTokens.set(email, rawToken);
-        await emitAudit({
+
+        await auditEmitter({
           eventType: 'identity.magic_link.issued',
           action: 'magic-link',
-          target: { type: 'citizen', id: citizenId },
-          data: { ttlMs: MAGIC_TOKEN_TTL_MS },
+          target: { type: 'citizen', id: citizen.id },
+          data: { ttlMs: MAGIC_TOKEN_TTL_MS, delivery: delivery.mode },
           visibility: 'restricted',
         });
         return result(200, { sent: true });
       },
     },
-
-    // §21.2 exchange magic-link (or passcode) → session token.
     {
       method: 'POST',
       path: '/internal/identity/exchange',
       handler: async (_req, body) => {
-        const input = body as { email?: string; token?: string; passcode?: string };
-        const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+        if (identityMode(env) === 'oidc') return result(403, { error: 'oidc_required' });
+        const input = body as { email?: unknown; token?: unknown; passcode?: unknown };
+        const email = normalizeEmail(input.email);
         if (!email) return result(400, { error: 'invalid_email' });
-        const rows = await db
-          .select()
-          .from(schema.citizens)
-          .where(eq(schema.citizens.email, email))
-          .limit(1);
-        const citizen = rows[0];
-        if (!citizen) return result(401, { error: 'invalid_credentials' });
 
-        let ok = false;
-        if (typeof input.token === 'string' && input.token && citizen.magicTokenHash) {
-          const provided = sha256(input.token);
-          const unexpired =
-            citizen.magicTokenExpiresAt instanceof Date &&
-            citizen.magicTokenExpiresAt.getTime() > Date.now();
-          if (unexpired && safeEqualHex(provided, citizen.magicTokenHash)) ok = true;
-        } else if (typeof input.passcode === 'string' && input.passcode && citizen.passcodeHash) {
-          if (safeEqualHex(sha256(input.passcode), citizen.passcodeHash)) ok = true;
+        let citizen = null;
+        let authenticationMethod: AuthenticationMethod | null = null;
+        if (typeof input.token === 'string' && input.token && input.token.length <= 1_024) {
+          authenticationMethod = 'magic_link';
+          citizen = await repository.consumeMagicToken({
+            email,
+            tokenHash: keyedHash(input.token, env),
+            consumedAt: now(),
+          });
+        } else if (
+          typeof input.passcode === 'string' &&
+          input.passcode &&
+          input.passcode.length <= 256
+        ) {
+          authenticationMethod = 'passcode';
+          citizen = await repository.findByPasscodeHash(email, keyedHash(input.passcode, env));
         }
-        if (!ok) return result(401, { error: 'invalid_credentials' });
+        if (!citizen || !authenticationMethod) {
+          return result(401, { error: 'invalid_credentials' });
+        }
 
-        // Consume the magic token (single-use).
-        if (citizen.magicTokenHash) {
-          await db
-            .update(schema.citizens)
-            .set({ magicTokenHash: null, magicTokenExpiresAt: null })
-            .where(eq(schema.citizens.id, citizen.id));
-        }
         devTokens.delete(email);
-        await emitAudit({
+        await auditEmitter({
           eventType: 'identity.session.exchanged',
           action: 'exchange',
           target: { type: 'citizen', id: citizen.id },
@@ -225,188 +297,167 @@ export function identityRoutes(db: DbClient): Route[] {
           visibility: 'restricted',
         });
         return result(200, {
-          sessionToken: signSession(citizen.id),
+          sessionToken: signSession(citizen.id, now(), authenticationMethod, env),
           citizen: citizenWire(citizen),
         });
       },
     },
-
-    // BFF auth gate: validate a session token → citizenId + identityLevel.
     {
       method: 'POST',
       path: '/internal/identity/verify-session',
       handler: async (_req, body) => {
-        const input = body as { sessionToken?: string };
-        const citizenId =
-          typeof input.sessionToken === 'string' ? verifySession(input.sessionToken) : null;
-        if (!citizenId) return result(401, { error: 'invalid_session' });
-        const rows = await db
-          .select()
-          .from(schema.citizens)
-          .where(eq(schema.citizens.id, citizenId))
-          .limit(1);
-        const citizen = rows[0];
+        const input = body as { sessionToken?: unknown };
+        if (typeof input.sessionToken !== 'string') {
+          return result(401, { error: 'invalid_session' });
+        }
+        const checkedAt = now();
+        const claims = verifySignedSession(input.sessionToken, checkedAt, env);
+        if (!claims) return result(401, { error: 'invalid_session' });
+        if (identityMode(env) === 'oidc' && claims.method !== 'oidc') {
+          return result(401, { error: 'invalid_session' });
+        }
+        if (await repository.isSessionRevoked(keyedHash(input.sessionToken, env), checkedAt)) {
+          return result(401, { error: 'invalid_session' });
+        }
+        const citizen = await repository.findCitizenById(claims.citizenId);
         if (!citizen) return result(401, { error: 'invalid_session' });
         return result(200, { citizenId: citizen.id, identityLevel: citizen.identityLevel });
       },
     },
-
-    // Internal citizen lookup (vault-service ownership checks).
+    {
+      method: 'POST',
+      path: '/internal/identity/logout',
+      handler: async (_req, body) => {
+        const input = body as { sessionToken?: unknown };
+        if (typeof input.sessionToken !== 'string' || !input.sessionToken) {
+          return result(400, { error: 'invalid_logout_payload' });
+        }
+        const revokedAt = now();
+        const claims = verifySignedSession(input.sessionToken, revokedAt, env);
+        if (claims) {
+          const newlyRevoked = await repository.revokeSession({
+            tokenHash: keyedHash(input.sessionToken, env),
+            citizenId: claims.citizenId,
+            expiresAt: claims.expiresAt,
+            revokedAt,
+          });
+          if (newlyRevoked) {
+            await auditEmitter({
+              eventType: 'identity.session.revoked',
+              action: 'logout',
+              target: { type: 'citizen', id: claims.citizenId },
+              data: {},
+              visibility: 'restricted',
+            });
+          }
+        }
+        return result(200, { revoked: true });
+      },
+    },
     {
       method: 'GET',
       path: '/internal/identity/citizens/:id',
       handler: async (_req, _body, params) => {
-        const rows = await db
-          .select()
-          .from(schema.citizens)
-          .where(eq(schema.citizens.id, params.id))
-          .limit(1);
-        if (!rows[0]) return result(404, { error: 'not_found' });
-        return result(200, citizenWire(rows[0]));
+        const citizen = await repository.findCitizenById(params.id);
+        if (!citizen) return result(404, { error: 'not_found' });
+        return result(200, citizenWire(citizen));
       },
     },
-    // M10 OIDC authorize — kick off the Keycloak auth-code + PKCE flow. 404 in
-    // stub mode (the seam is OIDC-only); the BFF gates the UI on this 200/404.
     {
       method: 'GET',
       path: '/internal/identity/authorize',
       handler: async (req) => {
-        if ((process.env.IDENTITY_MODE ?? 'stub') !== 'oidc') {
-          return result(404, { error: 'oidc_required' });
-        }
+        if (identityMode(env) !== 'oidc') return result(404, { error: 'oidc_required' });
         const redirectUri =
           new URL(req.url ?? '/', 'http://localhost').searchParams.get('redirect_uri') ?? '';
         if (!redirectUri) return result(400, { error: 'redirect_uri_required' });
-        const { authorizationUrl, state } = await createIdentityProvider().beginLogin(redirectUri);
-        return result(200, { authorizationUrl, state });
+        try {
+          const { authorizationUrl, state } = await providerFactory().beginLogin(redirectUri);
+          return result(200, { authorizationUrl, state });
+        } catch (error) {
+          if (error instanceof Error && error.message === 'redirect_uri_not_allowed') {
+            return result(400, { error: 'redirect_uri_not_allowed' });
+          }
+          return result(503, { error: 'identity_unavailable' });
+        }
       },
     },
-
-    // M10 OIDC callback — exchange code → resolve citizen → mint Polis session.
-    // Token-translation boundary: Keycloak never reaches a downstream service.
     {
       method: 'POST',
       path: '/internal/identity/callback',
       handler: async (_req, body) => {
-        if ((process.env.IDENTITY_MODE ?? 'stub') !== 'oidc') {
-          return result(404, { error: 'oidc_required' });
-        }
-        const input = body as { code?: string; state?: string; redirectUri?: string };
-        if (!input.code || !input.state || !input.redirectUri) {
+        if (identityMode(env) !== 'oidc') return result(404, { error: 'oidc_required' });
+        const input = body as { code?: unknown; state?: unknown; redirectUri?: unknown };
+        if (
+          typeof input.code !== 'string' ||
+          !input.code ||
+          typeof input.state !== 'string' ||
+          !input.state ||
+          typeof input.redirectUri !== 'string' ||
+          !input.redirectUri
+        ) {
           return result(400, { error: 'invalid_callback_payload' });
         }
+
         let resolved;
         try {
-          resolved = await createIdentityProvider().completeLogin(
+          resolved = await providerFactory().completeLogin(
             input.code,
             input.state,
             input.redirectUri,
           );
-        } catch (e) {
-          return result(400, { error: e instanceof Error ? e.message : 'login_failed' });
+        } catch (error) {
+          if (error instanceof Error && error.message === 'invalid_state') {
+            return result(400, { error: 'invalid_state' });
+          }
+          if (error instanceof Error && error.message === 'provider_unavailable') {
+            return result(503, { error: 'identity_provider_unavailable' });
+          }
+          return result(400, { error: 'login_failed' });
         }
-        // identity/access.rego enforced in code: OIDC requires a verified email.
-        if (!resolved.emailVerified || !resolved.email) {
+        const email = normalizeEmail(resolved.email);
+        if (!resolved.emailVerified || !email) {
           return result(403, { error: 'email_not_verified' });
         }
 
-        // Resolve citizen by IdP subject link, else by email, else create.
-        const linkRows = await db
-          .select()
-          .from(schema.externalIdentities)
-          .where(
-            and(
-              eq(schema.externalIdentities.provider, resolved.provider),
-              eq(schema.externalIdentities.subject, resolved.subject),
-            ),
-          )
-          .limit(1);
-        let citizenId = linkRows[0]?.citizenId;
-        if (!citizenId) {
-          const byEmail = await db
-            .select()
-            .from(schema.citizens)
-            .where(eq(schema.citizens.email, resolved.email))
-            .limit(1);
-          if (byEmail[0]) {
-            citizenId = byEmail[0].id;
-          } else {
-            const ins = await db
-              .insert(schema.citizens)
-              .values({
-                id: `cit-${randomBytes(8).toString('hex')}`,
-                email: resolved.email,
-                displayName: resolved.email.split('@')[0],
-              })
-              .returning({ id: schema.citizens.id });
-            citizenId = ins[0].id;
-          }
-          // Link the IdP subject. onConflictDoNothing guards the UNIQUE(provider,
-          // subject) invariant against a concurrent first-login for the same
-          // subject (two tabs): if a sibling won the race, re-resolve its citizen.
-          const linked = await db
-            .insert(schema.externalIdentities)
-            .values({
-              id: `ext-${randomBytes(8).toString('hex')}`,
-              citizenId,
-              provider: resolved.provider,
-              subject: resolved.subject,
-            })
-            .onConflictDoNothing({
-              target: [schema.externalIdentities.provider, schema.externalIdentities.subject],
-            })
-            .returning({ citizenId: schema.externalIdentities.citizenId });
-          if (linked.length === 0) {
-            const winner = await db
-              .select()
-              .from(schema.externalIdentities)
-              .where(
-                and(
-                  eq(schema.externalIdentities.provider, resolved.provider),
-                  eq(schema.externalIdentities.subject, resolved.subject),
-                ),
-              )
-              .limit(1);
-            citizenId = winner[0]?.citizenId ?? citizenId;
-          }
-        } else {
-          // Refresh email if the IdP says it changed.
-          await db
-            .update(schema.citizens)
-            .set({ email: resolved.email })
-            .where(
-              and(
-                eq(schema.citizens.id, citizenId),
-                sql`${schema.citizens.email} is distinct from ${resolved.email}`,
-              ),
+        let citizen: CitizenRow;
+        try {
+          citizen = await repository.resolveOidcCitizen({
+            provider: resolved.provider,
+            subject: resolved.subject,
+            email,
+          });
+        } catch (error) {
+          if (error instanceof Error && error.message === 'legacy_oidc_binding_review_required') {
+            console.error(
+              JSON.stringify({
+                service: 'citizen-identity-service',
+                stage: 'oidc-binding',
+                warning: 'legacy_binding_operator_review_required',
+              }),
             );
+            return result(503, { error: 'identity_binding_review_required' });
+          }
+          throw error;
         }
-
-        const cRow = (
-          await db.select().from(schema.citizens).where(eq(schema.citizens.id, citizenId)).limit(1)
-        )[0];
-        if (!cRow) return result(500, { error: 'citizen_resolution_failed' });
-        await emitAudit({
+        await auditEmitter({
           eventType: 'identity.session.oidc.exchanged',
           action: 'exchange',
-          target: { type: 'citizen', id: citizenId },
-          data: { provider: resolved.provider, subject: resolved.subject },
+          target: { type: 'citizen', id: citizen.id },
+          data: { provider: resolved.provider },
           visibility: 'restricted',
         });
         return result(200, {
-          sessionToken: signSession(citizenId),
-          citizen: citizenWire(cRow),
+          sessionToken: signSession(citizen.id, now(), 'oidc', env),
+          citizen: citizenWire(citizen),
         });
       },
     },
-
-    // Explicit non-production stub escape hatch for local demos and acceptance tests.
-    // Returns 404 unless all three dev-token configuration gates are satisfied.
     {
       method: 'GET',
       path: '/internal/identity/dev-tokens',
       handler: async () => {
-        if (!devTokensEnabled()) return result(404, { error: 'not_found' });
+        if (!devTokensEnabled(env, delivery)) return result(404, { error: 'not_found' });
         return result(200, { tokens: Object.fromEntries(devTokens) });
       },
     },
@@ -414,10 +465,11 @@ export function identityRoutes(db: DbClient): Route[] {
 }
 
 async function main(): Promise<void> {
-  identityHmacKey();
+  const delivery = validateIdentityConfig(process.env);
+  await delivery.verify();
   const port = Number(process.env.PORT ?? 8650);
   const db = getClient();
-  startService('citizen-identity-service', port, identityRoutes(db));
+  startService('citizen-identity-service', port, identityRoutes(db, { delivery }));
   console.log(JSON.stringify({ service: 'citizen-identity-service', port, status: 'listening' }));
 }
 

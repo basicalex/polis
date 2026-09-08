@@ -300,3 +300,111 @@ export function wireQueue(options) {
   }
   options.render();
 }
+
+/**
+ * One label/value row of a detail list.
+ *
+ * The label is the quiet part and the value carries the ink (rule H3). `variant`
+ * marks the two data a reviewer reads first: `lead` sets the commitment text at
+ * body size, `loud` makes the due date the loudest datum on the panel.
+ *
+ * @param {string} term
+ * @param {string | Node} value
+ * @param {'lead' | 'loud'} [variant]
+ * @returns {HTMLDivElement}
+ */
+export function fieldRow(term, value, variant) {
+  const row = el('div');
+  row.append(el('dt', undefined, term));
+  const dd = el('dd', variant ? `is-${variant}` : undefined);
+  if (typeof value === 'string') dd.textContent = value;
+  else dd.append(value);
+  row.append(dd);
+  return row;
+}
+
+/**
+ * A subheading group: whitespace and one hairline separate it from the next
+ * group, never a bordered panel inside a bordered panel (rules H7, D5).
+ *
+ * @param {string} title
+ * @param {...(Node | null | undefined)} children
+ * @returns {HTMLElement}
+ */
+export function group(title, ...children) {
+  const section = el('section', 'demo-group');
+  section.append(el('h4', 'demo-group-title', title));
+  for (const child of children) if (child) section.append(child);
+  return section;
+}
+
+/**
+ * The empty state of a region: what it is for, up to two concrete tips, and one
+ * action where a legal action exists (rule S1). Same markup and classes as
+ * `packages/ui/src/astro/EmptyState.astro`, built at runtime because the demo
+ * queues render from the store.
+ *
+ * @param {object} spec
+ * @param {string} spec.title
+ * @param {string} [spec.purpose]
+ * @param {readonly string[]} [spec.tips] Anything past the second is dropped.
+ * @param {{ label: string, href?: string, onClick?: () => void, variant?: 'primary' | 'tertiary' }} [spec.action]
+ * @returns {HTMLDivElement}
+ */
+export function emptyState(spec) {
+  const box = el('div', 'empty-state');
+  box.append(el('p', 'empty-state-title', spec.title));
+  if (spec.purpose) box.append(el('p', 'empty-state-purpose', spec.purpose));
+  const tips = (spec.tips ?? []).filter(Boolean).slice(0, 2);
+  if (tips.length > 0) {
+    const list = el('ul', 'empty-state-tips');
+    for (const tip of tips) list.append(el('li', undefined, tip));
+    box.append(list);
+  }
+  const action = spec.action;
+  if (action) {
+    const variant = action.variant ?? 'tertiary';
+    if (action.href) {
+      const link = el('a', 'btn empty-state-action', action.label);
+      link.href = action.href;
+      link.setAttribute('data-variant', variant);
+      box.append(link);
+    } else if (action.onClick) {
+      const button = el('button', 'btn empty-state-action', action.label);
+      button.type = 'button';
+      button.setAttribute('data-variant', variant);
+      button.addEventListener('click', action.onClick);
+      box.append(button);
+    }
+  }
+  return box;
+}
+
+/**
+ * Write a `role="status"` region as a state label plus a sentence: the word
+ * carries the state without colour, the sentence says what happened (rules P4,
+ * S2). An empty `label` clears the region.
+ *
+ * @param {Element | null} region
+ * @param {object} message
+ * @param {string} message.label Short state word, e.g. the stamp text.
+ * @param {string} message.tone `.status-label` tone.
+ * @param {string} message.text
+ * @returns {void}
+ */
+export function statusLine(region, message) {
+  if (!(region instanceof HTMLElement)) return;
+  if (!message || !message.text) {
+    region.replaceChildren();
+    return;
+  }
+  region.classList.add('demo-status-line');
+  const parts = [];
+  if (message.label) {
+    const label = el('span', 'status-label', message.label);
+    label.setAttribute('data-tone', message.tone || 'trace');
+    parts.push(label);
+  }
+  parts.push(el('span', undefined, message.text));
+  region.replaceChildren(...parts);
+}

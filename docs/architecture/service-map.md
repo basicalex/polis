@@ -94,6 +94,7 @@ Node services using `packages/service-runtime` expose:
 | `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | `GET /readyz` | 12 |
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | `GET /readyz` | 15 |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | `GET /readyz` | 16 |
+| `trace-service` | Node 24 | 8980 | Runs the isolated Vrsar report, commitment, review, and resolution trace loop. | `GET /readyz` | opt-in |
 <!-- service-catalog:service-map:end -->
 
 `document-signing-service` depends on Postgres, `proof-service`,
@@ -158,7 +159,7 @@ Documenso webhook also requires `X-Documenso-Secret`.
 
 ## Local ports
 
-The generated service table above is the canonical local port map. Compose publishes only `platform-api` at host port `8080`; Postgres and internal services use `expose`. `scripts/dev-services.mjs` launches all 17 catalogued Node services in the listed dependency-safe order and supplies their development internal URLs. The Python `ai-gateway` remains an external process.
+The generated service table above is the canonical local port map. Compose publishes only `platform-api` at host port `8080`; Postgres and internal services use `expose`. `scripts/dev-services.mjs` launches 17 of the 18 catalogued Node services in the listed dependency-safe order and supplies their development internal URLs. `trace-service` is opt-in and remains outside the default launcher. The Python `ai-gateway` remains an external process.
 
 ## Integration warning
 

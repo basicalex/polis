@@ -1,0 +1,13 @@
+---
+import { statusTone, translatedStatus, type PilotLang } from '../../../content/pilot/vrsar';
+
+interface Props {
+  status?: string;
+  lang: PilotLang;
+  label?: string;
+}
+
+const { status = 'unknown', lang, label } = Astro.props as Props;
+---
+
+<span class="status-label" data-tone={statusTone(status)} data-status={status}>{label ?? translatedStatus(status, lang)}</span>

@@ -1,0 +1,43 @@
+---
+import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarPrivateBoundary from '../../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
+import VrsarTraceSummary from '../../../../components/pilot/vrsar/VrsarTraceSummary.astro';
+import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell lang={lang} page="case-detail" title={`${pilotCopy.detail.heading[lang]} — Polis`} description={pilotCopy.filing.privacy[lang]}>
+  <article class="pilot-page">
+    <div class="pilot-actions">
+      <a class="btn" data-variant="secondary" href={pilotHref('/pilot/vrsar/cases', lang)}>{pilotCopy.common.back[lang]}</a>
+    </div>
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.detail.heading[lang]}</h1>
+      <p class="pilot-ledger-id" data-record-id></p>
+    </header>
+    <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
+    <div class="pilot-page" data-private-record hidden>
+      <section class="pilot-section panel">
+        <span class="status-label" data-tone="unknown" data-record-status data-status="unknown"></span>
+        <dl class="pilot-meta" data-private-fields></dl>
+      </section>
+      <section class="pilot-section" aria-labelledby="case-trace-title">
+        <h2 id="case-trace-title">{pilotCopy.detail.events[lang]}</h2>
+        <VrsarTraceSummary lang={lang} />
+        <ol class="pilot-event-list" data-private-events></ol>
+        <p class="pilot-disclosure">{pilotCopy.detail.hashLinked[lang]}</p>
+      </section>
+      <section class="pilot-section" aria-labelledby="case-attachments-title">
+        <h2 id="case-attachments-title">{pilotCopy.detail.attachments[lang]}</h2>
+        <ul class="pilot-ledger" data-private-attachments></ul>
+      </section>
+    </div>
+    <div class="pilot-state-actions"><button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button></div>
+  </article>
+  <script>
+    import { initVrsarCaseDetail } from '../../../../scripts/pilot/vrsar/case-detail';
+    initVrsarCaseDetail();
+  </script>
+</VrsarPilotShell>

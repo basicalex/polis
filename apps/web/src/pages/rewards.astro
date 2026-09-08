@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -23,7 +25,7 @@ type LedgerItem = {
 
 let rules: RewardRules | null = null;
 let ledger: LedgerItem[] = [];
-let apiDown = false;
+let ledgerLoaded = false;
 
 try {
   const [rulesRes, ledgerRes] = await Promise.all([
@@ -34,79 +36,150 @@ try {
   if (ledgerRes.ok) {
     const body = (await ledgerRes.json()) as { items: LedgerItem[] };
     ledger = body.items ?? [];
+    ledgerLoaded = true;
   }
 } catch {
-  apiDown = true;
+  ledgerLoaded = false;
 }
+
+const unavailable = rules === null && !ledgerLoaded;
 ---
 
 <Base title="Rewards">
-  <section class="panel">
-    <DemoBadge />
-    <h1>Rewards</h1>
-    <p class="muted">
-      Civic rewards (§30.8): approved non-political contributions make a contributor
-      reward-eligible. Political agreements are never rewardable (ADR-007: reward effort,
-      not outcome). The aggregate ledger below is public and contains no personal data;
-      payout details are private.
-    </p>
-
-    {apiDown && (
-      <p class="badge badge-warning">Rewards service unavailable — showing cached rules only.</p>
-    )}
-
-    {rules && (
-      <div>
-        <h2>Rules</h2>
-        <dl class="kv">
-          <dt>Amount per eligible contribution</dt>
-          <dd>{rules.amountPerEligibility} {rules.unit}</dd>
-          <dt>Monthly cap per contributor</dt>
-          <dd>{rules.monthlyCap} eligible events</dd>
-          <dt>Policy</dt>
-          <dd>{rules.policy}</dd>
-          <dt>Rewardable contributions</dt>
-          <dd>{rules.rewardableActions.join(', ')}</dd>
-          <dt>Never rewardable</dt>
-          <dd>{rules.forbiddenActions.join(', ')}</dd>
-          <dt>Political agreement rewardable</dt>
-          <dd>
-            {rules.politicalAgreementRewardable ? 'yes' : 'no — effort, not outcome'}
-          </dd>
-        </dl>
-      </div>
-    )}
-
-    <div>
-      <h2>Public aggregate ledger</h2>
-      <p class="muted">
-        Funding by category and period. Totals are in credits. No contributor or payout
-        detail appears here.
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">§30.8 Civic rewards</p>
+      <h1>Rewards</h1>
+      <p class="page-header-lede">
+        Approved non-political contributions make a contributor reward-eligible. Political
+        agreements are never rewardable (ADR-007: reward effort, not outcome). The aggregate ledger
+        below is public and holds no personal data; payout details stay private.
       </p>
-      {ledger.length === 0 ? (
-        <p class="muted">No eligible rewards recorded yet.</p>
+      <DemoBadge />
+    </header>
+
+    {unavailable ? (
+      <EmptyState
+        title="Reward data is unavailable"
+        purpose="Both the reward rules and the public ledger come from the local contribution service, which is not answering. Nothing is cached here, so no figure is shown rather than a stale one."
+        tips={[
+          'Start the backend from the repository root: bun run dev:services.',
+          'Load the fixtures once the services are up: bun run db:seed.',
+          'Reward rules are policy; the ledger holds no personal data.',
+        ]}
+        actionLabel="Read the local setup steps"
+        actionHref="/docs"
+      />
+    ) : (
+    <Fragment>
+    <section class="task-section">
+      <h2>Rules</h2>
+      {rules ? (
+        <>
+          <dl class="record-facts">
+            <div>
+              <dt>Per eligible contribution</dt>
+              <dd>{rules.amountPerEligibility} {rules.unit}</dd>
+            </div>
+            <div>
+              <dt>Monthly cap</dt>
+              <dd>{rules.monthlyCap} eligible events</dd>
+            </div>
+            <div>
+              <dt>Political agreement</dt>
+              <dd>
+                <span class="status-label" data-tone={rules.politicalAgreementRewardable ? 'warning' : 'valid'}>
+                  {rules.politicalAgreementRewardable ? 'rewardable' : 'never rewardable'}
+                </span>
+              </dd>
+            </div>
+          </dl>
+          <dl class="detail-list">
+            <div>
+              <dt>Policy</dt>
+              <dd>{rules.policy}</dd>
+            </div>
+            <div>
+              <dt>Rewardable contributions</dt>
+              <dd>{rules.rewardableActions.join(', ')}</dd>
+            </div>
+            <div>
+              <dt>Never rewardable</dt>
+              <dd>{rules.forbiddenActions.join(', ')}</dd>
+            </div>
+          </dl>
+        </>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Period</th>
-              <th>Category</th>
-              <th>Count</th>
-              <th>Total (credits)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ledger.map((row) => (
-              <tr>
-                <td>{row.period}</td>
-                <td>{row.contributionClass}</td>
-                <td>{row.count}</td>
-                <td>{row.totalAmount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <EmptyState
+          headingLevel={3}
+          title="Reward rules are unavailable"
+          purpose="The rules come from the local contribution service, which is not answering. Nothing is cached here, so no figure is shown rather than a stale one."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Reward rules are policy, not a payout record; no personal data is involved.',
+          ]}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
       )}
-    </div>
-  </section>
+    </section>
+
+    <section class="task-section">
+      <h2>Public aggregate ledger</h2>
+      <p class="task-lede">
+        Funding by category and period. Totals are in credits. No contributor or payout detail
+        appears here.
+      </p>
+      {ledger.length > 0 ? (
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                <th scope="col">Category</th>
+                <th scope="col">Count</th>
+                <th scope="col">Total (credits)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ledger.map((row) => (
+                <tr>
+                  <td>{row.period}</td>
+                  <td>{row.contributionClass}</td>
+                  <td class="ledger-value">{row.count}</td>
+                  <td class="ledger-value">{row.totalAmount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : ledgerLoaded ? (
+        <EmptyState
+          headingLevel={3}
+          title="No eligible rewards recorded yet"
+          purpose="The ledger appends one aggregate row per category and period, once an approved contribution becomes reward-eligible."
+          tips={[
+            'Only approved, non-political contributions count.',
+            'Rows are aggregates; no contributor is named.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+        />
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="The ledger is unavailable"
+          purpose="The aggregate ledger comes from the local contribution service, which is not answering. No row is hidden."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+          ]}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
+      )}
+    </section>
+    </Fragment>
+    )}
+  </div>
 </Base>

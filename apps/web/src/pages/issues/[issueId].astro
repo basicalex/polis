@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type Conversation = {
   id: string;
@@ -58,54 +60,96 @@ const groups = result?.consensusGroups ?? null;
 ---
 
 <Base title={`Issue · ${issue?.title ?? issueId}`}>
-  <section class="stack">
-    <p class="badge">§13 Deliberation</p>
-    <h1>{issue?.title ?? 'Issue unavailable'}</h1>
-    <p class="muted">{issue?.summary ?? 'No summary recorded.'}</p>
-    {issue && <p><span class="badge">{issue.status}</span></p>}
-  </section>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">§13 Deliberation</p>
+      <h1>{issue?.title ?? 'Issue unavailable'}</h1>
+      <p class="page-header-institution">Issue <span class="hash-value">{issueId}</span></p>
+      {issue?.summary && <p class="page-header-lede">{issue.summary}</p>}
+    </header>
 
-  <section class="stack">
-    <h2>Conversation</h2>
-    {embed?.src ? (
-      <iframe src={embed.src} title="Polis conversation" style="width:100%;min-height:600px;border:0;"></iframe>
-    ) : issue?.conversation ? (
-      <article class="card stack">
-        <h3>{issue.conversation.title}</h3>
-        <p class="muted">{issue.conversation.framingQuestion}</p>
-        <p>
-          <span class="badge">{issue.conversation.status}</span>
-          <span class="badge">{issue.conversation.participationMode}</span>
-        </p>
-        <p class="muted">Embedded Polis conversation (stub mode in M2; a live iframe lands when a Polis instance is deployed).</p>
-      </article>
+    {issue ? (
+      <>
+        <dl class="record-facts">
+          <div>
+            <dt>Status</dt>
+            <dd><span class="status-label" data-tone="unknown">{issue.status}</span></dd>
+          </div>
+          <div>
+            <dt>Conversation</dt>
+            <dd>{issue.conversation ? issue.conversation.status : 'none attached'}</dd>
+          </div>
+          <div>
+            <dt>Participants</dt>
+            <dd>{result?.participantCount ?? 'not recorded'}</dd>
+          </div>
+        </dl>
+
+        <section class="task-section">
+          <h2>Conversation</h2>
+          {embed?.src ? (
+            <iframe src={embed.src} title="Polis conversation" style="width:100%;min-height:600px;border:0;"></iframe>
+          ) : issue.conversation ? (
+            <div class="task-section">
+              <p class="record-statement">{issue.conversation.framingQuestion}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{issue.conversation.status}</span>
+                <span class="status-label" data-tone="unknown">{issue.conversation.participationMode}</span>
+              </p>
+              <p class="ledger-summary">
+                Embedded Polis conversation (stub mode in M2; a live iframe lands when a Polis
+                instance is deployed).
+              </p>
+            </div>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No conversation attached"
+              purpose="A conversation lets residents agree and disagree on statements; its result attaches to this issue as deliberation evidence."
+              tips={[
+                'A conversation is attached per issue, never per comment thread.',
+                'Seeded fixtures attach the first conversations: bun run db:seed.',
+              ]}
+              actionLabel="See issues that host a conversation"
+              actionHref="/deliberate"
+            />
+          )}
+        </section>
+
+        {result && (
+          <section class="task-section">
+            <h2>Deliberation result</h2>
+            {groups?.consensus?.length ? (
+              <div class="task-section">
+                <h3>Consensus statements</h3>
+                <ul class="ledger">
+                  {groups.consensus.map((statement) => <li><p class="ledger-summary">{statement}</p></li>)}
+                </ul>
+              </div>
+            ) : null}
+            {groups?.disagreement?.length ? (
+              <div class="task-section">
+                <h3>Disagreement axes</h3>
+                <ul class="ledger">
+                  {groups.disagreement.map((statement) => <li><p class="ledger-summary">{statement}</p></li>)}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+        )}
+      </>
     ) : (
-      <p class="panel muted">No conversation attached yet.</p>
+      <EmptyState
+        title="This issue could not be read"
+        purpose="The platform API did not return a record for this id. Either the services are not running, or no issue carries this id."
+        tips={[
+          'Start the backend from the repository root: bun run dev:services.',
+          'Load the fixtures once the services are up: bun run db:seed.',
+          'Check the id in the address bar against the issue list.',
+        ]}
+        actionLabel="Back to issues"
+        actionHref="/issues"
+      />
     )}
-  </section>
-
-  {result && (
-    <section class="stack">
-      <h2>Deliberation result</h2>
-      <article class="card stack">
-        <p><strong>Participants:</strong> {result.participantCount ?? 'unknown'}</p>
-        {groups?.consensus?.length ? (
-          <div class="stack">
-            <p class="muted">Consensus statements</p>
-            <ul>
-              {groups.consensus.map((statement) => <li>{statement}</li>)}
-            </ul>
-          </div>
-        ) : null}
-        {groups?.disagreement?.length ? (
-          <div class="stack">
-            <p class="muted">Disagreement axes</p>
-            <ul>
-              {groups.disagreement.map((statement) => <li>{statement}</li>)}
-            </ul>
-          </div>
-        ) : null}
-      </article>
-    </section>
-  )}
+  </div>
 </Base>

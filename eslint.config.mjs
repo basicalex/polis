@@ -26,6 +26,16 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Browser-side code: client modules in the Astro apps, and the in-page
+    // bodies the Playwright QA scripts hand to `page.evaluate`.
+    files: ['apps/*/src/**/*.{js,mjs,ts}', 'apps/*/scripts/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',

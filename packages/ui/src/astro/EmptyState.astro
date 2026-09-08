@@ -1,0 +1,58 @@
+---
+/**
+ * Empty state: say what the region is for, give at most three concrete tips,
+ * offer exactly one action. Never a bare "No items." (playbook rule S1).
+ *
+ * It replaces the content it stands in, so it keeps the reading order and the
+ * heading level of that region.
+ */
+interface Props {
+  /** What this region holds, as a short heading. */
+  title: string;
+  /** One sentence on what the region is for and why it is empty right now. */
+  purpose?: string;
+  /** Up to three concrete next steps. Anything past the third is dropped. */
+  tips?: string[];
+  actionLabel?: string;
+  actionHref?: string;
+  /** `primary` when the action is the one thing to do here, otherwise text. */
+  actionVariant?: 'primary' | 'tertiary';
+  lang?: string;
+  headingLevel?: 2 | 3;
+}
+
+const {
+  title,
+  purpose,
+  tips = [],
+  actionLabel,
+  actionHref,
+  actionVariant = 'tertiary',
+  lang,
+  headingLevel = 2,
+} = Astro.props as Props;
+
+const Heading = `h${headingLevel}` as 'h2' | 'h3';
+const shownTips = tips.filter(Boolean).slice(0, 3);
+---
+
+<div class="empty-state" lang={lang}>
+  <Heading class="empty-state-title">{title}</Heading>
+  {purpose && <p class="empty-state-purpose">{purpose}</p>}
+  {
+    shownTips.length > 0 && (
+      <ul class="empty-state-tips">
+        {shownTips.map((tip) => (
+          <li>{tip}</li>
+        ))}
+      </ul>
+    )
+  }
+  {
+    actionLabel && actionHref && (
+      <a class="btn empty-state-action" data-variant={actionVariant} href={actionHref}>
+        {actionLabel}
+      </a>
+    )
+  }
+</div>

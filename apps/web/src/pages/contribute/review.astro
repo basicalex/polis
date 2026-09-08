@@ -1,5 +1,29 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 ---
-<Base title="Contribute review"><section class="panel"><DemoBadge /><h1>Contribute review</h1><p>Lands in M6: review queues open after identity, policy, and conflict-of-interest checks.</p></section></Base>
+<Base title="Contribute review">
+  <div class="task-page form-narrow">
+    <header class="page-header">
+      <h1>Contribute review</h1>
+      <p class="page-header-lede">
+        Review queues open after identity, policy, and conflict-of-interest checks.
+      </p>
+      <DemoBadge />
+    </header>
+    <EmptyState
+      title="The review queue is not open yet"
+      purpose="Reviewing lands in M6. A reviewer must be a distinct, checked person before any submission can be decided here."
+      tips={[
+        'Every submission already records its review state and decision.',
+        'Open a submission page to see where it stands.',
+        'Contributions stay pending until an independent reviewer decides.',
+      ]}
+      actionLabel="Contribute evidence instead"
+      actionHref="/contribute/evidence"
+      actionVariant="primary"
+    />
+  </div>
+</Base>

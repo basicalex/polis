@@ -38,7 +38,7 @@ test('resident complaints routes are client-fetched and linked from primary navi
     readFile(new URL(join('complaints', '[id].astro'), root), 'utf8'),
   ]);
 
-  assert.equal((base.match(/href="\/complaints"/g) ?? []).length, 1);
+  assert.equal((base.match(/href: '\/complaints'/g) ?? []).length, 1);
   assert.match(base, /window\.__API_URL/);
   assert.match(index, /sessionStorage\.getItem\('web_session'\)/);
   assert.match(index, /\/api\/v1\/complaints\/mine/);
@@ -104,11 +104,11 @@ test('pilot demonstrator support pages keep their local-mode disclosure and reso
     'operationally accepted',
   ];
   const directLinks = [
-    'href=\"/governance/jur-croatia-local\"',
-    'href=\"/transparency\"',
-    'href=\"/verify\"',
-    'href=\"/partners\"',
-    'href=\"/pilot/results\"',
+    'href="/governance/jur-croatia-local"',
+    'href="/transparency"',
+    'href="/verify"',
+    'href="/partners"',
+    'href="/pilot/results"',
   ];
 
   for (const page of pages) {
@@ -191,7 +191,7 @@ test('the landing opens every role demo and keeps old presenter links working', 
     ]) {
       assert.match(page, new RegExp(`'${href}'`), href);
     }
-    assert.match(page, /landing/);
+    assert.match(page, /PublicLanding/);
     assert.doesNotMatch(page, /PublicReleaseHome/);
   }
 
@@ -227,7 +227,7 @@ test('release Base emits the direction contract first and removes service action
   );
   assert.match(base, /publicRelease \? \(/);
   assert.match(base, /!publicRelease && \(/);
-  const releaseNav = base.slice(base.indexOf('<nav class=\"site-nav release-nav\"'), base.indexOf('</nav>', base.indexOf('<nav class=\"site-nav release-nav\"')));
+  const releaseNav = base.slice(base.indexOf('<nav class="site-nav release-nav"'), base.indexOf('</nav>', base.indexOf('<nav class="site-nav release-nav"')));
   assert.doesNotMatch(
     releaseNav,
     /\/login|\/complaints|\/contribute|\/rewards|\/proofs|\/verify|\/assistant|\/audit|\/governance/,
@@ -238,9 +238,17 @@ test('release Base emits the direction contract first and removes service action
 
 test('release styles carry the locked phone, focus, motion, print, and font contracts', async () => {
   const styles = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
-  assert.match(styles, /BarlowCondensed-SemiBold\.ttf/);
-  assert.match(styles, /BarlowCondensed-Bold\.ttf/);
-  assert.match(styles, /--tap-target: 2\.75rem/);
+  const base = await readFile(
+    new URL('../../../packages/ui/src/styles/base.css', import.meta.url),
+    'utf8',
+  );
+  // One display face in both worlds; Barlow Condensed is retired.
+  assert.match(styles, /SourceSerif4-SemiBold-latin\.woff2/);
+  assert.doesNotMatch(styles, /BarlowCondensed/);
+  assert.match(base, /--display: 'Source Serif 4'/);
+  // Tokens live in @polis/ui only; the app redefines none of them.
+  assert.match(base, /--tap-target: 2\.75rem/);
+  assert.doesNotMatch(styles, /^\s*--(polis|trust|space|radius|shadow|type|tap-target|display|body|mono)-?[a-z0-9-]*:/m);
   assert.match(styles, /outline: 0\.125rem solid var\(--polis-trace\)/);
   assert.match(styles, /@media \(max-width: 40rem\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
@@ -254,4 +262,45 @@ test('release boundary accepts and stores no data', async () => {
   assert.match(boundary, /accepts, submits, and stores no data/);
   assert.match(boundary, /Ne prihvaća, ne šalje i ne pohranjuje podatke/);
   assert.doesNotMatch(boundary, /<form\b|fetch\s*\(/);
+});
+
+test('site chrome groups the local navigation and skips to main content', async () => {
+  const [base, chrome] = await Promise.all([
+    readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/chrome.css', import.meta.url), 'utf8'),
+  ]);
+  // The skip link targets the id that actually sits on <main> (audit F13).
+  assert.match(base, /class="skip-link" href="#main-content"/);
+  assert.match(base, /<main class="site-main" id="main-content">/);
+  assert.doesNotMatch(base, /href="#public-record"/);
+
+  // Four disclosure groups, not thirteen flat links (audit F5). Three come
+  // from the data list and Account is rendered around the auth slot, so the
+  // exclusive-accordion name appears at two places in the source.
+  assert.match(base, /import '\.\.\/styles\/chrome\.css';/);
+  assert.equal((base.match(/name="polis-nav-group"/g) ?? []).length, 2);
+  const groups = base.slice(base.indexOf('const localNavGroups'), base.indexOf('const isCurrentPath'));
+  assert.deepEqual(
+    (groups.match(/^ {4}label: '(\w+)',$/gm) ?? []).map((line) => line.trim()),
+    ["label: 'Record',", "label: 'Trust',", "label: 'Learn',"],
+  );
+  assert.match(base, /<summary class="nav-group-summary">Account<\/summary>/);
+
+  // Every destination keeps a one-line description (rule S3).
+  const hrefs = groups.match(/href: '/g) ?? [];
+  const notes = groups.match(/note: '/g) ?? [];
+  assert.equal(hrefs.length, 13);
+  assert.equal(notes.length, hrefs.length);
+
+  // Current page and current group are marked by text, not colour alone (P4).
+  assert.match(base, /aria-current=\{isCurrentPath\(item\.href\) \? 'page' : undefined\}/);
+  assert.match(chrome, /aria-current='page'\]\s*\{[^}]*font-weight: 700/);
+  assert.match(chrome, /\.nav-group\[data-current='true'\] > \.nav-group-summary/);
+
+  // Phone: one Menu disclosure at the minimum target size.
+  assert.match(base, /<summary class="nav-root-summary">Menu<\/summary>/);
+  assert.match(chrome, /\.nav-root-summary \{[^}]*min-height: var\(--tap-target\)/);
+  assert.match(chrome, /@media \(max-width: 40rem\)/);
+  // Scripting only carries the phone collapse and Escape handling.
+  assert.match(base, /event\.key !== 'Escape'/);
 });

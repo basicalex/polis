@@ -1,0 +1,861 @@
+/*
+ * Vrsar pilot skin. Tokens come from @polis/ui/styles/base.css; this file
+ * defines no palette, spacing, radius, shadow, or type token of its own.
+ */
+
+html[data-pilot='vrsar'],
+html[data-pilot='vrsar'] body {
+  min-width: 0;
+  min-height: 100%;
+  background: var(--polis-bg);
+  color: var(--polis-text);
+}
+
+html[data-pilot='vrsar'] body {
+  margin: 0;
+  overflow-x: clip;
+  font-family: var(--body);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+html[data-pilot='vrsar'] [hidden] {
+  display: none !important;
+}
+
+.pilot-shell {
+  min-width: 0;
+  min-height: 100vh;
+  display: grid;
+  /* topbar, boundary, nav, main, footer: only main takes the free height. */
+  grid-template-rows: auto auto auto 1fr auto;
+}
+
+.pilot-topbar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) clamp(1rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.pilot-brand {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pilot-context {
+  min-width: 0;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.pilot-language {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.pilot-language-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pilot-language a {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.pilot-language a:hover {
+  background: var(--polis-surface-tint);
+}
+
+.pilot-language a[aria-current='page'] {
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+/*
+ * The banner is a full-width strip. `apps/web/src/styles.css` caps every `p`
+ * at 68ch and gives its own `.pilot-boundary` a top border, so both are undone
+ * here or the banner wraps into a narrow box at the left edge.
+ */
+html[data-pilot='vrsar'] .pilot-boundary {
+  max-width: none;
+  margin: 0;
+  padding: var(--space-2) clamp(1rem, 4vw, 2.5rem);
+  border-top: 0;
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-warning);
+  font-size: var(--type-data);
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.pilot-nav-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) clamp(1rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--polis-border);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.pilot-nav {
+  min-width: max-content;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.pilot-nav a,
+.pilot-nav button {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--polis-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pilot-nav a:hover,
+.pilot-nav button:hover {
+  background: var(--polis-surface-tint);
+}
+
+.pilot-nav a[aria-current='page'] {
+  border-bottom-color: var(--polis-trace);
+  border-bottom-width: 0.1875rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--polis-text);
+  font-weight: 750;
+}
+
+.pilot-main {
+  width: min(80rem, 100%);
+  min-width: 0;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.pilot-footer {
+  padding: var(--space-sm) clamp(1rem, 4vw, 2.5rem);
+  border-top: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-page {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+/* The shell's topbar, banner and nav all start at the left gutter, so a narrow
+   page keeps its width limit but stays on that line instead of centring. */
+html[data-pilot='vrsar'] .pilot-page.form-narrow {
+  margin-inline: 0;
+}
+
+.pilot-page-header {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.pilot-page-header h1 {
+  max-width: 24ch;
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-lg);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.012em;
+}
+
+.pilot-page-header p {
+  max-width: 68ch;
+  margin: 0;
+}
+
+.pilot-lead {
+  color: var(--polis-muted);
+  font-size: var(--type-body-lg);
+}
+
+.pilot-section {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.pilot-section > h2,
+.pilot-section > header h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Panels use the shared `.panel` recipe from @polis/ui/styles/base.css. */
+
+/*
+ * One connection failure, one card: what happened, what to do, one retry.
+ * It never sits inside another bordered panel (rules S2, D5).
+ */
+.pilot-alert {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--trust-invalid-border);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+}
+
+/*
+ * The card takes focus when the runtime fails so a screen reader lands on it.
+ * The focus ring stands clear of the red edge instead of doubling it.
+ */
+.pilot-alert:focus-visible {
+  outline-offset: 0.375rem;
+}
+
+.pilot-alert h3 {
+  margin: 0;
+  color: var(--polis-danger);
+  font-size: var(--type-heading-sm);
+}
+
+.pilot-alert p {
+  margin: 0;
+}
+
+.pilot-alert .pilot-actions {
+  margin-top: var(--space-1);
+}
+
+.pilot-private-boundary {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: start;
+  padding: var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--polis-restricted) 42%, var(--polis-border));
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+}
+
+.pilot-private-boundary svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+  color: var(--polis-restricted);
+}
+
+.pilot-private-boundary strong {
+  display: block;
+  color: var(--polis-restricted);
+  font-size: var(--type-data);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pilot-private-boundary p {
+  margin: 0.125rem 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-form {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* The form grid already carries the group gap from the shared recipe. */
+.pilot-form .field + .field {
+  margin-top: 0;
+}
+
+/* A checkbox row reads box first, then wording; messages wrap under both. */
+html[data-pilot='vrsar'] .field-choice {
+  min-height: var(--tap-target);
+  flex-wrap: wrap;
+}
+
+html[data-pilot='vrsar'] .field-choice > .field-hint,
+html[data-pilot='vrsar'] .field-choice > .field-error {
+  flex-basis: 100%;
+}
+
+.pilot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* Buttons use `.btn[data-variant]` from @polis/ui/styles/base.css. */
+
+.pilot-state {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+}
+
+.pilot-state[data-tone='error'] {
+  color: var(--polis-danger);
+  font-weight: 650;
+}
+
+.pilot-state[data-tone='warning'] {
+  color: var(--polis-warning);
+}
+
+.pilot-state[data-tone='success'] {
+  color: var(--polis-valid);
+  font-weight: 650;
+}
+
+.pilot-state:empty {
+  display: none;
+}
+
+/* An unfilled ledger or a retry row with nothing in it must not keep a row of
+   the page grid alive: the empty state would otherwise sit far below the lede. */
+.pilot-ledger:empty {
+  display: none;
+}
+
+.pilot-state-actions {
+  margin-top: var(--space-sm);
+}
+
+.pilot-state-actions:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+/*
+ * Status uses the shared `.status-label[data-tone]` recipe; `statusTone()` in
+ * src/content/pilot/vrsar.ts maps a workflow status onto one of its tones.
+ */
+.status-label {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.pilot-meta {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: var(--space-sm) var(--space-lg);
+  margin: 0;
+}
+
+.pilot-meta > div {
+  min-width: 0;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.pilot-meta dt {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  font-weight: 650;
+}
+
+.pilot-meta dd {
+  min-width: 0;
+  margin: 0.125rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.pilot-ledger {
+  min-width: 0;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pilot-ledger-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--polis-border);
+}
+
+.pilot-ledger > li:first-child .pilot-ledger-row,
+.pilot-ledger > .pilot-ledger-row:first-child {
+  border-top: 0;
+}
+
+button.pilot-ledger-row,
+a.pilot-ledger-row {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding-inline: var(--space-sm);
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
+  color: var(--polis-text);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button.pilot-ledger-row:hover,
+a.pilot-ledger-row:hover,
+.pilot-ledger-row[aria-current='true'] {
+  background: var(--polis-surface-tint);
+}
+
+.pilot-ledger-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.pilot-ledger-title {
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pilot-ledger-id,
+.pilot-hash {
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.pilot-ledger-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-queue {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.72fr) minmax(0, 1.28fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.pilot-queue-list,
+.pilot-queue-detail {
+  min-width: 0;
+}
+
+.pilot-queue-list h2,
+.pilot-queue-detail h2 {
+  margin: 0 0 var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-data);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pilot-trace {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pilot-trace;
+}
+
+.pilot-trace-stage {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0 var(--space-sm);
+  counter-increment: pilot-trace;
+}
+
+.pilot-trace-stage::before {
+  content: '';
+  position: absolute;
+  top: 1.75rem;
+  bottom: calc(-1 * var(--space-md));
+  left: 0.8125rem;
+  border-left: 1px solid var(--polis-border-strong);
+}
+
+.pilot-trace-stage:last-child::before {
+  display: none;
+}
+
+.pilot-trace-stage[data-proposed='true']::before {
+  border-left-style: dashed;
+}
+
+.pilot-trace-marker {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--polis-border-strong);
+  border-radius: 50%;
+  background: var(--polis-surface);
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-meta);
+}
+
+.pilot-trace-marker::before {
+  content: counter(pilot-trace);
+}
+
+.pilot-trace-stage[data-state='appended'] .pilot-trace-marker {
+  border-color: var(--polis-trace);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+.pilot-trace-stage[data-state='active'] .pilot-trace-marker {
+  border-color: var(--polis-trace);
+  box-shadow: inset 0 0 0 0.125rem var(--polis-surface);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+.pilot-trace-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.pilot-trace-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.pilot-trace-note {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-event-list,
+.pilot-source-list {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+/* The sources are links, not a numbered rail: they line up with the text
+   above them instead of hanging off an invisible marker column. */
+.pilot-source-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.pilot-event-list li,
+.pilot-source-list li {
+  min-width: 0;
+  padding-left: var(--space-xs);
+}
+
+.pilot-source-list li {
+  padding-left: 0;
+}
+
+.pilot-event-meta {
+  display: block;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-receipt {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.pilot-receipt-header {
+  display: grid;
+  gap: var(--space-xs);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--polis-border-strong);
+}
+
+.pilot-receipt-header h1 {
+  max-width: 32ch;
+  margin: 0;
+}
+
+.pilot-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.pilot-public-copy {
+  max-width: 68ch;
+  white-space: pre-wrap;
+}
+
+.pilot-public-copy:empty::before {
+  content: '—';
+  color: var(--polis-muted);
+}
+
+.pilot-evidence-links {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.pilot-evidence-links a {
+  color: var(--polis-trace);
+  overflow-wrap: anywhere;
+}
+
+.pilot-approved-text > .field-hint {
+  margin: 0;
+}
+
+.pilot-receipt-disclosure {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--polis-border);
+}
+
+.pilot-receipt-hash {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-xs);
+}
+
+.pilot-receipt-hash strong {
+  font-size: var(--type-data);
+}
+
+.pilot-disclosure {
+  max-width: 68ch;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-disclosure p {
+  margin: 0 0 var(--space-xs);
+}
+
+@media (max-width: 56.25rem) {
+  .pilot-topbar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .pilot-language {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .pilot-queue,
+  .pilot-receipt-disclosure {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .pilot-main {
+    padding-inline: 1rem;
+  }
+
+  .pilot-topbar,
+  .pilot-boundary,
+  .pilot-nav-wrap,
+  .pilot-footer {
+    padding-inline: 1rem;
+  }
+
+  .pilot-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pilot-context {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .pilot-language {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .pilot-page-header h1 {
+    max-width: 100%;
+    font-size: clamp(1.8rem, 1.45rem + 4vw, 2.5rem);
+  }
+
+  html[data-pilot='vrsar'] .panel,
+  html[data-pilot='vrsar'] .pilot-alert {
+    padding: var(--space-4);
+  }
+
+  .pilot-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pilot-ledger-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pilot-ledger-row > .status-label {
+    justify-self: start;
+  }
+
+  .pilot-actions > * {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-pilot='vrsar'] {
+    scroll-behavior: auto;
+  }
+
+  html[data-pilot='vrsar'] *,
+  html[data-pilot='vrsar'] *::before,
+  html[data-pilot='vrsar'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .status-label,
+  .pilot-private-boundary,
+  .btn {
+    forced-color-adjust: auto;
+  }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 16mm;
+}
+
+@media print {
+  html[data-pilot='vrsar'],
+  html[data-pilot='vrsar'] body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .pilot-topbar,
+  .pilot-nav-wrap,
+  .pilot-actions,
+  .pilot-state-actions,
+  .pilot-footer,
+  .pilot-print-hidden,
+  .skip-link {
+    display: none !important;
+  }
+
+  .pilot-boundary {
+    padding: 0 0 0.5rem;
+    color: #000 !important;
+    text-align: start;
+  }
+
+  .pilot-main {
+    width: auto;
+    padding: 0;
+  }
+
+  .panel,
+  .pilot-alert,
+  .pilot-private-boundary {
+    border-color: #000;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .status-label,
+  .pilot-hash,
+  .pilot-ledger-id,
+  .pilot-trace-marker,
+  .pilot-trace-note,
+  .pilot-event-meta,
+  .pilot-disclosure {
+    color: #000 !important;
+  }
+
+  .pilot-trace-stage,
+  .pilot-event-list li,
+  .pilot-receipt-grid > *,
+  .pilot-meta > div {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.8em;
+    overflow-wrap: anywhere;
+  }
+}

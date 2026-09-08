@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const releaseMode = process.env.PUBLIC_RELEASE === '1';
 const localReleaseQa = process.env.PUBLIC_RELEASE_LOCAL_QA === '1';
+const pilotRuntime = Boolean(process.env.PILOT_RUNTIME_DIR?.trim());
 const loopbackHosts = Object.freeze({ localhost: true, '127.0.0.1': true, '[::1]': true });
 const domainSource = fileURLToPath(new URL('../../packages/domain/src/index.ts', import.meta.url));
 const releaseVerifierStub = fileURLToPath(
@@ -46,6 +47,7 @@ export default defineConfig({
   site: resolveSite(),
   session: false,
   output: 'server',
+  devToolbar: { enabled: !pilotRuntime },
   integrations: [react()],
   adapter: cloudflare({ imageService: 'compile' }),
   server: { host: '0.0.0.0', port: 4321 },

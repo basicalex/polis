@@ -1,0 +1,98 @@
+{
+  "id": "vrsar-orsera",
+  "testEnvironment": true,
+  "municipality": {
+    "id": "vrsar-orsera",
+    "name": {
+      "hr": "Općina Vrsar-Orsera",
+      "it": "Comune di Orsera",
+      "en": "Municipality of Vrsar-Orsera"
+    },
+    "officialWebsite": "https://www.vrsar.hr",
+    "officialContactUrl": "https://www.vrsar.hr/kontakt/"
+  },
+  "category": {
+    "id": "public-lighting",
+    "name": {
+      "hr": "Javna rasvjeta",
+      "it": "Illuminazione pubblica",
+      "en": "Public lighting"
+    }
+  },
+  "office": {
+    "id": "communal-system",
+    "name": {
+      "hr": "Jedinstveni upravni odjel / Odsjek za komunalni sustav",
+      "it": "Ufficio amministrativo unico / Sezione per il sistema comunale",
+      "en": "Unified Administrative Department / Communal System Section"
+    },
+    "routingStatus": "inferred-test-only"
+  },
+  "settlements": [
+    "Vrsar-Orsera",
+    "Begi",
+    "Bralići",
+    "Delići",
+    "Flengi",
+    "Gradina",
+    "Kloštar",
+    "Kontešići",
+    "Marasi"
+  ],
+  "languages": ["hr", "it", "en"],
+  "defaultLanguage": "hr",
+  "sources": [
+    {
+      "id": "statute-amendments-2025",
+      "title": "Izmjene i dopune Statuta Općine Vrsar-Orsera (article 1)",
+      "url": "https://www.vrsar.hr/wp-content/uploads/2025/12/Izmjene-i-dopune-Statuta-Opcine-Vrsar-Orsera.pdf",
+      "retrievedAt": "2026-09-05",
+      "supports": ["Legal name: Općina Vrsar-Orsera."]
+    },
+    {
+      "id": "statute-2019",
+      "title": "Statut Općine Vrsar-Orsera (articles 2, 3, 7, 16, and 20)",
+      "url": "https://www.vrsar.hr/wp-content/uploads/2019/10/Statut-Opcine-Vrsar-Orsera.pdf",
+      "retrievedAt": "2026-09-05",
+      "supports": [
+        "Municipal settlements.",
+        "Italian display name: Comune di Orsera.",
+        "Equal Italian language usage rights."
+      ]
+    },
+    {
+      "id": "internal-order-rule-2025",
+      "title": "Pravilnik o unutarnjem redu JUO (articles 4 and 5)",
+      "url": "https://www.vrsar.hr/wp-content/uploads/2026/03/Pravilnik-o-unutarnjem-redu-JUO-12-25.pdf",
+      "retrievedAt": "2026-09-05",
+      "supports": [
+        "Jedinstveni upravni odjel and Odsjek za komunalni sustav.",
+        "Communal infrastructure maintenance and supervision duties."
+      ]
+    },
+    {
+      "id": "internal-order-amendments-2026",
+      "title": "Izmjene i dopune Pravilnika o unutarnjem redu",
+      "url": "https://www.vrsar.hr/wp-content/uploads/2026/03/Izmjene-i-dopune-Pravilnika-o-unutarnjem-redu-2-26.pdf",
+      "retrievedAt": "2026-09-05",
+      "supports": ["Amendments to the internal-order rule used for the office context."]
+    },
+    {
+      "id": "communal-order-2026",
+      "title": "Odluka o komunalnom redu (articles 3, 13, and 14)",
+      "url": "https://www.vrsar.hr/wp-content/uploads/2026/07/Odluka-o-komunalnom-redu.pdf",
+      "retrievedAt": "2026-09-05",
+      "supports": ["Public-lighting regulatory context."]
+    },
+    {
+      "id": "official-contact-page",
+      "title": "Kontakt | Općina Vrsar-Orsera",
+      "url": "https://www.vrsar.hr/kontakt/",
+      "retrievedAt": "2026-09-05",
+      "supports": [
+        "Official website and general public contact page.",
+        "The public contact page lists a general inquiry and submission channel; it is not an app delivery destination."
+      ]
+    }
+  ]
+}

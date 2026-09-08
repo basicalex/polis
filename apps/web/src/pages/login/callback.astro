@@ -1,13 +1,16 @@
 ---
 import Base from '../../layouts/Base.astro';
+import '../../styles/tasks.css';
 ---
 <Base title="Polis Interface — Signing in…">
-<section class="stack">
-  <h1>Signing in…</h1>
-  <p id="status" class="muted">Completing sign-in.</p>
-  <p id="error" style="color:red;display:none"></p>
-  <p id="retry" style="display:none"><a href="/login">← Back to sign in</a></p>
-</section>
+<div class="task-page form-narrow">
+  <header class="page-header">
+    <h1>Signing in…</h1>
+    <p id="status" class="page-header-lede">Completing sign-in.</p>
+  </header>
+  <p id="error" class="field-error" role="alert" hidden></p>
+  <p id="retry" class="link-row" hidden><a href="/login">Back to sign in</a></p>
+</div>
 <script is:inline>
 const API = window.__API_URL;
 const params = new URLSearchParams(location.search);
@@ -16,11 +19,14 @@ const state = params.get('state');
 const status = document.getElementById('status');
 const errorEl = document.getElementById('error');
 const retryEl = document.getElementById('retry');
+function fail(message) {
+  status.hidden = true;
+  errorEl.textContent = message + ' Start again from the sign-in page.';
+  errorEl.hidden = false;
+  retryEl.hidden = false;
+}
 if (!code || !state) {
-  status.style.display = 'none';
-  errorEl.textContent = 'Missing sign-in parameters.';
-  errorEl.style.display = 'block';
-  retryEl.style.display = 'block';
+  fail('This sign-in link is missing its parameters.');
 } else {
   (async () => {
     try {
@@ -34,7 +40,7 @@ if (!code || !state) {
         }),
       });
       const body = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(body.error || 'Sign-in failed (' + r.status + ')');
+      if (!r.ok) throw new Error(body.error || 'Sign-in failed (' + r.status + ').');
       sessionStorage.setItem('web_session', JSON.stringify({
         token: body.sessionToken,
         email: body.citizen?.email,
@@ -43,10 +49,7 @@ if (!code || !state) {
       }));
       location.href = '/mandate-holders';
     } catch (e) {
-      status.style.display = 'none';
-      errorEl.textContent = e.message;
-      errorEl.style.display = 'block';
-      retryEl.style.display = 'block';
+      fail(e.message);
     }
   })();
 }

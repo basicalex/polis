@@ -8,6 +8,13 @@
 
 This ledger is a current status record, not launch approval. Keep every private or state-changing partner path closed until all critical gates below pass and Task 18 records an independent signed decision.
 
+## Pre-partner readiness record — 2026-09-05
+
+[`docs/pilot/prepartner-readiness.md`](docs/pilot/prepartner-readiness.md)
+defines a synthetic, controlled pre-partner acceptance template. Its pending
+evidence is not real-release evidence and changes none of this ledger's NO-GO
+decision, historical findings, or real-municipality gates.
+
 ## Workflow release status
 
 | Stage | Current proof | Release status |

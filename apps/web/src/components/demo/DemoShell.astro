@@ -17,6 +17,7 @@
  * line. Until a page does both, it keeps the layout banner and this shell renders no boundary line
  * — the boundary is still stated exactly once.
  */
+import '../../styles/demo.css';
 import {
   demoBannerDetails,
   demoBoundary,
@@ -119,17 +120,19 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
       <div class="demo-lang" role="group" aria-label={languageToggle.groupLabel.en} data-demo-lang-group>
         <button
           type="button"
-          class="demo-lang-button"
+          class="btn demo-lang-button"
+          data-variant="tertiary"
           data-demo-lang="en"
           aria-pressed="true"
           lang="en"
         >
           {languageToggle.short.en}
         </button>
-        <span class="demo-lang-separator" aria-hidden="true">|</span>
+        <span class="demo-lang-separator" aria-hidden="true"></span>
         <button
           type="button"
-          class="demo-lang-button"
+          class="btn demo-lang-button"
+          data-variant="tertiary"
           data-demo-lang="hr"
           aria-pressed="false"
           lang="hr"
@@ -140,7 +143,8 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
 
       <button
         type="button"
-        class="demo-icon-button"
+        class="btn demo-icon-button"
+        data-variant="tertiary"
         data-demo-reset
         aria-label={resetDemoCopy.label.en}
         title={resetDemoCopy.label.en}
@@ -186,316 +190,6 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
   <div class="demo-surface"><slot /></div>
 </div>
 
-<style>
-  .demo-shell {
-    min-width: 0;
-    display: grid;
-  }
-
-  .demo-shell [hidden] {
-    display: none !important;
-  }
-
-  /* App bar. Wordmark, switcher, controls keep DOM order when the row wraps. */
-  .demo-appbar {
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-xs) var(--space-md);
-    padding-block: var(--space-sm);
-    border-bottom: 1px solid var(--polis-border);
-  }
-
-  .demo-wordmark {
-    flex: 0 0 auto;
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    color: var(--polis-text);
-    font-family: var(--display);
-    font-size: var(--type-heading-sm);
-    font-weight: 600;
-    line-height: 1;
-    text-decoration: none;
-  }
-
-  /* The switcher scrolls sideways on narrow viewports instead of collapsing. */
-  .demo-switcher {
-    flex: 1 1 20rem;
-    min-width: 0;
-    display: flex;
-    justify-content: safe center;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
-  /* `flex: 0 0 auto` keeps the row at its intrinsic width so the switcher scrolls
-     instead of squeezing or clipping the last segments on a narrow viewport. */
-  .demo-segments {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: nowrap;
-    width: max-content;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--polis-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    list-style: none;
-  }
-
-  .demo-segment {
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding-inline: var(--space-md);
-    border-left: 1px solid var(--polis-border-strong);
-    color: var(--polis-text);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .demo-segments li:first-child .demo-segment {
-    border-left: 0;
-    border-start-start-radius: var(--radius-sm);
-    border-end-start-radius: var(--radius-sm);
-  }
-
-  .demo-segments li:last-child .demo-segment {
-    border-start-end-radius: var(--radius-sm);
-    border-end-end-radius: var(--radius-sm);
-  }
-
-  .demo-segment:hover {
-    background: var(--polis-surface-tint);
-  }
-
-  .demo-segment[aria-current='page'] {
-    background: var(--polis-trace);
-    color: var(--polis-on-primary);
-  }
-
-  /* Phone-only role pill. Hidden by default so the desktop bar is untouched. */
-  .demo-role-nav {
-    display: none;
-  }
-
-  .demo-role-menu {
-    position: relative;
-    min-width: 0;
-  }
-
-  .demo-role-pill {
-    max-width: 100%;
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-xs);
-    padding-inline: var(--space-sm);
-    border: 1px solid var(--polis-trace);
-    border-radius: 999px;
-    background: var(--polis-trace);
-    color: var(--polis-on-primary);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    list-style: none;
-    cursor: pointer;
-  }
-
-  .demo-role-pill::-webkit-details-marker {
-    display: none;
-  }
-
-  .demo-role-pill-label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .demo-role-caret {
-    flex: 0 0 auto;
-  }
-
-  /* Static state change, not a transition — nothing to gate for reduced motion. */
-  .demo-role-menu[open] .demo-role-caret {
-    transform: rotate(180deg);
-  }
-
-  /* A layered panel under the pill, not a full-screen takeover. */
-  .demo-role-list {
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + var(--space-xs));
-    inset-inline-start: 0;
-    min-width: max(11rem, 100%);
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--polis-border);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    box-shadow: var(--shadow-soft);
-    list-style: none;
-  }
-
-  .demo-role-item {
-    min-height: var(--tap-target);
-    display: flex;
-    align-items: center;
-    padding-inline: var(--space-sm);
-    border-top: 1px solid var(--polis-border);
-    color: var(--polis-text);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .demo-role-list li:first-child .demo-role-item {
-    border-top: 0;
-  }
-
-  .demo-role-item:hover {
-    background: var(--polis-surface-tint);
-  }
-
-  .demo-role-item[aria-current='page'] {
-    background: var(--polis-surface-tint);
-    box-shadow: inset 0.1875rem 0 0 var(--polis-trace);
-  }
-
-  /* Below the phone breakpoint the segment row gives way to the pill, and the tighter
-     column gap keeps wordmark, pill, EN | HR and reset on one row at 390px. */
-  @media (max-width: 39.99rem) {
-    .demo-appbar {
-      column-gap: var(--space-sm);
-    }
-
-    .demo-switcher {
-      display: none;
-    }
-
-    .demo-role-nav {
-      flex: 0 1 auto;
-      min-width: 0;
-      display: block;
-    }
-  }
-
-  .demo-controls {
-    flex: 0 0 auto;
-    margin-left: auto;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .demo-lang {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .demo-lang-button {
-    min-width: var(--tap-target);
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 var(--space-xs);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--polis-muted);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 400;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-  }
-
-  .demo-lang-button[aria-pressed='true'] {
-    color: var(--polis-text);
-    font-weight: 700;
-  }
-
-  .demo-lang-separator {
-    color: var(--polis-border-strong);
-  }
-
-  .demo-icon-button {
-    min-width: var(--tap-target);
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--polis-muted);
-    cursor: pointer;
-  }
-
-  .demo-icon-button:hover {
-    border-color: var(--polis-border-strong);
-    color: var(--polis-text);
-  }
-
-  /* One boundary line, stated once, directly under the app bar. */
-  .demo-boundary {
-    min-width: 0;
-    max-width: none;
-    margin: 0;
-    padding-block: var(--space-sm);
-    border-bottom: 1px solid var(--polis-border);
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.45;
-    text-align: center;
-  }
-
-  .demo-boundary a {
-    color: var(--polis-trace);
-    text-decoration: underline;
-  }
-
-  .demo-shell-status {
-    max-width: 68ch;
-    margin: var(--space-sm) 0 0;
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-  }
-
-  .demo-shell-status:empty {
-    display: none;
-  }
-
-  .demo-surface {
-    min-width: 0;
-    margin-top: var(--space-md);
-  }
-
-  /* Print keeps the demonstration boundary; navigation and controls are chrome, not record. */
-  @media print {
-    .demo-appbar,
-    .demo-role-nav,
-    .demo-shell-status {
-      display: none;
-    }
-
-    .demo-boundary {
-      color: currentColor;
-      text-align: start;
-    }
-  }
-</style>
 
 <script>
   import { getState, resetDemo, setLang, subscribe } from '../../lib/demo-store.mjs';

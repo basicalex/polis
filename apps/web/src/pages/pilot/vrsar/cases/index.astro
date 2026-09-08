@@ -1,0 +1,40 @@
+---
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarPrivateBoundary from '../../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
+import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell lang={lang} page="cases" title={`${pilotCopy.cases.heading[lang]} — Polis`} description={pilotCopy.cases.intro[lang]}>
+  <article class="pilot-page">
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.cases.heading[lang]}</h1>
+      <p class="pilot-lead">{pilotCopy.cases.intro[lang]}</p>
+    </header>
+    <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
+    <section class="pilot-section" aria-labelledby="case-list-title">
+      <h2 id="case-list-title">{pilotCopy.nav.cases[lang]}</h2>
+      <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
+      <ul class="pilot-ledger" data-case-list></ul>
+      <div data-empty-state hidden>
+        <EmptyState
+          headingLevel={3}
+          title={pilotCopy.cases.emptyTitle[lang]}
+          purpose={pilotCopy.cases.empty[lang]}
+          tips={[pilotCopy.cases.emptyTipOne[lang], pilotCopy.cases.emptyTipTwo[lang]]}
+          actionLabel={pilotCopy.nav.file[lang]}
+          actionHref={pilotHref('/pilot/vrsar/file', lang)}
+          actionVariant="primary"
+          lang={lang}
+        />
+      </div>
+      <div class="pilot-state-actions"><button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button></div>
+    </section>
+  </article>
+  <script>
+    import { initVrsarCases } from '../../../../scripts/pilot/vrsar/cases';
+    initVrsarCases();
+  </script>
+</VrsarPilotShell>

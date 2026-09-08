@@ -1,4 +1,24 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Privacy"><section class="panel"><h1>Privacy</h1><p>Lands in M3/M8: M1 publishes only public governance data and redacted audit events.</p></section></Base>
+
+<Base title="Privacy">
+  <article class="reading-page" id="public-record">
+    <header class="page-header">
+      <h1>Privacy</h1>
+      <p class="page-header-lede">
+        The full privacy contract lands in M3 and M8. M1 publishes only public governance data and
+        redacted audit events.
+      </p>
+    </header>
+
+    <section class="reading-section">
+      <p>
+        Private casework, identity documents, resident files, and internal notes stay on the
+        restricted rail. They are not fetched, serialized into page data, placed in the DOM, or
+        printed by any surface in this build.
+      </p>
+    </section>
+  </article>
+</Base>

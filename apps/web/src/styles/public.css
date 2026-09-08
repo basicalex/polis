@@ -1,0 +1,440 @@
+/*
+ * Wave W2 — public reading surfaces.
+ *
+ * Owns: the landing (`/`, `/hr`), the reading pages (`/transparency`, `/source`,
+ * `/docs`, `/methodology`, `/privacy`, `/security`, `/release-boundary`), and a
+ * short override block for the presentation composition.
+ *
+ * Tokens come from packages/ui/src/styles/base.css and are never redefined here.
+ * apps/web/src/styles.css is frozen for this wave; anything this file needs to
+ * correct there is corrected by a more specific selector, not by editing it.
+ */
+
+/* ---------------------------------------------------------------------------
+   Landing: one component, two languages (PublicLanding.astro)
+   --------------------------------------------------------------------------- */
+
+.landing {
+  max-width: 64rem;
+  display: grid;
+  gap: var(--space-12);
+  margin-inline: auto;
+}
+
+/* The grid gap owns the rhythm between the header and the first section. */
+.landing > .page-header {
+  margin-bottom: 0;
+}
+
+/* Section eyebrow: the small label style from the contract, not a heading.
+   It ranks below the page h1 and above the row it introduces (H1, H7). */
+.landing-section-title {
+  max-width: none;
+  margin: 0 0 var(--space-5);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* ---- the five-stage loop row ---- */
+
+.landing-loop-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-6) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-loop-list li {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+/* Number muted and small, stage name dark and heavy: the value carries the
+   rank, the ordinal only counts (H3, H4). */
+.landing-loop-index {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.landing-loop-name {
+  color: var(--polis-text);
+  font-size: var(--type-body-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* ---- entry rows: ledger rows on the 4px ladder ---- */
+
+.landing-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-entries li + li a {
+  border-top: 1px solid var(--polis-border);
+}
+
+.landing-entries a {
+  min-height: var(--tap-target);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-5);
+  padding: var(--space-4) var(--space-3);
+  margin-inline: calc(var(--space-3) * -1);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-entry-label {
+  color: var(--polis-text);
+  font-size: var(--type-body-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.landing-entry-note {
+  grid-column: 1;
+  max-width: 62ch;
+  color: var(--polis-muted);
+  line-height: 1.5;
+}
+
+/* Visible at rest so the row is recognisably a destination without hovering
+   (P4, I3); it takes the trace colour only while the row is engaged (P1). */
+.landing-entry-arrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--polis-muted);
+  font-size: var(--type-body-lg);
+  line-height: 1;
+}
+
+.landing-entries a:hover,
+.landing-entries a:focus-visible {
+  background: var(--polis-surface-tint);
+}
+
+.landing-entries a:hover .landing-entry-label,
+.landing-entries a:focus-visible .landing-entry-label {
+  color: var(--polis-trace);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.landing-entries a:hover .landing-entry-arrow,
+.landing-entries a:focus-visible .landing-entry-arrow {
+  color: var(--polis-trace);
+}
+
+.landing-note {
+  max-width: 68ch;
+  margin: var(--space-6) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+@media (max-width: 56.25rem) {
+  .landing-loop-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .landing {
+    gap: var(--space-8);
+  }
+
+  .landing-loop-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .landing-loop-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--space-3);
+    align-items: baseline;
+  }
+
+  .landing-entries a {
+    gap: var(--space-1) var(--space-3);
+    padding-inline: var(--space-2);
+    margin-inline: calc(var(--space-2) * -1);
+  }
+}
+
+@media print {
+  .landing-entry-arrow {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reading pages: transparency, source, docs, methodology, privacy, security,
+   release boundary.
+
+   One column. Sections are separated by whitespace and a hairline rule; no
+   section is wrapped in a panel and no panel is nested in another
+   (DESIGN.md visual principle 4, D5, D6).
+   --------------------------------------------------------------------------- */
+
+.reading-page {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+/* Sections run the width of the column so every hairline rule is the same
+   length; the text inside them stops at the reading measure (L6). */
+.reading-section > h2,
+.reading-section > p,
+.reading-section > ul,
+.reading-section > ol {
+  max-width: 68ch;
+}
+
+.reading-section + .reading-section {
+  margin-top: var(--space-10);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--polis-border);
+}
+
+.reading-section > h2 {
+  margin: 0 0 var(--space-4);
+  color: var(--polis-text);
+  font-size: var(--type-heading-sm);
+}
+
+.reading-section > h2 .status-label {
+  margin-left: var(--space-3);
+  vertical-align: middle;
+}
+
+.reading-section > p {
+  margin: 0 0 var(--space-4);
+  line-height: 1.55;
+}
+
+.reading-section > p:last-child,
+.reading-section > ul:last-child,
+.reading-section > ol:last-child,
+.reading-section > dl:last-child {
+  margin-bottom: 0;
+}
+
+.reading-note,
+.reading-section > p.reading-note {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.5;
+}
+
+/* A note that follows a register keeps its own distance from it (H6). */
+.reading-section > dl + p:not(.reading-actions) {
+  margin-top: var(--space-6);
+}
+
+/* Ladder spacing inside lists so items separate without a rule (H7, L3). */
+.reading-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-6);
+  list-style: disc;
+}
+
+.reading-list li {
+  padding-left: var(--space-1);
+}
+
+.reading-list li::marker {
+  color: var(--polis-muted);
+}
+
+/* Section links are tertiary actions in one row, not a paragraph of links
+   competing with the body (H2). The negative margin returns the button's own
+   inline padding so the label starts on the text edge. */
+.reading-actions,
+.reading-section > p.reading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-6) calc(var(--space-2) * -1) 0;
+}
+
+/* ---- provenance register ---- */
+
+.provenance {
+  display: grid;
+  gap: var(--space-6);
+  margin: var(--space-6) 0 0;
+}
+
+.provenance-entry {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.28fr) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--polis-border);
+}
+
+.provenance-stage {
+  color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.provenance-detail {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+/* Fixture id in mono because it is an identifier; the capability state and
+   the disclosure classes stay in the sans label face (DESIGN typography).
+   The id is the claim, so it stays at least as loud as the label qualifying
+   it (DESIGN.md visual principle 5). */
+.provenance-line .record-data {
+  color: var(--polis-text);
+  font-weight: 600;
+}
+
+.provenance-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.provenance-disclosure {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.provenance-paths {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+/* ---- source register and boundary definitions ---- */
+
+.register-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-6) 0 0;
+}
+
+.register-entry {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.28fr) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-6);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--polis-border);
+}
+
+.register-entry dt {
+  color: var(--polis-text);
+  font-weight: 600;
+}
+
+/* The value is the louder half of the row; the label is the quiet half (H3). */
+.register-entry dd {
+  margin: 0;
+  color: var(--polis-muted);
+  line-height: 1.5;
+}
+
+.register-entry dd.record-data {
+  color: var(--polis-text);
+}
+
+/* Both languages are equal product languages, so the Croatian heading is set
+   at the same size as the English one (DESIGN.md bilingual rules). */
+.boundary-language .page-header h2 {
+  margin-bottom: 0;
+  font-size: var(--type-heading-lg);
+  line-height: 1.08;
+}
+
+.boundary-rule,
+.reading-section > p.boundary-rule {
+  margin: var(--space-6) 0 0;
+  color: var(--polis-warning);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+@media (max-width: 56.25rem) {
+  .provenance-entry,
+  .register-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .provenance-entry {
+    gap: var(--space-3);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Presentation composition (PublicReleaseHome.astro).
+
+   Behaviour, stage order, presenter mode, and copy are unchanged. These three
+   rules only bring values in the frozen apps/web/src/styles.css back onto the
+   spacing ladder and the type scale; each selector is one level more specific
+   than the rule it corrects, so load order does not matter.
+   --------------------------------------------------------------------------- */
+
+/* Panel padding was clamp(1.5rem, 1.2rem + 1vw, 2rem) — a fluid value that
+   lands off the 4px ladder at every intermediate width (L3, K6). */
+.release-home .evidence-panel,
+.release-home .public-record-trace,
+.release-home .unanswered-record {
+  padding: var(--space-6);
+}
+
+/* Stage rail links were 0.9375rem, the only size on the page that is not a
+   type token, and under the 1rem navigation minimum (T2, K6). */
+.release-home .release-stage-rail a {
+  font-size: var(--type-body);
+}
+
+/* Withheld-category rows were separated by 0.125rem (L3). */
+.release-home .restricted-list {
+  gap: var(--space-1);
+}
+
+@media (min-width: 56.25rem) {
+  .release-home .evidence-panel,
+  .release-home .public-record-trace,
+  .release-home .unanswered-record {
+    padding: var(--space-8);
+  }
+}

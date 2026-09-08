@@ -1,55 +1,64 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 
 const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
+
+const register = [
+  { term: 'Product contract', value: 'PRODUCT.md' },
+  { term: 'Design contract', value: 'DESIGN.md' },
+  { term: 'Release composition', value: 'apps/web/src/components/PublicReleaseHome.astro' },
+  { term: 'Fixture provenance', value: 'design-lab/pitch/provenance/fixtures.md' },
+  { term: 'License', value: 'AGPL-3.0-or-later' },
+];
 ---
 
 <Base title="Source">
   {
     publicRelease ? (
-      <article class="source-page" id="public-record">
-        <section class="panel">
+      <article class="reading-page" id="public-record">
+        <header class="page-header">
           <h1>Source</h1>
-          <p>
-            This public release is rendered from committed Astro source and frozen synthetic test material. It makes no
-            version request and does not depend on a running Polis backend.
+          <p class="page-header-lede">
+            This public release is rendered from committed Astro source and frozen synthetic test
+            material. It makes no version request and does not depend on a running Polis backend.
           </p>
-          <dl class="source-register">
-            <div>
-              <dt>Product contract</dt>
-              <dd class="record-data">PRODUCT.md</dd>
-            </div>
-            <div>
-              <dt>Design contract</dt>
-              <dd class="record-data">DESIGN.md</dd>
-            </div>
-            <div>
-              <dt>Release composition</dt>
-              <dd class="record-data">apps/web/src/components/PublicReleaseHome.astro</dd>
-            </div>
-            <div>
-              <dt>Fixture provenance</dt>
-              <dd class="record-data">design-lab/pitch/provenance/fixtures.md</dd>
-            </div>
-            <div>
-              <dt>License</dt>
-              <dd class="record-data">AGPL-3.0-or-later</dd>
-            </div>
+        </header>
+
+        <section class="reading-section">
+          <h2>Source register</h2>
+          <dl class="register-list">
+            {register.map((entry) => (
+              <div class="register-entry">
+                <dt>{entry.term}</dt>
+                <dd class="record-data">{entry.value}</dd>
+              </div>
+            ))}
           </dl>
-          <p class="muted">
-            The labels on each release stage name its fixture ID, capability state, disclosure class, and source
-            references.
+          <p class="reading-note">
+            The labels on each release stage name its fixture ID, capability state, disclosure class,
+            and source references.
+          </p>
+          <p class="reading-actions">
+            <a class="btn" data-variant="tertiary" href="/transparency#provenance">
+              Read the provenance register
+            </a>
           </p>
         </section>
       </article>
     ) : (
-      <section class="panel">
-        <h1>Source</h1>
-        <p>
-          The public footer exposes repository, license, and <code>/version</code> build metadata from the running BFF.
-          Expanded source browsing remains future work.
-        </p>
-      </section>
+      <article class="reading-page" id="public-record">
+        <header class="page-header">
+          <h1>Source</h1>
+        </header>
+
+        <section class="reading-section">
+          <p>
+            The public footer exposes repository, license, and <code>/version</code> build metadata from
+            the running BFF. Expanded source browsing remains future work.
+          </p>
+        </section>
+      </article>
     )
   }
 </Base>

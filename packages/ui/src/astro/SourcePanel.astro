@@ -1,4 +1,5 @@
 ---
+import EmptyState from './EmptyState.astro';
 import { t, type Locale } from '../messages/index.ts';
 import type { EvidenceLink } from '@polis/domain';
 
@@ -8,9 +9,18 @@ interface Props {
   evidence: EvidenceLink[];
   sources?: SourceInfo[];
   locale?: Locale;
+  /** One action offered when nothing is attached yet (playbook rule S1). */
+  emptyActionLabel?: string;
+  emptyActionHref?: string;
 }
 
-const { evidence, sources = [], locale = 'en' } = Astro.props as Props;
+const {
+  evidence,
+  sources = [],
+  locale = 'en',
+  emptyActionLabel,
+  emptyActionHref,
+} = Astro.props as Props;
 
 const sourceById = new Map(sources.map((s) => [s.id, s]));
 
@@ -32,7 +42,15 @@ function locatorText(link: EvidenceLink): string | null {
   <h2>{t('sources.title', locale)}</h2>
   {
     evidence.length === 0 ? (
-      <p class="muted">{t('sources.empty', locale)}</p>
+      <EmptyState
+        headingLevel={3}
+        title={t('sources.empty', locale)}
+        purpose={t('sources.empty.purpose', locale)}
+        tips={[t('sources.empty.tip.quote', locale), t('sources.empty.tip.review', locale)]}
+        actionLabel={emptyActionLabel}
+        actionHref={emptyActionHref}
+        lang={locale}
+      />
     ) : (
       evidence.map((link) => {
         const source = sourceById.get(link.sourceId);

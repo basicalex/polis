@@ -13,10 +13,13 @@
     "@polis/db": "workspace:*",
     "@polis/domain": "workspace:*",
     "@polis/service-runtime": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "nodemailer": "^7.0.6"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@types/nodemailer": "^7.0.1",
+    "postgres": "^3.4.9",
     "typescript": "^5.9.3"
   }
 }

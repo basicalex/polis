@@ -1,5 +1,7 @@
 ---
 import Base from '../../../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../../../styles/tasks.css';
 
 type Role = { id: string; name: string; description: string | null; confidenceState: string; reviewState: string };
 type Institution = { id: string; name: string; description: string | null; confidenceState: string; reviewState: string; roles?: Role[] };
@@ -22,64 +24,144 @@ const slug = Astro.params.jurisdiction ?? 'jur-croatia-local';
 const institutionId = Astro.params.institutionId ?? '';
 const institution = (await fetchJson(`/api/v1/institutions/${encodeURIComponent(institutionId)}`)) as Institution | null;
 const claims = (await fetchJson(`/api/v1/claims?subject_id=${encodeURIComponent(institutionId)}`)) as { items: Claim[] } | null;
+
+const setupTips = [
+  'Start the backend from the repository root: bun run dev:services.',
+  'Load the fixtures once the services are up: bun run db:seed.',
+  'Institutions, roles, and claims come from the governance graph.',
+];
 ---
 
 <Base title={`Institution · ${institution?.name ?? institutionId}`}>
-  <section class="stack">
-    <p class="badge">Institution</p>
-    <h1>{institution?.name ?? 'Institution unavailable'}</h1>
-    <p class="muted">{institution?.description ?? 'Data unavailable. Run the services and seed the governance database.'}</p>
-    {institution && <p><span class="badge">{institution.confidenceState}</span> <span class="badge">{institution.reviewState}</span></p>}
-  </section>
-  <section class="stack">
-    <h2>Roles</h2>
-    {institution?.roles?.length ? (
-      <div class="grid">
-        {institution.roles.map((role) => (
-          <article class="card stack">
-            <h3><a href={`/governance/${slug}/roles/${role.id}`}>{role.name}</a></h3>
-            <p class="muted">{role.description ?? 'No description recorded.'}</p>
-            <p><span class="badge">{role.confidenceState}</span> <span class="badge">{role.reviewState}</span></p>
-          </article>
-        ))}
-      </div>
+  <div class="task-page">
+    <header class="page-header record-head">
+      <p class="page-header-eyebrow status-label">Institution</p>
+      <h1>{institution?.name ?? 'Institution unavailable'}</h1>
+      <p class="record-id">{institutionId}</p>
+      {institution?.description && <p class="page-header-lede">{institution.description}</p>}
+    </header>
+
+    {institution ? (
+      <dl class="record-facts">
+        <div>
+          <dt>Confidence</dt>
+          <dd><span class="status-label" data-tone="unknown">{institution.confidenceState}</span></dd>
+        </div>
+        <div>
+          <dt>Review state</dt>
+          <dd><span class="status-label" data-tone="unknown">{institution.reviewState}</span></dd>
+        </div>
+        <div>
+          <dt>Roles</dt>
+          <dd>{institution.roles?.length ?? 0}</dd>
+        </div>
+      </dl>
     ) : (
-      <p class="panel muted">No roles available from the API.</p>
+      <EmptyState
+        title="Institution data is unavailable"
+        purpose="This record is read from the local services, which are not answering right now. No field was withheld."
+        tips={setupTips}
+        actionLabel="Back to the governance map"
+        actionHref={`/governance/${slug}`}
+      />
     )}
-  </section>
-  <section class="stack">
-    <h2>Claims</h2>
-    {claims === null ? (
-      <p class="panel muted">Claims unavailable. Run the services to load source-linked claims.</p>
-    ) : claims.items.length ? (
-      <div class="stack">
-        {claims.items.map((claim) => (
-          <article class="card stack">
-            <h3>{claim.text}</h3>
-            <p><span class="badge">{claim.confidenceState}</span> <span class="badge">{claim.reviewState}</span></p>
-            {claim.evidence.length > 0 ? (
-              <ul>
-                {claim.evidence.map((evidence) => {
-                  const source = claim.sources.find((item) => item.id === evidence.sourceId);
-                  return (
-                    <li>
-                      {source?.url ? <a href={source.url}>{source.title}</a> : <span>{source?.title ?? evidence.sourceId}</span>}
-                      {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
-                      <p class="muted">hash {evidence.sourceHash ?? 'not recorded'} · retrieved {evidence.retrievedAt ?? 'not recorded'}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : claim.confidenceState === 'unsupported_draft' ? (
-              <p><span class="badge badge-warning">unsupported_draft</span></p>
-            ) : (
-              <p class="muted">No evidence links returned.</p>
-            )}
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p class="panel muted">No claims recorded for this institution. Claims attach to process steps, failure modes, and controls.</p>
+
+    {institution && (
+    <section class="task-section">
+      <h2>Roles</h2>
+      {institution?.roles?.length ? (
+        <ul class="ledger">
+          {institution.roles.map((role) => (
+            <li>
+              <h3 class="ledger-title">
+                <a href={`/governance/${slug}/roles/${role.id}`}>{role.name}</a>
+              </h3>
+              <p class="ledger-summary">{role.description ?? 'No description recorded.'}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{role.confidenceState}</span>
+                <span class="status-label" data-tone="unknown">{role.reviewState}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="No roles recorded"
+          purpose="A role names who inside this institution may decide, and under which mandate. None are recorded here yet."
+          tips={[
+            'A role carries a mandate and its legal basis; both are read from the graph.',
+            'Contribute a role with its source so a reviewer can publish it.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+        />
+      )}
+    </section>
     )}
-  </section>
+
+    {institution && (
+    <section class="task-section">
+      <h2>Claims</h2>
+      {claims === null ? (
+        <EmptyState
+          headingLevel={3}
+          title="Claims are unavailable"
+          purpose="Source-linked claims are read from the local services, which are not answering right now."
+          tips={setupTips}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
+      ) : claims.items.length ? (
+        <ul class="ledger">
+          {claims.items.map((claim) => (
+            <li>
+              <p class="record-statement">{claim.text}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone={claim.confidenceState === 'unsupported_draft' ? 'warning' : 'unknown'}>
+                  {claim.confidenceState}
+                </span>
+                <span class="status-label" data-tone="unknown">{claim.reviewState}</span>
+                <a href={`/claims/${encodeURIComponent(claim.id)}`}>Details</a>
+              </p>
+              {claim.evidence.length > 0 ? (
+                <ul class="citations">
+                  {claim.evidence.map((evidence) => {
+                    const source = claim.sources.find((item) => item.id === evidence.sourceId);
+                    return (
+                      <li>
+                        {source?.url ? <a href={source.url}>{source.title}</a> : <span>{source?.title ?? evidence.sourceId}</span>}
+                        {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
+                        <p class="ledger-meta">
+                          <span class="hash-value">hash {evidence.sourceHash ?? 'not recorded'}</span>
+                          <span>retrieved {evidence.retrievedAt ?? 'not recorded'}</span>
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p class="ledger-meta">
+                  <span class="status-label" data-tone="warning">no evidence attached</span>
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          headingLevel={3}
+          title="No claims recorded for this institution"
+          purpose="Claims attach to process steps, failure modes, and controls rather than to the institution itself, so this list is often empty."
+          tips={[
+            'Open a process to read the claims on its steps.',
+            'Anyone can contribute a source-linked claim for review.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+        />
+      )}
+    </section>
+    )}
+  </div>
 </Base>

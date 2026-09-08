@@ -1,22 +1,24 @@
 ---
 import Base from '../layouts/Base.astro';
 import ProofTruthNote from '@polis/ui/astro/ProofTruthNote.astro';
+import '../styles/tasks.css';
 ---
 
 <Base title="Proofs — Polis Interface">
-  <div class="stack">
-    <section class="hero">
+  <div class="task-page form-narrow">
+    <header class="page-header">
       <h1>Document proofs</h1>
-      <p>
+      <p class="page-header-lede">
         Every registered document has a public proof page: its hashes, signatures, timestamps,
         registry status, and audit trail. Open one by ID or link.
       </p>
-      <ProofTruthNote />
-    </section>
+    </header>
 
-    <section class="panel">
-      <form id="proof-lookup">
-        <label for="proof-ref">Proof ID or proof link</label>
+    <ProofTruthNote />
+
+    <form id="proof-lookup">
+      <div class="field">
+        <label class="field-label" for="proof-ref">Proof ID or proof link</label>
         <input
           id="proof-ref"
           name="proof-ref"
@@ -24,24 +26,24 @@ import ProofTruthNote from '@polis/ui/astro/ProofTruthNote.astro';
           placeholder="proof-… or https://…/proofs/…"
           required
         />
-        <p><button type="submit">Open proof</button></p>
-      </form>
-      <script is:inline>
-        document.getElementById('proof-lookup').addEventListener('submit', (event) => {
-          event.preventDefault();
-          const raw = document.getElementById('proof-ref').value.trim();
-          if (!raw) return;
-          const match = raw.match(/\/proofs\/([^/?#]+)/);
-          const id = match ? decodeURIComponent(match[1]) : raw;
-          window.location.href = '/proofs/' + encodeURIComponent(id);
-        });
-      </script>
-    </section>
-
-    <section class="panel">
-      <p class="muted">
-        To verify a file or hash directly, use the <a href="/verify">verification page</a>.
-      </p>
-    </section>
+        <p class="field-hint">
+          Paste the whole proof link or just the ID; both open the same public proof page.
+        </p>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn" data-variant="primary">Open proof</button>
+        <a class="btn" data-variant="tertiary" href="/verify">Verify a file or hash instead</a>
+      </div>
+    </form>
+    <script is:inline>
+      document.getElementById('proof-lookup').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const raw = document.getElementById('proof-ref').value.trim();
+        if (!raw) return;
+        const match = raw.match(/\/proofs\/([^/?#]+)/);
+        const id = match ? decodeURIComponent(match[1]) : raw;
+        window.location.href = '/proofs/' + encodeURIComponent(id);
+      });
+    </script>
   </div>
 </Base>

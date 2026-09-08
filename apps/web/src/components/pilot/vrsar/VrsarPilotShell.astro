@@ -1,0 +1,70 @@
+---
+import '../../../styles.css';
+import '../../../styles/pilot/vrsar.css';
+import { pilotCopy, pilotHref, type PilotLang } from '../../../content/pilot/vrsar';
+
+interface Props {
+  lang: PilotLang;
+  page: 'home' | 'login' | 'file' | 'cases' | 'case-detail' | 'staff' | 'review' | 'receipts' | 'receipt-detail';
+  title: string;
+  description: string;
+}
+
+const { lang, page, title, description } = Astro.props as Props;
+const currentPath = Astro.url.pathname;
+const languageNames: Record<PilotLang, string> = { hr: 'HR', it: 'IT', en: 'EN' };
+---
+
+<html lang={lang} data-pilot="vrsar" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body><!-- direction-contract
+THESIS: One bounded accountability record moves from a private synthetic report to independently reviewed public receipts; no role may skip its gate.
+OWN-WORLD: The locked light civic paper field, Source Serif 4 headings, system-sans controls, teal trace, hairline ledgers, and explicit status text.
+STORY: File privately, assign responsibility, review publication, review completion separately, then inspect the public receipt.
+FIRST VIEWPORT: Unofficial boundary, compact role-safe navigation, task heading, current blocking state, and the next permitted action.
+FORM: Operate extension of the locked Trace line world; no new concept direction.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+    <a class="skip-link" href="#pilot-main">{pilotCopy.skip[lang]}</a>
+    <div class="pilot-shell" data-pilot-shell data-page={page} data-lang={lang}>
+      <header class="pilot-topbar">
+        <a class="pilot-brand" href={pilotHref('/pilot/vrsar', lang)}>Polis</a>
+        <p class="pilot-context" data-pilot-context>{pilotCopy.appTitle[lang]}</p>
+        <nav class="pilot-language" aria-label={pilotCopy.language[lang]}>
+          <span class="pilot-language-label">{pilotCopy.language[lang]}</span>
+          {(['hr', 'it', 'en'] as const).map((item) => (
+            <a href={pilotHref(currentPath, item)} lang={item} hreflang={item} aria-current={item === lang ? 'page' : undefined}>
+              {languageNames[item]}
+            </a>
+          ))}
+        </nav>
+      </header>
+
+      <p class="pilot-boundary">{pilotCopy.boundary[lang]}</p>
+
+      <div class="pilot-nav-wrap">
+        <nav class="pilot-nav" aria-label={pilotCopy.appTitle[lang]} data-pilot-nav>
+          <a href={pilotHref('/pilot/vrsar', lang)} aria-current={page === 'home' ? 'page' : undefined}>{pilotCopy.nav.home[lang]}</a>
+          <a href={pilotHref('/pilot/vrsar/receipts', lang)} aria-current={page === 'receipts' || page === 'receipt-detail' ? 'page' : undefined}>{pilotCopy.nav.receipts[lang]}</a>
+          <a href={pilotHref('/pilot/vrsar/login', lang)} aria-current={page === 'login' ? 'page' : undefined} data-pilot-login-link>{pilotCopy.nav.login[lang]}</a>
+        </nav>
+      </div>
+
+      <main class="pilot-main" id="pilot-main"><slot /></main>
+
+      <footer class="pilot-footer">{pilotCopy.footer[lang]}</footer>
+    </div>
+
+    <script>
+      import { initPilotShell } from '../../../scripts/pilot/vrsar/shell';
+      initPilotShell();
+    </script>
+  </body>
+</html>

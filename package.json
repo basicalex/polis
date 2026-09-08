@@ -30,7 +30,13 @@
     "ops:restore-verify": "bash scripts/ops/restore-verify.sh",
     "ops:verify-audit": "node scripts/ops/verify-audit-chain.mjs",
     "ops:test": "bash scripts/ops/test-backup-restore.sh",
-    "ops:clean-db-drill": "bash scripts/ops/clean-db-drill.sh"
+    "ops:clean-db-drill": "bash scripts/ops/clean-db-drill.sh",
+    "pilot:runtime": "bun --no-env-file scripts/pilot/runtime.mjs",
+    "pilot:inbox": "bun --no-env-file scripts/pilot/inbox.mjs",
+    "pilot:smoke": "bun --no-env-file scripts/pilot/operational-smoke.mjs",
+    "pilot:recovery": "bun --no-env-file scripts/pilot/recovery-drill.mjs",
+    "pilot:restart-proof": "node scripts/pilot/restart-proof.mjs",
+    "pilot:test": "bun --no-env-file test scripts/pilot/test/runtime-lib.test.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

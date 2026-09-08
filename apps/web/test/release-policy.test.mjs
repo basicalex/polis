@@ -13,7 +13,7 @@ import {
 import { createReleaseMiddleware } from '../src/middleware.ts';
 
 const pagesRoot = new URL('../src/pages/', import.meta.url);
-const pageExtensions = /\.(astro|md|mdx)$/;
+const pageExtensions = /\.(astro|md|mdx|ts)$/;
 
 const expectedCurrentByKind = {
   safe: [
@@ -51,6 +51,8 @@ const expectedCurrentByKind = {
     '/mandate-holders/:id',
     '/partners',
     '/pilot/results',
+    '/pilot/vrsar/receipts',
+    '/pilot/vrsar/receipts/:receiptId',
     '/proofs',
     '/proofs/:id',
     '/rewards',
@@ -64,6 +66,14 @@ const expectedCurrentByKind = {
     '/contributors/:id',
     '/login',
     '/login/callback',
+    '/pilot/vrsar',
+    '/pilot/vrsar/login',
+    '/pilot/vrsar/file',
+    '/pilot/vrsar/cases',
+    '/pilot/vrsar/cases/:caseId',
+    '/pilot/vrsar/staff',
+    '/pilot/vrsar/review',
+    '/pilot/vrsar/api/*path',
   ],
   'not-live': ['/contribute/maps', '/contribute/review'],
 };
@@ -146,6 +156,12 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/governance/jur-croatia-local/institutions/inst-complaints-office', 'backend-dependent'],
     ['/claims/claim-1', 'backend-dependent'],
     ['/complaints/case-private', 'restricted'],
+    ['/pilot/vrsar', 'restricted'],
+    ['/pilot/vrsar/cases/case-private', 'restricted'],
+    ['/pilot/vrsar/api/config', 'restricted'],
+    ['/pilot/vrsar/api/records/case-private/attachments/file-private', 'restricted'],
+    ['/pilot/vrsar/receipts', 'backend-dependent'],
+    ['/pilot/vrsar/receipts/receipt-public', 'backend-dependent'],
     ['/contributors/person-private', 'restricted'],
     ['/contribute/review', 'not-live'],
     ['/unknown-release-route', 'not-live'],
@@ -163,6 +179,9 @@ test('normalization, matching, and asset bypass reject ambiguous paths', () => {
   assert.equal(normalizeReleasePath('privacy'), null);
   assert.equal(matchReleasePattern('/issues/:issueId', '/issues/issue-1'), true);
   assert.equal(matchReleasePattern('/issues/:issueId', '/issues'), false);
+  assert.equal(matchReleasePattern('/pilot/vrsar/api/*path', '/pilot/vrsar/api/config'), true);
+  assert.equal(matchReleasePattern('/pilot/vrsar/api/*path', '/pilot/vrsar/api/records/id/review'), true);
+  assert.equal(matchReleasePattern('/pilot/vrsar/api/*path', '/pilot/vrsar/api'), false);
   assert.equal(isReleaseAssetPath('/_astro/app.hash.js'), true);
   assert.equal(isReleaseAssetPath('/fonts/BarlowCondensed-Bold.ttf'), true);
   assert.equal(isReleaseAssetPath('/robots.txt'), true);

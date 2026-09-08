@@ -87,7 +87,7 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
             <span data-lang="en">{loadingCopy.en}</span>
             <span data-lang="hr" hidden>{loadingCopy.hr}</span>
           </p>
-          <p class="queue-status" role="status" data-status></p>
+          <p class="queue-status" role="status" tabindex="-1" data-status></p>
           <ul class="demo-ledger" data-ledger></ul>
         </section>
 
@@ -118,403 +118,6 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
   </DemoShell>
 </Base>
 
-<style>
-  .queue {
-    display: grid;
-    gap: var(--space-md);
-    min-width: 0;
-    max-width: 74rem;
-  }
-
-  .queue-lead {
-    display: grid;
-    gap: var(--space-xs);
-    min-width: 0;
-  }
-
-  .queue-title {
-    margin: 0;
-    font-family: var(--display);
-    font-size: var(--type-heading-sm);
-    line-height: 1.15;
-  }
-
-  .queue-noscript {
-    max-width: 68ch;
-    margin: 0;
-    padding: var(--space-sm);
-    background: var(--polis-surface-tint);
-    color: var(--polis-text);
-    font-size: var(--type-data);
-  }
-
-  .queue-grid {
-    display: grid;
-    gap: var(--space-md);
-    min-width: 0;
-    align-items: start;
-  }
-
-  @media (min-width: 56.25rem) {
-    .queue-grid {
-      grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) minmax(0, 24rem);
-      gap: var(--space-lg);
-    }
-  }
-
-  /* Rail: a vertical bucket list on desktop, a horizontal chip row below 56.25rem. */
-  .queue-rail {
-    min-width: 0;
-  }
-
-  .queue-buckets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  @media (min-width: 56.25rem) {
-    .queue-buckets {
-      display: grid;
-      gap: 0;
-    }
-  }
-
-  .queue-column-title {
-    margin: 0 0 var(--space-sm);
-    padding-bottom: var(--space-xs);
-    border-bottom: 1px solid var(--polis-border);
-    color: var(--polis-muted);
-    font-family: var(--body);
-    font-size: var(--type-data);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    line-height: 1.4;
-    text-transform: uppercase;
-  }
-
-  .queue-loading,
-  .queue-status {
-    margin: 0 0 var(--space-sm);
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .queue-status {
-    color: var(--polis-text);
-  }
-
-  .queue-status:empty,
-  .queue-loading[hidden] {
-    display: none;
-  }
-
-  .queue-status a {
-    color: var(--polis-trace);
-  }
-
-  .queue-detail {
-    display: grid;
-    min-width: 0;
-  }
-
-  .queue-detail[hidden] {
-    display: none;
-  }
-
-  .queue-foot {
-    display: grid;
-    gap: var(--space-xs);
-    max-width: 68ch;
-    min-width: 0;
-    padding-top: var(--space-md);
-    border-top: 1px solid var(--polis-border);
-  }
-
-  .queue-role-note {
-    margin: 0;
-    color: var(--polis-text);
-    font-size: var(--type-data);
-    line-height: 1.55;
-  }
-
-  .queue-provenance {
-    margin: 0;
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-  }
-
-  .queue-provenance a {
-    color: var(--polis-trace);
-  }
-
-  /*
-   * Everything below is built by the page script, so Astro cannot stamp it with the scope
-   * attribute. It stays inside this page's scope through the `.queue-grid` ancestor, which is
-   * an ancestor of the detail panel in both placements (own column on desktop, inside the
-   * selected ledger row below 56.25rem).
-   */
-  .queue-grid :global(.queue-bucket) {
-    min-width: 0;
-    width: 100%;
-    min-height: var(--tap-target);
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs) var(--space-sm);
-    padding: var(--space-xs) var(--space-sm);
-    border: 1px solid var(--polis-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    color: var(--polis-text);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    text-align: start;
-    cursor: pointer;
-  }
-
-  .queue-grid :global(.queue-bucket:hover) {
-    background: var(--polis-surface-tint);
-  }
-
-  .queue-grid :global(.queue-bucket[aria-pressed='true']) {
-    border-color: var(--polis-trace);
-    color: var(--polis-trace);
-  }
-
-  .queue-grid :global(.queue-bucket-count) {
-    margin-left: auto;
-    color: var(--polis-muted);
-    font-family: var(--mono);
-    font-size: var(--type-data);
-  }
-
-  .queue-grid :global(.queue-bucket[aria-pressed='true'] .queue-bucket-count) {
-    color: var(--polis-trace);
-  }
-
-  @media (min-width: 56.25rem) {
-    .queue-grid :global(.queue-bucket) {
-      border: 0;
-      border-bottom: 1px solid var(--polis-border);
-      border-left: 0.1875rem solid transparent;
-      border-radius: 0;
-      background: transparent;
-    }
-
-    .queue-grid :global(.queue-bucket[aria-pressed='true']) {
-      border-left-color: var(--polis-trace);
-      background: var(--polis-surface-tint);
-    }
-  }
-
-  .queue-grid :global(.queue-empty) {
-    max-width: 68ch;
-    margin: 0;
-    padding: var(--space-sm) 0;
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .queue-grid :global(.queue-empty a) {
-    color: var(--polis-trace);
-  }
-
-  .queue-grid :global(.queue-detail-card) {
-    display: grid;
-    gap: var(--space-sm);
-    min-width: 0;
-  }
-
-  @media (max-width: 56.24rem) {
-    .queue-grid :global(.queue-detail-card) {
-      margin: 0 0 var(--space-sm) var(--space-sm);
-    }
-  }
-
-  .queue-grid :global(.queue-detail-id) {
-    color: var(--polis-muted);
-    font-family: var(--mono);
-    font-size: var(--type-data);
-    overflow-wrap: anywhere;
-  }
-
-  .queue-grid :global(.queue-detail-subject) {
-    margin: 0;
-    font-family: var(--display);
-    font-size: 1.25rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .queue-grid :global(.queue-detail-head) {
-    display: grid;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-
-  .queue-grid :global(.queue-detail-stamps) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-    min-width: 0;
-    margin-top: 0.2rem;
-  }
-
-  .queue-grid :global(.queue-fields) {
-    display: grid;
-    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
-    gap: 0.2rem var(--space-sm);
-    min-width: 0;
-    margin: 0;
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .queue-grid :global(.queue-fields dt) {
-    color: var(--polis-muted);
-    font-weight: 600;
-  }
-
-  .queue-grid :global(.queue-fields dd) {
-    min-width: 0;
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .queue-grid :global(.queue-note) {
-    margin: 0;
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .queue-grid :global(.queue-returned) {
-    display: grid;
-    gap: 0.2rem;
-    min-width: 0;
-    padding: var(--space-sm);
-    background: var(--polis-surface-tint);
-    border-radius: var(--radius-sm);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .queue-grid :global(.queue-returned-label) {
-    color: var(--polis-warning);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .queue-grid :global(.queue-form) {
-    display: grid;
-    gap: var(--space-sm);
-    min-width: 0;
-    margin: 0;
-    padding-top: var(--space-sm);
-    border-top: 1px solid var(--polis-border);
-  }
-
-  .queue-grid :global(.queue-form-title) {
-    margin: 0;
-    font-family: var(--body);
-    font-size: 1rem;
-    font-weight: 600;
-    line-height: 1.4;
-  }
-
-  .queue-grid :global(.queue-field) {
-    display: grid;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .queue-grid :global(.queue-field label) {
-    font-size: var(--type-data);
-    font-weight: 600;
-  }
-
-  .queue-grid :global(.queue-hint) {
-    color: var(--polis-muted);
-    font-size: var(--type-meta);
-    line-height: 1.45;
-  }
-
-  .queue-grid :global(.queue-field input),
-  .queue-grid :global(.queue-field textarea) {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    min-height: var(--tap-target);
-    padding: 0.5rem 0.6rem;
-    border: 1px solid var(--polis-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    color: var(--polis-text);
-    font-family: var(--body);
-    font-size: 1rem;
-    line-height: 1.45;
-  }
-
-  .queue-grid :global(.queue-field textarea) {
-    min-height: 5.5rem;
-    resize: vertical;
-  }
-
-  /* Flat buttons: solid trace fill or hairline outline. No gloss, no gradient. */
-  .queue-grid :global(.queue-submit),
-  .queue-grid :global(.queue-link-action) {
-    min-width: 0;
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-xs) var(--space-md);
-    border: 1px solid var(--polis-trace);
-    border-radius: var(--radius-sm);
-    background: var(--polis-trace);
-    color: var(--polis-on-primary);
-    font-family: var(--body);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .queue-grid :global(.queue-link-action) {
-    background: var(--polis-surface);
-    color: var(--polis-trace);
-  }
-
-  .queue-grid :global(.queue-link-action:hover) {
-    background: var(--polis-surface-tint);
-  }
-
-  .queue-grid :global(.queue-error) {
-    margin: 0;
-    color: var(--polis-danger);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  @media (max-width: 40rem) {
-    .queue-grid :global(.queue-fields) {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .queue-grid :global(.queue-fields dd) {
-      margin-bottom: var(--space-xs);
-    }
-  }
-</style>
 
 <script>
   import {
@@ -528,14 +131,18 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     compactQuery,
     currentValue,
     el,
+    emptyState,
     fieldKey,
+    fieldRow,
     formatDate,
+    group,
     matchesBucket,
     messageOf,
     renderBuckets,
     renderRow,
     renderTrace,
     stamp,
+    statusLine,
     text,
     wireQueue,
   } from '../../lib/demo-queue.mjs';
@@ -554,6 +161,14 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
   type DisplayValue = string | Localized | null | undefined;
   type DemoRecord = ReturnType<typeof getState>['records'][number];
   type Status = DemoRecord['status'];
+  /** Shape of one bucket's empty state, so the copy table can be read by id. */
+  type EmptyStateSpec = {
+    title: Localized;
+    purpose: Localized;
+    tips: readonly Localized[];
+    action?: { label: Localized; href: string };
+    primary?: boolean;
+  };
 
   const copy = {
     buckets: {
@@ -633,18 +248,157 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     },
     reviewerField: { en: 'Reviewer', hr: 'Provjeritelj' },
     openRecord: { en: 'View full record', hr: 'Otvori cijeli zapis' },
-    emptyBucket: {
-      en: 'No record in this bucket.',
-      hr: 'U ovoj skupini nema zapisa.',
+    /* Three subheadings, no nested panels: what the record says, its trace, what
+       this office may do next (rules H7, D5). */
+    groupRecord: { en: 'Record', hr: 'Zapis' },
+    groupTrace: { en: 'Trace', hr: 'Trag' },
+    groupAction: { en: 'Next action', hr: 'Sljedeća radnja' },
+    /* Field errors name the problem and the correction (rule S2). */
+    officeRequired: {
+      en: 'The responsible office is empty. Name the office that will answer this report.',
+      hr: 'Nadležni ured nije upisan. Navedite ured koji će odgovoriti na ovu prijavu.',
     },
-    emptyAll: {
-      en: 'No records yet. File one on the citizen surface:',
-      hr: 'Još nema zapisa. Podnesite prvi na prikazu za građane:',
+    roleRequired: {
+      en: 'The responsible role is empty. Name the role that carries the response.',
+      hr: 'Nadležna funkcija nije upisana. Navedite funkciju koja nosi odgovor.',
     },
-    emptyLink: { en: 'Citizen surface', hr: 'Prikaz za građane' },
+    commitmentRequired: {
+      en: 'The commitment is empty. State what this office will do and what will be published when it is done.',
+      hr: 'Obveza nije upisana. Navedite što će ovaj ured učiniti i što će biti objavljeno kada to bude gotovo.',
+    },
+    dueRequired: {
+      en: 'The due date is empty. Pick the date this office will answer by.',
+      hr: 'Rok nije upisan. Odaberite datum do kojeg će ovaj ured odgovoriti.',
+    },
+    dueFormat: {
+      en: 'The due date is not a date. File it as YYYY-MM-DD.',
+      hr: 'Rok nije datum. Upišite ga kao GGGG-MM-DD.',
+    },
+    filedByRequired: {
+      en: 'The filer is empty. Name the role filing this commitment.',
+      hr: 'Podnositelj nije upisan. Navedite funkciju koja podnosi ovu obvezu.',
+    },
+    storeNext: {
+      en: 'Nothing was filed. Correct the field named above and file again.',
+      hr: 'Ništa nije podneseno. Ispravite navedeno polje i podnesite ponovno.',
+    },
+    /* Empty states: purpose, up to two tips, one action where a legal one exists (rule S1). */
+    empty: {
+      all: {
+        title: { en: 'No records yet', hr: 'Još nema zapisa' },
+        purpose: {
+          en: 'Reports residents file arrive here. This browser holds none.',
+          hr: 'Ovdje stižu prijave koje podnose stanovnici. U ovom pregledniku ih nema.',
+        },
+        tips: [
+          {
+            en: 'File one on the citizen surface and watch it arrive.',
+            hr: 'Podnesite prijavu na prikazu za građane i pratite kako stiže.',
+          },
+          {
+            en: 'The reset control in the app bar brings the seeded fixtures back.',
+            hr: 'Kontrola za vraćanje na početak u traci na vrhu vraća početne primjere.',
+          },
+        ],
+        action: { label: { en: 'Citizen surface', hr: 'Prikaz za građane' }, href: '/demo/citizen' },
+        primary: true,
+      },
+      open: {
+        title: { en: 'Nothing new', hr: 'Nema novih zapisa' },
+        purpose: {
+          en: 'A report with no responsible office waits in this bucket.',
+          hr: 'U ovoj skupini čeka prijava bez nadležnog ureda.',
+        },
+        tips: [
+          {
+            en: 'Open All to read every record this browser holds.',
+            hr: 'Otvorite Sve kako biste pročitali sve zapise u ovom pregledniku.',
+          },
+          {
+            en: 'A report filed on the citizen surface lands here first.',
+            hr: 'Prijava podnesena na prikazu za građane najprije stiže ovamo.',
+          },
+        ],
+        action: { label: { en: 'Citizen surface', hr: 'Prikaz za građane' }, href: '/demo/citizen' },
+      },
+      assigned: {
+        title: { en: 'Nothing assigned', hr: 'Ništa nije dodijeljeno' },
+        purpose: {
+          en: 'A record whose responsible office is named, with no commitment filed yet, waits here.',
+          hr: 'Ovdje čeka zapis kojemu je imenovan nadležni ured, a obveza još nije podnesena.',
+        },
+        tips: [
+          {
+            en: 'Accept responsibility on a new record to move it here.',
+            hr: 'Preuzmite odgovornost na novom zapisu kako bi se pojavio ovdje.',
+          },
+          {
+            en: 'File a commitment next; it starts PENDING REVIEW.',
+            hr: 'Zatim podnesite obvezu; kreće kao ČEKA NEOVISNU PROVJERU.',
+          },
+        ],
+      },
+      pending: {
+        title: { en: 'Nothing waiting for review', hr: 'Ništa ne čeka provjeru' },
+        purpose: {
+          en: 'A commitment this office filed waits here until the independent reviewer decides.',
+          hr: 'Ovdje čeka obveza koju je ovaj ured podnio dok neovisni provjeritelj ne odluči.',
+        },
+        tips: [
+          {
+            en: 'File a commitment on an assigned record.',
+            hr: 'Podnesite obvezu na dodijeljenom zapisu.',
+          },
+          {
+            en: 'The reviewer accepts or returns it; this office cannot publish.',
+            hr: 'Provjeritelj je prihvaća ili vraća; ovaj ured ne može objaviti.',
+          },
+        ],
+        action: { label: { en: 'Review surface', hr: 'Prikaz za provjeru' }, href: '/demo/review' },
+      },
+      returned: {
+        title: { en: 'Nothing returned', hr: 'Ništa nije vraćeno' },
+        purpose: {
+          en: 'A record the independent reviewer sent back for a corrected commitment appears here.',
+          hr: 'Ovdje se pojavljuje zapis koji je neovisni provjeritelj vratio radi ispravljene obveze.',
+        },
+        tips: [
+          {
+            en: 'Return a record on the review surface to see it here.',
+            hr: 'Vratite zapis na prikazu za provjeru kako biste ga vidjeli ovdje.',
+          },
+          {
+            en: 'A returned record carries the note naming what to change.',
+            hr: 'Vraćeni zapis nosi bilješku koja imenuje što treba promijeniti.',
+          },
+        ],
+        action: { label: { en: 'Review surface', hr: 'Prikaz za provjeru' }, href: '/demo/review' },
+      },
+      published: {
+        title: { en: 'Nothing published', hr: 'Ništa nije objavljeno' },
+        purpose: {
+          en: 'A record the independent reviewer accepted, with its public receipt, appears here.',
+          hr: 'Ovdje se pojavljuje zapis koji je neovisni provjeritelj prihvatio, s javnom potvrdom.',
+        },
+        tips: [
+          {
+            en: 'Accept a pending commitment on the review surface.',
+            hr: 'Prihvatite obvezu koja čeka na prikazu za provjeru.',
+          },
+          {
+            en: 'Publication is the reviewer’s decision, never this office’s.',
+            hr: 'Objava je odluka provjeritelja, nikada ovog ureda.',
+          },
+        ],
+        action: { label: { en: 'Review surface', hr: 'Prikaz za provjeru' }, href: '/demo/review' },
+      },
+    },
     nothingSelected: {
-      en: 'Select a record to see its trace and the actions this office may take.',
-      hr: 'Odaberite zapis kako biste vidjeli njegov trag i radnje koje ovaj ured može poduzeti.',
+      title: { en: 'No record selected', hr: 'Nijedan zapis nije odabran' },
+      purpose: {
+        en: 'Pick a record in the inbox to read its trace and the actions this office may take.',
+        hr: 'Odaberite zapis u popisu kako biste vidjeli njegov trag i radnje koje ovaj ured može poduzeti.',
+      },
     },
   } as const;
 
@@ -718,11 +472,17 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
   const formValues = new Map<string, string>();
   /** Store errors, by record id. */
   const errors = new Map<string, Localized>();
-  /** The last completed action, announced above the ledger. */
-  let notice: { id: string; text: Localized } | null = null;
+  /** Inline field errors, by `fieldKey(recordId, name)`. */
+  const fieldErrors = new Map<string, Localized>();
+  /** The last completed action, announced above the ledger with its state word. */
+  let notice: { id: string; text: Localized; label: Localized; tone: string } | null = null;
 
   const compact = compactQuery();
 
+  /**
+   * One field on the shared `.field` recipe: label, hint, control, inline error.
+   * The error text sits under the control it belongs to (rules I5, I6, S2).
+   */
   function field(
     recordId: string,
     name: string,
@@ -731,8 +491,9 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     value: string,
     hint?: string,
   ): { wrap: HTMLDivElement; control: HTMLInputElement | HTMLTextAreaElement } {
-    const wrap = el('div', 'queue-field');
+    const wrap = el('div', 'field');
     const id = `${recordId}-${name}`.toLowerCase();
+    const key = fieldKey(recordId, name);
     const label = el('label', undefined, labelText);
     label.htmlFor = id;
     const control =
@@ -742,55 +503,101 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     control.name = name;
     control.value = value;
     control.required = true;
-    control.setAttribute('data-focus-key', fieldKey(recordId, name));
+    control.setAttribute('data-focus-key', key);
     control.addEventListener('input', () => {
-      formValues.set(fieldKey(recordId, name), control.value);
+      formValues.set(key, control.value);
     });
-    wrap.append(label, control);
+    wrap.append(label);
+    const described: string[] = [];
     if (hint) {
       const hintId = `${id}-hint`;
-      const hintNode = el('span', 'queue-hint', hint);
+      const hintNode = el('p', 'field-hint', hint);
       hintNode.id = hintId;
-      control.setAttribute('aria-describedby', hintId);
+      described.push(hintId);
       wrap.append(hintNode);
     }
+    wrap.append(control);
+    const problem = fieldErrors.get(key);
+    const errorId = `${id}-error`;
+    const errorNode = el('p', 'field-error', problem ? text(problem, lang0()) : '');
+    errorNode.id = errorId;
+    if (problem) {
+      control.setAttribute('aria-invalid', 'true');
+      described.push(errorId);
+    }
+    wrap.append(errorNode);
+    if (described.length > 0) control.setAttribute('aria-describedby', described.join(' '));
     return { wrap, control };
+  }
+
+  /** The language the store holds right now; `field()` reads it while building. */
+  function lang0(): Lang {
+    return getState().lang === 'hr' ? 'hr' : 'en';
+  }
+
+  /** Record an inline problem against one control. */
+  function setFieldError(recordId: string, name: string, message: Localized | null): void {
+    const key = fieldKey(recordId, name);
+    if (message) fieldErrors.set(key, message);
+    else fieldErrors.delete(key);
+  }
+
+  /** A store refusal keeps its sentence and gains the next step (rule S2). */
+  function withNextStep(message: Localized): Localized {
+    return {
+      en: `${message.en} ${copy.storeNext.en}`,
+      hr: `${message.hr} ${copy.storeNext.hr}`,
+    };
+  }
+
+  /** Move focus to the first control that failed, after the card re-rendered. */
+  function focusField(recordId: string, name: string): void {
+    const node = document.querySelector(
+      `.queue-grid [data-focus-key="${CSS.escape(fieldKey(recordId, name))}"]`,
+    );
+    if (node instanceof HTMLElement) node.focus();
   }
 
   /* --------------------------------------------------------------- detail -- */
 
+  /**
+   * Reader priority, not storage order (finding F9, rules H1, H3, H5): the
+   * commitment text and its due date first — the commitment at body size, the
+   * due date as the loudest datum — then the responsible office, then the
+   * category and the filing date.
+   */
   function detailFields(record: DemoRecord, lang: Lang): HTMLDListElement {
     const fields = el('dl', 'queue-fields');
-    fields.append(
-      el('dt', undefined, text(copy.categoryLabel, lang)),
-      el('dd', undefined, text(categoryLabels[record.category], lang)),
-      el('dt', undefined, text(copy.filedOnLabel, lang)),
-      el('dd', undefined, formatDate(record.createdAt, lang)),
-    );
+    if (record.commitment) {
+      fields.append(
+        fieldRow(text(copy.commitmentLabel, lang), text(record.commitment.text, lang), 'lead'),
+        fieldRow(text(copy.dueLabel, lang), formatDate(record.commitment.due, lang), 'loud'),
+      );
+    }
     if (record.responsibility) {
       fields.append(
-        el('dt', undefined, text(copy.officeLabel, lang)),
-        el('dd', undefined, text(record.responsibility.office, lang)),
-        el('dt', undefined, text(copy.roleLabel, lang)),
-        el('dd', undefined, text(record.responsibility.role, lang)),
+        fieldRow(text(copy.officeLabel, lang), text(record.responsibility.office, lang)),
+        fieldRow(text(copy.roleLabel, lang), text(record.responsibility.role, lang)),
       );
     }
     if (record.commitment) {
-      fields.append(
-        el('dt', undefined, text(copy.commitmentLabel, lang)),
-        el('dd', undefined, text(record.commitment.text, lang)),
-        el('dt', undefined, text(copy.dueLabel, lang)),
-        el('dd', undefined, formatDate(record.commitment.due, lang)),
-        el('dt', undefined, text(copy.filedByLabel, lang)),
-        el('dd', undefined, text(record.commitment.filedBy, lang)),
-      );
+      fields.append(fieldRow(text(copy.filedByLabel, lang), text(record.commitment.filedBy, lang)));
     }
+    fields.append(
+      fieldRow(text(copy.categoryLabel, lang), text(categoryLabels[record.category], lang)),
+      fieldRow(text(copy.filedOnLabel, lang), formatDate(record.createdAt, lang)),
+    );
     return fields;
   }
 
   function assignForm(record: DemoRecord, lang: Lang): HTMLFormElement {
     const form = el('form', 'queue-form');
-    form.append(el('h3', 'queue-form-title', text(copy.acceptTitle, lang)));
+    form.append(
+      el('h3', 'queue-form-title', text(copy.acceptTitle, lang)),
+      /* The sentence describes the whole step, so it sits under the form title
+         rather than under one control (rule H6). */
+      el('p', 'queue-form-note', text(copy.assignHint, lang)),
+    );
     const office = field(
       record.id,
       'office',
@@ -804,28 +611,45 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
       text(copy.roleLabel, lang),
       'text',
       currentValue(formValues, record.id, 'role', text(defaultRole, lang)),
-      text(copy.assignHint, lang),
     );
     const submit = el('button', 'queue-submit', text(copy.assignAction, lang));
     submit.type = 'submit';
     submit.setAttribute('data-focus-key', fieldKey(record.id, 'submit'));
     form.append(office.wrap, role.wrap, submit);
 
+    /* The page validates: its messages name the office to fill in, which the
+       browser's generic bubble does not. */
+    form.noValidate = true;
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
+      const officeValue = office.control.value.trim();
+      const roleValue = role.control.value.trim();
+      setFieldError(record.id, 'office', officeValue ? null : copy.officeRequired);
+      setFieldError(record.id, 'role', roleValue ? null : copy.roleRequired);
+      const firstInvalid = !officeValue ? 'office' : !roleValue ? 'role' : null;
+      if (firstInvalid) {
+        errors.delete(record.id);
+        render();
+        focusField(record.id, firstInvalid);
+        return;
+      }
       try {
         errors.delete(record.id);
-        assignResponsibility(record.id, {
-          office: office.control.value,
-          role: role.control.value,
-        });
+        assignResponsibility(record.id, { office: officeValue, role: roleValue });
         formValues.delete(fieldKey(record.id, 'office'));
         formValues.delete(fieldKey(record.id, 'role'));
-        notice = { id: record.id, text: copy.assignedNotice };
+        notice = {
+          id: record.id,
+          text: copy.assignedNotice,
+          label: copy.stamps.assigned,
+          tone: 'trace',
+        };
       } catch (error) {
-        errors.set(record.id, messageOf(error));
+        errors.set(record.id, withNextStep(messageOf(error)));
       }
       render();
+      focusNotice();
     });
     return form;
   }
@@ -873,27 +697,64 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     submit.setAttribute('data-focus-key', fieldKey(record.id, 'submit'));
     form.append(commitment.wrap, due.wrap, filedBy.wrap, gate, submit);
 
+    form.noValidate = true;
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
+      const commitmentValue = commitment.control.value.trim();
+      const dueValue = due.control.value.trim();
+      const filedByValue = filedBy.control.value.trim();
+      const dueProblem = !dueValue
+        ? copy.dueRequired
+        : /^\d{4}-\d{2}-\d{2}$/.test(dueValue)
+          ? null
+          : copy.dueFormat;
+      setFieldError(record.id, 'commitment', commitmentValue ? null : copy.commitmentRequired);
+      setFieldError(record.id, 'due', dueProblem);
+      setFieldError(record.id, 'filedby', filedByValue ? null : copy.filedByRequired);
+      const firstInvalid = !commitmentValue
+        ? 'commitment'
+        : dueProblem
+          ? 'due'
+          : !filedByValue
+            ? 'filedby'
+            : null;
+      if (firstInvalid) {
+        errors.delete(record.id);
+        render();
+        focusField(record.id, firstInvalid);
+        return;
+      }
       try {
         errors.delete(record.id);
         fileCommitment(record.id, {
-          text: commitment.control.value,
-          due: due.control.value,
-          filedBy: filedBy.control.value,
+          text: commitmentValue,
+          due: dueValue,
+          filedBy: filedByValue,
         });
         formValues.delete(fieldKey(record.id, 'commitment'));
         formValues.delete(fieldKey(record.id, 'due'));
         formValues.delete(fieldKey(record.id, 'filedby'));
-        notice = { id: record.id, text: copy.filedNotice };
+        notice = {
+          id: record.id,
+          text: copy.filedNotice,
+          label: copy.stamps.pending,
+          tone: 'warning',
+        };
       } catch (error) {
-        errors.set(record.id, messageOf(error));
+        errors.set(record.id, withNextStep(messageOf(error)));
       }
       render();
+      focusNotice();
     });
     return form;
   }
 
+  /**
+   * The detail panel, in three groups: what the record says, its trace, and the
+   * one action this office may take next. Whitespace and a hairline separate
+   * them; nothing is a bordered panel inside a bordered panel (rules H7, D5).
+   */
   function renderDetail(record: DemoRecord, lang: Lang): HTMLDivElement {
     const card = el('div', 'demo-panel queue-detail-card');
     card.setAttribute('data-detail-card', record.id);
@@ -913,8 +774,11 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     head.append(stamps);
     card.append(head);
 
-    card.append(detailFields(record, lang));
-    card.append(renderTrace(record, lang, traceOptions));
+    card.append(group(text(copy.groupRecord, lang), detailFields(record, lang)));
+    card.append(group(text(copy.groupTrace, lang), renderTrace(record, lang, traceOptions)));
+
+    const action = el('section', 'demo-group');
+    action.append(el('h4', 'demo-group-title', text(copy.groupAction, lang)));
 
     if (record.status === 'returned' && record.review) {
       const returned = el('div', 'queue-returned');
@@ -928,45 +792,83 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
         ),
         el('span', undefined, text(copy.returnedLine, lang)),
       );
-      card.append(returned);
+      action.append(returned);
     }
 
     /* Only the legal actions for this role. Pending review and published carry none. */
-    if (record.status === 'open') card.append(assignForm(record, lang));
+    if (record.status === 'open') action.append(assignForm(record, lang));
     if (record.status === 'assigned' || record.status === 'returned') {
-      card.append(commitmentForm(record, lang));
+      action.append(commitmentForm(record, lang));
     }
     if (record.status === 'commitment-pending-review') {
-      card.append(el('p', 'queue-note', text(copy.withReviewer, lang)));
+      action.append(el('p', 'queue-note', text(copy.withReviewer, lang)));
     }
     if (record.status === 'published') {
-      card.append(el('p', 'queue-note', text(copy.publishedLine, lang)));
+      action.append(el('p', 'queue-note', text(copy.publishedLine, lang)));
     }
 
     const error = errors.get(record.id);
     if (error) {
       const node = el('p', 'queue-error', text(error, lang));
       node.setAttribute('role', 'alert');
-      card.append(node);
+      action.append(node);
     }
 
-    const open = el('a', 'queue-link-action', text(copy.openRecord, lang));
+    const open = el('a', 'btn queue-link-action', text(copy.openRecord, lang));
+    open.setAttribute('data-variant', 'secondary');
     open.href = `/demo/record?id=${encodeURIComponent(record.id)}`;
     open.setAttribute('data-focus-key', fieldKey(record.id, 'open'));
-    card.append(open);
+    action.append(open);
+
+    card.append(action);
 
     return card;
   }
 
   /* --------------------------------------------------------------- render -- */
 
+  /**
+   * The empty state of one bucket: what the bucket is for, up to two tips, and
+   * the action that fills it where a legal one exists (rule S1).
+   */
+  function bucketEmptyState(bucketId: string, lang: Lang): HTMLDivElement {
+    const specs: Record<string, EmptyStateSpec> = copy.empty;
+    const spec = specs[bucketId] ?? specs.all;
+    const action = spec.action ?? null;
+    return emptyState({
+      title: text(spec.title, lang),
+      purpose: text(spec.purpose, lang),
+      tips: spec.tips.map((tip) => text(tip, lang)),
+      action: action
+        ? {
+            label: text(action.label, lang),
+            href: action.href,
+            variant: spec.primary ? 'primary' : 'tertiary',
+          }
+        : undefined,
+    });
+  }
+
+  /**
+   * A completed action destroys the form that held focus, so the outcome takes
+   * it: the reader lands on the sentence saying what happened (rule S2).
+   */
+  function focusNotice(): void {
+    if (statusRegion instanceof HTMLElement && statusRegion.textContent) statusRegion.focus();
+  }
+
+  /** The state word carries the state without colour; the sentence says what happened. */
   function renderNotice(lang: Lang): void {
     if (!(statusRegion instanceof HTMLElement)) return;
     if (!notice) {
-      statusRegion.replaceChildren();
+      statusLine(statusRegion, { label: '', tone: 'trace', text: '' });
       return;
     }
-    statusRegion.textContent = text(notice.text, lang).replace('{id}', notice.id);
+    statusLine(statusRegion, {
+      label: text(notice.label, lang),
+      tone: notice.tone,
+      text: text(notice.text, lang).replace('{id}', notice.id),
+    });
   }
 
   function render(): void {
@@ -1004,15 +906,7 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
 
     if (visible.length === 0) {
       const empty = el('li');
-      const line = el('p', 'queue-empty');
-      if (records.length === 0) {
-        const link = el('a', undefined, text(copy.emptyLink, lang));
-        link.href = '/demo/citizen';
-        line.append(`${text(copy.emptyAll, lang)} `, link);
-      } else {
-        line.textContent = text(copy.emptyBucket, lang);
-      }
-      empty.append(line);
+      empty.append(bucketEmptyState(records.length === 0 ? 'all' : bucket, lang));
       ledger.replaceChildren(empty);
     } else {
       ledger.replaceChildren(
@@ -1035,7 +929,14 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     if (detailSlot instanceof HTMLElement) {
       if (narrow) detailSlot.replaceChildren();
       else if (card) detailSlot.replaceChildren(card);
-      else detailSlot.replaceChildren(el('p', 'queue-empty', text(copy.nothingSelected, lang)));
+      else {
+        detailSlot.replaceChildren(
+          emptyState({
+            title: text(copy.nothingSelected.title, lang),
+            purpose: text(copy.nothingSelected.purpose, lang),
+          }),
+        );
+      }
     }
     if (detailColumn instanceof HTMLElement) detailColumn.hidden = narrow;
     if (rail instanceof HTMLElement) {

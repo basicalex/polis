@@ -1,0 +1,65 @@
+---
+import '../styles/public.css';
+import {
+  landing,
+  landingEntryIds,
+  stageLabels,
+  stages,
+  type Lang,
+  type LandingEntryId,
+} from '../content/public-release';
+
+interface Props {
+  lang: Lang;
+  /**
+   * Destinations for the six entry rows. The pages own them because the
+   * presentation route is language-specific and the demo routes are not.
+   */
+  entryHrefs: Record<LandingEntryId, string>;
+}
+
+const { lang, entryHrefs } = Astro.props as Props;
+const text = landing[lang];
+const loopStages = stages.map((stage) => stage.stage);
+---
+
+<article class="landing" id="public-record">
+  <header class="page-header">
+    <h1>{text.headline}</h1>
+    <p class="page-header-lede">{text.lede}</p>
+  </header>
+
+  <section class="landing-loop" aria-labelledby="landing-loop-title">
+    <h2 class="landing-section-title" id="landing-loop-title">{text.loopTitle}</h2>
+    <ol class="landing-loop-list">
+      {
+        loopStages.map((stage, index) => (
+          <li>
+            <span class="landing-loop-index">{index + 1}</span>
+            <span class="landing-loop-name">{stageLabels[stage][lang]}</span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="landing-open" aria-labelledby="landing-open-title">
+    <h2 class="landing-section-title" id="landing-open-title">{text.entriesTitle}</h2>
+    <ul class="landing-entries">
+      {
+        landingEntryIds.map((id) => (
+          <li>
+            <a href={entryHrefs[id]}>
+              <span class="landing-entry-label">{text.entries[id].label}</span>
+              <span class="landing-entry-note">{text.entries[id].note}</span>
+              <span class="landing-entry-arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="landing-note">{text.demoNote}</p>
+  </section>
+</article>

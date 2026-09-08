@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type ClaimWire = {
   id: string;
@@ -75,119 +77,212 @@ const statusAnchor = (status: string) => `commitments-${status.replaceAll('_', '
 const charterStatus = holder?.charterStatus ?? (holder?.charterAccepted ? 'accepted' : null);
 const charterHash = holder?.charterSignedDocumentHash ?? null;
 const charterTone = charterStatus === 'accepted' ? 'valid' : charterStatus ? 'warning' : 'unknown';
+const statusTone = (status: string) =>
+  status === 'delivered'
+    ? 'valid'
+    : status === 'not_delivered' || status === 'overdue'
+      ? 'danger'
+      : status === 'partial' || status === 'proposed'
+        ? 'warning'
+        : 'unknown';
 ---
 
 <Base title={`Mandate-holder · ${holder?.displayName ?? id}`}>
-  {holder ? (
-    <Fragment>
-      <section class="stack">
-        <DemoBadge label="accountability, not endorsement" />
-        <h1>{holder.displayName}</h1>
-        <p class="muted">Jurisdiction: {holder.jurisdictionId ?? 'not recorded'}</p>
-        <p>
-          <span class="badge">{holder.status}</span>
-        </p>
-        <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
-      </section>
-
-      <section class="stack">
-        <h2>Charter signature</h2>
-        <div class="panel stack">
-          <p>
-            <span class="trust-badge" data-tone={charterTone}>
-              charter {charterStatus ?? 'not on file'}
-            </span>
-            {holder.charterVersion !== null && <span class="badge">version {holder.charterVersion}</span>}
+  <div class="task-page">
+    {holder ? (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>{holder.displayName}</h1>
+          <p class="page-header-institution">
+            Jurisdiction {holder.jurisdictionId ?? 'not recorded'}
           </p>
-          <dl class="kv">
-            <dt>Signed</dt>
-            <dd>{holder.charterSignedAt ?? 'not signed'}</dd>
-            <dt>Signed document hash</dt>
-            <dd>{charterHash ? <span class="hash-value">{charterHash}</span> : 'not recorded'}</dd>
-            <dt>Proof</dt>
+          <DemoBadge label="accountability, not endorsement" />
+        </header>
+
+        <dl class="record-facts">
+          <div>
+            <dt>Mandate status</dt>
+            <dd><span class="status-label" data-tone="unknown">{holder.status}</span></dd>
+          </div>
+          <div>
+            <dt>Charter</dt>
             <dd>
-              {holder.charterProofId ? (
-                <a href={`/proofs/${holder.charterProofId}`}>proof for the signed charter</a>
-              ) : (
-                'not published'
-              )}
+              <span class="status-label" data-tone={charterTone}>
+                charter {charterStatus ?? 'not on file'}
+              </span>
             </dd>
+          </div>
+          <div>
+            <dt>Commitments</dt>
+            <dd>{holder.commitments.length}</dd>
+          </div>
+          <div>
+            <dt>Boundary</dt>
+            <dd>
+              <span class="status-label" data-tone="unknown">public-read</span>{' '}
+              <span class="status-label" data-tone="unknown">verifiable</span>
+            </dd>
+          </div>
+        </dl>
+
+        <section class="task-section">
+          <h2>Charter signature</h2>
+          <dl class="detail-list">
+            <div>
+              <dt>Signed</dt>
+              <dd>{holder.charterSignedAt ?? 'not signed'}</dd>
+            </div>
+            <div>
+              <dt>Version</dt>
+              <dd>{holder.charterVersion !== null ? holder.charterVersion : 'not recorded'}</dd>
+            </div>
+            <div>
+              <dt>Signed document hash</dt>
+              <dd>{charterHash ? <span class="hash-value">{charterHash}</span> : 'not recorded'}</dd>
+            </div>
+            <div>
+              <dt>Proof</dt>
+              <dd>
+                {holder.charterProofId ? (
+                  <a href={`/proofs/${holder.charterProofId}`}>proof for the signed charter</a>
+                ) : (
+                  'not published'
+                )}
+              </dd>
+            </div>
           </dl>
           <p class="trust-note">
             This shows that a named person completed a signing ceremony on the charter PDF, and that
             Polis registered a proof over the exact signed bytes. It is not a qualified electronic
             signature, and it does not show that the charter's contents are true.
           </p>
-        </div>
-      </section>
-
-      {scorecard && (
-        <section class="stack">
-          <h2>Commitment counts</h2>
-          <p class="muted">
-            Counts of commitments by effective status. This page reports accountability evidence only.
-          </p>
-          <div class="panel stack">
-            <table class="data-table">
-              <tbody>
-                <tr><th scope="row">delivered</th><td><a href={`?status=delivered#${statusAnchor('delivered')}`} aria-label="delivered commitments evidence and audit details">{scorecard.totals.delivered}</a></td><th scope="row">in progress</th><td><a href={`?status=in_progress#${statusAnchor('in_progress')}`} aria-label="in progress commitments evidence and audit details">{scorecard.totals.inProgress}</a></td></tr>
-                <tr><th scope="row">proposed</th><td><a href={`?status=proposed#${statusAnchor('proposed')}`} aria-label="proposed commitments evidence and audit details">{scorecard.totals.proposed}</a></td><th scope="row">partial</th><td><a href={`?status=partial#${statusAnchor('partial')}`} aria-label="partial commitments evidence and audit details">{scorecard.totals.partial}</a></td></tr>
-                <tr><th scope="row">not delivered</th><td><a href={`?status=not_delivered#${statusAnchor('not_delivered')}`} aria-label="not delivered commitments evidence and audit details">{scorecard.totals.notDelivered}</a></td><th scope="row">overdue</th><td><a href={`?status=overdue#${statusAnchor('overdue')}`} aria-label="overdue commitments evidence and audit details">{scorecard.totals.overdue}</a></td></tr>
-              </tbody>
-            </table>
-          </div>
         </section>
-      )}
 
-      <section class="stack" id={statusFilter ? statusAnchor(statusFilter) : 'commitments'}>
-        <h2>Commitments{statusFilter && <span> (filtered: {statusFilter}) · <a href={Astro.url.pathname}>clear filter</a></span>}</h2>
-        {filteredCommitments.length > 0 ? (
-          <table class="data-table">
-            <thead>
-              <tr><th>Success criterion</th><th>Effective status</th><th>Due</th><th></th></tr>
-            </thead>
-            <tbody>
+        {scorecard && (
+          <section class="task-section">
+            <h2>Commitment counts</h2>
+            <p class="task-lede">
+              Counts of commitments by effective status. This page reports accountability evidence
+              only.
+            </p>
+            <dl class="record-facts">
+              <div>
+                <dt>delivered</dt>
+                <dd><a href={`?status=delivered#${statusAnchor('delivered')}`} aria-label="delivered commitments evidence and audit details">{scorecard.totals.delivered}</a></dd>
+              </div>
+              <div>
+                <dt>in progress</dt>
+                <dd><a href={`?status=in_progress#${statusAnchor('in_progress')}`} aria-label="in progress commitments evidence and audit details">{scorecard.totals.inProgress}</a></dd>
+              </div>
+              <div>
+                <dt>proposed</dt>
+                <dd><a href={`?status=proposed#${statusAnchor('proposed')}`} aria-label="proposed commitments evidence and audit details">{scorecard.totals.proposed}</a></dd>
+              </div>
+              <div>
+                <dt>partial</dt>
+                <dd><a href={`?status=partial#${statusAnchor('partial')}`} aria-label="partial commitments evidence and audit details">{scorecard.totals.partial}</a></dd>
+              </div>
+              <div>
+                <dt>not delivered</dt>
+                <dd><a href={`?status=not_delivered#${statusAnchor('not_delivered')}`} aria-label="not delivered commitments evidence and audit details">{scorecard.totals.notDelivered}</a></dd>
+              </div>
+              <div>
+                <dt>overdue</dt>
+                <dd><a href={`?status=overdue#${statusAnchor('overdue')}`} aria-label="overdue commitments evidence and audit details">{scorecard.totals.overdue}</a></dd>
+              </div>
+            </dl>
+          </section>
+        )}
+
+        <section class="task-section" id={statusFilter ? statusAnchor(statusFilter) : 'commitments'}>
+          <h2>Commitments</h2>
+          {statusFilter && (
+            <p class="link-row">
+              <span class="status-label" data-tone="unknown">filtered: {statusFilter}</span>
+              <a href={Astro.url.pathname}>clear filter</a>
+            </p>
+          )}
+          {filteredCommitments.length > 0 ? (
+            <ul class="ledger">
               {filteredCommitments.map((c) => (
-                <tr id={`commitment-${c.effectiveStatus}-${c.id}`}>
-                  <td>{c.successCriterion}</td>
-                  <td><span class="badge">{c.effectiveStatus}</span></td>
-                  <td>{c.dueAt ?? '—'}</td>
-                  <td><a href={`/commitments/${c.id}`}>details</a></td>
-                </tr>
+                <li id={`commitment-${c.effectiveStatus}-${c.id}`}>
+                  <h3 class="ledger-title">
+                    <a href={`/commitments/${c.id}`}>{c.successCriterion}</a>
+                  </h3>
+                  <p class="ledger-meta">
+                    <span class="status-label" data-tone={statusTone(c.effectiveStatus)}>{c.effectiveStatus}</span>
+                    <span>due <span class="ledger-value">{c.dueAt ?? 'no date'}</span></span>
+                  </p>
+                </li>
               ))}
-            </tbody>
-          </table>
-        ) : (
-          <p class="panel muted">No commitments{statusFilter ? ' with status ' + statusFilter : ''} published.</p>
-        )}
-      </section>
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title={statusFilter ? `No commitments with status ${statusFilter}` : 'No commitments published'}
+              purpose="Commitments appear here once they are filed against a public claim and pass independent review."
+              tips={[
+                'A commitment names a success criterion and a due date.',
+                statusFilter ? 'Clear the filter to see every commitment for this office.' : 'Seeded fixtures publish the first commitments: bun run db:seed.',
+              ]}
+              actionLabel={statusFilter ? 'Clear the filter' : undefined}
+              actionHref={statusFilter ? Astro.url.pathname : undefined}
+            />
+          )}
+        </section>
 
-      <section class="stack">
-        <h2>Published claims</h2>
-        {linkedClaims.length > 0 ? (
-          <ul>
-            {linkedClaims.map((claim) => (
-              <li>{claim.text} <span class="badge">{claim.reviewState}</span></li>
-            ))}
-          </ul>
-        ) : (
-          <p class="panel muted">No claims linked to commitments.</p>
-        )}
-      </section>
+        <section class="task-section">
+          <h2>Published claims</h2>
+          {linkedClaims.length > 0 ? (
+            <ul class="ledger">
+              {linkedClaims.map((claim) => (
+                <li>
+                  <p class="ledger-summary">{claim.text}</p>
+                  <p class="ledger-meta">
+                    <span class="status-label" data-tone="unknown">{claim.reviewState}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No claims linked to commitments"
+              purpose="A commitment answers a public claim. Until a claim is linked, the commitment stands on its own."
+              tips={[
+                'Claims are source-linked statements from the governance graph.',
+                'Every claim carries a review state before it is published.',
+              ]}
+            />
+          )}
+        </section>
 
-      <section class="stack">
-        <p class="muted">
-          <a href="/audit">audit trail</a> · <a href="/proofs">proofs</a> · <a href="/verify">verify</a> · <a href="/methodology">methodology</a>
+        <p class="link-row">
+          <a href="/audit">Audit trail</a>
+          <a href="/proofs">Proofs</a>
+          <a href="/verify">Verify</a>
+          <a href="/methodology">Methodology</a>
         </p>
-      </section>
-    </Fragment>
-  ) : (
-    <section class="stack">
-      <h1>Mandate-holder not found</h1>
-      <p class="panel muted">
-        No mandate-holder record for <code>{id}</code>. Start the services and seed the database.
-      </p>
-      <p><a href="/mandate-holders">← back to mandate-holders</a></p>
-    </section>
-  )}
+      </Fragment>
+    ) : (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Mandate-holder not found</h1>
+          <p class="record-id">{id}</p>
+        </header>
+        <EmptyState
+          title="No mandate-holder record for this id"
+          purpose="Either no office-holder was published under this reference, or the local services that hold the record are not running."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'Check the id in the address bar against the mandate-holder list.',
+          ]}
+          actionLabel="Back to mandate-holders"
+          actionHref="/mandate-holders"
+          actionVariant="primary"
+        />
+      </Fragment>
+    )}
+  </div>
 </Base>

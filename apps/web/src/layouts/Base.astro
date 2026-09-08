@@ -1,5 +1,6 @@
 ---
 import '../styles.css';
+import '../styles/chrome.css';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
 import {
   directionContract,
@@ -58,7 +59,7 @@ const releaseNavigation = {
     source: 'Source',
     language: 'Hrvatski',
     present: 'Present',
-    skip: 'Skip to the public record',
+    skip: 'Skip to content',
     more: 'More',
   },
   hr: {
@@ -69,10 +70,57 @@ const releaseNavigation = {
     source: 'Izvor',
     language: 'English',
     present: 'Izlaganje',
-    skip: 'Preskoči na javni zapis',
+    skip: 'Preskoči na sadržaj',
     more: 'Dalje',
   },
 }[lang];
+
+/*
+ * Local demonstrator navigation. Thirteen flat links became four groups so a
+ * reader chooses a subject before a destination (rules I2, S3). Each item
+ * carries one line saying what the page does; the group holding the current
+ * page and the current page itself are marked by weight, not colour (P4).
+ */
+const localNavGroups = [
+  {
+    id: 'record',
+    label: 'Record',
+    items: [
+      { href: '/issues', label: 'Issues', note: 'Public problems under deliberation' },
+      { href: '/complaints', label: 'Complaints', note: 'Your own casework, kept private' },
+      { href: '/deliberate', label: 'Deliberate', note: 'Conversations that feed an issue' },
+      {
+        href: '/governance/jur-croatia-local',
+        label: 'Governance',
+        note: 'Which office answers for what',
+      },
+      { href: '/assistant', label: 'Assistant', note: 'Drafting help with cited sources' },
+    ],
+  },
+  {
+    id: 'trust',
+    label: 'Trust',
+    items: [
+      { href: '/verify', label: 'Verify', note: 'Check a file against a registered digest' },
+      { href: '/proofs', label: 'Proofs', note: 'Receipts and the proofs behind them' },
+      { href: '/audit', label: 'Audit', note: 'The append-only event trail' },
+      { href: '/transparency', label: 'Transparency', note: 'What this build does and does not do' },
+    ],
+  },
+  {
+    id: 'learn',
+    label: 'Learn',
+    items: [
+      { href: '/docs', label: 'Docs', note: 'How the platform is put together' },
+      { href: '/methodology', label: 'Methodology', note: 'How evidence and review work' },
+      { href: '/source', label: 'Source', note: 'Repository, licence, and build' },
+      { href: '/privacy', label: 'Privacy', note: 'What is stored and what stays private' },
+    ],
+  },
+];
+
+const isCurrentPath = (href: string) =>
+  currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
 <html
@@ -89,7 +137,7 @@ const releaseNavigation = {
     <meta name="description" content={description} />
   </head>
   <body><Fragment set:html={`<!-- direction-contract\n${directionContract}\n-->`} />
-    <a class="skip-link" href="#public-record">{publicRelease ? releaseNavigation.skip : 'Skip to content'}</a>
+    <a class="skip-link" href="#main-content">{publicRelease ? releaseNavigation.skip : 'Skip to content'}</a>
     <div class:list={['site-shell', { 'site-shell--presenter': publicRelease && presenter }]}>
       {
         demoChrome ? null : publicRelease ? (
@@ -100,46 +148,75 @@ const releaseNavigation = {
             </p>
           </aside>
         ) : (
-          <DemoBadge banner />
+          <DemoBadge banner label="Demo — synthetic data, development proof keys." />
         )
       }
 
       {!demoChrome && (
-      <header class="site-header">
+      <header class="site-header site-header--chrome">
         <a class="site-brand" href={homeHref}>Polis</a>
         {
           publicRelease ? (
             <div class="release-nav-shell">
               <nav class="site-nav release-nav" aria-label={releaseNavigation.primary}>
-                <a href={presentationHref} aria-current={onPresentation ? 'page' : undefined}>
+                <a class="nav-link" href={presentationHref} aria-current={onPresentation ? 'page' : undefined}>
                   {releaseNavigation.presentation}
                 </a>
-                <a href="/transparency">{releaseNavigation.transparency}</a>
-                <a href="/source">{releaseNavigation.source}</a>
-                <a href={otherLanguageHref} hreflang={lang === 'hr' ? 'en' : 'hr'}>
+                <a class="nav-link" href="/transparency" aria-current={currentPath === '/transparency' ? 'page' : undefined}>
+                  {releaseNavigation.transparency}
+                </a>
+                <a class="nav-link" href="/source" aria-current={currentPath === '/source' ? 'page' : undefined}>
+                  {releaseNavigation.source}
+                </a>
+                <a class="nav-link" href={otherLanguageHref} hreflang={lang === 'hr' ? 'en' : 'hr'}>
                   {releaseNavigation.language}
                 </a>
-                {!presenter && <a href={presentHref}>{releaseNavigation.present}</a>}
+                {!presenter && <a class="nav-link" href={presentHref}>{releaseNavigation.present}</a>}
               </nav>
               <span class="release-nav-overflow" aria-hidden="true">{releaseNavigation.more} →</span>
             </div>
           ) : (
-            <nav class="site-nav" aria-label="Primary">
-              <a href="/governance/jur-croatia-local">Governance</a>
-              <a href="/issues">Issues</a>
-              <a href="/complaints">Complaints</a>
-              <a href="/deliberate">Deliberate</a>
-              <a href="/audit">Audit</a>
-              <a href="/verify">Verify</a>
-              <a href="/proofs">Proofs</a>
-              <a href="/assistant">Assistant</a>
-              <a href="/docs">Docs</a>
-              <a href="/source">Source</a>
-              <a href="/methodology">Methodology</a>
-              <a href="/transparency">Transparency</a>
-              <a href="/privacy">Privacy</a>
-              <span id="auth-nav" />
-            </nav>
+            <details class="nav-root" data-nav-root open>
+              <summary class="nav-root-summary">Menu</summary>
+              <nav class="site-nav site-nav--groups" aria-label="Primary">
+                {localNavGroups.map((group) => (
+                  <details
+                    class="nav-group"
+                    name="polis-nav-group"
+                    data-nav-group
+                    data-current={group.items.some((item) => isCurrentPath(item.href)) ? 'true' : undefined}
+                  >
+                    <summary class="nav-group-summary">{group.label}</summary>
+                    <div class="nav-menu">
+                      {group.items.map((item) => (
+                        <a
+                          class="nav-item"
+                          href={item.href}
+                          aria-current={isCurrentPath(item.href) ? 'page' : undefined}
+                        >
+                          <span class="nav-item-label">{item.label}</span>
+                          <span class="nav-item-note">{item.note}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+                <details
+                  class="nav-group"
+                  name="polis-nav-group"
+                  data-nav-group
+                  data-current={isCurrentPath('/login') || isCurrentPath('/mandate-holders') ? 'true' : undefined}
+                >
+                  <summary class="nav-group-summary">Account</summary>
+                  <div class="nav-menu" id="auth-nav">
+                    <a class="nav-item" href="/login" aria-current={isCurrentPath('/login') ? 'page' : undefined}>
+                      <span class="nav-item-label">Login</span>
+                      <span class="nav-item-note">Sign in to file and follow casework</span>
+                    </a>
+                  </div>
+                </details>
+              </nav>
+            </details>
           )
         }
       </header>
@@ -147,20 +224,25 @@ const releaseNavigation = {
 
       <main class="site-main" id="main-content"><slot /></main>
 
-      <footer class="site-footer" id="site-footer">
+      <footer class="site-footer site-footer--chrome" id="site-footer">
         {
           publicRelease ? (
             <>
-              <span class="footer-label">{statusLabels.demonstrationFixture[lang]}</span>
-              {' · '}
-              <span class="footer-label">{statusLabels.notLive[lang]}</span>
-              {' · AGPL-3.0-or-later · '}
-              <a href="/source">{releaseNavigation.source}</a>
+              <span class="footer-item footer-label">{statusLabels.demonstrationFixture[lang]}</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span class="footer-item footer-label">{statusLabels.notLive[lang]}</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span class="footer-item">AGPL-3.0-or-later</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span class="footer-item"><a href="/source">{releaseNavigation.source}</a></span>
             </>
           ) : (
             <>
-              Source: https://github.com/basicalex/polis · AGPL-3.0-or-later ·{' '}
-              <span id="version-meta">version unavailable</span>
+              <span class="footer-item">Source: https://github.com/basicalex/polis</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span class="footer-item">AGPL-3.0-or-later</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span class="footer-item" id="version-meta">version unavailable</span>
               <script is:inline define:vars={{ apiUrl }}>
                 const target = document.getElementById('version-meta');
                 fetch(apiUrl + '/version')
@@ -188,31 +270,88 @@ const releaseNavigation = {
     </div>
 
     {
+      !publicRelease && !demoChrome && (
+        <script is:inline>
+          /*
+           * Chrome behaviour only: collapse the root disclosure on phones and
+           * close an open group on Escape or an outside click. The markup ships
+           * expanded so the navigation still works with scripting off.
+           */
+          (() => {
+            const root = document.querySelector('[data-nav-root]');
+            if (!root) return;
+            const summary = root.querySelector('.nav-root-summary');
+            const groups = Array.from(root.querySelectorAll('[data-nav-group]'));
+            const phone = window.matchMedia('(max-width: 40rem)');
+            const syncRoot = () => {
+              root.open = !phone.matches;
+            };
+            syncRoot();
+            phone.addEventListener('change', syncRoot);
+            const closeGroups = () => {
+              for (const group of groups) group.open = false;
+            };
+            document.addEventListener('keydown', (event) => {
+              if (event.key !== 'Escape') return;
+              const openGroup = groups.find((group) => group.open);
+              if (openGroup) {
+                closeGroups();
+                openGroup.querySelector('summary')?.focus();
+                return;
+              }
+              if (phone.matches && root.open) {
+                root.open = false;
+                summary?.focus();
+              }
+            });
+            document.addEventListener('click', (event) => {
+              if (root.contains(event.target)) return;
+              closeGroups();
+              if (phone.matches) root.open = false;
+            });
+          })();
+        </script>
+      )
+    }
+
+    {
       !publicRelease && (
         <script is:inline define:vars={{ apiUrl }}>
           window.__API_URL = apiUrl;
           const rawSession = sessionStorage.getItem('web_session');
           const authNav = document.getElementById('auth-nav');
           if (authNav) {
-            const login = document.createElement('a');
-            login.href = '/login';
-            login.textContent = 'Login';
+            const path = location.pathname.replace(/\/+$/, '') || '/';
+            const item = (href, label, note) => {
+              const link = document.createElement('a');
+              link.className = 'nav-item';
+              link.href = href;
+              if (path === href || path.startsWith(href + '/')) link.setAttribute('aria-current', 'page');
+              const name = document.createElement('span');
+              name.className = 'nav-item-label';
+              name.textContent = label;
+              const hint = document.createElement('span');
+              hint.className = 'nav-item-note';
+              hint.textContent = note;
+              link.append(name, hint);
+              return link;
+            };
             if (!rawSession) {
-              authNav.replaceChildren(login);
+              authNav.replaceChildren(item('/login', 'Login', 'Sign in to file and follow casework'));
             } else {
-              const mandateHolders = document.createElement('a');
-              mandateHolders.href = '/mandate-holders';
-              mandateHolders.textContent = 'Mandate-holders';
-              const separator = document.createTextNode(' · ');
-              const logout = document.createElement('a');
-              logout.href = '#';
-              logout.textContent = 'Logout';
+              const mandateHolders = item(
+                '/mandate-holders',
+                'Mandate-holders',
+                'People holding a public mandate',
+              );
+              const logout = item('#', 'Logout', 'End this browser session');
+              logout.removeAttribute('aria-current');
               logout.addEventListener('click', (event) => {
                 event.preventDefault();
                 sessionStorage.removeItem('web_session');
                 location.reload();
               });
-              authNav.replaceChildren(mandateHolders, separator, logout);
+              authNav.replaceChildren(mandateHolders, logout);
             }
           }
         </script>

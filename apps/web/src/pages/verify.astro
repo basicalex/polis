@@ -3,32 +3,30 @@ import Base from '../layouts/Base.astro';
 import MechanismTable from '@polis/ui/astro/MechanismTable.astro';
 import ProofTruthNote from '@polis/ui/astro/ProofTruthNote.astro';
 import { VerifierFlow } from '@polis/ui/react/VerifierFlow.tsx';
+import '../styles/tasks.css';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 ---
 
 <Base title="Verify — Polis Interface">
-  <div class="stack">
-    <section class="hero">
+  <div class="task-page task-page--column">
+    <header class="page-header">
       <h1>Verify a document</h1>
-      <p>
+      <p class="page-header-lede">
         Check whether a file, a hash, or a proof reference matches a registered document proof —
         signatures, timestamps, and registry status included.
       </p>
-      <ProofTruthNote />
-    </section>
+    </header>
 
-    <section class="panel">
-      <VerifierFlow client:load apiUrl={apiUrl} proofBasePath="/proofs" />
-    </section>
+    <ProofTruthNote />
+
+    <VerifierFlow client:load apiUrl={apiUrl} proofBasePath="/proofs" />
 
     <MechanismTable />
 
-    <section class="panel">
-      <p class="muted">
-        Looking for a specific proof? Open <a href="/proofs">the proof lookup</a> or paste a proof
-        link in the third tab above.
-      </p>
-    </section>
+    <p class="link-row">
+      <span class="muted">Looking for a specific proof?</span>
+      <a href="/proofs">Open the proof lookup</a>
+    </p>
   </div>
 </Base>

@@ -10,6 +10,7 @@
     "typecheck": "astro check || node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.mjs",
     "qa:release": "PUBLIC_RELEASE=1 PUBLIC_RELEASE_LOCAL_QA=1 PUBLIC_SITE_URL=http://127.0.0.1:8787 astro build && bun scripts/run-with-timeout.mjs 600 -- bun scripts/release-smoke.mjs",
+    "qa:ui": "bun scripts/run-with-timeout.mjs 900 -- bun scripts/ui-audit.mjs",
     "smoke:release": "bun scripts/run-with-timeout.mjs 600 -- bun scripts/release-smoke.mjs",
     "deploy:preview": "CLOUDFLARE_ENV=preview bun run build:release && wrangler deploy --env preview",
     "deploy:production": "bun run build:release && wrangler deploy --env=\"\"",

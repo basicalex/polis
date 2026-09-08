@@ -1,0 +1,696 @@
+/*
+ * Wave W5 — task and record pages.
+ *
+ * Owner: /verify, /proofs, /login, /issues, /assistant, /partners,
+ * /pilot/results, /audit, /governance/*, /mandate-holders/*, /claims/*,
+ * /commitments/*, /complaints/*, /contribute/*, /contributions/*,
+ * /contributors/*, /deliberate, /rewards, and the shared record components.
+ *
+ * Everything here builds on the @polis/ui recipes (.panel, .field, .btn,
+ * .status-label, .page-header, .prose, .form-narrow, .empty-state). Tokens are
+ * never redefined; the 4px ladder (--space-*) is the only spacing source.
+ */
+
+/* ---- page rhythm -----------------------------------------------------------
+ * One vertical ladder for a task page: header, then sections a clear step
+ * apart. The header keeps the lede off the first panel (H6).
+ * -------------------------------------------------------------------------- */
+
+.task-page {
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.task-page > .page-header {
+  margin-bottom: 0;
+}
+
+/*
+ * A single-task page does not stretch across 1440px (L5). The form pages use
+ * `.form-narrow` (36rem); a task page that also carries a reference table gets
+ * this slightly wider column.
+ */
+.task-page--column {
+  width: min(46rem, 100%);
+  margin-inline: auto;
+}
+
+.task-section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.task-section > h2,
+.task-section > h3 {
+  margin-bottom: 0;
+}
+
+/* Section intro sits with its heading, not with the rows below it (H6). */
+.task-section > h2 + .task-lede,
+.task-section > h3 + .task-lede {
+  max-width: 68ch;
+  margin: calc(var(--space-4) * -1 + var(--space-2)) 0 0;
+  color: var(--polis-muted);
+}
+
+.page-header-eyebrow {
+  display: block;
+  margin: 0 0 var(--space-3);
+  color: var(--polis-muted);
+}
+
+/* The proof/verify truth note is a page-level qualification: it sits a full
+   step under the header, never jammed against the lede (H6, F7). */
+.page-header + .task-note,
+.task-note {
+  max-width: 68ch;
+  margin: 0;
+}
+
+/* ---- ledger rows -----------------------------------------------------------
+ * Records read as rows separated by one hairline, not as bordered cards
+ * stacked inside a bordered panel (D5, D6). Key facts first, values louder
+ * than labels (H3, H5).
+ * -------------------------------------------------------------------------- */
+
+.ledger {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--polis-border);
+  list-style: none;
+}
+
+.ledger:empty {
+  display: none;
+}
+
+.ledger > li,
+.ledger > article {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.ledger-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-body-lg);
+  line-height: 1.25;
+}
+
+.ledger-title a {
+  color: var(--polis-text);
+}
+
+.ledger-title a:hover,
+.ledger-title a:focus-visible {
+  color: var(--polis-trace);
+}
+
+.ledger-summary {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+}
+
+.ledger-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  align-items: baseline;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.ledger-meta time,
+.ledger-value {
+  color: var(--polis-text);
+  font-weight: 600;
+}
+
+/* ---- key facts -------------------------------------------------------------
+ * The two or three things a reader looks for first: status, owner, due date.
+ * Label small and muted, value large and dark (H3).
+ * -------------------------------------------------------------------------- */
+
+.record-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-5) var(--space-8);
+  margin: 0;
+}
+
+.record-facts > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.record-facts dt {
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.record-facts dd {
+  margin: 0;
+  color: var(--polis-text);
+  font-size: var(--type-body-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.record-facts dd .status-label {
+  font-size: var(--type-label);
+}
+
+/* ---- detail list -----------------------------------------------------------
+ * The long tail of fields under the key facts: hairline rows, label left,
+ * value right and louder (H3, D6).
+ * -------------------------------------------------------------------------- */
+
+.detail-list {
+  display: grid;
+  margin: 0;
+}
+
+.detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.32fr) 1fr;
+  gap: var(--space-1) var(--space-5);
+  align-items: baseline;
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.detail-list > div:first-child {
+  border-top: 1px solid var(--polis-border);
+}
+
+.detail-list dt {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.detail-list dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detail-list dd .status-label {
+  font-weight: 600;
+}
+
+@media (max-width: 40rem) {
+  .detail-list > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- record head -----------------------------------------------------------
+ * A record page opens with what it is, its id, and its boundary label. The id
+ * and the boundary stay visible whether or not the record loaded (DESIGN.md).
+ * -------------------------------------------------------------------------- */
+
+.record-head {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.record-head .record-id {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.record-statement {
+  max-width: 68ch;
+  margin: 0;
+  font-size: var(--type-body-lg);
+  line-height: 1.45;
+}
+
+/* A claim sits under the step it supports: one hairline on the left, no box. */
+.claim-block {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--polis-border);
+}
+
+/* ---- tertiary link rows ---- */
+
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  align-items: center;
+  margin: 0;
+  font-size: var(--type-data);
+}
+
+.link-row a {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ---- one primary action ---- */
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: center;
+  margin: var(--space-6) 0 0;
+}
+
+.form-actions .btn[data-variant='tertiary'] {
+  padding-inline: 0;
+}
+
+/* A demonstration badge sits under the lede as its own line, not glued to the
+ * last sentence. The eyebrow paragraph keeps its own spacing. */
+.page-header > span.status-label {
+  display: inline-flex;
+  margin-top: var(--space-3);
+}
+
+.page-header > .privacy-note {
+  margin-top: var(--space-3);
+}
+
+/* ---- verifier --------------------------------------------------------------
+ * The drop zone is the one primary target. The native file input stays in the
+ * accessibility tree and keeps focus; the label beside it carries the paint.
+ * -------------------------------------------------------------------------- */
+
+.verifier-flow .dropzone {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+  padding: var(--space-10) var(--space-5);
+  border-width: 2px;
+}
+
+.verifier-dropzone-line {
+  max-width: 40ch;
+  margin: 0;
+  color: var(--polis-text);
+  font-size: var(--type-body-lg);
+  text-align: center;
+}
+
+.file-choose {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-choose:focus-within {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: 0.125rem;
+}
+
+.verifier-file-name {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.verifier-panel {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.verifier-panel .field + .form-actions {
+  margin-top: 0;
+}
+
+/* ---- mechanism table ---- */
+
+.mechanism-table {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.mechanism-table h2 {
+  margin-bottom: 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll table {
+  width: 100%;
+  /* Below this width the cells break every word; scrolling reads better. */
+  min-width: 32rem;
+}
+
+.table-scroll caption {
+  caption-side: top;
+  padding-block: var(--space-2);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  text-align: left;
+}
+
+/* ---- assistant ---- */
+
+.assistant-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.assistant-form .form-actions {
+  margin-top: 0;
+}
+
+.notice {
+  max-width: 68ch;
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 0.1875rem solid var(--polis-border-strong);
+  background: var(--polis-surface-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--type-data);
+}
+
+.notice[data-tone='warning'] {
+  border-left-color: var(--polis-warning);
+}
+
+.answer-body {
+  max-width: 68ch;
+  font-size: var(--type-body-lg);
+  line-height: 1.55;
+}
+
+.answer-body p {
+  margin: 0;
+}
+
+.citations ol,
+ul.citations,
+ol.citations {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.citations blockquote {
+  max-width: 68ch;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-3);
+  border-left: 0.1875rem solid var(--polis-border);
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.trace-id {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+/* ---- contribute forms ---- */
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-6);
+}
+
+/* Inside a row the columns supply the gap; between rows the ladder does (H6). */
+.form-row > .field + .field {
+  margin-top: 0;
+}
+
+.form-row + .form-row,
+.form-row + .field,
+.field + .form-row {
+  margin-top: var(--space-6);
+}
+
+/* Field width matches the data it holds (I5). */
+.field--narrow input,
+.field--narrow select {
+  max-width: 9rem;
+}
+
+.contribute-result {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.contribute-result p {
+  margin: 0;
+}
+
+/* ---- demonstrator material (charter, fixture results) ---------------------- */
+
+.material-note {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.material-note h2 {
+  margin-bottom: 0;
+  font-size: var(--type-heading-sm);
+}
+
+.material-note p {
+  max-width: 68ch;
+  margin: 0;
+}
+
+.resource-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  align-items: center;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--polis-border);
+  font-size: var(--type-data);
+}
+
+/* Standalone links, so they carry a full target: the box widens to the right
+ * and the words stay flush with the column edge (rule I1). */
+.resource-links a {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+.material-section {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.material-section h2 {
+  margin-bottom: 0;
+}
+
+.material-section > ul {
+  max-width: 68ch;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.material-section > p {
+  max-width: 68ch;
+  margin: 0;
+}
+
+/* ---- graph explorer (moved out of GraphExplorer.tsx) ---- */
+
+.graph-explorer {
+  overflow-x: auto;
+}
+
+.graph-explorer svg {
+  min-width: 45rem;
+  color: var(--polis-primary);
+}
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-sm);
+}
+
+.graph-legend legend {
+  padding: 0 var(--space-1);
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0;
+  font-size: var(--type-data);
+  font-weight: 400;
+}
+
+.graph-view-toggle {
+  flex-shrink: 0;
+}
+
+.graph-edges line {
+  stroke: var(--polis-accent);
+  stroke-opacity: 0.55;
+  stroke-width: 1.5;
+}
+
+.graph-edge.is-active line {
+  stroke-opacity: 1;
+  stroke-width: 2.5;
+}
+
+.graph-edge.is-dimmed {
+  opacity: 0.25;
+}
+
+.graph-edges text {
+  fill: var(--polis-muted);
+  font-size: 0.625rem;
+  paint-order: stroke;
+  stroke: var(--polis-bg);
+  stroke-width: 4px;
+}
+
+.graph-node circle {
+  fill: var(--polis-surface);
+  stroke: var(--polis-accent);
+  stroke-width: 2px;
+}
+
+.graph-node[data-reviewed='false'] circle {
+  stroke-dasharray: 6 4;
+}
+
+.graph-node[data-tone='valid'] circle {
+  stroke: var(--trust-valid-border);
+}
+
+.graph-node[data-tone='warning'] circle {
+  stroke: var(--trust-warning-border);
+}
+
+.graph-node[data-tone='invalid'] circle {
+  stroke: var(--trust-invalid-border);
+}
+
+.graph-node.is-active circle,
+.graph-node:focus circle {
+  stroke-width: 4px;
+}
+
+.graph-node:focus {
+  outline: none;
+}
+
+.graph-node:focus-visible circle {
+  stroke: var(--polis-text);
+}
+
+.graph-node-label {
+  fill: var(--polis-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.graph-node-type {
+  fill: var(--polis-muted);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-explorer *,
+  .graph-explorer *::before,
+  .graph-explorer *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---- phone --------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .task-page {
+    gap: var(--space-6);
+  }
+
+  .record-facts {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  /* The one primary action sits in the thumb zone, full width (L9). */
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  .verifier-flow .dropzone {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  /* A table wider than the screen scrolls; say so rather than leaving a
+   * column cut off with no explanation. */
+  .table-scroll::after {
+    display: block;
+    padding-top: var(--space-2);
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    content: 'Scroll sideways for the rest of the table.';
+  }
+}

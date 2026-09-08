@@ -61,6 +61,8 @@ const policy = [
   },
   { id: 'partners', pattern: '/partners', kind: 'backend-dependent', inventory: 'current' },
   { id: 'pilot-results', pattern: '/pilot/results', kind: 'backend-dependent', inventory: 'current' },
+  { id: 'pilot-vrsar-receipts', pattern: '/pilot/vrsar/receipts', kind: 'backend-dependent', inventory: 'current' },
+  { id: 'pilot-vrsar-receipt-detail', pattern: '/pilot/vrsar/receipts/:receiptId', kind: 'backend-dependent', inventory: 'current' },
   { id: 'proofs', pattern: '/proofs', kind: 'backend-dependent', inventory: 'current' },
   { id: 'proof-detail', pattern: '/proofs/:id', kind: 'backend-dependent', inventory: 'current' },
   { id: 'rewards', pattern: '/rewards', kind: 'backend-dependent', inventory: 'current' },
@@ -73,6 +75,14 @@ const policy = [
   { id: 'contributor-detail', pattern: '/contributors/:id', kind: 'restricted', inventory: 'current' },
   { id: 'login', pattern: '/login', kind: 'restricted', inventory: 'current' },
   { id: 'login-callback', pattern: '/login/callback', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar', pattern: '/pilot/vrsar', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-login', pattern: '/pilot/vrsar/login', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-file', pattern: '/pilot/vrsar/file', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-cases', pattern: '/pilot/vrsar/cases', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-case-detail', pattern: '/pilot/vrsar/cases/:caseId', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-staff', pattern: '/pilot/vrsar/staff', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-review', pattern: '/pilot/vrsar/review', kind: 'restricted', inventory: 'current' },
+  { id: 'pilot-vrsar-api', pattern: '/pilot/vrsar/api/*path', kind: 'restricted', inventory: 'current' },
 
   { id: 'contribute-maps', pattern: '/contribute/maps', kind: 'not-live', inventory: 'current' },
   { id: 'contribute-review', pattern: '/contribute/review', kind: 'not-live', inventory: 'current' },
@@ -95,6 +105,14 @@ export function matchReleasePattern(pattern, pathname) {
 
   const patternSegments = normalizedPattern.slice(1).split('/');
   const pathSegments = normalizedPath.slice(1).split('/');
+  const restIndex = patternSegments.findIndex((segment) => segment.startsWith('*'));
+  if (restIndex !== -1) {
+    if (restIndex !== patternSegments.length - 1 || pathSegments.length <= restIndex) return false;
+    return patternSegments.slice(0, restIndex).every((segment, index) => {
+      const value = pathSegments[index];
+      return Boolean(value) && (segment.startsWith(':') || segment === value);
+    });
+  }
   if (patternSegments.length !== pathSegments.length) return false;
 
   return patternSegments.every((segment, index) => {

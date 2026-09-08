@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type Results = {
   pilotId: string;
@@ -23,168 +25,109 @@ const results = (await fetchJson('/api/v1/pilot/results')) as Results | null;
 ---
 
 <Base title="Demonstrator fixture results">
-  <section class="stack">
-    <h1>Demonstrator fixture results</h1>
-    <p class="muted">
-      {results?.period ? `Fixture period: ${results.period}` : 'Demonstration result data are unavailable for this fixture.'}
-    </p>
-    <p class="muted">
-      {results?.publishedAt ? `Published ${new Date(results.publishedAt).toLocaleDateString()}` : 'Publication date is unavailable for this demonstration fixture.'}
-    </p>
-  </section>
+  <div class="task-page task-page--column">
+    <header class="page-header">
+      <h1>Demonstrator fixture results</h1>
+      <p class="page-header-lede">
+        Measures and outcomes from the seeded complaints scenario, kept so the demonstrator can be
+        read and challenged like a real report.
+      </p>
+    </header>
 
-  <aside class="demonstrator-note" aria-labelledby="demonstrator-title">
-    <h2 id="demonstrator-title">Results are demonstration material</h2>
-    <p>
-      This is a <strong>simulated complaints-process demonstrator</strong>. Metrics and outcomes are
-      <strong>synthetic fixtures</strong> and <strong>development trust material</strong>; there is
-      <strong>no government integration</strong>.
-    </p>
-    <dl>
-      <div>
-        <dt>implemented locally</dt>
-        <dd>The interface and local development flow shown on this site.</dd>
+    {results && (
+      <dl class="record-facts">
+        <div>
+          <dt>Fixture period</dt>
+          <dd>{results.period}</dd>
+        </div>
+        <div>
+          <dt>Published</dt>
+          <dd>{new Date(results.publishedAt).toLocaleDateString()}</dd>
+        </div>
+        <div>
+          <dt>Standing</dt>
+          <dd><span class="status-label" data-tone="warning">synthetic fixtures</span></dd>
+        </div>
+      </dl>
+    )}
+
+    <aside class="material-note" aria-labelledby="demonstrator-title">
+      <h2 id="demonstrator-title">Results are demonstration material</h2>
+      <p class="prose">
+        This is a <strong>simulated complaints-process demonstrator</strong>. Metrics and outcomes are{' '}
+        <strong>synthetic fixtures</strong> and <strong>development trust material</strong>; there is{' '}
+        <strong>no government integration</strong>.
+      </p>
+      <dl class="record-facts">
+        <div>
+          <dt>implemented locally</dt>
+          <dd>The interface and local development flow shown on this site.</dd>
+        </div>
+        <div>
+          <dt>mocked</dt>
+          <dd>The reported metrics, outcomes, and complaints-process entries.</dd>
+        </div>
+        <div>
+          <dt>operationally accepted</dt>
+          <dd>No part of this demonstrator is operationally accepted.</dd>
+        </div>
+      </dl>
+    </aside>
+
+    {results && (
+      <>
+        <section class="material-section" aria-labelledby="measures-title">
+          <h2 id="measures-title">Seeded scenario measures</h2>
+          <p class="status-label" data-tone="warning">synthetic fixtures · development trust material · no government integration</p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption>Seeded scenario measures — synthetic fixtures</caption>
+              <thead>
+                <tr><th scope="col">Measure</th><th scope="col">Value</th></tr>
+              </thead>
+              <tbody>
+                {Object.entries(results.metrics).map(([key, val]) => (
+                  <tr><th scope="row">{key}</th><td class="ledger-value">{val}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="material-section" aria-labelledby="outputs-title">
+          <h2 id="outputs-title">Illustrated outputs</h2>
+          <p class="status-label" data-tone="warning">synthetic fixtures · development trust material · no government integration</p>
+          <ul>{results.outcomes.map((o) => <li>{o}</li>)}</ul>
+        </section>
+        <section class="material-section" aria-labelledby="methodology-title">
+          <h2 id="methodology-title">Methodology</h2>
+          <p class="status-label" data-tone="warning">development trust material</p>
+          <p class="prose">{results.methodology}</p>
+        </section>
+      </>
+    )}
+
+    {!results && (
+      <div aria-live="polite">
+        <EmptyState
+          title="Demonstration result data are unavailable"
+          purpose="This page reads the fixture results from the local platform API, which is not answering. The measures are synthetic in every case; none are withheld."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'The simulated charter explains what this demonstrator does and does not claim.',
+          ]}
+          actionLabel="Return to the simulated charter"
+          actionHref="/partners"
+        />
       </div>
-      <div>
-        <dt>mocked</dt>
-        <dd>The reported metrics, outcomes, and complaints-process entries.</dd>
-      </div>
-      <div>
-        <dt>operationally accepted</dt>
-        <dd>No part of this demonstrator is operationally accepted.</dd>
-      </div>
-    </dl>
-  </aside>
+    )}
 
-  {results && (
-    <>
-      <section class="stack results-material" aria-labelledby="measures-title">
-        <h2 id="measures-title">Seeded scenario measures</h2>
-        <p class="material-label">synthetic fixtures · development trust material · no government integration</p>
-        <table>
-          <caption>Seeded scenario measures — synthetic fixtures</caption>
-          <thead>
-            <tr><th scope="col">Measure</th><th scope="col">Value</th></tr>
-          </thead>
-          <tbody>
-            {Object.entries(results.metrics).map(([key, val]) => (
-              <tr><th scope="row">{key}</th><td>{val}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-      <section class="stack results-material" aria-labelledby="outputs-title">
-        <h2 id="outputs-title">Illustrated outputs</h2>
-        <p class="material-label">synthetic fixtures · development trust material · no government integration</p>
-        <ul>{results.outcomes.map((o) => <li>{o}</li>)}</ul>
-      </section>
-      <section class="stack results-material" aria-labelledby="methodology-title">
-        <h2 id="methodology-title">Methodology</h2>
-        <p class="material-label">development trust material</p>
-        <p>{results.methodology}</p>
-      </section>
-    </>
-  )}
-
-  {!results && (
-    <section class="stack results-material" aria-live="polite">
-      <h2>Demonstration result data are unavailable</h2>
-      <p>Return to the <a href="/partners">simulated charter</a> or try again when local fixtures are available.</p>
-    </section>
-  )}
-
-  <nav class="resource-links" aria-label="Demonstrator resources">
-    <a href="/governance/jur-croatia-local">Process map</a>
-    <a href="/transparency">Transparency</a>
-    <a href="/verify">Verify</a>
-    <a href="/partners">Charter</a>
-    <a href="/pilot/results">Results</a>
-  </nav>
+    <nav class="resource-links" aria-label="Demonstrator resources">
+      <a href="/governance/jur-croatia-local">Process map</a>
+      <a href="/transparency">Transparency</a>
+      <a href="/verify">Verify</a>
+      <a href="/partners">Charter</a>
+      <a href="/pilot/results">Results</a>
+    </nav>
+  </div>
 </Base>
-
-<style>
-  .demonstrator-note,
-  .results-material {
-    max-width: 75ch;
-  }
-
-  .demonstrator-note {
-    margin-block: 1.5rem;
-    border: 1px solid rgba(56, 189, 248, 0.42);
-    border-radius: var(--polis-radius-md, 0.5rem);
-    background: rgba(18, 25, 35, 0.78);
-    padding: clamp(1rem, 3vw, 1.5rem);
-  }
-
-  .demonstrator-note h2 {
-    margin: 0 0 0.5rem;
-    font-size: 1.125rem;
-    letter-spacing: -0.02em;
-  }
-
-  .demonstrator-note p,
-  .demonstrator-note dd {
-    margin: 0;
-  }
-
-  .demonstrator-note dl {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-    margin: 1rem 0 0;
-  }
-
-  .demonstrator-note dl > div {
-    min-width: 0;
-  }
-
-  .demonstrator-note dt,
-  .material-label {
-    color: var(--polis-primary, #38bdf8);
-    font-weight: 700;
-  }
-
-  .demonstrator-note dd {
-    margin: 0.35rem 0 0;
-    color: var(--polis-muted, #9ca3af);
-  }
-
-  .material-label {
-    margin: -0.25rem 0 0;
-    font-size: 0.875rem;
-  }
-
-  table {
-    width: 100%;
-  }
-
-  caption {
-    caption-side: top;
-    padding-block: 0.5rem;
-    color: var(--polis-muted, #9ca3af);
-    text-align: left;
-  }
-
-  .resource-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    margin-block: 1.5rem;
-  }
-
-  .resource-links a {
-    text-underline-offset: 0.2em;
-  }
-
-  .resource-links a:focus-visible {
-    outline: 3px solid var(--polis-primary, #38bdf8);
-    outline-offset: 3px;
-  }
-
-  @media (max-width: 44rem) {
-    .demonstrator-note dl {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-  }
-</style>

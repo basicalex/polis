@@ -143,13 +143,14 @@ export function VerifierFlow({
 
   return (
     <div className="verifier-flow">
-      <div className="verifier-tabs" role="tablist">
+      <div className="segmented" role="group" aria-label={t('verifier.mode', locale)}>
         {tabs.map(({ id, label }) => (
           <button
             key={id}
-            role="tab"
+            type="button"
+            className="btn"
             id={`${baseId}-tab-${id}`}
-            aria-selected={tab === id}
+            aria-pressed={tab === id}
             aria-controls={`${baseId}-panel-${id}`}
             onClick={() => {
               setTab(id);
@@ -164,9 +165,8 @@ export function VerifierFlow({
       {tab === 'file' && (
         <div
           id={`${baseId}-panel-file`}
-          role="tabpanel"
           aria-labelledby={`${baseId}-tab-file`}
-          className="stack"
+          className="verifier-panel"
         >
           <p className="privacy-note">
             <span aria-hidden="true">🔒</span> {t('verifier.privacy', locale)}
@@ -181,19 +181,23 @@ export function VerifierFlow({
             onDragLeave={() => setDragActive(false)}
             onDrop={onDrop}
           >
-            <p>{t('verifier.dropzone', locale)}</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              aria-label={t('verifier.tab.file', locale)}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void onFile(file);
-              }}
-            />
+            <p className="verifier-dropzone-line">{t('verifier.dropzone', locale)}</p>
+            <label className="btn file-choose" data-variant="secondary">
+              {t('verifier.choose_file', locale)}
+              <input
+                ref={fileInputRef}
+                className="visually-hidden"
+                type="file"
+                aria-label={t('verifier.choose_file', locale)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onFile(file);
+                }}
+              />
+            </label>
           </div>
           {fileName && (
-            <p className="muted">
+            <p className="verifier-file-name">
               {fileName}
               {hashing ? ` — ${t('verifier.checking', locale)}` : ''}
             </p>
@@ -204,24 +208,33 @@ export function VerifierFlow({
       {tab === 'hash' && (
         <div
           id={`${baseId}-panel-hash`}
-          role="tabpanel"
           aria-labelledby={`${baseId}-tab-hash`}
-          className="stack"
+          className="verifier-panel"
         >
-          <label htmlFor={`${baseId}-hash-input`}>{t('verifier.hash_label', locale)}</label>
-          <input
-            id={`${baseId}-hash-input`}
-            type="text"
-            className="hash-value"
-            placeholder={t('verifier.hash_placeholder', locale)}
-            value={hashInput}
-            onChange={(e) => setHashInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onHashSubmit();
-            }}
-          />
-          <div>
-            <button onClick={onHashSubmit} disabled={busy}>
+          <div className="field">
+            <label className="field-label" htmlFor={`${baseId}-hash-input`}>
+              {t('verifier.hash_label', locale)}
+            </label>
+            <input
+              id={`${baseId}-hash-input`}
+              type="text"
+              className="hash-value"
+              placeholder={t('verifier.hash_placeholder', locale)}
+              value={hashInput}
+              onChange={(e) => setHashInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onHashSubmit();
+              }}
+            />
+          </div>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn"
+              data-variant="primary"
+              onClick={onHashSubmit}
+              disabled={busy}
+            >
               {busy ? t('verifier.checking', locale) : t('verifier.submit', locale)}
             </button>
           </div>
@@ -231,23 +244,32 @@ export function VerifierFlow({
       {tab === 'reference' && (
         <div
           id={`${baseId}-panel-reference`}
-          role="tabpanel"
           aria-labelledby={`${baseId}-tab-reference`}
-          className="stack"
+          className="verifier-panel"
         >
-          <label htmlFor={`${baseId}-ref-input`}>{t('verifier.reference_label', locale)}</label>
-          <input
-            id={`${baseId}-ref-input`}
-            type="text"
-            placeholder={t('verifier.reference_placeholder', locale)}
-            value={refInput}
-            onChange={(e) => setRefInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onReferenceSubmit();
-            }}
-          />
-          <div>
-            <button onClick={onReferenceSubmit} disabled={busy}>
+          <div className="field">
+            <label className="field-label" htmlFor={`${baseId}-ref-input`}>
+              {t('verifier.reference_label', locale)}
+            </label>
+            <input
+              id={`${baseId}-ref-input`}
+              type="text"
+              placeholder={t('verifier.reference_placeholder', locale)}
+              value={refInput}
+              onChange={(e) => setRefInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onReferenceSubmit();
+              }}
+            />
+          </div>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn"
+              data-variant="primary"
+              onClick={onReferenceSubmit}
+              disabled={busy}
+            >
               {busy ? t('verifier.checking', locale) : t('verifier.submit', locale)}
             </button>
           </div>
@@ -255,7 +277,7 @@ export function VerifierFlow({
       )}
 
       {inputError && (
-        <p className="trust-note" role="alert">
+        <p className="field-error" role="alert">
           {inputError}
         </p>
       )}

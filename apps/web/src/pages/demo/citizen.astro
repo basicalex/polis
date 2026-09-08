@@ -30,17 +30,40 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
   description="File a report in the Polis demonstration and follow it to the public record. Fictional data, held in your browser only."
 >
   <DemoShell surface="citizen">
-    <article class="citizen" id="public-record">
+    <article class="citizen" id="public-record" data-citizen data-form-open="false">
+      {/*
+        The primary action sits beside the title on desktop and under the list on
+        the phone, inside the thumb zone. CSS renders exactly one of the two at
+        any width, and neither while the form is open or while the empty state
+        carries the action, so two primaries are never on screen (rules H2, I1, L9).
+      */}
       <header class="citizen-head">
-        <h1>
-          <span data-lang="en">My reports</span>
-          <span data-lang="hr" hidden>Moje prijave</span>
-        </h1>
-        <p class="demo-anchor">
-          <span data-lang="en">{institutionAnchor.en}</span>
-          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
-        </p>
+        <div class="citizen-head-text">
+          <h1>
+            <span data-lang="en">My reports</span>
+            <span data-lang="hr" hidden>Moje prijave</span>
+          </h1>
+          <p class="demo-anchor">
+            <span data-lang="en">{institutionAnchor.en}</span>
+            <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+          </p>
+        </div>
+        <div class="citizen-head-action">
+          <button
+            type="button"
+            class="btn citizen-primary"
+            data-variant="primary"
+            data-report-toggle
+            aria-expanded="false"
+            aria-controls="citizen-report-form"
+          >
+            <span data-lang="en">Report an issue</span>
+            <span data-lang="hr" hidden>Prijavi problem</span>
+          </button>
+        </div>
       </header>
+
+      <p class="citizen-filed" role="status" tabindex="-1" data-filed hidden></p>
 
       <div class="reports-region" data-reports>
         <p class="reports-state">
@@ -52,7 +75,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       <div class="citizen-actions">
         <button
           type="button"
-          class="citizen-primary"
+          class="btn citizen-primary"
+          data-variant="primary"
           data-report-toggle
           aria-expanded="false"
           aria-controls="citizen-report-form"
@@ -61,8 +85,6 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
           <span data-lang="hr" hidden>Prijavi problem</span>
         </button>
       </div>
-
-      <p class="citizen-filed" role="status" tabindex="-1" data-filed hidden></p>
 
       <section
         class="citizen-form-panel demo-panel"
@@ -153,11 +175,11 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
           <p class="form-error" role="alert" data-form-error></p>
 
           <div class="form-actions">
-            <button type="submit" class="citizen-submit">
+            <button type="submit" class="btn" data-variant="primary">
               <span data-lang="en">File the report</span>
               <span data-lang="hr" hidden>Podnesi prijavu</span>
             </button>
-            <button type="button" class="citizen-cancel" data-report-cancel>
+            <button type="button" class="btn" data-variant="tertiary" data-report-cancel>
               <span data-lang="en">Cancel</span>
               <span data-lang="hr" hidden>Odustani</span>
             </button>
@@ -189,440 +211,10 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
   </DemoShell>
 </Base>
 
-<style>
-  .citizen {
-    display: grid;
-    gap: var(--space-md);
-    max-width: 48rem;
-    min-width: 0;
-  }
-
-  .citizen-head {
-    display: grid;
-    gap: var(--space-xs);
-    min-width: 0;
-  }
-
-  .citizen h1 {
-    margin: 0;
-    font-family: var(--display);
-    font-size: var(--type-heading-lg);
-  }
-
-  /* reports --------------------------------------------------------------- */
-
-  .reports-region {
-    min-width: 0;
-  }
-
-  .reports-region :global(.reports-state) {
-    max-width: 68ch;
-    margin: 0;
-    padding-block: var(--space-xs);
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.45;
-  }
-
-  .reports-region :global(.report-list) {
-    display: grid;
-    gap: var(--space-sm);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  /* The card is the shared panel; padding moves to the rows so the disclosure
-     control fills the card width. */
-  .reports-region :global(.report-card) {
-    padding: 0;
-    overflow: hidden;
-  }
-
-  .reports-region :global(.report-summary) {
-    min-height: var(--tap-target);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-xs) var(--space-sm);
-    padding: var(--space-sm) var(--space-md);
-    list-style: none;
-    cursor: pointer;
-  }
-
-  .reports-region :global(.report-summary::-webkit-details-marker) {
-    display: none;
-  }
-
-  .reports-region :global(.report-summary:hover) {
-    background: var(--polis-surface-tint);
-  }
-
-  .reports-region :global(.report-headline) {
-    min-width: 0;
-    display: grid;
-    gap: 0.15rem;
-  }
-
-  .reports-region :global(.report-head) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 var(--space-xs);
-    min-width: 0;
-  }
-
-  .reports-region :global(.report-id) {
-    color: var(--polis-muted);
-    font-family: var(--mono);
-    font-size: var(--type-data);
-    overflow-wrap: anywhere;
-  }
-
-  .reports-region :global(.report-subject) {
-    font-family: var(--display);
-    font-size: 1.125rem;
-    font-weight: 600;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .reports-region :global(.report-meta) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.15rem var(--space-sm);
-    min-width: 0;
-  }
-
-  .reports-region :global(.report-origin) {
-    font-family: var(--body);
-    font-size: var(--type-label);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-  }
-
-  .reports-region :global(.report-origin.is-fixture) {
-    color: var(--polis-warning);
-  }
-
-  .reports-region :global(.report-origin.is-yours) {
-    color: var(--polis-muted);
-  }
-
-  .reports-region :global(.report-date) {
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-  }
-
-  .reports-region :global(.report-marks) {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    max-width: 10rem;
-  }
-
-  .reports-region :global(.report-chevron) {
-    flex: 0 0 auto;
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--polis-muted);
-  }
-
-  .reports-region :global(.report-card[open] .report-chevron) {
-    transform: rotate(180deg);
-  }
-
-  /* An open card carries the status on its active trace stage and the filing time
-     on its first stage, so the header would say both twice. */
-  .reports-region :global(.report-card[open] .report-summary .demo-stamp),
-  .reports-region :global(.report-card[open] .report-summary .report-date) {
-    display: none;
-  }
-
-  .reports-region :global(.report-body) {
-    display: grid;
-    gap: var(--space-md);
-    padding: var(--space-md);
-    border-top: 1px solid var(--polis-border);
-  }
-
-  .reports-region :global(.report-open) {
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    color: var(--polis-trace);
-    font-size: var(--type-data);
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
-  /* filing ---------------------------------------------------------------- */
-
-  .citizen-actions {
-    display: flex;
-  }
-
-  .citizen-primary {
-    min-height: var(--tap-target);
-    width: 100%;
-    max-width: 30rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-xs) var(--space-lg);
-    border: 1px solid var(--polis-trace);
-    border-radius: var(--radius-sm);
-    background: var(--polis-trace);
-    color: var(--polis-on-primary);
-    font-family: var(--body);
-    font-size: var(--type-body);
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .citizen-primary:hover,
-  .citizen-submit:hover {
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
-  .citizen-form-panel {
-    display: grid;
-    gap: var(--space-sm);
-  }
-
-  .citizen-form-title {
-    margin: 0;
-    font-family: var(--body);
-    font-size: var(--type-label);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    line-height: 1.4;
-    text-transform: uppercase;
-    color: var(--polis-muted);
-  }
-
-  .citizen-form {
-    display: grid;
-    gap: var(--space-sm);
-    min-width: 0;
-    margin: 0;
-  }
-
-  .field,
-  .field-tiles {
-    display: grid;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-
-  .field-tiles {
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-
-  .field label,
-  .field-tiles legend {
-    padding: 0;
-    font-size: var(--type-data);
-    font-weight: 600;
-  }
-
-  .field-hint {
-    margin: 0;
-    color: var(--polis-muted);
-    font-size: var(--type-meta);
-    line-height: 1.4;
-  }
-
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: var(--space-xs);
-    margin-top: 0.2rem;
-  }
-
-  .tile {
-    min-height: var(--tap-target);
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    padding: var(--space-xs) var(--space-sm);
-    border: 1px solid var(--polis-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    font-size: var(--type-body);
-    cursor: pointer;
-  }
-
-  .tile input {
-    flex: 0 0 auto;
-    width: 1rem;
-    height: 1rem;
-    accent-color: var(--polis-trace);
-  }
-
-  .tile:has(input:checked) {
-    border-color: var(--polis-trace);
-    background: var(--polis-surface-tint);
-    font-weight: 600;
-  }
-
-  .field input[type='text'],
-  .field textarea {
-    min-height: var(--tap-target);
-    width: 100%;
-    max-width: 100%;
-    padding: var(--space-xs) var(--space-sm);
-    border: 1px solid var(--polis-border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--polis-surface);
-    color: var(--polis-text);
-    font-family: var(--body);
-    font-size: var(--type-body);
-    line-height: 1.45;
-  }
-
-  .field textarea {
-    resize: vertical;
-  }
-
-  .field input:focus-visible,
-  .field textarea:focus-visible {
-    border-color: var(--polis-trace);
-  }
-
-  .field [aria-invalid='true'],
-  .field-tiles[aria-invalid='true'] .tile {
-    border-color: var(--polis-danger);
-  }
-
-  .field-error,
-  .form-error {
-    margin: 0;
-    color: var(--polis-danger);
-    font-size: var(--type-data);
-    line-height: 1.45;
-  }
-
-  .field-error:empty,
-  .form-error:empty {
-    display: none;
-  }
-
-  .form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-  }
-
-  .citizen-submit,
-  .citizen-cancel {
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-xs) var(--space-lg);
-    border-radius: var(--radius-sm);
-    font-family: var(--body);
-    font-size: var(--type-body);
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .citizen-submit {
-    border: 1px solid var(--polis-trace);
-    background: var(--polis-trace);
-    color: var(--polis-on-primary);
-  }
-
-  .citizen-cancel {
-    border: 1px solid var(--polis-border-strong);
-    background: transparent;
-    color: var(--polis-text);
-  }
-
-  .citizen-cancel:hover {
-    border-color: var(--polis-text);
-  }
-
-  .citizen-filed {
-    display: grid;
-    justify-items: start;
-    max-width: 68ch;
-    margin: 0;
-    color: var(--polis-text);
-    font-size: var(--type-data);
-    line-height: 1.5;
-  }
-
-  .citizen-filed :global(a) {
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    color: var(--polis-trace);
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
-  .citizen-filed :global(.filed-id) {
-    font-family: var(--mono);
-    overflow-wrap: anywhere;
-  }
-
-  /* provenance ------------------------------------------------------------ */
-
-  .citizen-provenance {
-    display: grid;
-    gap: var(--space-xs);
-    max-width: 68ch;
-    padding-top: var(--space-sm);
-    border-top: 1px solid var(--polis-border);
-  }
-
-  .citizen-provenance p {
-    margin: 0;
-    color: var(--polis-muted);
-    font-size: var(--type-data);
-    line-height: 1.45;
-  }
-
-  .citizen-noscript {
-    color: var(--polis-warning);
-  }
-
-  @media (max-width: 40rem) {
-    .reports-region :global(.report-summary) {
-      padding-inline: var(--space-sm);
-    }
-
-    .reports-region :global(.report-body) {
-      padding: var(--space-sm);
-    }
-
-    .citizen-primary,
-    .citizen-submit,
-    .citizen-cancel {
-      width: 100%;
-    }
-  }
-
-  /* Print keeps the record; the filing controls are chrome. */
-  @media print {
-    .citizen-actions,
-    .citizen-form-panel,
-    .reports-region :global(.report-chevron) {
-      display: none;
-    }
-  }
-</style>
 
 <script>
   import { fileVoice, getState, subscribe, DEMO_CATEGORIES, DEMO_STAGES } from '../../lib/demo-store.mjs';
+  import { emptyState } from '../../lib/demo-queue.mjs';
   import {
     originLabels,
     resolveText,
@@ -638,7 +230,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
   const strings = {
     en: {
       loading: 'Loading public record…',
-      empty: 'No reports in this browser yet. Report an issue to open the first one.',
+      emptyTitle: 'No reports yet',
+      emptyPurpose:
+        'Every report you file in this browser is listed here, with the stage it stands on.',
+      emptyTipOne: 'Pick a category, name the problem in one line, and say what you saw.',
+      emptyTipTwo: 'A filed report starts at Voice: reported, with no responsible office yet.',
+      emptyAction: 'Report an issue',
       subjectRequired: 'The subject is empty. Name the problem in one line.',
       subjectTooLong: 'The subject is too long. Keep it to 200 characters or fewer.',
       categoryRequired: 'No category is chosen. Pick the one closest to the problem.',
@@ -653,7 +250,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
     },
     hr: {
       loading: 'Učitavanje javnog zapisa…',
-      empty: 'U ovom pregledniku još nema prijava. Prijavite problem kako biste otvorili prvu.',
+      emptyTitle: 'Još nema prijava',
+      emptyPurpose:
+        'Ovdje se nalazi svaka prijava koju podnesete u ovom pregledniku, uz fazu u kojoj stoji.',
+      emptyTipOne: 'Odaberite kategoriju, imenujte problem u jednom retku i opišite što ste vidjeli.',
+      emptyTipTwo: 'Podnesena prijava kreće u fazi Glas: prijavljeno, još bez nadležnog ureda.',
+      emptyAction: 'Prijavi problem',
       subjectRequired: 'Predmet je prazan. Imenujte problem u jednom retku.',
       subjectTooLong: 'Predmet je predug. Zadržite ga na najviše 200 znakova.',
       categoryRequired: 'Kategorija nije odabrana. Odaberite onu najbližu problemu.',
@@ -716,9 +318,17 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
     const narrativeInput = form.querySelector('[data-field="narrative"]');
     const formError = form.querySelector('[data-form-error]');
     const filed = document.querySelector('[data-filed]');
-    const toggle = document.querySelector('[data-report-toggle]');
+    const article = document.querySelector('[data-citizen]');
+    const toggles = [...document.querySelectorAll('[data-report-toggle]')].filter(
+      (node): node is HTMLButtonElement => node instanceof HTMLButtonElement,
+    );
     const cancel = document.querySelector('[data-report-cancel]');
     const panel = document.getElementById('citizen-report-form');
+
+    /** The toggle the visitor can actually see at this width. */
+    function visibleToggle(): HTMLButtonElement | null {
+      return toggles.find((button) => button.offsetParent !== null) ?? toggles[0] ?? null;
+    }
 
     const fieldErrors: Record<FieldName, keyof (typeof strings)['en'] | ''> = {
       category: '',
@@ -768,10 +378,13 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       }
     }
 
+    /* Opening the form hides the standing primary, so the submit button is the
+       only primary on screen (rule H2). */
     function setPanel(open: boolean) {
-      if (!(panel instanceof HTMLElement) || !(toggle instanceof HTMLElement)) return;
+      if (!(panel instanceof HTMLElement)) return;
       panel.hidden = !open;
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      for (const button of toggles) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      article?.setAttribute('data-form-open', open ? 'true' : 'false');
     }
 
     function renderFiled(lang: Lang) {
@@ -793,7 +406,13 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       const link = document.createElement('a');
       link.href = `/demo/record?id=${encodeURIComponent(filedId)}`;
       link.textContent = text(lang, 'openRecord');
-      filed.replaceChildren(sentence, link);
+      /* The state word carries the state without colour; the sentence says what happened. */
+      const state = document.createElement('span');
+      state.className = 'status-label';
+      state.setAttribute('data-tone', 'trace');
+      state.textContent = resolveText(stampLabels.open, lang);
+      filed.classList.add('demo-status-line');
+      filed.replaceChildren(state, sentence, link);
       filed.hidden = false;
     }
 
@@ -998,13 +617,28 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       });
 
       if (records.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'reports-state';
-        empty.textContent = text(lang, 'empty');
-        reportsRegion.replaceChildren(empty);
+        /* The empty state carries the only primary here, so the standing
+           "Report an issue" buttons step aside (rules S1, H2). */
+        article?.setAttribute('data-empty', 'true');
+        reportsRegion.replaceChildren(
+          emptyState({
+            title: text(lang, 'emptyTitle'),
+            purpose: text(lang, 'emptyPurpose'),
+            tips: [text(lang, 'emptyTipOne'), text(lang, 'emptyTipTwo')],
+            action: {
+              label: text(lang, 'emptyAction'),
+              variant: 'primary',
+              onClick: () => {
+                setPanel(true);
+                radios()[0]?.focus();
+              },
+            },
+          }),
+        );
         return;
       }
 
+      article?.setAttribute('data-empty', 'false');
       const restore = focusedCardId();
       const defaultId = defaultOpenId(records);
       const list = document.createElement('ul');
@@ -1044,15 +678,17 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       true,
     );
 
-    toggle?.addEventListener('click', () => {
-      const open = toggle.getAttribute('aria-expanded') !== 'true';
-      setPanel(open);
-      if (open) radios()[0]?.focus();
-    });
+    for (const button of toggles) {
+      button.addEventListener('click', () => {
+        const open = button.getAttribute('aria-expanded') !== 'true';
+        setPanel(open);
+        if (open) radios()[0]?.focus();
+      });
+    }
 
     cancel?.addEventListener('click', () => {
       setPanel(false);
-      if (toggle instanceof HTMLElement) toggle.focus();
+      visibleToggle()?.focus();
     });
 
     form.addEventListener('submit', (event) => {

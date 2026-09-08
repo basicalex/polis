@@ -1,50 +1,61 @@
 ---
 import Base from '../../layouts/Base.astro';
+import '../../styles/tasks.css';
 ---
 
 <Base title="Private development case">
-  <p><a href="/complaints">← My cases</a></p>
-  <section id="complaint-auth" class="panel muted" role="status">Checking your session…</section>
-  <div id="complaint-detail" class="stack" hidden>
-    <section class="hero stack" aria-labelledby="case-heading">
-      <p id="case-number" class="badge"></p>
+  <div class="task-page">
+    <p class="link-row"><a href="/complaints">Back to my cases</a></p>
+
+    <header class="page-header record-head">
+      <p class="page-header-eyebrow status-label" data-tone="warning">Private development case</p>
       <h1 id="case-heading">Loading case…</h1>
-      <p id="case-status"></p>
-      <p class="muted">This private development case workflow is not a live government service.</p>
-    </section>
+      <p id="case-number" class="record-id"></p>
+      <p class="page-header-lede">
+        This private development case workflow is not a live government service. Case details stay
+        private to your signed-in session and authorised case workers.
+      </p>
+    </header>
 
-    <section class="stack" aria-labelledby="narrative-heading">
-      <h2 id="narrative-heading">Your complaint</h2>
-      <div id="case-narrative" class="panel"></div>
-    </section>
+    <div id="complaint-auth" class="task-note" role="status">Checking your session…</div>
+    <div id="complaint-state" class="task-note" role="status" aria-live="polite">Loading case…</div>
 
-    <section class="stack" aria-labelledby="requests-heading">
-      <h2 id="requests-heading">Information requests</h2>
-      <div id="information-requests" class="stack"></div>
-    </section>
+    <div id="complaint-detail" class="task-page" hidden>
+      <dl id="case-status" class="record-facts"></dl>
 
-    <section class="stack" aria-labelledby="decisions-heading">
-      <h2 id="decisions-heading">Decisions</h2>
-      <div id="decisions" class="stack"></div>
-    </section>
+      <section class="task-section" aria-labelledby="narrative-heading">
+        <h2 id="narrative-heading">Your complaint</h2>
+        <div id="case-narrative" class="prose"></div>
+      </section>
 
-    <section class="stack" aria-labelledby="appeal-heading">
-      <h2 id="appeal-heading">Appeal</h2>
-      <div id="appeal" class="stack"></div>
-    </section>
+      <section class="task-section" aria-labelledby="requests-heading">
+        <h2 id="requests-heading">Information requests</h2>
+        <div id="information-requests"></div>
+      </section>
 
-    <section class="stack" aria-labelledby="actions-heading">
-      <h2 id="actions-heading">Your actions</h2>
-      <div id="owner-actions" class="stack"></div>
-    </section>
+      <section class="task-section" aria-labelledby="decisions-heading">
+        <h2 id="decisions-heading">Decisions</h2>
+        <div id="decisions"></div>
+      </section>
 
-    <section class="stack" aria-labelledby="timeline-heading">
-      <h2 id="timeline-heading">Case timeline</h2>
-      <ol id="case-timeline" class="audit-trail"></ol>
-    </section>
+      <section class="task-section" aria-labelledby="appeal-heading">
+        <h2 id="appeal-heading">Appeal</h2>
+        <div id="appeal"></div>
+      </section>
+
+      <section class="task-section" aria-labelledby="actions-heading">
+        <h2 id="actions-heading">Your actions</h2>
+        <div id="owner-actions"></div>
+      </section>
+
+      <section class="task-section" aria-labelledby="timeline-heading">
+        <h2 id="timeline-heading">Case timeline</h2>
+        <div id="case-timeline"></div>
+      </section>
+    </div>
+
+    <p id="complaint-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
   </div>
-  <section id="complaint-state" class="panel muted" role="status" aria-live="polite">Loading case…</section>
-  <p id="complaint-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
 
   <script is:inline>
     window.addEventListener('DOMContentLoaded', function () {
@@ -78,6 +89,43 @@ import Base from '../../layouts/Base.astro';
         return element;
       }
 
+      function fact(label, valueNode) {
+        var pair = document.createElement('div');
+        pair.append(textElement('dt', label));
+        var value = document.createElement('dd');
+        value.append(valueNode);
+        pair.append(value);
+        return pair;
+      }
+
+      function emptyState(title, purpose, tips, actionLabel, actionHref, actionVariant) {
+        var block = document.createElement('div');
+        block.className = 'empty-state';
+        block.append(textElement('h3', title, 'empty-state-title'));
+        block.append(textElement('p', purpose, 'empty-state-purpose'));
+        var tipList = document.createElement('ul');
+        tipList.className = 'empty-state-tips';
+        tips.forEach(function (tip) {
+          tipList.append(textElement('li', tip));
+        });
+        block.append(tipList);
+        if (actionLabel && actionHref) {
+          var action = document.createElement('a');
+          action.className = 'btn empty-state-action';
+          action.setAttribute('data-variant', actionVariant || 'tertiary');
+          action.href = actionHref;
+          action.textContent = actionLabel;
+          block.append(action);
+        }
+        return block;
+      }
+
+      function ledger(tag) {
+        var list = document.createElement(tag || 'ul');
+        list.className = 'ledger';
+        return list;
+      }
+
       function friendlyDate(value) {
         var date = new Date(value);
         return Number.isNaN(date.getTime()) ? String(value == null ? 'Date unavailable' : value) : date.toLocaleString();
@@ -86,7 +134,15 @@ import Base from '../../layouts/Base.astro';
       function showState(value) {
         detail.hidden = true;
         state.hidden = false;
+        state.className = 'task-note';
         state.textContent = value;
+      }
+
+      function showEmptyState(node) {
+        detail.hidden = true;
+        state.hidden = false;
+        state.className = '';
+        state.replaceChildren(node);
       }
 
       function apiError(response, fallback) {
@@ -100,100 +156,157 @@ import Base from '../../layouts/Base.astro';
           });
       }
 
-      function actionMessage(container, value) {
+      function actionMessage(container, value, isError) {
         var message = container.querySelector('[data-action-message]');
         if (!message) {
           message = document.createElement('p');
-          message.className = 'muted';
           message.setAttribute('data-action-message', '');
           message.setAttribute('role', 'status');
           message.setAttribute('aria-live', 'polite');
           container.append(message);
         }
+        message.className = isError ? 'field-error' : 'field-hint';
         message.textContent = value;
       }
 
-      function actionForm(labelText, textareaId, buttonText) {
+      function actionForm(labelText, hintText, textareaId, buttonText) {
         var form = document.createElement('form');
-        form.className = 'panel stack';
+        form.className = 'form-narrow';
+        var field = document.createElement('div');
+        field.className = 'field';
         var label = document.createElement('label');
+        label.className = 'field-label';
         label.htmlFor = textareaId;
+        label.setAttribute('for', textareaId);
         label.textContent = labelText;
         var textarea = document.createElement('textarea');
         textarea.id = textareaId;
         textarea.rows = 6;
         textarea.maxLength = 10000;
         textarea.required = true;
+        field.append(label, textarea, textElement('p', hintText, 'field-hint'));
+        var row = document.createElement('div');
+        row.className = 'form-actions';
         var button = document.createElement('button');
         button.type = 'submit';
+        button.className = 'btn';
+        button.setAttribute('data-variant', 'primary');
         button.textContent = buttonText;
-        form.append(label, textarea, button);
+        row.append(button);
+        form.append(field, row);
         return { form: form, textarea: textarea, button: button };
       }
 
       function renderRequests(items) {
-        var rows = [];
         if (!items.length) {
-          rows.push(textElement('p', 'No information requests have been recorded.', 'panel muted'));
+          requests.replaceChildren(
+            emptyState(
+              'No information requests yet',
+              'A case worker uses this to ask you for something specific, with a due date you can see.',
+              [
+                'You are told here when a request needs your answer.',
+                'Answers you send are recorded on the case timeline.',
+              ],
+            ),
+          );
+          return;
         }
+        var list = ledger('ul');
         items.forEach(function (item) {
-          var article = document.createElement('article');
-          article.className = 'card stack';
-          article.append(textElement('h3', 'Request'));
-          article.append(textElement('p', item.question == null ? 'Question unavailable.' : item.question));
-          var meta = textElement('p', 'Requested ' + friendlyDate(item.createdAt), 'muted');
-          if (item.dueAt) meta.append(document.createTextNode(' · due ' + friendlyDate(item.dueAt)));
-          article.append(meta);
+          var row = document.createElement('li');
+          row.append(textElement('h3', 'Request', 'ledger-title'));
+          row.append(textElement('p', item.question == null ? 'Question unavailable.' : item.question, 'ledger-summary'));
+          var meta = document.createElement('p');
+          meta.className = 'ledger-meta';
+          meta.append(textElement('span', 'requested ' + friendlyDate(item.createdAt)));
+          if (item.dueAt) meta.append(textElement('span', 'due ' + friendlyDate(item.dueAt)));
+          row.append(meta);
           if (item.response != null) {
-            article.append(textElement('h4', 'Your response'));
-            article.append(textElement('p', item.response));
-            article.append(textElement('p', 'Sent ' + friendlyDate(item.respondedAt), 'muted'));
+            row.append(textElement('h4', 'Your response', 'ledger-title'));
+            row.append(textElement('p', item.response, 'ledger-summary'));
+            row.append(textElement('p', 'sent ' + friendlyDate(item.respondedAt), 'ledger-meta'));
           } else {
-            article.append(textElement('p', 'Awaiting your response.', 'muted'));
+            var pending = document.createElement('p');
+            pending.className = 'ledger-meta';
+            pending.append(textElement('span', 'awaiting your response', 'status-label'));
+            row.append(pending);
           }
-          rows.push(article);
+          list.append(row);
         });
-        requests.replaceChildren.apply(requests, rows);
+        requests.replaceChildren(list);
       }
 
       function renderDecisions(items) {
-        var rows = [];
         if (!items.length) {
-          rows.push(textElement('p', 'No decision has been recorded yet.', 'panel muted'));
+          decisions.replaceChildren(
+            emptyState(
+              'No decision recorded yet',
+              'A decision states the outcome and the reason behind it, so it can be appealed on its own terms.',
+              [
+                'You may file one appeal once a decision is recorded.',
+                'Decisions appear on the case timeline as they are made.',
+              ],
+            ),
+          );
+          return;
         }
+        var list = ledger('ul');
         items.forEach(function (item) {
-          var article = document.createElement('article');
-          article.className = 'card stack';
-          article.append(textElement('h3', item.kind == null ? 'Decision' : item.kind + ' decision'));
-          article.append(textElement('p', item.outcome == null ? 'Outcome unavailable.' : item.outcome));
-          article.append(textElement('h4', 'Reason'));
-          article.append(textElement('p', item.reason == null ? 'Reason unavailable.' : item.reason));
-          article.append(textElement('p', 'Recorded ' + friendlyDate(item.decidedAt), 'muted'));
-          rows.push(article);
+          var row = document.createElement('li');
+          row.append(textElement('h3', item.kind == null ? 'Decision' : item.kind + ' decision', 'ledger-title'));
+          row.append(textElement('p', item.outcome == null ? 'Outcome unavailable.' : item.outcome, 'ledger-summary'));
+          row.append(textElement('h4', 'Reason', 'ledger-title'));
+          row.append(textElement('p', item.reason == null ? 'Reason unavailable.' : item.reason, 'ledger-summary'));
+          row.append(textElement('p', 'recorded ' + friendlyDate(item.decidedAt), 'ledger-meta'));
+          list.append(row);
         });
-        decisions.replaceChildren.apply(decisions, rows);
+        decisions.replaceChildren(list);
       }
 
       function renderAppeal(item) {
         if (!item) {
-          appeal.replaceChildren(textElement('p', 'No appeal has been filed.', 'panel muted'));
+          appeal.replaceChildren(
+            emptyState(
+              'No appeal filed',
+              'One appeal per case can be filed against a recorded decision, stating the grounds.',
+              [
+                'The appeal form appears here once a decision is recorded.',
+                'Grounds you file are kept with the case.',
+              ],
+            ),
+          );
           return;
         }
-        var article = document.createElement('article');
-        article.className = 'card stack';
-        article.append(textElement('h3', item.status == null ? 'Appeal' : item.status + ' appeal'));
-        article.append(textElement('h4', 'Grounds'));
-        article.append(textElement('p', item.grounds == null ? 'Grounds unavailable.' : item.grounds));
-        article.append(textElement('p', 'Filed ' + friendlyDate(item.filedAt), 'muted'));
-        if (item.decidedAt) article.append(textElement('p', 'Decided ' + friendlyDate(item.decidedAt), 'muted'));
-        appeal.replaceChildren(article);
+        var list = ledger('ul');
+        var row = document.createElement('li');
+        row.append(textElement('h3', item.status == null ? 'Appeal' : item.status + ' appeal', 'ledger-title'));
+        row.append(textElement('h4', 'Grounds', 'ledger-title'));
+        row.append(textElement('p', item.grounds == null ? 'Grounds unavailable.' : item.grounds, 'ledger-summary'));
+        var meta = document.createElement('p');
+        meta.className = 'ledger-meta';
+        meta.append(textElement('span', 'filed ' + friendlyDate(item.filedAt)));
+        if (item.decidedAt) meta.append(textElement('span', 'decided ' + friendlyDate(item.decidedAt)));
+        row.append(meta);
+        list.append(row);
+        appeal.replaceChildren(list);
       }
 
       function renderTimeline(items) {
-        var rows = [];
         if (!items.length) {
-          rows.push(textElement('li', 'No timeline events have been recorded.', 'audit-event audit-event--redacted'));
+          timeline.replaceChildren(
+            emptyState(
+              'No timeline events recorded',
+              'Every status change on this case is listed here in order, with the time it happened.',
+              [
+                'Filing, requests, responses, and decisions each add an entry.',
+                'Nothing is removed from the timeline once written.',
+              ],
+            ),
+          );
+          return;
         }
+        var list = document.createElement('ol');
+        list.className = 'audit-trail';
         items.forEach(function (item) {
           var row = document.createElement('li');
           row.className = 'audit-event';
@@ -201,29 +314,45 @@ import Base from '../../layouts/Base.astro';
           var statusText = item.fromStatus ? String(item.fromStatus) + ' → ' + String(item.toStatus == null ? '' : item.toStatus) : String(item.toStatus == null ? 'status unavailable' : item.toStatus);
           row.append(textElement('span', statusText));
           row.append(textElement('span', friendlyDate(item.occurredAt), 'audit-meta'));
-          rows.push(row);
+          list.append(row);
         });
-        timeline.replaceChildren.apply(timeline, rows);
+        timeline.replaceChildren(list);
       }
 
       function renderActions(data) {
-        var rows = [];
         var pending = (data.informationRequests || []).find(function (request) {
           return request && request.respondedAt == null;
         });
         if (data.status === 'closed') {
-          rows.push(textElement('p', 'This case is closed. It is read-only.', 'panel muted'));
-        } else if (data.status === 'awaiting_information' && pending) {
+          actions.replaceChildren(
+            emptyState(
+              'This case is closed',
+              'A closed case is read-only. The record above stays readable, and nothing further is expected from you.',
+              [
+                'File a new case if the matter comes back.',
+                'The timeline keeps the full history of this case.',
+              ],
+              'File another complaint',
+              '/complaints',
+            ),
+          );
+          return;
+        }
+        if (data.status === 'awaiting_information' && pending) {
           var responseAction = document.createElement('section');
-          responseAction.className = 'stack';
-          responseAction.append(textElement('p', 'Your response becomes part of this private development case.', 'muted'));
-          responseAction.append(textElement('p', pending.question == null ? 'Pending request question unavailable.' : pending.question, 'panel'));
-          var responseForm = actionForm('Response to this request', 'information-response', 'Send response');
+          responseAction.className = 'task-section';
+          responseAction.append(textElement('p', pending.question == null ? 'Pending request question unavailable.' : pending.question, 'record-statement'));
+          var responseForm = actionForm(
+            'Response to this request',
+            'Your response becomes part of this private development case.',
+            'information-response',
+            'Send response',
+          );
           responseForm.form.addEventListener('submit', async function (event) {
             event.preventDefault();
             var value = responseForm.textarea.value.trim();
             if (!value) {
-              actionMessage(responseAction, 'Add a response before sending.');
+              actionMessage(responseAction, 'Add a response before sending.', true);
               return;
             }
             responseForm.button.disabled = true;
@@ -239,28 +368,34 @@ import Base from '../../layouts/Base.astro';
                 return;
               }
               if (!response.ok) {
-                actionMessage(responseAction, await apiError(response, 'The response could not be sent. Try again.'));
+                actionMessage(responseAction, await apiError(response, 'The response could not be sent. Try again.'), true);
                 return;
               }
               loadCase();
             } catch (_error) {
-              actionMessage(responseAction, 'The response could not be sent. Check your connection and try again.');
+              actionMessage(responseAction, 'The response could not be sent. Check your connection and try again.', true);
             } finally {
               responseForm.button.disabled = false;
             }
           });
           responseAction.append(responseForm.form);
-          rows.push(responseAction);
-        } else if (data.status === 'decided' && !data.appeal) {
+          actions.replaceChildren(responseAction);
+          return;
+        }
+        if (data.status === 'decided' && !data.appeal) {
           var appealAction = document.createElement('section');
-          appealAction.className = 'stack';
-          appealAction.append(textElement('p', 'You may file one appeal against the recorded decision.', 'muted'));
-          var appealForm = actionForm('Grounds for appeal', 'appeal-grounds', 'File appeal');
+          appealAction.className = 'task-section';
+          var appealForm = actionForm(
+            'Grounds for appeal',
+            'You may file one appeal against the recorded decision.',
+            'appeal-grounds',
+            'File appeal',
+          );
           appealForm.form.addEventListener('submit', async function (event) {
             event.preventDefault();
             var value = appealForm.textarea.value.trim();
             if (!value) {
-              actionMessage(appealAction, 'Add grounds before filing an appeal.');
+              actionMessage(appealAction, 'Add grounds before filing an appeal.', true);
               return;
             }
             appealForm.button.disabled = true;
@@ -276,28 +411,39 @@ import Base from '../../layouts/Base.astro';
                 return;
               }
               if (!response.ok) {
-                actionMessage(appealAction, await apiError(response, 'The appeal could not be filed. Try again.'));
+                actionMessage(appealAction, await apiError(response, 'The appeal could not be filed. Try again.'), true);
                 return;
               }
               loadCase();
             } catch (_error) {
-              actionMessage(appealAction, 'The appeal could not be filed. Check your connection and try again.');
+              actionMessage(appealAction, 'The appeal could not be filed. Check your connection and try again.', true);
             } finally {
               appealForm.button.disabled = false;
             }
           });
           appealAction.append(appealForm.form);
-          rows.push(appealAction);
-        } else {
-          rows.push(textElement('p', 'No action is needed from you right now.', 'panel muted'));
+          actions.replaceChildren(appealAction);
+          return;
         }
-        actions.replaceChildren.apply(actions, rows);
+        actions.replaceChildren(
+          emptyState(
+            'Nothing to do right now',
+            'This is where your next step appears: answering an information request, or filing an appeal against a decision.',
+            [
+              'The case worker moves the case on; you are told here when it is your turn.',
+              'Watch the timeline below for the latest status change.',
+            ],
+          ),
+        );
       }
 
       function renderCase(data) {
         caseNumber.textContent = String(data.caseNumber == null ? 'Case' : data.caseNumber);
         heading.textContent = String(data.subject == null ? 'Untitled case' : data.subject);
-        caseStatus.replaceChildren(textElement('span', data.status == null ? 'unknown' : data.status, 'badge'), document.createTextNode(' · updated ' + friendlyDate(data.updatedAt)));
+        caseStatus.replaceChildren(
+          fact('Status', textElement('span', data.status == null ? 'unknown' : data.status, 'status-label')),
+          fact('Last updated', textElement('span', friendlyDate(data.updatedAt))),
+        );
         narrative.replaceChildren(textElement('p', data.narrative == null ? 'Narrative unavailable.' : data.narrative));
         renderRequests(Array.isArray(data.informationRequests) ? data.informationRequests : []);
         renderDecisions(Array.isArray(data.decisions) ? data.decisions : []);
@@ -306,6 +452,7 @@ import Base from '../../layouts/Base.astro';
         renderTimeline(Array.isArray(data.events) ? data.events : []);
         announcement.textContent = 'Case loaded.';
         state.hidden = true;
+        state.replaceChildren();
         detail.hidden = false;
       }
 
@@ -327,7 +474,22 @@ import Base from '../../layouts/Base.astro';
             if (data) renderCase(data);
           })
           .catch(function (error) {
-            showState(error && error.message ? error.message : 'The case could not be loaded. Try again.');
+            heading.textContent = 'Case unavailable';
+            caseNumber.textContent = id;
+            showEmptyState(
+              emptyState(
+                'This case could not be loaded',
+                error && error.message ? error.message : 'The case service did not answer, so nothing is shown here.',
+                [
+                  'Start the backend from the repository root: bun run dev:services.',
+                  'Load the fixtures once the services are up: bun run db:seed.',
+                  'Only the person who filed a case, and authorised case workers, can read it.',
+                ],
+                'Back to my cases',
+                '/complaints',
+                'primary',
+              ),
+            );
           });
       }
 
@@ -338,16 +500,40 @@ import Base from '../../layouts/Base.astro';
         session = null;
       }
       if (!session || typeof session.token !== 'string' || !session.token) {
-        var signIn = document.createElement('a');
-        signIn.href = '/login';
-        signIn.textContent = 'Sign in';
-        auth.replaceChildren(document.createTextNode('You need to '), signIn, document.createTextNode(' to view this private development case.'));
-        showState('Sign in to continue.');
+        auth.hidden = true;
+        heading.textContent = 'Case is private';
+        caseNumber.textContent = id;
+        showEmptyState(
+          emptyState(
+            'Sign in to read this case',
+            'Cases are private to the person who filed them, so nothing is shown until you sign in.',
+            [
+              'Sign-in uses a development magic link; no real identity is checked.',
+              'You are returned to your case list after signing in.',
+            ],
+            'Sign in',
+            '/login',
+            'primary',
+          ),
+        );
         return;
       }
       if (!id) {
         auth.hidden = true;
-        showState('This case link is invalid.');
+        heading.textContent = 'Case link is invalid';
+        showEmptyState(
+          emptyState(
+            'No case id in this link',
+            'A case link carries the case id in its path, and this one carries none, so there is nothing to load.',
+            [
+              'Open the case from your case list instead of typing the link.',
+              'Case ids are shown under the case title.',
+            ],
+            'Back to my cases',
+            '/complaints',
+            'primary',
+          ),
+        );
         return;
       }
       auth.hidden = true;

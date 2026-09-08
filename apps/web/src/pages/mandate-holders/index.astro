@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 type MandateHolder = {
   id: string;
@@ -25,41 +27,71 @@ async function fetchJson(path: string) {
 }
 
 const res = (await fetchJson('/api/v1/mandate-holders')) as { items: MandateHolder[] } | null;
+const unavailable = res === null;
 const holders = res?.items ?? [];
 ---
 
 <Base title="Mandate-holders">
-  <section class="stack">
-    <p class="badge">M-RA Representative accountability</p>
-    <DemoBadge label="accountability, not endorsement" />
-    <h1>Mandate-holders</h1>
-    <p class="muted">
-      Public, read-only record of office-holders and their published commitments. Each commitment is
-      tracked against verifiable evidence — this surface reports follow-through, never endorses a
-      person, party, or candidate.
-    </p>
-    <p><span class="badge">public-read</span> <span class="badge">verifiable</span></p>
-  </section>
-  <section class="stack">
-    <p class="muted">
-      <a href="/audit">audit trail</a> · <a href="/proofs">proofs</a> · <a href="/verify">verify</a>
-    </p>
-  </section>
-  <section class="stack">
-    {holders.length > 0 ? (
-      <div class="grid">
-        {holders.map((holder) => (
-          <article class="card stack">
-            <h3><a href={`/mandate-holders/${holder.id}`}>{holder.displayName}</a></h3>
-            <p class="muted">{holder.jurisdictionId ?? 'Jurisdiction not recorded.'}</p>
-            <p><span class="badge">{holder.status}</span></p>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p class="panel muted">
-        No mandate-holders published yet. Start platform-api and governance-graph-api, then run the seed.
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">M-RA Representative accountability</p>
+      <h1>Mandate-holders</h1>
+      <p class="page-header-lede">
+        Public, read-only record of office-holders and their published commitments. Each commitment
+        is tracked against verifiable evidence — this surface reports follow-through, never endorses
+        a person, party, or candidate.
       </p>
-    )}
-  </section>
+      <DemoBadge label="accountability, not endorsement" />
+    </header>
+
+    <p class="link-row">
+      <span class="status-label" data-tone="unknown">public-read</span>
+      <span class="status-label" data-tone="unknown">verifiable</span>
+      <a href="/audit">Audit trail</a>
+      <a href="/proofs">Proofs</a>
+      <a href="/verify">Verify</a>
+    </p>
+
+    <section class="task-section">
+      {unavailable ? (
+        <EmptyState
+          title="Mandate-holder data is unavailable"
+          purpose="This page reads office-holders from the local platform API, which is not answering right now. No record was withheld."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'The list needs platform-api and governance-graph-api.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+          ]}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
+      ) : holders.length > 0 ? (
+        <ul class="ledger">
+          {holders.map((holder) => (
+            <li>
+              <h2 class="ledger-title">
+                <a href={`/mandate-holders/${holder.id}`}>{holder.displayName}</a>
+              </h2>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{holder.status}</span>
+                <span>{holder.jurisdictionId ?? 'jurisdiction not recorded'}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          title="No mandate-holders published yet"
+          purpose="This page lists office-holders whose commitments are tracked in public. It stays empty until the first one is published."
+          tips={[
+            'Seeded fixtures publish the first office-holders: bun run db:seed.',
+            'A mandate-holder appears only with an accepted charter and public commitments.',
+            'Nothing here endorses a person, party, or candidate.',
+          ]}
+          actionLabel="Open the governance map"
+          actionHref="/governance/jur-croatia-local"
+        />
+      )}
+    </section>
+  </div>
 </Base>

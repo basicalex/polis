@@ -992,8 +992,8 @@ export const rewardPayouts = pgTable(
 );
 
 // §21 persistent citizen identity (M8 Option A). Email is the login handle;
-// passcodeHash is a bcrypt-style hash; magic-link tokens are single-use and
-// hashed at rest. identityLevel mirrors the §21.1 'verified_resident' tier
+// passcodeHash uses the service's legacy keyed HMAC-SHA256 scheme; magic-link
+// tokens are single-use and hashed at rest. identityLevel mirrors the §21.1 'verified_resident' tier
 // required for vault access.
 export const citizens = pgTable(
   'citizens',
@@ -1013,10 +1013,11 @@ export const citizens = pgTable(
   ],
 );
 
-// M10 external-identity link — binds an IdP subject (Keycloak `sub`) to a
-// citizen. UNIQUE(provider, subject) is the load-bearing invariant: one IdP
-// subject → one citizen. citizenId is a soft text FK (no references(); mirrors
-// vaultDocuments.citizenId). provider e.g. 'keycloak'.
+// M10 external-identity link — binds an issuer-qualified OIDC subject to a
+// citizen. UNIQUE(provider, subject) is the load-bearing invariant: one subject
+// per issuer → one citizen. citizenId is a soft text FK (no references(); mirrors
+// vaultDocuments.citizenId). New providers use `oidc:<validated issuer>`; legacy
+// `keycloak` rows have unknown issuer and require operator review.
 export const externalIdentities = pgTable(
   'external_identities',
   {
@@ -1029,6 +1030,50 @@ export const externalIdentities = pgTable(
   (t) => [
     uniqueIndex('external_identities_provider_subject_idx').on(t.provider, t.subject),
     index('external_identities_citizen_idx').on(t.citizenId),
+  ],
+);
+
+// Exact-session revocations. Only an HMAC hash of the signed session token is
+// stored; expiry bounds retention and lets verification ignore stale rows.
+export const identitySessionRevocations = pgTable(
+  'identity_session_revocations',
+  {
+    id: pkId(),
+    tokenHash: text('token_hash').notNull(),
+    citizenId: text('citizen_id').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('identity_session_revocations_token_hash_idx').on(t.tokenHash),
+    index('identity_session_revocations_expires_idx').on(t.expiresAt),
+    check('ck_identity_session_revocations_token_hash', sql`token_hash ~ '^[0-9a-f]{64}$'`),
+    check('ck_identity_session_revocations_expiry', sql`expires_at > revoked_at`),
+  ],
+);
+
+// Restart-safe OIDC authorization state. The browser-visible state is hashed;
+// the server-side PKCE verifier, nonce, redirect binding, and TTL are consumed
+// by one atomic DELETE ... RETURNING operation.
+export const identityOidcLoginStates = pgTable(
+  'identity_oidc_login_states',
+  {
+    id: pkId(),
+    stateHash: text('state_hash').notNull(),
+    codeVerifier: text('code_verifier').notNull(),
+    nonce: text('nonce').notNull(),
+    redirectUri: text('redirect_uri').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('identity_oidc_login_states_state_hash_idx').on(t.stateHash),
+    index('identity_oidc_login_states_expires_idx').on(t.expiresAt),
+    check('ck_identity_oidc_login_states_state_hash', sql`state_hash ~ '^[0-9a-f]{64}$'`),
+    check('ck_identity_oidc_login_states_verifier', sql`btrim(code_verifier) <> ''`),
+    check('ck_identity_oidc_login_states_nonce', sql`btrim(nonce) <> ''`),
+    check('ck_identity_oidc_login_states_redirect', sql`btrim(redirect_uri) <> ''`),
+    check('ck_identity_oidc_login_states_expiry', sql`expires_at > created_at`),
   ],
 );
 
@@ -1584,6 +1629,8 @@ export const schema = {
   rewardPayouts,
   citizens,
   externalIdentities,
+  identitySessionRevocations,
+  identityOidcLoginStates,
   vaultDocuments,
   accessGrants,
   accessEvents,

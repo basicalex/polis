@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -33,57 +35,89 @@ if (id) {
   }
 }
 
-const statusClass = (s: string) =>
-  s === 'approved' ? 'badge-success' : s === 'rejected' ? 'badge-warning' : 'badge';
+const statusTone = (s: string) => (s === 'approved' ? 'valid' : s === 'rejected' ? 'danger' : 'warning');
 ---
 
 <Base title={contributor ? contributor.displayName : 'Contributor'}>
-  {notFound && (
-    <section class="panel">
-      <h1>Contributor not found</h1>
-      <p class="muted">No contributor matches this id.</p>
-    </section>
-  )}
+  <div class="task-page">
+    {contributor ? (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>{contributor.displayName}</h1>
+          <p class="record-id">{contributor.id}</p>
+        </header>
 
-  {contributor && (
-    <section class="panel">
-      <h1>{contributor.displayName}</h1>
-      <dl class="kv">
-        <dt>Identity level</dt>
-        <dd><span class="badge">{contributor.identityLevel}</span></dd>
-        <dt>Contributor id</dt>
-        <dd><code>{contributor.id.slice(0, 12)}</code></dd>
-        <dt>Joined</dt>
-        <dd>{contributor.createdAt}</dd>
-      </dl>
+        <dl class="record-facts">
+          <div>
+            <dt>Identity level</dt>
+            <dd><span class="status-label" data-tone="unknown">{contributor.identityLevel}</span></dd>
+          </div>
+          <div>
+            <dt>Submissions</dt>
+            <dd>{contributor.submissions.length}</dd>
+          </div>
+          <div>
+            <dt>Joined</dt>
+            <dd>{contributor.createdAt}</dd>
+          </div>
+        </dl>
 
-      <h2>Submissions ({contributor.submissions.length})</h2>
-      {contributor.submissions.length === 0 ? (
-        <p class="muted">No submissions yet.</p>
-      ) : (
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Submission</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Class</th>
-              <th>Submitted</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contributor.submissions.map((s) => (
-              <tr>
-                <td><a href={`/contributions/${s.id}`}>{s.id.slice(0, 12)}</a></td>
-                <td>{s.type}</td>
-                <td><span class={statusClass(s.status)}>{s.status}</span></td>
-                <td>{s.contributionClass}</td>
-                <td>{s.submittedAt}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
-  )}
+        <section class="task-section">
+          <h2>Submissions</h2>
+          {contributor.submissions.length > 0 ? (
+            <ul class="ledger">
+              {contributor.submissions.map((s) => (
+                <li>
+                  <h3 class="ledger-title">
+                    <a href={`/contributions/${s.id}`}>{s.type}</a>
+                  </h3>
+                  <p class="ledger-meta">
+                    <span class="status-label" data-tone={statusTone(s.status)}>{s.status}</span>
+                    <span>{s.contributionClass}</span>
+                    <time datetime={s.submittedAt}>{s.submittedAt}</time>
+                  </p>
+                  <p class="ledger-meta">
+                    <span class="hash-value">{s.id}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              headingLevel={3}
+              title="No submissions yet"
+              purpose="Contributions appear here as soon as they are submitted, whether or not a reviewer has decided them."
+              tips={[
+                'Evidence can be contributed against any subject on the governance map.',
+                'Graph edits are insert-only in v0 and always go through review.',
+              ]}
+              actionLabel="Contribute evidence"
+              actionHref="/contribute/evidence"
+            />
+          )}
+        </section>
+      </Fragment>
+    ) : (
+      <Fragment>
+        <header class="page-header record-head">
+          <h1>Contributor not found</h1>
+          <p class="record-id">{id}</p>
+        </header>
+        <EmptyState
+          title="No contributor matches this id"
+          purpose={notFound
+            ? 'The contribution service answered, and it holds no contributor under this reference.'
+            : 'The contribution service did not answer, so the contributor could not be read.'}
+          tips={[
+            'Check the id in the address bar against the link you followed.',
+            'Start the backend from the repository root: bun run dev:services.',
+            'A contributor record is created with the first submission.',
+          ]}
+          actionLabel="Contribute evidence"
+          actionHref="/contribute/evidence"
+          actionVariant="primary"
+        />
+      </Fragment>
+    )}
+  </div>
 </Base>

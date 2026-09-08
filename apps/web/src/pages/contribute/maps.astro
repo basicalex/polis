@@ -1,5 +1,29 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 ---
-<Base title="Contribute maps"><section class="panel"><DemoBadge /><h1>Contribute maps</h1><p>Lands in M6: reviewed graph-edit contributions open after access control and review queues.</p></section></Base>
+<Base title="Contribute maps">
+  <div class="task-page form-narrow">
+    <header class="page-header">
+      <h1>Contribute maps</h1>
+      <p class="page-header-lede">
+        Process maps open to contribution once access control and review queues are in place.
+      </p>
+      <DemoBadge />
+    </header>
+    <EmptyState
+      title="Map contribution is not open yet"
+      purpose="Map editing lands in M6, after reviewed graph-edit contributions, access control, and review queues are in place."
+      tips={[
+        'Evidence on an existing subject can be contributed today.',
+        'Graph edits are insert-only in v0 and go through review.',
+        'The public map stays readable meanwhile.',
+      ]}
+      actionLabel="Contribute evidence instead"
+      actionHref="/contribute/evidence"
+      actionVariant="primary"
+    />
+  </div>
+</Base>

@@ -1,5 +1,7 @@
 ---
 import Base from '../../../../layouts/Base.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../../../styles/tasks.css';
 
 type Role = {
   id: string;
@@ -25,31 +27,80 @@ async function fetchJson(path: string) {
   }
 }
 
+const slug = Astro.params.jurisdiction ?? 'jur-croatia-local';
 const roleId = Astro.params.roleId ?? '';
 const role = (await fetchJson(`/api/v1/roles/${encodeURIComponent(roleId)}`)) as Role | null;
 ---
 
 <Base title={`Role · ${role?.name ?? roleId}`}>
-  <section class="stack">
-    <p class="badge">§11.3 role</p>
-    <h1>{role?.name ?? 'Role unavailable'}</h1>
-    <p class="muted">All role fields are shown; unavailable values are explicit.</p>
-    {role ? <p><span class="badge">{role.confidenceState}</span> <span class="badge">{role.reviewState}</span></p> : <p class="panel muted">Data unavailable. Run the services and seed the governance database.</p>}
-  </section>
-  {role && (
-    <section class="panel">
-      <dl class="kv">
-        <dt>Name</dt><dd>{role.name}</dd>
-        <dt>Mandate</dt><dd>{role.mandate ? `${role.mandate.name} — ${role.mandate.description ?? 'no description'}` : 'Not recorded'}</dd>
-        <dt>Mandate legal basis</dt><dd>{role.mandate?.legalBasis ?? 'Not recorded'}</dd>
-        <dt>Authorized by law</dt><dd>{role.authorizedByLaw ?? 'Not recorded'}</dd>
-        <dt>Decision rights</dt><dd>{role.decisionRights.length ? role.decisionRights.join(', ') : 'None recorded'}</dd>
-        <dt>Confidence state</dt><dd><span class="badge">{role.confidenceState}</span></dd>
-        <dt>Review state</dt><dd><span class="badge">{role.reviewState}</span></dd>
-        <dt>Description</dt><dd>{role.description ?? 'Not recorded'}</dd>
-        <dt>Institution ID</dt><dd>{role.institutionId ?? 'Not recorded'}</dd>
-        <dt>Visibility</dt><dd>{role.visibility}</dd>
-      </dl>
-    </section>
-  )}
+  <div class="task-page">
+    <header class="page-header record-head">
+      <p class="page-header-eyebrow status-label">§11.3 role</p>
+      <h1>{role?.name ?? 'Role unavailable'}</h1>
+      <p class="record-id">{roleId}</p>
+      {role?.description && <p class="page-header-lede">{role.description}</p>}
+    </header>
+
+    {role ? (
+      <Fragment>
+        <dl class="record-facts">
+          <div>
+            <dt>Decision rights</dt>
+            <dd>{role.decisionRights.length ? role.decisionRights.join(', ') : 'none recorded'}</dd>
+          </div>
+          <div>
+            <dt>Review state</dt>
+            <dd><span class="status-label" data-tone="unknown">{role.reviewState}</span></dd>
+          </div>
+          <div>
+            <dt>Confidence</dt>
+            <dd><span class="status-label" data-tone="unknown">{role.confidenceState}</span></dd>
+          </div>
+        </dl>
+
+        <dl class="detail-list">
+          <div>
+            <dt>Mandate</dt>
+            <dd>{role.mandate ? `${role.mandate.name} — ${role.mandate.description ?? 'no description'}` : 'Not recorded'}</dd>
+          </div>
+          <div>
+            <dt>Mandate legal basis</dt>
+            <dd>{role.mandate?.legalBasis ?? 'Not recorded'}</dd>
+          </div>
+          <div>
+            <dt>Authorized by law</dt>
+            <dd>{role.authorizedByLaw ?? 'Not recorded'}</dd>
+          </div>
+          <div>
+            <dt>Institution</dt>
+            <dd>
+              {role.institutionId ? (
+                <a href={`/governance/${slug}/institutions/${role.institutionId}`}>{role.institutionId}</a>
+              ) : (
+                'Not recorded'
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Visibility</dt>
+            <dd>{role.visibility}</dd>
+          </div>
+        </dl>
+        <p class="task-lede">All role fields are shown; unavailable values are stated as such.</p>
+      </Fragment>
+    ) : (
+      <EmptyState
+        title="Role data is unavailable"
+        purpose="This record is read from the local services, which are not answering right now. No field was withheld."
+        tips={[
+          'Start the backend from the repository root: bun run dev:services.',
+          'Load the fixtures once the services are up: bun run db:seed.',
+          'Roles are listed on the institution that holds them.',
+        ]}
+        actionLabel="Back to the governance map"
+        actionHref={`/governance/${slug}`}
+        actionVariant="primary"
+      />
+    )}
+  </div>
 </Base>

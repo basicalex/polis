@@ -1,0 +1,572 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-05T12:21:39.355687+00:00",
+  "baseCommit": "5dd8e0ed0b346ecc247b6ca2c4363fe4b4f2c437",
+  "branch": "feat/vrsar-prepartner",
+  "sourceState": "uncommitted-working-tree",
+  "scope": "Changed source, configuration, tests, and stable documentation relative to baseCommit; not a signed or immutable release artifact.",
+  "excludedRollingEvidence": [
+    "docs/pilot/prepartner-evidence-2026-09-05.md",
+    "docs/pilot/prepartner-readiness.md",
+    "docs/pilot/prepartner-source-manifest-2026-09-05.json"
+  ],
+  "deletedTrackedPaths": [],
+  "fingerprintSha256": "5bba4dabb77fb90f1990d2cdacb0542d9596123807a80a1ad673d1a368764052",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "3d74835bd87da22da21f220fcab2ebd713a33a0aec3563591e5b2e3e731e8966",
+      "bytes": 36780
+    },
+    {
+      "path": "GO_LIVE_READINESS.md",
+      "sha256": "b025652dc0dbee8d2b47cbd6d85765ddf1eed363afcf344b690b62fa38577fa2",
+      "bytes": 16212
+    },
+    {
+      "path": "README.md",
+      "sha256": "13d2a3fcd5e65cdfd60f8c5f8044ae3b36aa2faa11b6d460808de4a4c2a989b4",
+      "bytes": 17167
+    },
+    {
+      "path": "ROADMAP.md",
+      "sha256": "7153bfaac1ff6fb72dfaf165ccfbaabdc326848125131ec462b7bf2b1f589158",
+      "bytes": 4475
+    },
+    {
+      "path": "apps/web/astro.config.mjs",
+      "sha256": "594348d5165e9e05adac9f7d4cb023e450b8cdcc1f2bf2c31084cf1dedecb1be",
+      "bytes": 2399
+    },
+    {
+      "path": "apps/web/scripts/vrsar-acceptance.mjs",
+      "sha256": "d2e3225b23306972f034c07cadde774f1192c08fcb4bcb62575c9862f4d63d86",
+      "bytes": 57623
+    },
+    {
+      "path": "apps/web/src/components/pilot/vrsar/VrsarPilotShell.astro",
+      "sha256": "2aa40e2c76fefdb4a5c15e9a48e635ffbf4c2bf49d55f07d1240ae7b916ce3f1",
+      "bytes": 3505
+    },
+    {
+      "path": "apps/web/src/components/pilot/vrsar/VrsarPrivateBoundary.astro",
+      "sha256": "f0e34065f2cb56002019bc6e3b9e141c1b44dc15d5749d531b2b91e393a4b4ba",
+      "bytes": 630
+    },
+    {
+      "path": "apps/web/src/components/pilot/vrsar/VrsarReceipt.astro",
+      "sha256": "2e9c2783021e8341a4f2660f9e0ca7a60f5cef11b6ad30d65b76fe8897534b14",
+      "bytes": 2787
+    },
+    {
+      "path": "apps/web/src/components/pilot/vrsar/VrsarStatusLabel.astro",
+      "sha256": "aa0a173e6ad8db3ab4d1d4b7c3c12cb9fa9aeb1074cef7eb3a738661338bd0e5",
+      "bytes": 416
+    },
+    {
+      "path": "apps/web/src/components/pilot/vrsar/VrsarTraceSummary.astro",
+      "sha256": "2e0c34a47c10857984ebad7a70d64650b8e9f8658b31346aa706720f975cba85",
+      "bytes": 666
+    },
+    {
+      "path": "apps/web/src/content/pilot/vrsar.ts",
+      "sha256": "a6bcceb2162befca9c6526db116a0e3f35a31ce304c4a21b7a3b688063b8ff9a",
+      "bytes": 38048
+    },
+    {
+      "path": "apps/web/src/env.d.ts",
+      "sha256": "6ecc47d69b18a9dd3f2537628f4bfbd027f4a20658047b90554f6c5fe0027d58",
+      "bytes": 172
+    },
+    {
+      "path": "apps/web/src/lib/pilot/vrsar/api.ts",
+      "sha256": "df6592683f6b9c8def30eb291e3878d50d754f58df90945fe668355ffa22bba9",
+      "bytes": 8705
+    },
+    {
+      "path": "apps/web/src/lib/pilot/vrsar/model.ts",
+      "sha256": "461f7c466980a87b4473fa0e82e6cbc89302ee4c2c09685e95ee118ba1e94045",
+      "bytes": 6167
+    },
+    {
+      "path": "apps/web/src/lib/pilot/vrsar/proxy.ts",
+      "sha256": "f8ab4215669f7861ece4c4cefaf148d46223c898cc552bdb2b64262373a595f9",
+      "bytes": 16142
+    },
+    {
+      "path": "apps/web/src/lib/release-route-policy.mjs",
+      "sha256": "4057a0b290286425fbf1f4c19eed8c64c0569b4466b7f8a9aeac3ea47dc06d4d",
+      "bytes": 8254
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/api/[...path].ts",
+      "sha256": "b29cd245a2f33d59195725b3b461c4862f057df64576337ca0b3c68029a56099",
+      "bytes": 516
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/cases/[caseId].astro",
+      "sha256": "d60171961403e7711dcdffbc7f6c48dd9b13411aec8be2c5cf7187441a875935",
+      "bytes": 2215
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/cases/index.astro",
+      "sha256": "8b02bf353bd1cd9cf25309ec40cc9039b946bd2144f4e656594ffc4e808cf320",
+      "bytes": 1362
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/file.astro",
+      "sha256": "e8dd95a8150b76cca67006aec31b427b9d729b082f96cdeda0a9b93507909229",
+      "bytes": 4006
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/index.astro",
+      "sha256": "2e63ca1043ece43673195b5cc0ede645ba5ff7cd7bbdc7492c8f72843a1a2ff2",
+      "bytes": 2253
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/login.astro",
+      "sha256": "29099174c33f4a32e06d8c2ce88511e776b64d23d9bc3570d656667e08ba17bd",
+      "bytes": 1962
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/receipts/[receiptId].astro",
+      "sha256": "83162acf93d82fa06f749f24b91b0cf66452bc678e45716c19d807ed5804c96e",
+      "bytes": 1272
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/receipts/index.astro",
+      "sha256": "4967a8ef347a4a47d0d0e87f8657d5a077365c30acf2c2bb99f156119e78cc1b",
+      "bytes": 1037
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/review/index.astro",
+      "sha256": "15e30aeceeb770622529308b358ba854d2415a956bcd38602a8668983aee5e37",
+      "bytes": 2033
+    },
+    {
+      "path": "apps/web/src/pages/pilot/vrsar/staff/index.astro",
+      "sha256": "e13e9a2c1e6379971da750abe89e15109bb30efd84d4dc5280b9cacffada60b3",
+      "bytes": 2038
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/case-detail.ts",
+      "sha256": "32cc45cb746ad1ba6428e53d5486220d3e0aa388c4ded5fe393cd0431ec418a1",
+      "bytes": 4163
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/cases.ts",
+      "sha256": "18aa98040b129fc4ebc924607d0eac1dfdb9379dcc0996fddec3b12b254d319b",
+      "bytes": 2367
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/file.ts",
+      "sha256": "d77425ffa7117526d6f627fe8ae623bde321fd722fb20f4c8626b8bcee425aea",
+      "bytes": 6360
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/index.ts",
+      "sha256": "8260651f5292851f32409738ec7750ac0e1294daee23f765464f4f3fca10ae51",
+      "bytes": 5184
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/login.ts",
+      "sha256": "a2e8a1413955032a30fd0a43bd4a88a11848bf847923cbf5bd43e5ea5bb9e824",
+      "bytes": 4238
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/receipt-detail.ts",
+      "sha256": "e6c20630deb1a07493757b57e3f49900cc6a6d1728dcfc3caf2158c34c54ce4f",
+      "bytes": 4541
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/receipts.ts",
+      "sha256": "ccd84ea6661e1aee7f26f171b0004a5b267b8e76ffc5ba95e0034190ea39347e",
+      "bytes": 2785
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/review.ts",
+      "sha256": "395b50c54fb28bbc4bb3f9a8602ed7a44e1827e0969a1e554dc58039747fe614",
+      "bytes": 9773
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/shell.ts",
+      "sha256": "588f4d4c71f60e7eac1dc84ce718339b27fc2af36cb89219e926091766498ac7",
+      "bytes": 8716
+    },
+    {
+      "path": "apps/web/src/scripts/pilot/vrsar/staff.ts",
+      "sha256": "8cced6d37f75156f9daec81c0b16d1b738480d825050ae73529cbad9fc04d422",
+      "bytes": 15910
+    },
+    {
+      "path": "apps/web/src/styles/pilot/vrsar.css",
+      "sha256": "0177b7308ae9bf2436f6caddf7df5c05fd3a8812cf1b30c8da9d3f78ec85b3a4",
+      "bytes": 18688
+    },
+    {
+      "path": "apps/web/test/release-policy.test.mjs",
+      "sha256": "6e4ded524aedd7af5787e1fc654ac7d202aa174e0a54d1ed7f41bad91981a08a",
+      "bytes": 9497
+    },
+    {
+      "path": "apps/web/test/vrsar-pilot.test.mjs",
+      "sha256": "3f28ac64725531e9f9d0428eb9a5135ea816d369b31f0778646390fa2f51a41d",
+      "bytes": 22299
+    },
+    {
+      "path": "bun.lock",
+      "sha256": "faff751820467f3b9f2ff220bc0ec5aea10654171fc959132e8282b9372dfd9d",
+      "bytes": 166730
+    },
+    {
+      "path": "config/pilots/vrsar-orsera.json",
+      "sha256": "bdc9dea632d4e15d8d85e571377cd15eca46380e41997573db22a84ac366b8c6",
+      "bytes": 3316
+    },
+    {
+      "path": "config/services.json",
+      "sha256": "6c8b1a5e2e10f5b67ccc864662976a5b485d9202b8e350cac94104477e10867b",
+      "bytes": 8983
+    },
+    {
+      "path": "docs/architecture/service-map.md",
+      "sha256": "38cdbe0a415f464fbf4f98f98dc75335376468aa889bb2d1388fefe77f50e355",
+      "bytes": 17115
+    },
+    {
+      "path": "docs/pilot/local-prepartner-runbook.md",
+      "sha256": "db53dd73bb239cc966f2caea71f66fb2f2503c23237206bed684ffca985acf5e",
+      "bytes": 8468
+    },
+    {
+      "path": "docs/pilot/minimal-backend-plan.md",
+      "sha256": "0c47a9db7529dd4e3be95c99d894e1fae2700ef6dd8ee902e4926498516899c3",
+      "bytes": 10180
+    },
+    {
+      "path": "docs/pilot/trace-api-contract.md",
+      "sha256": "57cf39162e83eba047c8f6b7fa4210880bf88e79ec1366cfaf09be1e8b5bd481",
+      "bytes": 10195
+    },
+    {
+      "path": "docs/pilot/vrsar-source-notes.md",
+      "sha256": "55c6cebda340376fa0fe86da074ab4af6aeaf170685a42f73b51a703645a66ff",
+      "bytes": 4019
+    },
+    {
+      "path": "package.json",
+      "sha256": "845c401338beff3827072045d55ed27b3091c512920869eb04440c66e211fa03",
+      "bytes": 2804
+    },
+    {
+      "path": "packages/db/migrations/0015_identity_readiness.sql",
+      "sha256": "deec4f0e53ac93e1c198e3b08dd3e87c800a7cb9b67c47744ba981657c7ea7d2",
+      "bytes": 1778
+    },
+    {
+      "path": "packages/db/migrations/meta/0015_snapshot.json",
+      "sha256": "405fbc8d4b7ffc8afb192abe7ed7ae15cc4420e43897563e6ae71e4d7464d93f",
+      "bytes": 185085
+    },
+    {
+      "path": "packages/db/migrations/meta/_journal.json",
+      "sha256": "cef8344b131ad3f34b0a3d4ee83eb12392e7231e79411cdc4015c6d9a81418a6",
+      "bytes": 2367
+    },
+    {
+      "path": "packages/db/src/identity-readiness.test.ts",
+      "sha256": "d7f624cabfd5934210ed939f29bf7e4da296eb0102e913547037d82f9a685649",
+      "bytes": 5965
+    },
+    {
+      "path": "packages/db/src/schema.ts",
+      "sha256": "ab4cbd216c80f66172de38a194aad2a5671fc247a19646d4d863ba86d5747a81",
+      "bytes": 62748
+    },
+    {
+      "path": "packages/service-runtime/src/index.test.ts",
+      "sha256": "4ce7206dc1b2b27e76b992fd3f816193f09846d21cd5478992819d9fd766bc02",
+      "bytes": 22378
+    },
+    {
+      "path": "packages/service-runtime/src/index.ts",
+      "sha256": "dc662d61bd41e760dd57878312b7d9a4b24c3854ebae2fc8a72da9db39258a3a",
+      "bytes": 19559
+    },
+    {
+      "path": "polis_interface_v1_agent.env.example",
+      "sha256": "a47690a203e9b93ecba7ed991c7ee0a18b1b4f3e1356578ff4733163b4fb742a",
+      "bytes": 34644
+    },
+    {
+      "path": "scripts/pilot/inbox.mjs",
+      "sha256": "142f2553b7ae719cd9d5a067f399668bab78d3af801fd404549b6277322a64ac",
+      "bytes": 1667
+    },
+    {
+      "path": "scripts/pilot/intake-closed-check.mjs",
+      "sha256": "98aa7b34c0a55678601fbc8f369ffcd5eb0a7aeace98e6945b7567181c63b054",
+      "bytes": 1399
+    },
+    {
+      "path": "scripts/pilot/mail-codec.mjs",
+      "sha256": "12e5ca9e97af6aac27e7896fa119645ecf041a1b5422adc16a509f98157d6926",
+      "bytes": 1621
+    },
+    {
+      "path": "scripts/pilot/operational-smoke.mjs",
+      "sha256": "43a1ada175456840cc2d508642880eb8023e08c018b094ae18214aa8407de07f",
+      "bytes": 4367
+    },
+    {
+      "path": "scripts/pilot/pilot-platform-routes.mjs",
+      "sha256": "fe316d59c2d4b424657c065f71d99cd3b18965e56f7e7b6471507d8c48a14e65",
+      "bytes": 1688
+    },
+    {
+      "path": "scripts/pilot/pilot-platform.mjs",
+      "sha256": "7482915275181b3f8b53fe44f7e2089c83e792eb171379c2035eb07472024fef",
+      "bytes": 1756
+    },
+    {
+      "path": "scripts/pilot/recovery-drill.mjs",
+      "sha256": "668a9752f5dcaf869d7b441832b55e9bd02fc2c2ae07ca621b47f8eab3b44f29",
+      "bytes": 9781
+    },
+    {
+      "path": "scripts/pilot/restart-proof.mjs",
+      "sha256": "38ef7922ce60c8b381acc39333ba0f7e5ab006f466a48fbfa9fc3ffaea438f6e",
+      "bytes": 7150
+    },
+    {
+      "path": "scripts/pilot/run-core-migrations.mjs",
+      "sha256": "f75a93d2c0bd589281d170d9a04146fe27875bb8b63b4c2cbf8c70e581c07138",
+      "bytes": 771
+    },
+    {
+      "path": "scripts/pilot/runtime-lib.mjs",
+      "sha256": "85d4af711c5d2e73995c7b0e56bbd9c86003cf01ffcdc2160af5c98603188b13",
+      "bytes": 16463
+    },
+    {
+      "path": "scripts/pilot/runtime.mjs",
+      "sha256": "5eef3f89dec4b6fe0349e7e2a96cce7d2e29ae993e0991609f30b86f1cb5fd26",
+      "bytes": 23100
+    },
+    {
+      "path": "scripts/pilot/seed-identities.mjs",
+      "sha256": "1d11b247811616ab16743978e851f5986ca8ddf98b784d1a82f718c8da0c5478",
+      "bytes": 2436
+    },
+    {
+      "path": "scripts/pilot/service-wrapper.mjs",
+      "sha256": "d9358d718421ca6559a3057c5b329902af3d72250fa21583a7e98ee08938e568",
+      "bytes": 1721
+    },
+    {
+      "path": "scripts/pilot/smtp-capture.mjs",
+      "sha256": "361a5b3aa3420339b1f028d956728c22bf7c1b0a2f1e99c9638f06c4a3f0b69f",
+      "bytes": 7923
+    },
+    {
+      "path": "scripts/pilot/test/runtime-lib.test.mjs",
+      "sha256": "785b7430463fc51de887a6512d8e2bb249d1d40616ada8bd681a2e697cf59712",
+      "bytes": 13907
+    },
+    {
+      "path": "scripts/pilot/trace-intake-restart.mjs",
+      "sha256": "08635af96bda162a8acaec317f18e38ccf36880457ba4fa3d1288a3493c13efa",
+      "bytes": 704
+    },
+    {
+      "path": "scripts/pilot/verify-intake-closed.mjs",
+      "sha256": "3d0939c0a243d7fe42ac743fc9582abed3e8492bb74aa87feb82c6668fa2ac2b",
+      "bytes": 311
+    },
+    {
+      "path": "scripts/pilot/verify-trace-chain.mjs",
+      "sha256": "83ce4083f4c9d2bb8e7222a18cd6923628805bf204b455c994a17e97123667f3",
+      "bytes": 3792
+    },
+    {
+      "path": "scripts/service-catalog.mjs",
+      "sha256": "dca193a3d10031b21daf8763a28dfd4a45631bc5e3712ad6222851ab6d09c03d",
+      "bytes": 15312
+    },
+    {
+      "path": "scripts/service-catalog.test.mjs",
+      "sha256": "39f14d7a8921de6ca64e946e693b16c2a3b57494729e4276fdc351bc561c7d80",
+      "bytes": 7755
+    },
+    {
+      "path": "services/citizen-identity-service/package.json",
+      "sha256": "68e8d8d4a5d21e6470881ecc3045e67aa450c9f36fadc3134196606c7b7a4890",
+      "bytes": 680
+    },
+    {
+      "path": "services/citizen-identity-service/src/config.ts",
+      "sha256": "192a4c7242e29dccbf555c4ddb2cee63b3c8f46e9b79fcf94f1f0bb66c181a7f",
+      "bytes": 4404
+    },
+    {
+      "path": "services/citizen-identity-service/src/database.test.ts",
+      "sha256": "324bdae8f5720ca3df1c585d38416f67852ebc161002d63576f46ca499088a12",
+      "bytes": 8158
+    },
+    {
+      "path": "services/citizen-identity-service/src/delivery.test.ts",
+      "sha256": "a3fa1cdb51ae57beb8ae8d2b08b5ea0f677cd097cf35d9899ec00e57ffb08401",
+      "bytes": 6122
+    },
+    {
+      "path": "services/citizen-identity-service/src/delivery.ts",
+      "sha256": "8f9cb430c5b8039924d6a315269743372caa0aaa5395ee100420e958863471f6",
+      "bytes": 5301
+    },
+    {
+      "path": "services/citizen-identity-service/src/identity-provider.test.ts",
+      "sha256": "218a949f1650749cb8d99ff97b1e562db486325e0cf83ce95fc6592d3ae0e585",
+      "bytes": 9017
+    },
+    {
+      "path": "services/citizen-identity-service/src/identity-provider.ts",
+      "sha256": "0d76352e0d5332dec891555245479cb64b31a1dd3522955738523aa92862ad5d",
+      "bytes": 9480
+    },
+    {
+      "path": "services/citizen-identity-service/src/identity-repository.ts",
+      "sha256": "9cbe39b3dc1cccba91a3160668b40cb24c8e637daf8777daf2a27864fe4bb950",
+      "bytes": 9408
+    },
+    {
+      "path": "services/citizen-identity-service/src/index.test.ts",
+      "sha256": "a5d7bfc43111bc3c362d8c7818db76136f0fc5dad31bff2a14952058fa2a10bb",
+      "bytes": 28897
+    },
+    {
+      "path": "services/citizen-identity-service/src/index.ts",
+      "sha256": "192527a3ef0d3d0b233e2e214bdd984b9c47f64d3973e3f75996fc9304c994cb",
+      "bytes": 16851
+    },
+    {
+      "path": "services/citizen-identity-service/src/oidc-state-store.ts",
+      "sha256": "24e31dc4f732c44ad5ed765964669d89441e56a27666fbcb517d3b37b410b4ca",
+      "bytes": 2129
+    },
+    {
+      "path": "services/platform-api/src/index.test.ts",
+      "sha256": "481947a2ee94c94e9bda32dc05b7d687626ae5e9f13cc3fbf605368de71985f5",
+      "bytes": 58340
+    },
+    {
+      "path": "services/platform-api/src/routes.ts",
+      "sha256": "c7a7014a56248c4f2b5cb6909dd6fe5a9f17f9db618a84a61f9fb6e31d364cbf",
+      "bytes": 26784
+    },
+    {
+      "path": "services/platform-api/src/trace-routes.test.ts",
+      "sha256": "99765d9bc8731d3a098a5ee7ed0bc860edc312ba74e5b54bc847216370af0423",
+      "bytes": 18470
+    },
+    {
+      "path": "services/platform-api/src/trace-routes.ts",
+      "sha256": "e1f673fe7a22d7f554ddc5e435efff13824262f7ee5848422da431f73705e24d",
+      "bytes": 9130
+    },
+    {
+      "path": "services/trace-service/migrations/0001_trace_schema.sql",
+      "sha256": "c4942a53828b14a1579e6c2b77489c1871e6de0a5b98e496a6a7cfeb857c89ce",
+      "bytes": 4802
+    },
+    {
+      "path": "services/trace-service/package.json",
+      "sha256": "db14b0bfb9c47cb849fdf29e8124fd073ec93da32a6ba174ceffe78f2e68ceb5",
+      "bytes": 556
+    },
+    {
+      "path": "services/trace-service/src/canonical.ts",
+      "sha256": "65afce869c1fb167d7aeec62d1a6b1f9e44736435102ec6db082c5db2de9331a",
+      "bytes": 4725
+    },
+    {
+      "path": "services/trace-service/src/config.test.ts",
+      "sha256": "a245da5275bee7503b8b8801ea89589729aabadd78f84d7300f3598a56bb24a2",
+      "bytes": 3006
+    },
+    {
+      "path": "services/trace-service/src/config.ts",
+      "sha256": "98a3c97e15bb5cb67011dfa060e1937b1768704008b30bac089c8b59b799e0c7",
+      "bytes": 7099
+    },
+    {
+      "path": "services/trace-service/src/domain.test.ts",
+      "sha256": "d4a49f1c9a5f457e514572c3dc75a1ab8ff0e07dda6f3ca383e2cdc7cdac0f99",
+      "bytes": 5256
+    },
+    {
+      "path": "services/trace-service/src/domain.ts",
+      "sha256": "395810274d00e9ebd4356b567310ac67b3e51f0eca6b2aa1c5cf7c83761eaba0",
+      "bytes": 2226
+    },
+    {
+      "path": "services/trace-service/src/index.ts",
+      "sha256": "611a07d46061ce0f41d69c15fca906818791729ff593f01f0f25d5f45ee9aea7",
+      "bytes": 1702
+    },
+    {
+      "path": "services/trace-service/src/integration.test.ts",
+      "sha256": "4f714440087d79020ed5d1851f87eadc2359a4154d762e0fd03eeb90be86a968",
+      "bytes": 30397
+    },
+    {
+      "path": "services/trace-service/src/migrate.ts",
+      "sha256": "95b6fa04a55c0594594a6089ef478008310ac64109b276a60e5a652bcce7e864",
+      "bytes": 367
+    },
+    {
+      "path": "services/trace-service/src/migrations.test.ts",
+      "sha256": "264b5c07fd66cc3b1ee0c6b0dd7ab249dea1eac89ddb46d4082ec6bbd6b923ca",
+      "bytes": 915
+    },
+    {
+      "path": "services/trace-service/src/migrations.ts",
+      "sha256": "adce06cb47cb345ace12422f154eac38aaf1dee73657d40217ebe62d07802216",
+      "bytes": 4625
+    },
+    {
+      "path": "services/trace-service/src/repository.ts",
+      "sha256": "b41c63c16806973839f7b5a8fe2812690ec2acf429932b00cce6c7074d7f02de",
+      "bytes": 33468
+    },
+    {
+      "path": "services/trace-service/src/routes.test.ts",
+      "sha256": "4210a8bf01065e2db72b91079f5fda95a2752fcd34ecef18be2252d5bbc1d45f",
+      "bytes": 11513
+    },
+    {
+      "path": "services/trace-service/src/routes.ts",
+      "sha256": "52c8bc096ab75f47723e824c2ed2f87c31cd011c91f28cf5be1d136d429c3d18",
+      "bytes": 9788
+    },
+    {
+      "path": "services/trace-service/src/types.ts",
+      "sha256": "9834cea17a4ee0d06fcbbc0a40201831e76cc5cc6c2b5875afbd99a6cb8131a6",
+      "bytes": 5084
+    },
+    {
+      "path": "services/trace-service/src/validation.test.ts",
+      "sha256": "9b082d8a77d8846eb8b37ae2423564eaecf1c585994b5cf8181e1347c31b9165",
+      "bytes": 8630
+    },
+    {
+      "path": "services/trace-service/src/validation.ts",
+      "sha256": "23ae46ea79feaa1a7c3548862d7a4ad0cb4278da66120b7c837523e77ff92523",
+      "bytes": 11466
+    },
+    {
+      "path": "services/trace-service/tsconfig.json",
+      "sha256": "b1df01c7b3ffbfde2f65f433286f600e3ff181d47db39bce8337daea3c30a2c7",
+      "bytes": 145
+    }
+  ]
+}

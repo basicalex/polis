@@ -27,26 +27,28 @@ const rows = [
 ] as const;
 ---
 
-<section class="panel">
+<section class="mechanism-table">
   <h2>{t('teach.title', locale)}</h2>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th scope="col"></th>
-        <th scope="col">{t('teach.proves', locale)}</th>
-        <th scope="col">{t('teach.not_proves', locale)}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {
-        rows.map((row) => (
-          <tr>
-            <th scope="row">{t(row.mechanism, locale)}</th>
-            <td>{t(row.proves, locale)}</td>
-            <td>{t(row.not, locale)}</td>
-          </tr>
-        ))
-      }
-    </tbody>
-  </table>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col"></th>
+          <th scope="col">{t('teach.proves', locale)}</th>
+          <th scope="col">{t('teach.not_proves', locale)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          rows.map((row) => (
+            <tr>
+              <th scope="row">{t(row.mechanism, locale)}</th>
+              <td>{t(row.proves, locale)}</td>
+              <td>{t(row.not, locale)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
 </section>

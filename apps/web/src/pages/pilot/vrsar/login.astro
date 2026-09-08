@@ -1,0 +1,50 @@
+---
+import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
+
+const lang = parsePilotLang(Astro.url);
+---
+
+<VrsarPilotShell
+  lang={lang}
+  page="login"
+  title={`${pilotCopy.login.heading[lang]} — Polis`}
+  description={pilotCopy.login.intro[lang]}
+>
+  <article class="pilot-page form-narrow">
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.login.heading[lang]}</h1>
+      <p class="pilot-lead">{pilotCopy.login.intro[lang]}</p>
+    </header>
+
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state></p>
+
+    <section class="pilot-section panel" aria-labelledby="email-login-title" data-email-login>
+      <h2 id="email-login-title">{pilotCopy.login.emailHeading[lang]}</h2>
+      <form class="pilot-form" data-magic-form novalidate>
+        <div class="field" data-width="email">
+          <label for="pilot-email">{pilotCopy.login.email[lang]}</label>
+          <input id="pilot-email" name="email" type="email" autocomplete="email" required maxlength="254" aria-describedby="pilot-email-hint pilot-email-error" />
+          <p class="field-hint" id="pilot-email-hint">{pilotCopy.login.emailHint[lang]}</p>
+          <p class="field-error" id="pilot-email-error" data-email-error></p>
+        </div>
+        <div class="pilot-actions">
+          <button class="btn" data-variant="primary" type="submit" data-magic-submit>{pilotCopy.login.sendLink[lang]}</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="pilot-section panel" aria-labelledby="staff-login-title" data-oidc-login>
+      <h2 id="staff-login-title">{pilotCopy.login.oidc[lang]}</h2>
+      <p>{pilotCopy.login.oidcHelp[lang]}</p>
+      <div class="pilot-actions">
+        <button class="btn" data-variant="secondary" type="button" data-oidc-button>{pilotCopy.login.oidcAction[lang]}</button>
+      </div>
+    </section>
+  </article>
+
+  <script>
+    import { initVrsarLogin } from '../../../scripts/pilot/vrsar/login';
+    initVrsarLogin();
+  </script>
+</VrsarPilotShell>

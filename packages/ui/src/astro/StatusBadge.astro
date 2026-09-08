@@ -25,7 +25,7 @@ const toneIcons: Record<VerdictTone, IconName> = {
 const text = label ?? (labelKey ? t(labelKey, locale) : tone);
 ---
 
-<span class="trust-badge" data-tone={tone} role={announce ? 'status' : undefined}>
+<span class="status-label trust-badge" data-tone={tone} role={announce ? 'status' : undefined}>
   <TrustIcon name={icon ?? toneIcons[tone]} />
   {text}
 </span>

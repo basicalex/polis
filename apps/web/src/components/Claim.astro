@@ -41,13 +41,18 @@ const sources = claim.sources.map((source) => ({
 }));
 ---
 
-<article class="card stack">
-  <p>{claim.text}</p>
+<article class="claim-block">
+  <p class="record-statement">{claim.text}</p>
   <div class="trust-strip">
     <ConfidenceBadge state={claim.confidenceState} />
     <ReviewStateBadge state={claim.reviewState} />
     {claim.aiTraceId && <AiLabel traceId={claim.aiTraceId} />}
     <a href={`/claims/${encodeURIComponent(claim.id)}`}>Details</a>
   </div>
-  <SourcePanel evidence={evidence} sources={sources} />
+  <SourcePanel
+    evidence={evidence}
+    sources={sources}
+    emptyActionLabel="Contribute a source"
+    emptyActionHref="/contribute/evidence"
+  />
 </article>

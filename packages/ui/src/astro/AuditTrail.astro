@@ -1,5 +1,6 @@
 ---
 import TrustIcon from '../icons/TrustIcon.astro';
+import EmptyState from './EmptyState.astro';
 import { t, type Locale } from '../messages/index.ts';
 import type { AuditEvent } from '@polis/domain';
 
@@ -7,16 +8,33 @@ interface Props {
   events: AuditEvent[];
   title?: string;
   locale?: Locale;
+  /** One action offered when the trail is empty (playbook rule S1). */
+  emptyActionLabel?: string;
+  emptyActionHref?: string;
 }
 
-const { events, title, locale = 'en' } = Astro.props as Props;
+const {
+  events,
+  title,
+  locale = 'en',
+  emptyActionLabel,
+  emptyActionHref,
+} = Astro.props as Props;
 ---
 
 <section class="panel">
   <h2>{title ?? t('audit.title', locale)}</h2>
   {
     events.length === 0 ? (
-      <p class="muted">{t('audit.empty', locale)}</p>
+      <EmptyState
+        headingLevel={3}
+        title={t('audit.empty', locale)}
+        purpose={t('audit.empty.purpose', locale)}
+        tips={[t('audit.empty.tip.chain', locale), t('audit.empty.tip.redacted', locale)]}
+        actionLabel={emptyActionLabel}
+        actionHref={emptyActionHref}
+        lang={locale}
+      />
     ) : (
       <ol class="audit-trail">
         {events.map((event) => (

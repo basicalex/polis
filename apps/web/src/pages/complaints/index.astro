@@ -1,52 +1,58 @@
 ---
 import Base from '../../layouts/Base.astro';
+import '../../styles/tasks.css';
 ---
 
 <Base title="My private development cases">
-  <div class="stack">
-    <section class="hero stack">
-    <h1>My private development cases</h1>
-    <p>
-      File and follow a complaint in this local development workflow. This is not a live government
-      service and it does not connect to government systems.
-    </p>
-    <p class="privacy-note">Your case details are private to your signed-in session and authorised case workers.</p>
-  </section>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label" data-tone="warning">Local development workflow</p>
+      <h1>My private development cases</h1>
+      <p class="page-header-lede">
+        File and follow a complaint in this local development workflow. This is not a live government
+        service and it does not connect to government systems.
+      </p>
+      <p class="privacy-note">Your case details are private to your signed-in session and authorised case workers.</p>
+    </header>
 
-  <section class="stack" aria-labelledby="new-case-heading">
-    <div>
+    <section id="new-case" class="task-section" aria-labelledby="new-case-heading">
       <h2 id="new-case-heading">File a new complaint</h2>
-      <p class="muted">Describe the matter in your own words. The case scope is set by this development service.</p>
-    </div>
-    <div id="complaints-auth" class="panel muted" role="status">Checking your session…</div>
-    <form id="complaint-form" class="panel stack" hidden>
-      <label for="complaint-subject">Subject</label>
-      <input id="complaint-subject" name="subject" type="text" maxlength="200" required />
-      <p class="muted">Up to 200 characters.</p>
-      <label for="complaint-narrative">What happened?</label>
-      <textarea id="complaint-narrative" name="narrative" rows="8" maxlength="10000" required></textarea>
-      <p class="muted">Up to 10,000 characters. Do not include information you would not want recorded in this development case.</p>
-      <button id="complaint-submit" type="submit">File complaint</button>
-      <p id="complaint-form-message" class="muted" role="status" aria-live="polite"></p>
-    </form>
-  </section>
+      <p class="task-lede">Describe the matter in your own words. The case scope is set by this development service.</p>
+      <div id="complaints-auth" class="task-note" role="status">Checking your session…</div>
+      <form id="complaint-form" class="form-narrow" hidden>
+        <div class="field">
+          <label class="field-label" for="complaint-subject">Subject</label>
+          <input id="complaint-subject" name="subject" type="text" maxlength="200" required />
+          <p class="field-hint">Up to 200 characters. One line on what the case is about.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="complaint-narrative">What happened?</label>
+          <textarea id="complaint-narrative" name="narrative" rows="8" maxlength="10000" required></textarea>
+          <p class="field-hint">
+            Up to 10,000 characters. Do not include information you would not want recorded in this
+            development case.
+          </p>
+        </div>
+        <div class="form-actions">
+          <button id="complaint-submit" type="submit" class="btn" data-variant="primary">File complaint</button>
+        </div>
+        <p id="complaint-form-message" class="field-hint" role="status" aria-live="polite"></p>
+      </form>
+    </section>
 
-  <section class="stack" aria-labelledby="case-list-heading">
-    <div>
+    <section class="task-section" aria-labelledby="case-list-heading">
       <h2 id="case-list-heading">Your cases</h2>
-      <p class="muted">Case activity is shown only after you sign in.</p>
-    </div>
-    <div id="complaints-state" class="panel muted" role="status" aria-live="polite">Loading cases…</div>
-    <div id="complaint-list" class="stack"></div>
-    <p id="complaints-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
-  </section>
-
+      <div id="complaints-state" class="task-note" role="status" aria-live="polite">Loading cases…</div>
+      <ul id="complaint-list" class="ledger"></ul>
+      <p id="complaints-announcement" class="visually-hidden" role="status" aria-live="polite"></p>
+    </section>
   </div>
 
   <script is:inline>
     window.addEventListener('DOMContentLoaded', function () {
       var API = window.__API_URL;
       var auth = document.getElementById('complaints-auth');
+      var newCase = document.getElementById('new-case');
       var form = document.getElementById('complaint-form');
       var state = document.getElementById('complaints-state');
       var list = document.getElementById('complaint-list');
@@ -64,14 +70,38 @@ import Base from '../../layouts/Base.astro';
         return element;
       }
 
-      function clearState() {
-        state.hidden = true;
-        state.textContent = '';
+      function emptyState(title, purpose, tips, actionLabel, actionHref, actionVariant) {
+        var block = document.createElement('div');
+        block.className = 'empty-state';
+        block.append(textElement('h3', title, 'empty-state-title'));
+        block.append(textElement('p', purpose, 'empty-state-purpose'));
+        var tipList = document.createElement('ul');
+        tipList.className = 'empty-state-tips';
+        tips.forEach(function (tip) {
+          tipList.append(textElement('li', tip));
+        });
+        block.append(tipList);
+        if (actionLabel && actionHref) {
+          var action = document.createElement('a');
+          action.className = 'btn empty-state-action';
+          action.setAttribute('data-variant', actionVariant || 'tertiary');
+          action.href = actionHref;
+          action.textContent = actionLabel;
+          block.append(action);
+        }
+        return block;
       }
 
-      function showState(value) {
+      function clearState() {
+        state.hidden = true;
+        state.className = 'task-note';
+        state.replaceChildren();
+      }
+
+      function showEmptyState(node) {
         state.hidden = false;
-        state.textContent = value;
+        state.className = '';
+        state.replaceChildren(node);
       }
 
       function friendlyDate(value) {
@@ -82,21 +112,21 @@ import Base from '../../layouts/Base.astro';
       function renderCases(items) {
         var rows = [];
         items.forEach(function (item) {
-          var article = document.createElement('article');
-          article.className = 'card stack';
+          var row = document.createElement('li');
           var heading = document.createElement('h3');
+          heading.className = 'ledger-title';
           var link = document.createElement('a');
           link.href = '/complaints/' + encodeURIComponent(String(item.id == null ? '' : item.id));
           link.textContent = String(item.caseNumber == null ? 'Case' : item.caseNumber);
           heading.append(link);
-          var subjectLine = textElement('p', item.subject == null ? 'No subject recorded.' : item.subject);
+          var subjectLine = textElement('p', item.subject == null ? 'No subject recorded.' : item.subject, 'ledger-summary');
           var meta = document.createElement('p');
-          meta.className = 'muted';
-          var badge = textElement('span', item.status == null ? 'unknown' : item.status, 'badge');
-          var updated = document.createTextNode(' · updated ' + friendlyDate(item.updatedAt));
-          meta.append(badge, updated);
-          article.append(heading, subjectLine, meta);
-          rows.push(article);
+          meta.className = 'ledger-meta';
+          var status = textElement('span', item.status == null ? 'unknown' : item.status, 'status-label');
+          var updated = textElement('span', 'updated ' + friendlyDate(item.updatedAt));
+          meta.append(status, updated);
+          row.append(heading, subjectLine, meta);
+          rows.push(row);
         });
         list.replaceChildren.apply(list, rows);
       }
@@ -120,11 +150,21 @@ import Base from '../../layouts/Base.astro';
       }
 
       if (!session || typeof session.token !== 'string' || !session.token) {
-        var signIn = document.createElement('a');
-        signIn.href = '/login';
-        signIn.textContent = 'Sign in';
-        auth.replaceChildren(document.createTextNode('You need to '), signIn, document.createTextNode(' to file or view private development cases.'));
-        showState('Sign in to view your private cases.');
+        auth.hidden = true;
+        newCase.hidden = true;
+        showEmptyState(
+          emptyState(
+            'Sign in to file or follow a case',
+            'Cases are private to the person who filed them, so this page shows nothing until you sign in.',
+            [
+              'Sign-in uses a development magic link; no real identity is checked.',
+              'Filing a case records a subject, a narrative, and a timeline you can read back.',
+            ],
+            'Sign in',
+            '/login',
+            'primary',
+          ),
+        );
         return;
       }
 
@@ -136,10 +176,12 @@ import Base from '../../layouts/Base.astro';
         var subjectValue = subject.value.trim();
         var narrativeValue = narrative.value.trim();
         if (!subjectValue || !narrativeValue) {
+          message.className = 'field-error';
           message.textContent = 'Add a subject and a narrative before filing.';
           return;
         }
         submit.disabled = true;
+        message.className = 'field-hint';
         message.textContent = 'Filing your complaint…';
         try {
           var response = await fetch(API + '/api/v1/complaints', {
@@ -152,16 +194,19 @@ import Base from '../../layouts/Base.astro';
             return;
           }
           if (!response.ok) {
+            message.className = 'field-error';
             message.textContent = await responseError(response, 'The complaint could not be filed. Try again.');
             return;
           }
           var created = await response.json();
           if (!created || typeof created.id !== 'string') {
+            message.className = 'field-error';
             message.textContent = 'The complaint was filed, but its case link was unavailable. Refresh to view it.';
             return;
           }
           location.href = '/complaints/' + encodeURIComponent(created.id);
         } catch (_error) {
+          message.className = 'field-error';
           message.textContent = 'The complaint could not be filed. Check your connection and try again.';
         } finally {
           submit.disabled = false;
@@ -185,7 +230,19 @@ import Base from '../../layouts/Base.astro';
           if (items.length === 0) {
             list.replaceChildren();
             announcement.textContent = 'No cases loaded.';
-            showState('You have not filed any cases yet.');
+            showEmptyState(
+              emptyState(
+                'You have not filed a case yet',
+                'This list holds the cases you filed, each with its status and the date it last moved.',
+                [
+                  'Use the form above to file your first case.',
+                  'A filed case keeps a timeline you can read at any time.',
+                ],
+                'File a complaint',
+                '#new-case',
+                'primary',
+              ),
+            );
             return;
           }
           clearState();
@@ -194,7 +251,20 @@ import Base from '../../layouts/Base.astro';
         })
         .catch(function (error) {
           list.replaceChildren();
-          showState(error && error.message ? error.message : 'Cases could not be loaded. Try again.');
+          showEmptyState(
+            emptyState(
+              'Your cases could not be loaded',
+              error && error.message ? error.message : 'The case service did not answer, so nothing is shown here.',
+              [
+                'Start the backend from the repository root: bun run dev:services.',
+                'Load the fixtures once the services are up: bun run db:seed.',
+                'Nothing was hidden; this page only shows what the service returns.',
+              ],
+              'Try again',
+              '/complaints',
+              'primary',
+            ),
+          );
         });
     });
   </script>

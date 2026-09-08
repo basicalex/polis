@@ -1,157 +1,191 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 import {
   capabilityLabels,
   disclosureLabels,
   stageLabels,
   stages,
+  type CapabilityState,
 } from '../content/public-release';
 
 const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
+
+/*
+ * Capability state carries one status label per provenance entry. The
+ * disclosure classes stay quiet sans text beside it: a boundary label may
+ * never be louder than the claim it qualifies (DESIGN.md visual principle 5).
+ */
+const capabilityTone: Record<CapabilityState, string> = {
+  'implemented-locally': 'unknown',
+  'demonstration-fixture': 'warning',
+  'pilot-target': 'warning',
+  'not-live': 'warning',
+};
 ---
 
 <Base title="Transparency">
   {
     publicRelease ? (
-      <article class="transparency-page" id="public-record">
-        <section class="panel">
+      <article class="reading-page" id="public-record">
+        <header class="page-header">
           <h1>Transparency</h1>
-          <p class="lede">
-            This is a read-only, synthetic, not-live public presentation. Its limits stay beside every fixture, local
-            check, private boundary, and pilot question.
+          <p class="page-header-lede">
+            This is a read-only, synthetic, not-live public presentation. Its limits stay beside every
+            fixture, local check, private boundary, and pilot question.
           </p>
-        </section>
+        </header>
 
-        <section class="panel">
+        <section class="reading-section">
           <h2>What this release does</h2>
-          <ul>
+          <ul class="reading-list">
             <li>Shows one frozen synthetic record moving through five public response stages.</li>
             <li>Shows only restricted category names and masks; no private value or byte enters the page.</li>
             <li>Runs one deterministic test-digest comparison over text already embedded in the page.</li>
             <li>Shows a synthetic hash-linked receipt excerpt and five blank charter questions.</li>
           </ul>
-          <p>
-            <a href="/presentation#stage-voice">Read the response loop</a> · <a href="/source">Inspect its source register</a>
+          <p class="reading-actions">
+            <a class="btn" data-variant="tertiary" href="/presentation#stage-voice">
+              Read the response loop
+            </a>
+            <a class="btn" data-variant="tertiary" href="/source">
+              Inspect its source register
+            </a>
           </p>
         </section>
 
-        <section class="panel">
+        <section class="reading-section">
           <h2>What the local check means</h2>
           <p>
-            The verifier compares frozen original text with a frozen changed-byte variant. It performs no upload, fetch,
-            API request, signature check, timestamp check, provider check, or network operation.
+            The verifier compares frozen original text with a frozen changed-byte variant. It performs no
+            upload, fetch, API request, signature check, timestamp check, provider check, or network
+            operation.
           </p>
           <p>
-            A match shows the registered bytes match; it does not make the claim true. A mismatch shows only that the
-            compared bytes differ.
+            A match shows the registered bytes match; it does not make the claim true. A mismatch shows
+            only that the compared bytes differ.
           </p>
         </section>
 
-        <section class="panel">
+        <section class="reading-section">
           <h2>What is outside this release</h2>
-          <ul>
+          <ul class="reading-list">
             <li>No public authority, partner, identity provider, complaint service, or production data is connected.</li>
             <li>No assistant, contribution, reward, proof lookup, or transactional action is available.</li>
             <li>No result shown here is a real participant count, partner result, deployment result, or public outcome.</li>
             <li>Općina Vrsar is a pilot target only; no engagement or authorization is implied.</li>
           </ul>
-          <p>
-            <a href="/release-boundary">Read the route and data boundary</a>
+          <p class="reading-actions">
+            <a class="btn" data-variant="tertiary" href="/release-boundary">
+              Read the route and data boundary
+            </a>
           </p>
         </section>
 
-        <section class="panel" id="provenance" aria-labelledby="provenance-title">
+        <section class="reading-section" id="provenance" aria-labelledby="provenance-title">
           <h2 id="provenance-title">Provenance</h2>
           <p>
-            Each release stage names one frozen fixture, its capability state, its disclosure class, and the repository
-            paths the stage was built from. These paths are provenance data, not a claim about a deployment.
+            Each release stage names one frozen fixture, its capability state, its disclosure class, and
+            the repository paths the stage was built from. These paths are provenance data, not a claim
+            about a deployment.
           </p>
-          <ol class="provenance-list">
+          <dl class="provenance">
             {stages.map((stage) => (
-              <li>
-                <h3>{stageLabels[stage.stage].en}</h3>
-                <p class="provenance-meta">
-                  Fixture <span class="record-data">{stage.fixtureId}</span>
-                  {' · '}
-                  {capabilityLabels[stage.capabilityState].en}
-                  {' · '}
-                  {stage.disclosure.map((value) => disclosureLabels[value].en).join(' · ')}
-                </p>
-                <ul class="provenance-sources">
-                  {stage.sourceRefs.map((source) => (
-                    <li>{source}</li>
-                  ))}
-                </ul>
-              </li>
+              <div class="provenance-entry">
+                <dt class="provenance-stage">{stageLabels[stage.stage].en}</dt>
+                <dd class="provenance-detail">
+                  <p class="provenance-line">
+                    <span class="record-data">{stage.fixtureId}</span>
+                    <span class="status-label" data-tone={capabilityTone[stage.capabilityState]}>
+                      {capabilityLabels[stage.capabilityState].en}
+                    </span>
+                    <span class="provenance-disclosure">
+                      {stage.disclosure.map((value) => disclosureLabels[value].en).join(' · ')}
+                    </span>
+                  </p>
+                  <ul class="provenance-paths">
+                    {stage.sourceRefs.map((source) => (
+                      <li>{source}</li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
             ))}
-          </ol>
+          </dl>
         </section>
       </article>
     ) : (
-      <>
-        <section class="panel">
+      <article class="reading-page" id="public-record">
+        <header class="page-header">
           <h1>Transparency</h1>
-          <p class="lede">
-            Polis Interface is open <strong>by default, not by request</strong>. The rules governing claims, evidence,
-            AI behavior, rewards, and audit are themselves published, reviewable, re-runnable code — and changes to those
-            rules are themselves audited.
+          <p class="page-header-lede">
+            Polis Interface is open <strong>by default, not by request</strong>. The rules governing
+            claims, evidence, AI behavior, rewards, and audit are themselves published, reviewable,
+            re-runnable code — and changes to those rules are themselves audited.
           </p>
-          <p class="muted">
-            This is the canonical public contract for what Polis Interface publishes, what anyone can verify, what is
-            demonstration-only, and what is not live yet.
+          <p class="page-header-institution">
+            This is the canonical public contract for what Polis Interface publishes, what anyone can
+            verify, what is demonstration-only, and what is not live yet.
           </p>
-        </section>
+        </header>
 
-        <section class="panel">
-          <h2>1 · The promise</h2>
+        <section class="reading-section">
+          <h2>The promise</h2>
           <p>
             Open by default means the trust layer is a set of <em>published, inspectable, re-runnable rules</em>, not
             private assertions. Policy-as-code decides what is allowed; the audit trail records what happened; anyone can
             re-derive a decision from the committed code. Changes to the rules are themselves audited.
           </p>
-          <p>
-            <a href="/governance/jur-croatia-local">Governance graph →</a> · <a href="/audit">Audit trail →</a>
+          <p class="reading-actions">
+            <a class="btn" data-variant="tertiary" href="/governance/jur-croatia-local">Governance graph</a>
+            <a class="btn" data-variant="tertiary" href="/audit">Audit trail</a>
           </p>
         </section>
 
-        <section class="panel">
-          <h2>2 · Published by default <span class="badge">public-read</span></h2>
-          <ul>
+        <section class="reading-section">
+          <h2>
+            Published by default
+            <span class="status-label" data-tone="unknown">public-read</span>
+          </h2>
+          <ul class="reading-list">
             <li>
               <strong>Policy-as-code</strong>: Rego modules + OPA tests in <code>packages/policy-rules/</code> (
-              <code>access</code>, <code>ai</code>, <code>rewards</code>, <code>contribute</code>, <code>polis</code>,
+              <code>access</code>, <code>ai</code>, <code>rewards</code>, <code>contribute</code>, <code>polis</code>,{' '}
               <code>vault</code>, <code>pilot</code>). The code — not a private assertion — decides access and gating.
             </li>
             <li>
-              <strong>Append-only hash-chained audit</strong>: a <em>public/redacted view</em> (spec §26.4) exposing only
+              <strong>Append-only hash-chained audit</strong>: a <em>public/redacted view</em> (spec §26.4) exposing only{' '}
               <code>visibility=public</code>, target-scoped rows — never private document-access or private-flow events
               unredacted. Each row carries <code>hash</code> + <code>previousHash</code> linkage with no UPDATE/DELETE
-              semantics. <a href="/audit">Read the public audit view →</a>
+              semantics. <a href="/audit">Read the public audit view</a>.
             </li>
             <li>
-              <strong>Proof manifests</strong>: cryptographically-linked proof objects anchoring evidence and claims.
-              <a href="/proofs">Proofs →</a>
+              <strong>Proof manifests</strong>: cryptographically-linked proof objects anchoring evidence and claims.{' '}
+              <a href="/proofs">Proofs</a>.
             </li>
             <li>
-              <strong>Methodology</strong>: published evidence rules and scoring.
-              <a href="/methodology">Methodology →</a>
+              <strong>Methodology</strong>: published evidence rules and scoring.{' '}
+              <a href="/methodology">Methodology</a>.
             </li>
             <li>
               <strong>Seeded governance graph</strong>: jurisdictions, processes, institutions, roles, domains, laws,
-              budget lines, controls, and claims. <a href="/source">Source data →</a>
+              budget lines, controls, and claims. <a href="/source">Source data</a>.
             </li>
             <li>
-              <strong>Pilot charter + results</strong>: <a href="/governance/jur-croatia-local">charter</a> ·
+              <strong>Pilot charter + results</strong>: <a href="/governance/jur-croatia-local">charter</a>{' · '}
               <a href="/pilot/results">results</a>.
             </li>
           </ul>
         </section>
 
-        <section class="panel">
-          <h2>3 · Verifiable by anyone <span class="badge badge-success">verifiable</span></h2>
-          <ul>
+        <section class="reading-section">
+          <h2>
+            Verifiable by anyone
+            <span class="status-label" data-tone="valid">verifiable</span>
+          </h2>
+          <ul class="reading-list">
             <li>
-              <strong>Hash-verify any document or proof</strong>: submit bytes + expected digest to
+              <strong>Hash-verify any document or proof</strong>: submit bytes + expected digest to{' '}
               <a href="/verify">/verify</a> (<code>POST /api/v1/verify/hash</code>) and compare against the published
               manifest. Verification is stateless and request-local — no account, no persistence.
             </li>
@@ -160,23 +194,26 @@ const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
               each row's <code>previousHash</code> linkage and that the trail is append-only (no UPDATE/DELETE).
             </li>
             <li>
-              <strong>Re-run any policy decision</strong>: inspect committed Rego in
+              <strong>Re-run any policy decision</strong>: inspect committed Rego in{' '}
               <code>packages/policy-rules/</code>, then run the same input through <code>opa eval</code>. The result is
               determined by the published rule, not a private claim.
             </li>
             <li>
-              <strong>Inspect proof manifests</strong>: compare manifest document hashes against
+              <strong>Inspect proof manifests</strong>: compare manifest document hashes against{' '}
               <a href="/verify">/verify</a> to confirm references match published evidence.
             </li>
           </ul>
         </section>
 
-        <section class="panel">
-          <h2>4 · Demonstration-only <span class="badge badge-warning">demonstration/stub</span></h2>
-          <p class="muted">
+        <section class="reading-section">
+          <h2>
+            Demonstration-only
+            <span class="status-label" data-tone="warning">demonstration/stub</span>
+          </h2>
+          <p class="reading-note">
             Demonstration means a mechanism preview, <strong>not</strong> evidence of a live capability.
           </p>
-          <ul>
+          <ul class="reading-list">
             <li>
               <strong>Assistant</strong> (<a href="/assistant">/assistant</a>): deterministic RAG over seeded/public
               content; no real LLM and no external AI provider.
@@ -186,7 +223,7 @@ const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
               instance.
             </li>
             <li>
-              <strong>Contribute / review</strong>: <a href="/contribute/evidence">evidence</a>,
+              <strong>Contribute / review</strong>: <a href="/contribute/evidence">evidence</a>,{' '}
               <a href="/contribute/graph-edit">graph-edit</a> — demo intake workflow, not a production civic channel.
             </li>
             <li>
@@ -200,23 +237,26 @@ const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
           </ul>
         </section>
 
-        <section class="panel">
-          <h2>5 · Explicit limits <span class="badge badge-warning">not yet live</span></h2>
+        <section class="reading-section">
+          <h2>
+            Explicit limits
+            <span class="status-label" data-tone="warning">not yet live</span>
+          </h2>
           <p>This limit list is the credibility moat. Stubs demonstrate mechanisms; they are never evidence of live capability.</p>
-          <ul>
+          <ul class="reading-list">
             <li>No production public authority is connected.</li>
             <li>No upstream/live Polis instance is connected.</li>
             <li>No external AI model is used.</li>
             <li>No Paperless backend is processing documents.</li>
             <li>No active timestamp, signature, identity, or payment provider is connected.</li>
           </ul>
-          <p class="muted">
+          <p class="reading-note">
             Productionization of private and transactional flows is tracked as follow-up milestones (M10–M15). Those
             gate only private/transactional flows — never the public read and self-verification surfaces described on
             this page.
           </p>
         </section>
-      </>
+      </article>
     )
   }
 </Base>

@@ -5,6 +5,8 @@ import ReviewStateBadge from '@polis/ui/astro/ReviewStateBadge.astro';
 import SourcePanel from '@polis/ui/astro/SourcePanel.astro';
 import AuditTrail from '@polis/ui/astro/AuditTrail.astro';
 import AiLabel from '@polis/ui/astro/AiLabel.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 import type { AuditEvent, ConfidenceState, EvidenceLink, ReviewState } from '@polis/domain';
 
 type ClaimWire = {
@@ -60,40 +62,74 @@ if (!claim) Astro.response.status = 404;
 ---
 
 <Base title={claim ? `Claim ${claim.id} — Polis Interface` : 'Claim not found — Polis Interface'}>
-  <div class="stack">
+  <div class="task-page">
     {
       claim ? (
         <>
-          <section class="hero">
+          <header class="page-header record-head">
             <h1>Claim</h1>
-            <p>{claim.text}</p>
-            <div class="trust-strip">
-              {claim.confidenceState && <ConfidenceBadge state={claim.confidenceState} />}
-              <ReviewStateBadge state={claim.reviewState} />
-              {claim.aiTraceId && <AiLabel traceId={claim.aiTraceId} />}
+            <p class="record-id">{claim.id}</p>
+            <p class="record-statement">{claim.text}</p>
+          </header>
+
+          <dl class="record-facts">
+            <div>
+              <dt>Review state</dt>
+              <dd><ReviewStateBadge state={claim.reviewState} /></dd>
             </div>
-            <p class="muted">
-              {claim.claimType} · {claim.subjectType}/{claim.subjectId}
-              {claim.createdAt && (
-                <>
-                  {' · '}
-                  <time datetime={claim.createdAt}>{claim.createdAt}</time>
-                </>
-              )}
-            </p>
-          </section>
-          <SourcePanel evidence={claim.evidence} sources={claim.sources ?? []} />
+            {claim.confidenceState && (
+              <div>
+                <dt>Confidence</dt>
+                <dd><ConfidenceBadge state={claim.confidenceState} /></dd>
+              </div>
+            )}
+            <div>
+              <dt>Subject</dt>
+              <dd>{claim.subjectType}/{claim.subjectId}</dd>
+            </div>
+            <div>
+              <dt>Claim type</dt>
+              <dd>{claim.claimType}</dd>
+            </div>
+            {claim.createdAt && (
+              <div>
+                <dt>Recorded</dt>
+                <dd><time datetime={claim.createdAt}>{claim.createdAt}</time></dd>
+              </div>
+            )}
+          </dl>
+
+          {claim.aiTraceId && (
+            <p class="link-row"><AiLabel traceId={claim.aiTraceId} /></p>
+          )}
+
+          <SourcePanel
+            evidence={claim.evidence}
+            sources={claim.sources ?? []}
+            emptyActionLabel="Contribute a source"
+            emptyActionHref="/contribute/evidence"
+          />
           <AuditTrail events={auditEvents} />
         </>
       ) : (
-        <section class="hero">
-          <h1>Claim not found</h1>
-          <p class="hash-value">{id}</p>
-          <p class="muted">
-            The claim may have been removed, or the ID is wrong. Browse claims from the
-            <a href="/governance/jur-croatia-local"> governance map</a>.
-          </p>
-        </section>
+        <>
+          <header class="page-header record-head">
+            <h1>Claim not found</h1>
+            <p class="record-id">{id}</p>
+          </header>
+          <EmptyState
+            title="No claim carries this id"
+            purpose="Either the claim was never published under this reference, or the local services that hold the governance graph are not running."
+            tips={[
+              'Check the id in the address bar against the link you followed.',
+              'Start the backend from the repository root: bun run dev:services.',
+              'Claims attach to process steps, failure modes, and controls on the map.',
+            ]}
+            actionLabel="Browse the governance map"
+            actionHref="/governance/jur-croatia-local"
+            actionVariant="primary"
+          />
+        </>
       )
     }
   </div>

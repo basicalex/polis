@@ -21,6 +21,7 @@ import {
 } from './auth.js';
 import { parseInternalFetchTimeoutMs } from './config.js';
 import { proxyTo, proxyToPath, upstreamFailure } from './proxy.js';
+import { traceRoutes } from './trace-routes.js';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
 
@@ -83,6 +84,7 @@ export function platformRoutes(): Route[] {
   const complaintsBase = process.env.COMPLAINTS_INTERNAL_URL ?? 'http://localhost:8970';
   return [
     ...operationalRoutes('platform-api'),
+    ...traceRoutes(),
     ...graphReadPaths.map((path) => ({
       method: 'GET',
       path,
@@ -437,6 +439,21 @@ export function platformRoutes(): Route[] {
       path: '/api/v1/identity/exchange',
       handler: async (_req: IncomingMessage, body: unknown) =>
         proxyToPath(identityBase, 'POST', '/internal/identity/exchange', body),
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/identity/logout',
+      handler: async (req: IncomingMessage, _body: unknown) => {
+        const actor = await requireCitizenResult(req);
+        if (!isAuthenticatedActor(actor)) return actor;
+        const authorization = req.headers.authorization;
+        const [scheme, sessionToken] =
+          typeof authorization === 'string' ? authorization.split(' ', 2) : [];
+        if (scheme?.toLowerCase() !== 'bearer' || !sessionToken) {
+          return result(401, { error: 'unauthenticated' });
+        }
+        return proxyToPath(identityBase, 'POST', '/internal/identity/logout', { sessionToken });
+      },
     },
     // M10 OIDC authorize — GET carries redirect_uri as a query param, so forward
     // url.search alongside the remapped internal path (identity-service serves

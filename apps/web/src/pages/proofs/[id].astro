@@ -4,6 +4,8 @@ import ProofManifestView from '@polis/ui/astro/ProofManifestView.astro';
 import VerdictCard from '@polis/ui/astro/VerdictCard.astro';
 import TrustStrip from '@polis/ui/astro/TrustStrip.astro';
 import AuditTrail from '@polis/ui/astro/AuditTrail.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../../styles/tasks.css';
 import {
   composeVerificationVerdict,
   type AuditEvent,
@@ -56,15 +58,15 @@ const timestampCheck =
 ---
 
 <Base title={proof ? `Proof ${proof.id} — Polis Interface` : 'Proof not found — Polis Interface'}>
-  <div class="stack">
+  <div class="task-page">
     {
       proof ? (
         <>
-          <section class="hero">
+          <header class="page-header record-head">
             <h1>Document proof</h1>
-            <p class="hash-value">{proof.id}</p>
+            <p class="record-id">{proof.id}</p>
             <TrustStrip signed={signedCheck} timestamped={timestampCheck} auditHref="#audit" />
-          </section>
+          </header>
           <ProofManifestView proof={proof} verdict={verdict} />
           <div id="audit">
             <AuditTrail events={auditEvents} />
@@ -72,17 +74,23 @@ const timestampCheck =
         </>
       ) : (
         <>
-          <section class="hero">
+          <header class="page-header record-head">
             <h1>Proof not found</h1>
-            <p class="hash-value">{id}</p>
-          </section>
+            <p class="record-id">{id}</p>
+          </header>
           <VerdictCard verdict={verdict} />
-          <section class="panel">
-            <p class="muted">
-              Check the proof ID, or verify a file directly on the{' '}
-              <a href="/verify">verification page</a>.
-            </p>
-          </section>
+          <EmptyState
+            title="No registered proof carries this id"
+            purpose="Nothing was withheld: the registry holds no proof under this reference, or the local proof service is not running."
+            tips={[
+              'Check the id against the link you were given; proof ids are case-sensitive.',
+              'Start the backend from the repository root: bun run dev:services.',
+              'If you hold the file itself, verify it directly — no upload leaves your device.',
+            ]}
+            actionLabel="Verify a file or hash"
+            actionHref="/verify"
+            actionVariant="primary"
+          />
         </>
       )
     }

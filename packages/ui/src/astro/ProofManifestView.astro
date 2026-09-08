@@ -1,6 +1,7 @@
 ---
 import VerdictCard from './VerdictCard.astro';
 import StatusBadge from './StatusBadge.astro';
+import EmptyState from './EmptyState.astro';
 import { t, type Locale, type MessageKey } from '../messages/index.ts';
 import type { DocumentProof, VerificationVerdict, VerdictTone } from '@polis/domain';
 
@@ -83,7 +84,16 @@ const validationTone: Record<string, VerdictTone> = {
     <h2>{t('manifest.signatures', locale)} ({proof.signatures.length})</h2>
     {
       proof.signatures.length === 0 ? (
-        <p class="muted">{t('check.signature.not_present', locale)}</p>
+        <EmptyState
+          headingLevel={3}
+          title={t('manifest.signatures.empty', locale)}
+          purpose={t('manifest.signatures.empty.purpose', locale)}
+          tips={[
+            t('manifest.signatures.empty.tip.hashes', locale),
+            t('manifest.signatures.empty.tip.issuer', locale),
+          ]}
+          lang={locale}
+        />
       ) : (
         <div class="stack">
           {proof.signatures.map((sig) => (
@@ -130,7 +140,16 @@ const validationTone: Record<string, VerdictTone> = {
     <h2>{t('manifest.timestamps', locale)} ({proof.timestamps.length})</h2>
     {
       proof.timestamps.length === 0 ? (
-        <p class="muted">{t('check.timestamp.not_present', locale)}</p>
+        <EmptyState
+          headingLevel={3}
+          title={t('manifest.timestamps.empty', locale)}
+          purpose={t('manifest.timestamps.empty.purpose', locale)}
+          tips={[
+            t('manifest.timestamps.empty.tip.registered', locale),
+            t('manifest.timestamps.empty.tip.absence', locale),
+          ]}
+          lang={locale}
+        />
       ) : (
         <div class="stack">
           {proof.timestamps.map((ts) => (

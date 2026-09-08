@@ -10,6 +10,7 @@
  */
 import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { isIP } from 'node:net';
 import { validateRuntimeConfig, type RuntimeConfig } from './config.js';
 
 export * from './config.js';
@@ -469,6 +470,10 @@ export function startService(
   options: StartServiceOptions = {},
 ): Server {
   const config = validateRuntimeConfig(process.env);
+  const host = process.env.SERVICE_HOST;
+  if (host !== undefined && isIP(host) === 0) {
+    throw new Error('SERVICE_HOST must be an IP address');
+  }
   options.validateConfig?.();
   const requestTimeoutMs = checkedInteger(
     'requestTimeoutMs',
@@ -588,7 +593,7 @@ export function startService(
   server.headersTimeout = headersTimeoutMs;
   server.keepAliveTimeout = keepAliveTimeoutMs;
   server.maxRequestsPerSocket = maxRequestsPerSocket;
-  server.listen(port);
+  server.listen(port, host);
   manageServer(server, options.readiness, shutdownGraceMs);
   return server;
 }

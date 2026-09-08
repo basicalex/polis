@@ -1,43 +1,65 @@
 ---
 import Base from '../layouts/Base.astro';
+import '../styles/tasks.css';
 ---
 <Base title="Polis Interface — Sign in">
-<section class="stack">
-  <h1>Sign in</h1>
-  <p class="muted">Sign in to ask questions on commitments. Public reads stay open without signing in.</p>
-  <div id="logged-in" style="display:none">
-    <p>Logged in as <strong id="user-email"></strong>.</p>
-    <p><a href="/mandate-holders">Browse mandate-holders →</a></p>
+<div class="task-page form-narrow">
+  <header class="page-header">
+    <h1>Sign in</h1>
+    <p class="page-header-lede">
+      Sign in to ask questions on commitments. Public reads stay open without signing in.
+    </p>
+  </header>
+
+  <div id="logged-in" class="task-section" hidden>
+    <p class="record-statement">Signed in as <strong id="user-email"></strong>.</p>
+    <p class="link-row"><a href="/mandate-holders">Browse mandate-holders</a></p>
   </div>
-  <div id="login-form" class="panel">
-    <h2>Sign in with email</h2>
-    <p class="muted">Enter your email to receive a magic link (dev mode: token shown directly).</p>
-    <label>Email <input type="email" id="email" placeholder="you@example.com" style="width:100%"/></label>
-    <button id="send-btn" style="margin-top:0.5rem">Send magic link</button>
-    <div id="token-section" style="display:none;margin-top:1rem">
-      <p class="muted">Magic token (dev mode — in production this arrives by email):</p>
-      <code id="dev-token" style="word-break:break-all;display:block;padding:0.5rem;background:#f5f5f5;margin:0.5rem 0"></code>
-      <button id="exchange-btn">Exchange for session</button>
+
+  <form id="login-form" class="task-section">
+    <div class="field">
+      <label class="field-label" for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" />
+      <p class="field-hint">
+        We send a magic link to this address. In local development the token is shown here instead
+        of being emailed.
+      </p>
     </div>
-    <p id="error" style="color:red;display:none"></p>
-    <div id="oidc-section" style="display:none;margin-top:1rem">
-      <hr/>
-      <button id="keycloak-btn">Sign in with Keycloak</button>
+    <p id="error" class="field-error" role="alert" hidden></p>
+    <div class="form-actions">
+      <button id="send-btn" type="submit" class="btn" data-variant="primary">Send magic link</button>
     </div>
-  </div>
-</section>
+    <div id="token-section" class="task-section" hidden>
+      <p class="notice">
+        <span>Development token — in production this arrives by email.</span>
+        <code id="dev-token" class="hash-value"></code>
+      </p>
+      <div class="form-actions">
+        <button id="exchange-btn" type="button" class="btn" data-variant="primary">
+          Exchange for session
+        </button>
+      </div>
+    </div>
+    <div id="oidc-section" class="form-actions" hidden>
+      <button id="keycloak-btn" type="button" class="btn" data-variant="secondary">
+        Sign in with Keycloak
+      </button>
+    </div>
+  </form>
+</div>
 <script is:inline>
 const API = window.__API_URL;
 const session = sessionStorage.getItem('web_session');
 if (session) {
-  document.getElementById('logged-in').style.display = 'block';
-  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('logged-in').hidden = false;
+  document.getElementById('login-form').hidden = true;
   try { document.getElementById('user-email').textContent = JSON.parse(session).email || 'citizen'; } catch {}
 }
-document.getElementById('send-btn').onclick = async () => {
+document.getElementById('login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
   const email = document.getElementById('email').value.trim();
   if (!email) return;
-  document.getElementById('error').style.display = 'none';
+  document.getElementById('error').hidden = true;
   try {
     const r = await fetch(API + '/api/v1/identity/magic-link', {
       method: 'POST',
@@ -51,16 +73,18 @@ document.getElementById('send-btn').onclick = async () => {
       const token = db.tokens?.[email];
       if (token) {
         document.getElementById('dev-token').textContent = token;
-        document.getElementById('token-section').style.display = 'block';
+        document.getElementById('token-section').hidden = false;
+        // One primary action at a time: exchanging the token is now the step.
+        document.getElementById('send-btn').dataset.variant = 'secondary';
         window._exchangeEmail = email;
         window._exchangeToken = token;
       }
     }
   } catch (e) {
     document.getElementById('error').textContent = e.message;
-    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').hidden = false;
   }
-};
+});
 document.getElementById('exchange-btn').onclick = async () => {
   const email = window._exchangeEmail;
   const token = window._exchangeToken;
@@ -82,7 +106,7 @@ document.getElementById('exchange-btn').onclick = async () => {
     location.href = '/mandate-holders';
   } catch (e) {
     document.getElementById('error').textContent = e.message;
-    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').hidden = false;
   }
 };
 // M10 OIDC: show the Keycloak button only when the identity seam is OIDC-enabled
@@ -91,11 +115,11 @@ document.getElementById('exchange-btn').onclick = async () => {
 (async () => {
   try {
     const r = await fetch(API + '/api/v1/identity/authorize?redirect_uri=' + encodeURIComponent(location.origin + '/login/callback'));
-    if (r.ok) document.getElementById('oidc-section').style.display = 'block';
+    if (r.ok) document.getElementById('oidc-section').hidden = false;
   } catch {}
 })();
 document.getElementById('keycloak-btn').onclick = async () => {
-  document.getElementById('error').style.display = 'none';
+  document.getElementById('error').hidden = true;
   try {
     const r = await fetch(API + '/api/v1/identity/authorize?redirect_uri=' + encodeURIComponent(location.origin + '/login/callback'));
     if (!r.ok) throw new Error('OIDC not available');
@@ -103,7 +127,7 @@ document.getElementById('keycloak-btn').onclick = async () => {
     if (body.authorizationUrl) location.href = body.authorizationUrl;
   } catch (e) {
     document.getElementById('error').textContent = e.message;
-    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').hidden = false;
   }
 };
 </script>

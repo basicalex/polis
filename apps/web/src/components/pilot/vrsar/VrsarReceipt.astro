@@ -1,0 +1,84 @@
+---
+import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
+import VrsarStatusLabel from './VrsarStatusLabel.astro';
+import VrsarTraceSummary from './VrsarTraceSummary.astro';
+
+interface Props {
+  lang: PilotLang;
+}
+
+const { lang } = Astro.props as Props;
+---
+
+<article class="pilot-receipt" data-public-receipt hidden>
+  <header class="pilot-receipt-header">
+    <p class="pilot-ledger-id" data-receipt-id></p>
+    <h1>{pilotCopy.receipts.singular[lang]}</h1>
+    <VrsarStatusLabel status="unknown" lang={lang} />
+    <p class="pilot-state" data-public-status-note></p>
+  </header>
+
+  <section class="pilot-section pilot-approved-text" aria-labelledby="approved-summary-title">
+    <p class="field-hint">{pilotCopy.receipts.approvedTextNote[lang]}</p>
+    <div class="pilot-receipt-grid">
+      <section class="pilot-section">
+        <h2 id="approved-summary-title">{pilotCopy.receipts.publicSummary[lang]}</h2>
+        <p class="pilot-public-copy" data-public-summary></p>
+      </section>
+      <section class="pilot-section">
+        <h2>{pilotCopy.receipts.commitment[lang]}</h2>
+        <p class="pilot-public-copy" data-public-commitment></p>
+      </section>
+    </div>
+  </section>
+
+  <dl class="pilot-meta">
+    <div>
+      <dt>{pilotCopy.common.office[lang]}</dt>
+      <dd data-public-office></dd>
+    </div>
+    <div>
+      <dt>{pilotCopy.common.category[lang]}</dt>
+      <dd data-public-category></dd>
+    </div>
+    <div>
+      <dt>{pilotCopy.receipts.dueDate[lang]}</dt>
+      <dd data-public-due-date></dd>
+    </div>
+    <div>
+      <dt>{pilotCopy.receipts.publishedAt[lang]}</dt>
+      <dd data-public-published-at></dd>
+    </div>
+    <div data-public-resolved-at-row hidden>
+      <dt>{pilotCopy.receipts.resolvedAt[lang]}</dt>
+      <dd data-public-resolved-at></dd>
+    </div>
+    <div>
+      <dt>{pilotCopy.receipts.interfaceLanguage[lang]}</dt>
+      <dd>{lang.toUpperCase()}</dd>
+    </div>
+  </dl>
+
+  <section class="pilot-section" data-public-evidence-section hidden>
+    <h2>{pilotCopy.receipts.evidence[lang]}</h2>
+    <p class="pilot-public-copy" data-public-evidence-note></p>
+    <h3>{pilotCopy.receipts.sourceLinks[lang]}</h3>
+    <ul class="pilot-evidence-links" data-public-evidence-links></ul>
+  </section>
+
+  <section class="pilot-section">
+    <h2>{pilotCopy.receipts.events[lang]}</h2>
+    <VrsarTraceSummary lang={lang} />
+  </section>
+
+  <footer class="pilot-receipt-disclosure">
+    <div class="pilot-receipt-hash">
+      <strong>{pilotCopy.receipts.receiptHash[lang]}</strong>
+      <span class="pilot-hash" data-public-hash></span>
+    </div>
+    <div class="pilot-disclosure">
+      <p>{pilotCopy.receipts.receiptHashNote[lang]}</p>
+      <p>{pilotCopy.receipts.intro[lang]}</p>
+    </div>
+  </footer>
+</article>

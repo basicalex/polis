@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../styles/tasks.css';
 
 type Issue = { id: string; title: string; summary: string | null; status: string };
 
@@ -16,32 +18,61 @@ async function fetchJson(path: string) {
 }
 
 const res = (await fetchJson('/api/v1/issues')) as { items: Issue[] } | null;
+const unavailable = res === null;
 const issues = res?.items ?? [];
 const open = issues.filter((i) => i.status === 'open' || i.status === 'deliberating');
 ---
 
 <Base title="Deliberate">
-  <section class="stack">
-    <DemoBadge />
-    <p class="badge">§13 Deliberation</p>
-    <h1>Deliberate</h1>
-    <p class="muted">
-      Open and active issues hosting Polis conversations. Open an issue to see its framing question and the embedded deliberation.
-    </p>
-  </section>
-  <section class="stack">
-    {open.length > 0 ? (
-      <div class="grid">
-        {open.map((issue) => (
-          <article class="card stack">
-            <h3><a href={`/issues/${issue.id}`}>{issue.title}</a></h3>
-            <p class="muted">{issue.summary ?? 'No summary recorded.'}</p>
-            <p><span class="badge">{issue.status}</span></p>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p class="panel muted">No open conversations yet.</p>
-    )}
-  </section>
+  <div class="task-page">
+    <header class="page-header">
+      <p class="page-header-eyebrow status-label">§13 Deliberation</p>
+      <h1>Deliberate</h1>
+      <p class="page-header-lede">
+        Open and active issues hosting Polis conversations. Open an issue to see its framing
+        question and the embedded deliberation.
+      </p>
+      <DemoBadge />
+    </header>
+
+    <section class="task-section">
+      {unavailable ? (
+        <EmptyState
+          title="Conversation data is unavailable"
+          purpose="This page reads issues from the local platform API, which is not answering right now."
+          tips={[
+            'Start the backend from the repository root: bun run dev:services.',
+            'Load the fixtures once the services are up: bun run db:seed.',
+            'The public reading pages work without a backend.',
+          ]}
+          actionLabel="Read the local setup steps"
+          actionHref="/docs"
+        />
+      ) : open.length > 0 ? (
+        <ul class="ledger">
+          {open.map((issue) => (
+            <li>
+              <h2 class="ledger-title"><a href={`/issues/${issue.id}`}>{issue.title}</a></h2>
+              <p class="ledger-summary">{issue.summary ?? 'No summary recorded.'}</p>
+              <p class="ledger-meta">
+                <span class="status-label" data-tone="unknown">{issue.status}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          title="No conversation is open"
+          purpose="A conversation opens on an issue so residents can agree, disagree, and let the result attach to the public record as evidence."
+          tips={[
+            'Every issue can host one Polis conversation.',
+            'Closed issues keep their result snapshot on the issue page.',
+            'Seeded fixtures open the first conversations: bun run db:seed.',
+          ]}
+          actionLabel="Browse all issues"
+          actionHref="/issues"
+        />
+      )}
+    </section>
+  </div>
 </Base>

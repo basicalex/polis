@@ -1,4 +1,34 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Docs"><section class="panel"><h1>Docs</h1><p>Current local v1 docs cover methodology, transparency, security, privacy, architecture, roadmap, service map, document trust, AI safety, contribution, and partner pilots.</p><p>Document trust docs now cover the local proof registry v0: ingestion, hash/file verification, proof manifests, test signatures, RFC3161-stub timestamps, and supersession/revocation caveats. AI safety docs cover the assistant v0: local deterministic grounded answers, citation enforcement, prompt-injection blocking, trace/audit/review state, and production provider gates.</p></section></Base>
+
+<Base title="Docs">
+  <article class="reading-page" id="public-record">
+    <header class="page-header">
+      <h1>Docs</h1>
+      <p class="page-header-lede">
+        Local v1 documentation covers methodology, transparency, security, privacy, architecture,
+        roadmap, service map, document trust, AI safety, contribution, and partner pilots.
+      </p>
+    </header>
+
+    <section class="reading-section">
+      <h2>Document trust</h2>
+      <p>
+        The document-trust docs cover the local proof registry v0: ingestion, hash and file
+        verification, proof manifests, test signatures, RFC3161-stub timestamps, and the
+        supersession and revocation caveats.
+      </p>
+    </section>
+
+    <section class="reading-section">
+      <h2>AI safety</h2>
+      <p>
+        The AI-safety docs cover the assistant v0: local deterministic grounded answers, citation
+        enforcement, prompt-injection blocking, trace, audit and review state, and the gates a
+        production provider would have to pass.
+      </p>
+    </section>
+  </article>
+</Base>

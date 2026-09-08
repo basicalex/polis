@@ -1,9 +1,50 @@
 # Minimal pilot backend plan
 
-Status: **planning document only.** No partner has signed, no deployment is
-authorized, and the NO-GO decision in `GO_LIVE_READINESS.md` (2026-08-10)
-stands. This document exists so that when a partner signs, the build starts
-from a decided shape instead of a debate. Written 2026-08-26.
+Status: **planning document only.** No partner has signed, no real-municipality
+deployment is authorized, and the NO-GO decision in `GO_LIVE_READINESS.md`
+(2026-08-10) stands. The historical material sets out the post-charter shape.
+The dated pre-partner decision below authorizes bounded engineering, not a
+release. Written 2026-08-26.
+
+## 2026-09-05 decision: synthetic pre-partner engineering
+
+The historical partner-planning material below remains a record of the
+post-charter shape. Before any agreement, the authorized scope is instead one
+synthetic, controlled engineering configuration: one municipality
+configuration, one report category, one responsible office, and one distinct
+independent reviewer. Synthetic accounts and data, operated only by controlled
+test operators, supply that configuration. It has no real municipality
+partner; no municipal agreement, signed charter, public release, or real
+municipality authorization is implied.
+
+The controlled environment may exercise a real server, persistence,
+authentication, authorization and role separation, security controls,
+backups/recovery, mail/login, and monitoring. Any result proves
+pre-partner engineering only. It does not change the municipal **NO-GO** in
+`GO_LIVE_READINESS.md`, authorize a real-municipality release, or satisfy a
+real charter, legal/privacy, named-owner, independent-release, or explicit
+authorization gate.
+
+Original report subject and narrative, resident contact data, and attachments
+are restricted. A public entry is separately drafted; independently approved
+public summary, commitment, evidence, and status are the only material that
+may publish. A redaction check never makes the original subject or narrative
+public.
+
+Independent approval may publish a commitment, but publication does not make a
+record `resolved`. A `resolved` status requires separate evidence and
+independent review. The responsible office cannot self-approve any
+review-controlled record or terminal resolution.
+
+This pre-partner gate excludes AI, rewards, vault, Paperless, and the
+cryptographic/proof stack. It makes no source or service-implementation claim.
+
+Vrsar-Orsera (Općina Vrsar-Orsera) is a sourced example configuration for the
+communal unit, documented from official sources in [Vrsar source notes](vrsar-source-notes.md). It
+does not imply participation, real data, named people, incident, agreement,
+authorization, or result.
+
+## Historical partner-scope baseline
 
 ## Scope
 
@@ -15,19 +56,29 @@ or returns it, and a public receipt is published. Nothing else.
 
 ## The case object
 
-The demo store (`apps/web/src/lib/demo-store.mjs`) models the whole loop as
-one record with one status field:
+The demo store (`apps/web/src/lib/demo-store.mjs`) models the historical
+commitment-publication loop as one record with one status field:
 
 ```
 open → assigned → commitment-pending-review → returned | published
 ```
 
-with an append-only event trail spanning the five stages (voice,
-responsibility, response, check, receipt). The pilot backend adopts this shape
-as its primary object: one `trace_records` table (record id, category,
-subject, narrative, origin, status, timestamps) plus one `trace_events` table
-(record id, stage, actor, action, note, created at, hash link to the previous
-event).
+It does not model a `resolved` status. The pre-partner plan requires a separate
+resolution transition after publication:
+
+```
+published → resolution-pending-review → resolved
+resolution review return → published + private feedback event
+```
+
+The state names and return rule follow the [trace API contract](trace-api-contract.md).
+The two paths share an append-only event trail spanning the five stages
+(voice, responsibility, response, check, receipt). The pilot backend adopts
+this shape as its primary object: one `trace_records` table (record id,
+category, restricted original subject, restricted original narrative, origin,
+status, timestamps) plus one `trace_events` table (record id, stage, actor,
+action, note, created at, hash link to the previous event). Resident contact
+data and attachments remain restricted.
 
 This is a deliberate departure from `packages/db/src/schema.ts`, which spreads
 the same loop across separate `complaintCases`, `claims`, `commitments`,
@@ -39,13 +90,19 @@ succeeds, the old model is projected into the new one, not the reverse.
 
 Rules enforced in the data layer, not the UI (same as the demo store):
 
-- A commitment enters `commitment-pending-review`. Only the reviewer role can
-  move it to `published` or `returned`. Officials never set terminal status.
-- A return requires a note.
+- A commitment enters `commitment-pending-review`. Only a distinct independent
+  reviewer can move it to `published` or `returned`; the office cannot
+  self-approve any review-controlled record.
+- `published` means the commitment may be public, not that the record is
+  `resolved`. The office may file resolution evidence but cannot approve it.
+  Only the distinct independent reviewer can move
+  `resolution-pending-review` to `resolved`. A resolution review return
+  restores `published`, appends a required private feedback event, and permits
+  resubmission.
 - Events append; nothing is edited or deleted. Corrections are new events.
-- The public projection exposes the record status, the event trail, the
-  responsible office, and the commitment text. It never exposes the
-  resident's identity or contact data.
+- The public projection exposes only independently approved public summary,
+  commitment, evidence, and status. It never exposes original subject or
+  narrative, resident identity or contact data, or attachments.
 
 ## Reuse map
 
@@ -72,8 +129,8 @@ Not deployed, not integrated, not blocking: `rewards-service`, `ai-gateway`,
 the cryptographic proof stack (`canonicalization-service`,
 `timestamp-service`, `signature-service`, `proof-service`), `polis-bridge-service`,
 `paperless-adapter`, `complaints-service` (the pilot's case object replaces it
-for this loop), and initially `governance-graph-api`. Evidence attachments in
-the pilot are links and plain uploads with a size cap, not proof-registered
+for this loop), and initially `governance-graph-api`. Evidence attachments are
+restricted links or plain uploads with a size cap, not proof-registered
 documents. `hash-linked`, not `immutable`, remains the only claim made about
 the trail.
 
@@ -88,8 +145,9 @@ signs a charter:
 - a production OIDC provider and role mapping;
 - legal and privacy review: resident reports are personal data under GDPR;
   the municipality is the controller, Polis the processor; a processing
-  agreement, retention terms, and a redaction path are required before the
-  first real report;
+  agreement, retention terms, and a public-summary approval path are required
+  before the first real report. Redaction does not make an original subject or
+  narrative public;
 - dated backup and restore evidence;
 - monitoring and an incident/rollback procedure;
 - an independent go/no-go review of the deployment.
@@ -104,8 +162,10 @@ problem to solve alone.
 The fields below follow `docs/partners/pilot-charter-template.md`, filled
 hypothetically for a small Istrian municipality to make the eventual charter
 conversation a one-sitting exercise. **Nothing here is agreed, offered, or
-implied.** Općina Vrsar is a pilot target only; its name never implies
-engagement, authorization, transferred data, deployment, or outcome.
+implied.** Općina Vrsar-Orsera is a sourced example configuration, documented
+from official sources in [Vrsar source notes](vrsar-source-notes.md), not a
+partner; its name never
+implies engagement, authorization, transferred data, deployment, or outcome.
 
 - Partner: _unsigned_ (target profile: općina, ~2,000 residents, existing
   municipal website able to host an embed).
@@ -115,9 +175,11 @@ engagement, authorization, transferred data, deployment, or outcome.
 - Success measures: number of published receipts; share of filed reports
   reaching a terminal status inside the pilot window; a statement from the
   office on inbound-channel load. No invented baselines.
-- Data categories: report subject and narrative (public after redaction
-  check), resident contact (private, retention-bound), staff and reviewer
-  identity (public on the record by role, name per charter decision).
+- Data categories: original report subject and narrative, resident contact,
+  and attachments (restricted, retention-bound); separately drafted public
+  summary, commitment, evidence, and status (public only after independent
+  approval); staff and reviewer identity (public by role, name per charter
+  decision).
 - Retention: resident contact data deleted 90 days after the pilot's sunset;
   public records archived read-only.
 - Rollback trigger: any personal-data exposure on the public projection, or

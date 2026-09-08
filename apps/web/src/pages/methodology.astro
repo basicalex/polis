@@ -1,4 +1,24 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Methodology"><section class="panel"><h1>Methodology</h1><p>Current local v1 methodology is evidence discipline: public claims are sourced or explicitly unsupported drafts, graph records carry review state, and scoring remains a later production gate.</p></section></Base>
+
+<Base title="Methodology">
+  <article class="reading-page" id="public-record">
+    <header class="page-header">
+      <h1>Methodology</h1>
+      <p class="page-header-lede">
+        Local v1 methodology is evidence discipline: public claims are sourced or explicitly marked
+        as unsupported drafts.
+      </p>
+    </header>
+
+    <section class="reading-section">
+      <p>
+        Graph records carry their review state with them, so a reader can tell a checked record from
+        an unchecked one. Scoring stays a later production gate; nothing on this build ranks or
+        grades an office.
+      </p>
+    </section>
+  </article>
+</Base>

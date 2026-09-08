@@ -1,4 +1,5 @@
 ---
+import '../styles/public.css';
 import Base from '../layouts/Base.astro';
 
 const lang = Astro.url.searchParams.get('lang') === 'hr' ? 'hr' : 'en';
@@ -9,59 +10,69 @@ const lang = Astro.url.searchParams.get('lang') === 'hr' ? 'hr' : 'en';
   title="Release boundary — Granica javnog izdanja"
   description="This public demonstrator does not connect to backend, identity, complaint, contribution, reward, proof-lookup, or assistant services."
 >
-  <article class="release-boundary-page" id="public-record">
-    <section class="panel" lang="en" aria-labelledby="boundary-en-title">
-      <h1 id="boundary-en-title">This route is outside the public release.</h1>
-      <p>
-        The public release is a read-only presentation made from frozen synthetic fixtures. It
-        connects to no backend, identity, complaint, contribution, rewards, proof lookup, or
-        assistant service.
-      </p>
-      <dl class="boundary-definitions">
-        <div>
+  <article class="reading-page" id="public-record">
+    <section class="reading-section boundary-language" lang="en" aria-labelledby="boundary-en-title">
+      <header class="page-header">
+        <h1 id="boundary-en-title">This route is outside the public release.</h1>
+        <p class="page-header-lede">
+          The public release is a read-only presentation made from frozen synthetic fixtures. It
+          connects to no backend, identity, complaint, contribution, rewards, proof lookup, or
+          assistant service.
+        </p>
+      </header>
+
+      <dl class="register-list">
+        <div class="register-entry">
           <dt>Backend-dependent demonstration</dt>
           <dd>The local demonstrator route needs services that are not connected here.</dd>
         </div>
-        <div>
+        <div class="register-entry">
           <dt>Private / restricted</dt>
           <dd>Private casework, identity, resident files, and restricted audit data stay absent.</dd>
         </div>
-        <div>
+        <div class="register-entry">
           <dt>Not live</dt>
           <dd>The capability is not an authorized production service.</dd>
         </div>
       </dl>
-      <p class="boundary-data-rule">
-        This page has no form. It accepts, submits, and stores no data.
+
+      <p class="boundary-rule">This page has no form. It accepts, submits, and stores no data.</p>
+
+      <p class="reading-actions">
+        <a class="btn" data-variant="tertiary" href="/">Return to the public response loop</a>
       </p>
-      <p><a href="/">Return to the public response loop</a></p>
     </section>
 
-    <section class="panel" lang="hr" aria-labelledby="boundary-hr-title">
-      <h2 id="boundary-hr-title">Ova adresa nije dio javnog izdanja.</h2>
-      <p>
-        Javno izdanje namijenjeno je čitanju i izlaganju te se temelji na zamrznutim sintetičkim
-        primjerima. Nije povezano s pozadinskim sustavima, identitetom, pritužbama, doprinosima,
-        nagradama, pretraživanjem dokaza ni pomoćnikom.
-      </p>
-      <dl class="boundary-definitions">
-        <div>
+    <section class="reading-section boundary-language" lang="hr" aria-labelledby="boundary-hr-title">
+      <header class="page-header">
+        <h2 id="boundary-hr-title">Ova adresa nije dio javnog izdanja.</h2>
+        <p class="page-header-lede">
+          Javno izdanje namijenjeno je čitanju i izlaganju te se temelji na zamrznutim sintetičkim
+          primjerima. Nije povezano s pozadinskim sustavima, identitetom, pritužbama, doprinosima,
+          nagradama, pretraživanjem dokaza ni pomoćnikom.
+        </p>
+      </header>
+
+      <dl class="register-list">
+        <div class="register-entry">
           <dt>Demonstracija ovisna o pozadinskim sustavima</dt>
           <dd>Adresa lokalne demonstracije traži sustave koji ovdje nisu povezani.</dd>
         </div>
-        <div>
+        <div class="register-entry">
           <dt>Privatno / ograničeno</dt>
           <dd>Privatni predmeti, identitet, dokumenti stanovnika i ograničeni revizijski podaci ovdje ne postoje.</dd>
         </div>
-        <div>
+        <div class="register-entry">
           <dt>Nije aktivno</dt>
           <dd>Mogućnost nije odobrena produkcijska usluga.</dd>
         </div>
       </dl>
-      <p class="boundary-data-rule">
-        Ova stranica nema obrazac. Ne prihvaća, ne šalje i ne pohranjuje podatke.
+
+      <p class="boundary-rule">Ova stranica nema obrazac. Ne prihvaća, ne šalje i ne pohranjuje podatke.</p>
+
+      <p class="reading-actions">
+        <a class="btn" data-variant="tertiary" href="/hr/">Povratak na krug javnog odgovora</a>
       </p>
-      <p><a href="/hr/">Povratak na krug javnog odgovora</a></p>
     </section>
   </article>
 </Base>

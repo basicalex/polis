@@ -1,6 +1,14 @@
 /*
- * @polis/ui base stylesheet: design tokens (light + dark) and semantic
- * component classes shared by all Polis apps.
+ * @polis/ui base stylesheet.
+ *
+ * This file is the ONLY place Polis design tokens are defined. Apps import it
+ * and inherit; they never redefine `--polis-*`, `--trust-*`, `--space-*`,
+ * `--radius-*`, `--shadow-*`, `--type-*`, `--display`, `--body`, `--mono`, or
+ * `--tap-target`. Values come from the DESIGN.md contract.
+ *
+ * Light is the default world (`:root`). Dark is the local demonstrator only
+ * and lives under `[data-theme='dark']`. Anything that is not dark — including
+ * the pilot shell's `data-theme="pilot-light"` — inherits light from `:root`.
  *
  * Rule: components in @polis/ui use ONLY these semantic classes, never
  * Tailwind utilities, so non-Tailwind apps (verifier/vault/admin) can
@@ -8,63 +16,151 @@
  */
 
 :root,
-[data-theme='dark'] {
-  --polis-bg: #0b0f14;
-  --polis-surface: #121923;
-  --polis-surface-2: #1a2432;
-  --polis-text: #e5e7eb;
-  --polis-muted: #9ca3af;
-  --polis-primary: #38bdf8;
-  --polis-on-primary: #071018;
-  --polis-accent: #a78bfa;
-  --polis-border: rgba(156, 163, 175, 0.24);
+html[data-theme='light'] {
+  color-scheme: light;
 
-  --trust-valid-fg: #4ade80;
-  --trust-valid-bg: rgba(34, 197, 94, 0.14);
-  --trust-valid-border: rgba(34, 197, 94, 0.45);
-  --trust-warning-fg: #fbbf24;
-  --trust-warning-bg: rgba(245, 158, 11, 0.14);
-  --trust-warning-border: rgba(245, 158, 11, 0.45);
-  --trust-invalid-fg: #f87171;
-  --trust-invalid-bg: rgba(239, 68, 68, 0.14);
-  --trust-invalid-border: rgba(239, 68, 68, 0.5);
-  --trust-unknown-fg: #a5b4c4;
-  --trust-unknown-bg: rgba(148, 163, 184, 0.14);
-  --trust-unknown-border: rgba(148, 163, 184, 0.4);
-  --trust-restricted-fg: #c4b5fd;
-  --trust-restricted-bg: rgba(167, 139, 250, 0.14);
-  --trust-restricted-border: rgba(167, 139, 250, 0.45);
+  /* ---- palette: the light civic world (DESIGN.md color table) ---- */
+  --polis-bg: #faf8f5;
+  --polis-surface: #ffffff;
+  --polis-surface-2: #f2efe9;
+  --polis-surface-tint: #f2efe9;
+  --polis-surface-raised: #ffffff;
+  --polis-text: #1c2024;
+  --polis-muted: #5a6472;
+  --polis-border: #e4e0d8;
+  --polis-border-strong: #c9c3b8;
+  --polis-trace: #0e7490;
+  --polis-primary: var(--polis-trace);
+  --polis-on-primary: #ffffff;
+  --polis-accent: #6d28d9;
+  --polis-valid: #15803d;
+  --polis-warning: #8a5d00;
+  --polis-restricted: #6d28d9;
+  --polis-danger: #b91c1c;
+  --polis-on-danger: #ffffff;
+  --polis-unknown: #5a6678;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* ---- legacy trust-* pairs, derived so they cannot drift ---- */
+  --trust-valid-fg: var(--polis-valid);
+  --trust-valid-bg: color-mix(in srgb, var(--polis-valid) 8%, transparent);
+  --trust-valid-border: color-mix(in srgb, var(--polis-valid) 45%, transparent);
+  --trust-warning-fg: var(--polis-warning);
+  --trust-warning-bg: color-mix(in srgb, var(--polis-warning) 8%, transparent);
+  --trust-warning-border: color-mix(in srgb, var(--polis-warning) 45%, transparent);
+  --trust-invalid-fg: var(--polis-danger);
+  --trust-invalid-bg: color-mix(in srgb, var(--polis-danger) 8%, transparent);
+  --trust-invalid-border: color-mix(in srgb, var(--polis-danger) 45%, transparent);
+  --trust-unknown-fg: var(--polis-unknown);
+  --trust-unknown-bg: color-mix(in srgb, var(--polis-unknown) 8%, transparent);
+  --trust-unknown-border: color-mix(in srgb, var(--polis-unknown) 45%, transparent);
+  --trust-restricted-fg: var(--polis-restricted);
+  --trust-restricted-bg: color-mix(in srgb, var(--polis-restricted) 8%, transparent);
+  --trust-restricted-border: color-mix(in srgb, var(--polis-restricted) 45%, transparent);
+
+  /* ---- spacing: one 4px ladder ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Named aliases kept so existing rules keep working. */
+  --space-xs: var(--space-2);
+  --space-sm: var(--space-3);
+  --space-md: var(--space-5);
+  --space-lg: var(--space-8);
+  --space-xl: var(--space-12);
+
+  /* ---- radius ---- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-pill: 999px;
+  /* Compat: two pages read this name with a fallback. */
+  --polis-radius-md: var(--radius-md);
+
+  /* ---- shadow: overlays and the one soft panel layer, nothing else ---- */
+  --shadow-1: 0 0.0625rem 0.125rem rgba(28, 32, 36, 0.06);
+  --shadow-2: 0 0.25rem 0.75rem rgba(28, 32, 36, 0.1);
+  --shadow-3: 0 0.75rem 1.5rem rgba(28, 32, 36, 0.14);
+  --shadow-soft: var(--shadow-1);
+
+  /* ---- type ---- */
+  --type-meta: 0.75rem;
+  --type-label: 0.8125rem;
+  --type-data: 0.875rem;
+  --type-body: 1rem;
+  --type-body-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --type-heading-sm: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
+  --type-heading-lg: clamp(1.9rem, 1.4rem + 2.4vw, 3.1rem);
+
+  --display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --body:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --tap-target: 2.75rem;
 }
 
-[data-theme='light'] {
-  --polis-bg: #f7f5ec;
-  --polis-surface: #ffffff;
-  --polis-surface-2: #fffdf2;
-  --polis-text: #132018;
-  --polis-muted: #5c6b5f;
-  --polis-primary: #0f3324;
-  --polis-on-primary: #ffffff;
-  --polis-accent: #5b21b6;
-  --polis-border: #d7d0b8;
+/* The local demonstrator. Same components, same tokens, darker field. */
+html[data-theme='dark'],
+[data-theme='dark'] {
+  color-scheme: dark;
 
-  --trust-valid-fg: #166534;
-  --trust-valid-bg: #f0f9f3;
-  --trust-valid-border: #2a8b52;
-  --trust-warning-fg: #92400e;
-  --trust-warning-bg: #fef7e8;
-  --trust-warning-border: #d97706;
-  --trust-invalid-fg: #8a2424;
-  --trust-invalid-bg: #fbf0f0;
-  --trust-invalid-border: #b42828;
-  --trust-unknown-fg: #374151;
-  --trust-unknown-bg: #f1f3f5;
-  --trust-unknown-border: #9ca3af;
-  --trust-restricted-fg: #5b21b6;
-  --trust-restricted-bg: #f5f1fe;
-  --trust-restricted-border: #7c3aed;
+  --polis-bg: #0b0f14;
+  --polis-surface: #121923;
+  --polis-surface-2: #18212e;
+  --polis-surface-tint: #18212e;
+  --polis-surface-raised: #18212e;
+  --polis-text: #e6ebf1;
+  --polis-muted: #a8b3c0;
+  --polis-border: rgba(168, 179, 192, 0.22);
+  --polis-border-strong: rgba(168, 179, 192, 0.4);
+  --polis-trace: #22d3ee;
+  --polis-primary: var(--polis-trace);
+  --polis-on-primary: #071018;
+  --polis-accent: #c4b5fd;
+  --polis-valid: #4ade80;
+  --polis-warning: #fbbf24;
+  --polis-restricted: #c4b5fd;
+  --polis-danger: #f87171;
+  --polis-on-danger: #2b0a0a;
+  --polis-unknown: #a5b4c4;
+
+  --shadow-1: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.6);
+}
+
+/* Print is its own field: high contrast ink on white, no theme dependency. */
+@media print {
+  :root {
+    color-scheme: light;
+
+    --polis-bg: #ffffff;
+    --polis-surface: #ffffff;
+    --polis-surface-2: #f3f4f6;
+    --polis-surface-tint: #f3f4f6;
+    --polis-surface-raised: #f3f4f6;
+    --polis-text: #111827;
+    --polis-muted: #374151;
+    --polis-border: #9ca3af;
+    --polis-border-strong: #4b5563;
+    --polis-trace: #075985;
+    --polis-warning: #92400e;
+    --polis-valid: #166534;
+    --polis-danger: #991b1b;
+    --polis-restricted: #5b21b6;
+    --polis-unknown: #374151;
+
+    --shadow-1: none;
+    --shadow-2: none;
+    --shadow-3: none;
+  }
 }
 
 * {
@@ -74,8 +170,8 @@
 :root {
   color: var(--polis-text);
   background: var(--polis-bg);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 100%;
+  line-height: 1.55;
 }
 
 body {
@@ -83,10 +179,13 @@ body {
   min-height: 100vh;
   background: var(--polis-bg);
   color: var(--polis-text);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  line-height: 1.55;
 }
 
 a {
-  color: var(--polis-primary);
+  color: var(--polis-trace);
   text-decoration: none;
 }
 
@@ -96,15 +195,20 @@ a:focus-visible {
 }
 
 :focus-visible {
-  outline: 2px solid var(--polis-primary);
-  outline-offset: 2px;
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: 0.125rem;
 }
 
 h1,
 h2,
 h3 {
-  line-height: 1.2;
-  margin: 0 0 0.75rem;
+  font-family: var(--display);
+  line-height: 1.15;
+  margin: 0 0 var(--space-3);
+}
+
+h1 {
+  line-height: 1.1;
 }
 
 p,
@@ -131,10 +235,10 @@ dl {
 .site-header {
   border-bottom: 1px solid var(--polis-border);
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: center;
   justify-content: space-between;
-  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-4) clamp(1rem, 4vw, 2.5rem);
 }
 
 .site-brand {
@@ -147,7 +251,7 @@ dl {
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  gap: var(--space-3) var(--space-4);
   justify-content: flex-end;
 }
 
@@ -160,39 +264,63 @@ dl {
 
 .site-footer {
   border-top: 1px solid var(--polis-border);
-  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-4) clamp(1rem, 4vw, 2.5rem);
   color: var(--polis-muted);
-  font-size: 0.875rem;
+  font-size: var(--type-data);
 }
 
 .stack {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
+/* ---- panel: one recipe, one enclosure, never nested ---- */
+
 .panel,
-.card {
+.card,
+.hero {
+  min-width: 0;
   border: 1px solid var(--polis-border);
   border-radius: var(--radius-md);
   background: var(--polis-surface);
-  padding: 1rem;
+  padding: var(--space-5);
 }
 
-.hero {
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-md);
-  background: var(--polis-surface-2);
-  padding: clamp(1.5rem, 5vw, 3rem);
+.panel > :first-child,
+.card > :first-child,
+.hero > :first-child {
+  margin-top: 0;
+}
+
+/* Accidental nesting stops stacking borders and padding (D5, D6). */
+.panel .panel,
+.panel .card,
+.card .panel,
+.card .card,
+.hero .panel,
+.hero .card {
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .muted {
   color: var(--polis-muted);
+}
+
+.prose {
+  max-width: 68ch;
+}
+
+.form-narrow {
+  max-width: 36rem;
+  margin-inline: auto;
 }
 
 .data-table {
@@ -204,7 +332,7 @@ dl {
 .data-table th,
 .data-table td {
   border-bottom: 1px solid var(--polis-border);
-  padding: 0.7rem;
+  padding: var(--space-3);
   text-align: left;
   vertical-align: top;
 }
@@ -212,7 +340,7 @@ dl {
 .kv {
   display: grid;
   grid-template-columns: minmax(10rem, 0.4fr) 1fr;
-  gap: 0.5rem 1rem;
+  gap: var(--space-2) var(--space-4);
 }
 
 .kv dt {
@@ -227,99 +355,419 @@ dl {
   background: var(--trust-warning-bg);
   border-bottom: 1px solid var(--trust-warning-border);
   color: var(--trust-warning-fg);
-  padding: 0.35rem 1rem;
-  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--type-label);
   font-weight: 600;
   text-align: center;
 }
 
+/* ---- page header ---- */
+
+.page-header {
+  margin-bottom: var(--space-8);
+}
+
+.page-header h1 {
+  margin-bottom: 0;
+  font-size: var(--type-heading-lg);
+}
+
+.page-header-institution {
+  max-width: 68ch;
+  margin: var(--space-2) 0 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.page-header-lede {
+  max-width: 68ch;
+  margin: var(--space-3) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body-lg);
+  line-height: 1.5;
+}
+
 /* ---- forms ---- */
 
+input:not([type]),
 input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='tel'],
 input[type='url'],
+input[type='date'],
+input[type='datetime-local'],
+input[type='number'],
 input[type='file'],
 textarea {
   width: 100%;
-  padding: 0.6rem;
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-md);
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
   font: inherit;
+  font-size: var(--type-body);
   background: var(--polis-surface);
   color: var(--polis-text);
 }
 
-button {
-  padding: 0.6rem 1.2rem;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--polis-primary);
-  color: var(--polis-on-primary);
+select {
+  max-width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
   font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  font-size: var(--type-body);
+  background: var(--polis-surface);
+  color: var(--polis-text);
 }
 
-button:disabled {
-  opacity: 0.5;
+textarea {
+  min-height: 6rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--polis-trace);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--polis-muted);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  border-style: dashed;
+  background: var(--polis-surface-tint);
+  color: var(--polis-muted);
   cursor: not-allowed;
 }
 
 label {
   display: block;
   font-weight: 600;
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--space-2);
 }
 
-/* ---- badges ---- */
+/*
+ * Field recipe: label sits close to its own control (var(--space-2)); the next
+ * field group sits clearly further away (var(--space-6)). Rule H6.
+ */
+.field {
+  min-width: 0;
+  display: block;
+}
 
-.badge,
-.trust-badge {
+.field > label,
+.field-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.field + .field {
+  margin-top: var(--space-6);
+}
+
+.field-hint {
+  max-width: 68ch;
+  margin: var(--space-2) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.field-error {
+  max-width: 68ch;
+  margin: var(--space-2) 0 0;
+  color: var(--polis-danger);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.field-error:empty,
+.field-hint:empty {
+  display: none;
+}
+
+.field-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field-choice > label,
+.field-choice label {
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
+/*
+ * Field width follows the data it holds: a date is not a paragraph (rule I5).
+ */
+.field[data-width='date'] {
+  --field-max: 11rem;
+}
+
+.field[data-width='code'] {
+  --field-max: 22rem;
+}
+
+.field[data-width='email'] {
+  --field-max: 26rem;
+}
+
+.field[data-width] :is(input, select) {
+  max-width: var(--field-max);
+}
+
+/* ---- buttons: one contract, four variants ----------------------------------
+ * Primary = trace fill. Secondary = surface fill and strong border.
+ * Tertiary = text only. Danger = red fill, destructive actions only.
+ * The bare `button` element paints nothing; it only inherits the type.
+ * The alias selectors keep older class names working for one release.
+ * -------------------------------------------------------------------------- */
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn,
+.release-button,
+.pilot-button,
+.pilot-button-secondary,
+.pilot-button-danger,
+.queue-submit,
+.queue-link-action,
+.pw-submit,
+.pw-again {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  border-radius: 999px;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border: 1px solid transparent;
-  background: color-mix(in srgb, var(--polis-accent) 16%, transparent);
-  color: var(--polis-accent);
+  border-radius: var(--radius-sm);
+  font-family: var(--body);
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.trust-badge[data-tone='valid'] {
-  background: var(--trust-valid-bg);
-  color: var(--trust-valid-fg);
-  border-color: var(--trust-valid-border);
+/* Primary */
+.btn[data-variant='primary'],
+.release-button,
+.pilot-button,
+.queue-submit,
+.pw-submit {
+  border-color: var(--polis-trace);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
 }
 
-.trust-badge[data-tone='warning'] {
-  background: var(--trust-warning-bg);
-  color: var(--trust-warning-fg);
-  border-color: var(--trust-warning-border);
+/* Secondary, and the unqualified default so nothing becomes primary by accident */
+.btn,
+.btn[data-variant='secondary'],
+.release-button-secondary,
+.pilot-button-secondary,
+.queue-link-action,
+.pw-again {
+  border-color: var(--polis-border-strong);
+  background: var(--polis-surface);
+  color: var(--polis-text);
 }
 
-.trust-badge[data-tone='invalid'] {
-  background: var(--trust-invalid-bg);
-  color: var(--trust-invalid-fg);
-  border-color: var(--trust-invalid-border);
+/* Tertiary */
+.btn[data-variant='tertiary'] {
+  min-width: 0;
+  padding-inline: var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--polis-trace);
 }
 
-.trust-badge[data-tone='unknown'] {
-  background: var(--trust-unknown-bg);
-  color: var(--trust-unknown-fg);
-  border-color: var(--trust-unknown-border);
+.btn[data-variant='tertiary']:hover:not(:disabled):not([aria-disabled='true']) {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
-.trust-badge[data-tone='restricted'] {
-  background: var(--trust-restricted-bg);
-  color: var(--trust-restricted-fg);
-  border-color: var(--trust-restricted-border);
+/* Danger */
+.btn[data-variant='danger'],
+.pilot-button-danger {
+  border-color: var(--polis-danger);
+  background: var(--polis-danger);
+  color: var(--polis-on-danger);
 }
 
-.trust-badge .trust-icon {
+.btn[data-variant='primary']:hover:not(:disabled):not([aria-disabled='true']),
+.release-button:not(.release-button-secondary):hover:not(:disabled):not([aria-disabled='true']),
+.pilot-button:hover:not(:disabled):not([aria-disabled='true']),
+.queue-submit:hover:not(:disabled):not([aria-disabled='true']),
+.pw-submit:hover:not(:disabled):not([aria-disabled='true']) {
+  background: color-mix(in srgb, var(--polis-trace) 88%, black);
+}
+
+.btn:hover:not(:disabled):not([aria-disabled='true']),
+.btn[data-variant='secondary']:hover:not(:disabled):not([aria-disabled='true']),
+.release-button-secondary:hover:not(:disabled):not([aria-disabled='true']),
+.pilot-button-secondary:hover:not(:disabled):not([aria-disabled='true']),
+.queue-link-action:hover:not(:disabled):not([aria-disabled='true']),
+.pw-again:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--polis-surface-tint);
+}
+
+.btn[data-variant='danger']:hover:not(:disabled):not([aria-disabled='true']),
+.pilot-button-danger:hover:not(:disabled):not([aria-disabled='true']) {
+  background: color-mix(in srgb, var(--polis-danger) 88%, black);
+}
+
+.release-button[aria-pressed='true'],
+.btn[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}
+
+.release-button-secondary[aria-pressed='true'],
+.btn[data-variant='secondary'][aria-pressed='true'] {
+  border-color: var(--polis-trace);
+  color: var(--polis-trace);
+}
+
+/*
+ * Disabled stays legible: a dashed edge and a quiet fill carry the state, not
+ * opacity. The control keeps its text so the reason can sit beside it.
+ */
+.btn:disabled,
+.btn[aria-disabled='true'],
+.release-button:disabled,
+.release-button[aria-disabled='true'],
+.pilot-button:disabled,
+.pilot-button-secondary:disabled,
+.pilot-button-danger:disabled,
+.pilot-button[aria-disabled='true'],
+.pilot-button-secondary[aria-disabled='true'],
+.pilot-button-danger[aria-disabled='true'],
+.queue-submit:disabled,
+.queue-link-action:disabled,
+.pw-submit:disabled,
+.pw-again:disabled {
+  border-style: dashed;
+  border-color: var(--polis-border-strong);
+  background: var(--polis-surface-tint);
+  color: var(--polis-muted);
+  cursor: not-allowed;
+}
+
+/* ---- status label ----------------------------------------------------------
+ * One label style: sans, small caps-height, letter-spaced, never boxed and
+ * never filled. Colour reinforces the word; the leading mark carries the same
+ * state without colour (rule P4).
+ * -------------------------------------------------------------------------- */
+
+.status-label,
+.trust-badge,
+.badge,
+.meaning-label,
+.pilot-status,
+.demo-stamp,
+.demo-chip {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--polis-unknown);
+  font-family: var(--body);
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.status-label > svg,
+.status-label > .status-icon,
+.status-label > .trust-icon,
+.trust-badge > svg,
+.trust-badge > .trust-icon {
   flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+.status-label[data-tone='valid'],
+.trust-badge[data-tone='valid'],
+.badge-success {
+  color: var(--polis-valid);
+}
+
+.status-label[data-tone='warning'],
+.trust-badge[data-tone='warning'],
+.badge-warning {
+  color: var(--polis-warning);
+}
+
+.status-label[data-tone='danger'],
+.status-label[data-tone='invalid'],
+.trust-badge[data-tone='invalid'] {
+  color: var(--polis-danger);
+}
+
+.status-label[data-tone='restricted'],
+.trust-badge[data-tone='restricted'] {
+  color: var(--polis-restricted);
+}
+
+.status-label[data-tone='unknown'],
+.trust-badge[data-tone='unknown'] {
+  color: var(--polis-unknown);
+}
+
+.status-label[data-tone='trace'] {
+  color: var(--polis-trace);
+}
+
+/*
+ * Stamp: the locked demo chrome. Mono, hairline border in the status colour,
+ * no fill. Used for the demo record marks and category chips only.
+ */
+.status-label[data-style='stamp'],
+.demo-stamp,
+.demo-chip {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--mono);
+}
+
+.demo-chip {
+  color: var(--polis-muted);
+  font-weight: 400;
 }
 
 /* ---- trust strip ---- */
@@ -327,8 +775,57 @@ label {
 .trust-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2) var(--space-4);
   align-items: center;
+}
+
+/* ---- empty state ---- */
+
+.empty-state {
+  max-width: 48rem;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+}
+
+.empty-state h2,
+.empty-state .empty-state-title {
+  margin: 0;
+  font-size: var(--type-heading-sm);
+}
+
+.empty-state-purpose {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+/*
+ * Tips read as a list, so they keep list markers. `display: grid` on a <ul>
+ * strips the markers in Chrome, which turns the tips into indented lines; the
+ * row gap comes from the list items instead.
+ */
+.empty-state-tips {
+  max-width: 68ch;
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--polis-text);
+  list-style: disc outside;
+}
+
+.empty-state-tips > li {
+  line-height: 1.55;
+}
+
+.empty-state-tips > li + li {
+  margin-top: var(--space-2);
+}
+
+.empty-state-action {
+  margin-top: var(--space-2);
+  justify-self: start;
 }
 
 /* ---- verdict card ---- */
@@ -337,9 +834,9 @@ label {
   border: 1px solid var(--polis-border);
   border-radius: var(--radius-md);
   background: var(--polis-surface);
-  padding: 1.25rem;
+  padding: var(--space-5);
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .verdict-card[data-tone='valid'] {
@@ -361,15 +858,15 @@ label {
 .verdict-headline {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 1.15rem;
+  gap: var(--space-2);
+  font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
 }
 
 .check-list {
   display: grid;
-  gap: 0.4rem;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -378,11 +875,12 @@ label {
 .check-row {
   display: grid;
   grid-template-columns: auto minmax(7rem, 0.3fr) 1fr;
-  gap: 0.6rem;
+  gap: var(--space-2);
   align-items: baseline;
-  padding: 0.45rem 0.6rem;
-  border-radius: var(--radius-sm);
-  background: var(--polis-surface-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--polis-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .check-row .check-mechanism {
@@ -391,52 +889,61 @@ label {
 
 .check-row .check-detail {
   color: var(--polis-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-data);
   word-break: break-all;
 }
 
 /* ---- hashes ---- */
 
 .hash-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.85rem;
+  font-family: var(--mono);
+  font-size: var(--type-data);
   word-break: break-all;
 }
 
 /* ---- trust note ---- */
 
 .trust-note {
-  border-left: 3px solid var(--trust-unknown-border);
-  background: var(--trust-unknown-bg);
+  border-left: 0.1875rem solid var(--polis-border-strong);
+  background: var(--polis-surface-2);
   color: var(--polis-text);
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: var(--type-data);
 }
 
 .trust-note--compact {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-label);
 }
 
-/* ---- audit trail ---- */
+/* ---- audit trail ------------------------------------------------------------
+ * Ledger rows, not boxes inside a box (D5). Shared with apps/verifier through
+ * AuditTrail, so the row paint lives here.
+ * -------------------------------------------------------------------------- */
 
 .audit-trail {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--polis-border);
   list-style: none;
 }
 
 .audit-event {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-sm);
-  background: var(--polis-surface-2);
-  font-size: 0.9rem;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--polis-border);
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--type-data);
+}
+
+.audit-event strong {
+  color: var(--polis-text);
 }
 
 .audit-event--redacted {
@@ -446,32 +953,37 @@ label {
 
 .audit-meta {
   color: var(--polis-muted);
-  font-size: 0.8rem;
+  font-size: var(--type-label);
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 0.9rem;
+  gap: var(--space-1) var(--space-4);
 }
 
 /* ---- source panel ---- */
 
 .source-panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .source-item {
-  border: 1px solid var(--polis-border);
-  border-radius: var(--radius-sm);
-  background: var(--polis-surface-2);
-  padding: 0.75rem;
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-1);
+  padding: var(--space-4) 0;
+  border: 0;
+  border-bottom: 1px solid var(--polis-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.source-item:first-of-type {
+  border-top: 1px solid var(--polis-border);
 }
 
 .source-quote {
   margin: 0;
-  padding-left: 0.75rem;
-  border-left: 3px solid var(--polis-border);
+  padding-left: var(--space-3);
+  border-left: 0.1875rem solid var(--polis-border);
   font-style: italic;
 }
 
@@ -483,52 +995,90 @@ label {
   vertical-align: -0.125em;
 }
 
+/* ---- segmented control -----------------------------------------------------
+ * Few options, shown in the open rather than in a dropdown (C4). One is
+ * active: it carries the fill and aria-pressed, the rest read as one quiet
+ * group, so the drop zone below stays the loudest target on the page (H2).
+ * Shared with apps/verifier through VerifierFlow, so it lives here.
+ * -------------------------------------------------------------------------- */
+
+.segmented {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmented .btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+}
+
+.segmented .btn + .btn {
+  border-left: 1px solid var(--polis-border);
+}
+
+.segmented .btn[aria-pressed='true'] {
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+  text-decoration: none;
+}
+
+.segmented .btn:hover:not([aria-pressed='true']) {
+  background: var(--polis-surface-tint);
+}
+
+/* Three modes do not fit side by side on a phone; stack them so each is a
+ * full-width target instead of wrapping into a ragged box. */
+@media (max-width: 40rem) {
+  .segmented {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .segmented .btn + .btn {
+    border-top: 1px solid var(--polis-border);
+    border-left: 0;
+  }
+}
+
 /* ---- verifier flow ---- */
 
 .verifier-flow {
   display: grid;
-  gap: 1rem;
-}
-
-.verifier-tabs {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.verifier-tabs button {
-  background: var(--polis-surface-2);
-  color: var(--polis-text);
-  border: 1px solid var(--polis-border);
-}
-
-.verifier-tabs button[aria-selected='true'] {
-  background: var(--polis-primary);
-  color: var(--polis-on-primary);
-  border-color: var(--polis-primary);
+  gap: var(--space-4);
 }
 
 .dropzone {
-  border: 2px dashed var(--polis-border);
+  border: 1px dashed var(--polis-border-strong);
   border-radius: var(--radius-md);
-  padding: 2rem;
+  padding: var(--space-8);
   text-align: center;
   color: var(--polis-muted);
   background: var(--polis-surface-2);
 }
 
 .dropzone[data-active='true'] {
-  border-color: var(--polis-primary);
+  border-color: var(--polis-trace);
   color: var(--polis-text);
 }
 
 .privacy-note {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: var(--trust-valid-fg);
+  gap: var(--space-2);
+  color: var(--polis-valid);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--type-data);
 }
 
 /* ---- accessibility helpers ---- */

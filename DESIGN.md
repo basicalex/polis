@@ -17,10 +17,10 @@ colors:
   primary: '#0E7490'
   trace: '#0E7490'
   success: '#15803D'
-  warning: '#9A6700'
+  warning: '#8A5D00'
   danger: '#B91C1C'
   restricted: '#6D28D9'
-  unknown: '#64748B'
+  unknown: '#5A6678'
   on-primary: '#FFFFFF'
   on-danger: '#FFFFFF'
 typography:
@@ -57,12 +57,23 @@ typography:
 rounded:
   sm: '0.25rem'
   md: '0.5rem'
+  pill: '999px'
 spacing:
-  xs: '0.375rem'
+  '1': '0.25rem'
+  '2': '0.5rem'
+  '3': '0.75rem'
+  '4': '1rem'
+  '5': '1.25rem'
+  '6': '1.5rem'
+  '8': '2rem'
+  '10': '2.5rem'
+  '12': '3rem'
+  '16': '4rem'
+  xs: '0.5rem'
   sm: '0.75rem'
   md: '1.25rem'
   lg: '2rem'
-  xl: '3.25rem'
+  xl: '3rem'
 layout:
   readingMeasure: '68ch'
   evidenceMeasure: '74rem'
@@ -279,12 +290,25 @@ The default product world is light: warm paper, near-black ink, one deep teal ac
 | `--polis-border-strong` | `#C9C3B8` | Inputs, controls, and active structural boundaries |
 | `--polis-trace` | `#0E7490` | Inspectable trace, active navigation, focus, primary action |
 | `--polis-valid` | `#15803D` | Exact positive result only |
-| `--polis-warning` | `#9A6700` | Fixture, pending, warning, pilot-target, and not-live families; labels separate meanings |
+| `--polis-warning` | `#8A5D00` | Fixture, pending, warning, pilot-target, and not-live families; labels separate meanings |
 | `--polis-restricted` | `#6D28D9` | Private and restricted boundary only |
 | `--polis-danger` | `#B91C1C` | Invalid result, error, and destructive action |
-| `--polis-unknown` | `#64748B` | Unknown, absent, or not-checked result |
+| `--polis-unknown` | `#5A6678` | Unknown, absent, or not-checked result |
 
 Status colors are used as text and icon color on the light field, not as fills or loud borders. Do not use gradients, glows, blur, or shadows to establish hierarchy. A restrained shadow is allowed only when a temporary overlay must separate from content. Never put low-contrast text on a tinted status background.
+
+One corner radius scale and one shadow scale, both defined once in `packages/ui/src/styles/base.css` with every other token:
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--radius-sm` | `0.25rem` | Controls, inputs, chips, stamps |
+| `--radius-md` | `0.5rem` | Panels, cards, drop zones |
+| `--radius-pill` | `999px` | Fully rounded controls only |
+| `--shadow-1` | ink at 6% | The one soft panel layer |
+| `--shadow-2` | ink at 10% | Dialogs and temporary overlays |
+| `--shadow-3` | ink at 14% | Menus over dense content |
+
+Shadows tint toward the ink color in the light world and toward black in the dark demonstrator. They separate an overlay from what it covers; they never carry hierarchy on the page itself.
 
 ## Typography
 
@@ -313,7 +337,7 @@ Keep body text at or above `1rem` and critical labels at or above `0.875rem`. Li
 
 ## Layout system
 
-- Use a `0.375rem`, `0.75rem`, `1.25rem`, `2rem`, `3.25rem` spacing scale.
+- Use one spacing ladder on a 4px base: `--space-1` `0.25rem`, `--space-2` `0.5rem`, `--space-3` `0.75rem`, `--space-4` `1rem`, `--space-5` `1.25rem`, `--space-6` `1.5rem`, `--space-8` `2rem`, `--space-10` `2.5rem`, `--space-12` `3rem`, `--space-16` `4rem`. Nothing off the ladder. The older names remain as aliases: `--space-xs` = `--space-2`, `--space-sm` = `--space-3`, `--space-md` = `--space-5`, `--space-lg` = `--space-8`, `--space-xl` = `--space-12`.
 - Center public reading surfaces. Use a maximum `74rem` evidence column plus an optional `15rem` stage rail on wide screens.
 - Prefer CSS grid with `minmax(0, 1fr)` and intrinsic content sizing. Do not fix application content to presentation capture dimensions.
 - Keep panels flat: either a hairline border or a quiet tint, never both stacked, with `0.25rem` or `0.5rem` corner radius and no ornamental card nesting. Most of the page needs no enclosure at all — whitespace and hairline rules separate sections.
@@ -350,9 +374,10 @@ The page must have no horizontal body overflow at 320 CSS pixels, 390 × 844, 20
 ### Actions and forms
 
 - Use native buttons, links, inputs, selects, textareas, fieldsets, and legends before custom widgets.
-- Primary actions use cyan fill and dark text. Secondary actions use a surface fill and strong border. Destructive actions use red only when the action is destructive.
+- Every button is one `.btn` with a `data-variant`. Primary fills with the trace color and carries the on-primary text; there is one primary per view. Secondary uses a surface fill and a strong border. Tertiary has no fill and no border: trace-colored text that underlines on hover. Danger fills with red and is used only when the action destroys something. A bare `<button>` paints nothing.
+- Every button clears the `2.75rem` target, uses `--radius-sm`, weight 600, and `1rem` text.
 - Every control has a persistent text label. Icon-only controls require an accessible name and are reserved for universally understood compact actions.
-- Disabled controls remain legible and state why the action is unavailable. Do not use opacity alone.
+- Disabled controls remain legible and state why the action is unavailable. A dashed edge and a quiet fill carry the state; opacity alone does not. `aria-disabled` reads the same as `disabled`.
 - Put instructions and validation near the field. Error text names the problem and the correction; do not blame the user.
 - A review decision must show the reviewer role, independence rule, evidence scope, and consequence before submission.
 - Confirmation dialogs are reserved for destructive or irreversible actions. Trap focus, close on `Escape` where safe, and restore focus to the invoking control.

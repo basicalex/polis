@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
+import EmptyState from '@polis/ui/astro/EmptyState.astro';
+import '../styles/tasks.css';
 
 const API = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -28,7 +30,7 @@ type AssistantAnswer = {
 
 const q = Astro.url.searchParams.get('q');
 let answer: AssistantAnswer | null = null;
-let error: string | null = null;
+let unavailable = false;
 
 if (q) {
   try {
@@ -40,126 +42,109 @@ if (q) {
     if (r.ok) {
       answer = (await r.json()) as AssistantAnswer;
     } else {
-      error = 'The assistant is unavailable. Please try again later.';
+      unavailable = true;
     }
   } catch {
-    error = 'The assistant is unavailable. Please try again later.';
+    unavailable = true;
   }
 }
 ---
 
 <Base title="Assistant">
-  <section class="page-hero">
-    <DemoBadge />
-    <h1>Citizen assistant</h1>
-    <p class="lede">
-      Ask a question about local governance. Answers are grounded in approved
-      public sources with citations.
-    </p>
-  </section>
-
-  <section class="assistant-form">
-    <form method="get">
-      <label for="q">Your question</label>
-      <input
-        type="text"
-        id="q"
-        name="q"
-        value={q ?? ''}
-        placeholder="e.g. What does the complaints office require?"
-      />
-      <button type="submit">Ask</button>
-    </form>
-  </section>
-
-  {error && (
-    <section class="assistant-error">
-      <p>{error}</p>
-    </section>
-  )}
-
-  {answer && (
-    <section class="assistant-answer">
-      {answer.injectionBlocked && (
-        <div class="banner banner-warning">
-          This request was blocked as a potential prompt injection.
-        </div>
-      )}
-      {answer.lowConfidence && !answer.injectionBlocked && (
-        <div class="banner banner-info">
-          Low confidence — no approved public sources were found.
-        </div>
-      )}
-      <div class="answer-body">
-        <p>{answer.answer}</p>
-      </div>
-      {answer.citations.length > 0 && (
-        <div class="citations">
-          <h2>Sources</h2>
-          <ol>
-            {answer.citations.map((c) => (
-              <li>
-                {c.sourceUrl ? (
-                  <a href={c.sourceUrl} rel="nofollow noopener" target="_blank">
-                    {c.sourceTitle ?? c.sourceId}
-                  </a>
-                ) : (
-                  <span>{c.sourceTitle ?? c.sourceId}</span>
-                )}
-                {c.quote && <blockquote>{c.quote}</blockquote>}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-      <p class="trace-id">
-        <small>Trace: <code>{answer.traceId.slice(0, 12)}</code></small>
+  <div class="task-page task-page--column">
+    <header class="page-header">
+      <h1>Citizen assistant</h1>
+      <p class="page-header-lede">
+        Ask a question about local governance. Answers are grounded in approved public sources with
+        citations.
       </p>
-    </section>
-  )}
-</Base>
+      <DemoBadge />
+    </header>
 
-<style>
-  .assistant-form form {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-end;
-    margin: 1.5rem 0;
-  }
-  .assistant-form input {
-    flex: 1;
-    padding: 0.6rem;
-    font-size: 1rem;
-    border: 1px solid var(--border, #ccc);
-    border-radius: 4px;
-  }
-  .assistant-form button {
-    padding: 0.6rem 1.2rem;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  .banner {
-    padding: 0.75rem 1rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-  }
-  .banner-warning {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-  }
-  .banner-info {
-    background: #d1ecf1;
-    border: 1px solid #17a2b8;
-  }
-  .citations blockquote {
-    margin: 0.25rem 0 0.5rem 1rem;
-    padding-left: 0.75rem;
-    border-left: 3px solid var(--border, #ccc);
-    color: var(--muted, #666);
-    font-size: 0.9rem;
-  }
-  .trace-id {
-    margin-top: 1.5rem;
-    color: var(--muted, #666);
-  }
-</style>
+    <form class="assistant-form" method="get">
+      <div class="field">
+        <label class="field-label" for="q">Your question</label>
+        <input
+          type="text"
+          id="q"
+          name="q"
+          value={q ?? ''}
+          placeholder="e.g. What does the complaints office require?"
+        />
+        <p class="field-hint">
+          The answer quotes approved public sources. It is not legal advice and it does not decide
+          anything.
+        </p>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn" data-variant="primary">Ask</button>
+      </div>
+    </form>
+
+    {unavailable && (
+      <EmptyState
+        title="The assistant is unavailable"
+        purpose="Your question was not answered because the local assistant service did not respond. Nothing was recorded."
+        tips={[
+          'Start the backend from the repository root: bun run dev:services.',
+          'The assistant needs the AI gateway as well as the platform API.',
+          'Public sources stay readable on the governance map without it.',
+        ]}
+        actionLabel="Open the governance map"
+        actionHref="/governance/jur-croatia-local"
+      />
+    )}
+
+    {answer && (
+      <section class="task-section" aria-label="Answer">
+        {answer.injectionBlocked && (
+          <p class="notice" data-tone="warning" role="status">
+            <span class="status-label" data-tone="warning">blocked</span>
+            <span>This request was blocked as a potential prompt injection. Nothing was answered.</span>
+          </p>
+        )}
+        {answer.lowConfidence && !answer.injectionBlocked && (
+          <p class="notice" data-tone="warning" role="status">
+            <span class="status-label" data-tone="warning">low confidence</span>
+            <span>No approved public sources were found for this question.</span>
+          </p>
+        )}
+        <div class="answer-body prose">
+          <p>{answer.answer}</p>
+        </div>
+        {answer.citations.length > 0 ? (
+          <div class="citations task-section">
+            <h2>Sources</h2>
+            <ol>
+              {answer.citations.map((c) => (
+                <li>
+                  {c.sourceUrl ? (
+                    <a href={c.sourceUrl} rel="nofollow noopener" target="_blank">
+                      {c.sourceTitle ?? c.sourceId}
+                    </a>
+                  ) : (
+                    <span>{c.sourceTitle ?? c.sourceId}</span>
+                  )}
+                  {c.quote && <blockquote>{c.quote}</blockquote>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+          <EmptyState
+            headingLevel={2}
+            title="No sources cited"
+            purpose="This answer carries no approved public source, so treat it as unsupported until one is attached."
+            tips={[
+              'Approved sources come from the governance graph, not from the model.',
+              'Contribute a source through the evidence form so future answers can cite it.',
+            ]}
+            actionLabel="Contribute evidence"
+            actionHref="/contribute/evidence"
+          />
+        )}
+        <p class="trace-id">Trace <code class="hash-value">{answer.traceId.slice(0, 12)}</code></p>
+      </section>
+    )}
+  </div>
+</Base>
