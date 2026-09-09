@@ -8,8 +8,10 @@ export const RELEASE_KINDS = Object.freeze([
 const policy = [
   { id: 'home', pattern: '/', kind: 'safe', inventory: 'current' },
   { id: 'home-hr', pattern: '/hr', kind: 'safe', inventory: 'planned' },
+  { id: 'home-en', pattern: '/en', kind: 'safe', inventory: 'current' },
   { id: 'presentation', pattern: '/presentation', kind: 'safe', inventory: 'current' },
   { id: 'presentation-hr', pattern: '/hr/presentation', kind: 'safe', inventory: 'current' },
+  { id: 'presentation-en', pattern: '/en/presentation', kind: 'safe', inventory: 'current' },
   { id: 'demo-hub', pattern: '/demo', kind: 'safe', inventory: 'current' },
   { id: 'demo-citizen', pattern: '/demo/citizen', kind: 'safe', inventory: 'current' },
   { id: 'demo-official', pattern: '/demo/official', kind: 'safe', inventory: 'current' },

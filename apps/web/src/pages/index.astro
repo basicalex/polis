@@ -3,11 +3,16 @@ import PublicLanding from '../components/PublicLanding.astro';
 import Base from '../layouts/Base.astro';
 import type { LandingEntryId } from '../content/public-release';
 
+/*
+ * Croatian is the default language of the site (revision decision R1): the root
+ * serves Croatian and English lives under `/en/`. `/hr/` keeps working as a 301
+ * to this route.
+ */
 if (Astro.url.searchParams.get('present') === '1') {
   return Astro.redirect('/presentation?present=1', 302);
 }
 
-const lang = 'en' as const;
+const lang = 'hr' as const;
 const entryHrefs: Record<LandingEntryId, string> = {
   citizen: '/demo/citizen',
   official: '/demo/official',
@@ -20,8 +25,9 @@ const entryHrefs: Record<LandingEntryId, string> = {
 
 <Base
   lang={lang}
-  title="Polis — The public response layer"
-  description="Follow one public response from the first report to an independently reviewed public receipt, then open the demonstration as a citizen, an official, or the reviewer."
+  alternates={{ hr: '/', en: '/en/' }}
+  title="Polis — Sloj javnog odgovora"
+  description="Pratite jedan javni odgovor od prve prijave do neovisno provjerene javne potvrde, pa otvorite demonstraciju kao stanovnik, dužnosnik ili provjeritelj."
 >
   <PublicLanding lang={lang} entryHrefs={entryHrefs} />
 </Base>

@@ -21,7 +21,7 @@
  * @property {DemoRecord[]} records
  */
 
-import { seedLang, seedRecords } from '../content/demo-fixtures.mjs';
+import { seedRecords } from '../content/demo-fixtures.mjs';
 import {
   DEMO_CATEGORIES,
   DEMO_LANGS,
@@ -30,6 +30,16 @@ import {
 } from '../content/demo-strings.mjs';
 
 export { DEMO_CATEGORIES, DEMO_LANGS };
+
+/**
+ * Croatian is the product default (revision 2026-09-09, decision R1): the site
+ * root serves Croatian, so a demo surface opened without a stored choice reads
+ * Croatian too. Both languages carry the same record, so this changes which
+ * language a first visit shows, nothing else.
+ *
+ * @type {DemoLang}
+ */
+export const DEFAULT_LANG = 'hr';
 
 /** localStorage key. Bumping the suffix retires older demo state. */
 export const STORAGE_KEY = 'polis-demo-v1';
@@ -115,7 +125,7 @@ function storage() {
 function seedState() {
   return {
     version: DEMO_STATE_VERSION,
-    lang: DEMO_LANGS.includes(seedLang) ? seedLang : 'en',
+    lang: DEFAULT_LANG,
     records: clone(/** @type {DemoRecord[]} */ (seedRecords)),
   };
 }
@@ -133,7 +143,7 @@ function normalizeState(raw) {
   if (!Array.isArray(candidate.records)) return null;
   const lang = DEMO_LANGS.includes(/** @type {DemoLang} */ (candidate.lang))
     ? /** @type {DemoLang} */ (candidate.lang)
-    : 'en';
+    : DEFAULT_LANG;
 
   for (const record of candidate.records) {
     if (!record || typeof record !== 'object') return null;

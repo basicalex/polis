@@ -1,5 +1,6 @@
 /*
- * Site chrome (wave W1): boundary banner, header, navigation, footer.
+ * Site chrome (wave W1, revised 2026-09-09): boundary banner, header,
+ * navigation, footer.
  *
  * Owned by `apps/web/src/layouts/Base.astro`. Every token comes from
  * `packages/ui/src/styles/base.css`; nothing is redefined here. Spacing uses
@@ -10,6 +11,39 @@
  * flat links. Both use `.nav-link`/`.nav-item` for target size, type, and the
  * current-page mark, so the two navs cannot drift apart (rules K6, I2, S3).
  */
+
+/* ---------------------------------------------------------------------------
+   One page column (revision decision R2)
+   --------------------------------------------------------------------------- */
+
+/*
+ * The banner, the header, and the footer are full-width bands; their content
+ * sits in `.site-container`, which carries the same measure and inline padding
+ * as `.site-main`. The brand, the page column, and the footer columns then
+ * share left and right edges at every width (rules L1, L2, L4, L8).
+ *
+ * The bands themselves drop their own inline padding, so the container is the
+ * only thing setting the rhythm and the two cannot drift apart.
+ */
+.site-container {
+  width: min(var(--page-measure), 100%);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+html[data-release] .site-header.site-header--chrome,
+html[data-release] .release-boundary-banner.release-banner--chrome {
+  display: block;
+  padding-inline: 0;
+}
+
+/* Presenter mode is a projected surface, not a page to read, so the reading
+   column does not apply there and `.site-main` fills the screen. The banner and
+   the header follow it, or the wordmark would sit inside a column the stage
+   below it ignores. */
+.site-shell--presenter .site-container {
+  width: 100%;
+}
 
 /* ---------------------------------------------------------------------------
    Boundary banner
@@ -41,12 +75,16 @@ html[data-release='public'] .release-boundary-banner p {
 .site-header.site-header--chrome {
   position: relative;
   z-index: 60;
+  padding-block: var(--space-3);
+}
+
+.site-header-inner {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-4);
-  padding-block: var(--space-3);
 }
 
 /* The wordmark keeps the display face in both worlds, and a full target: at
@@ -255,15 +293,124 @@ html[data-release='public'] .release-boundary-banner p {
 }
 
 /* ---------------------------------------------------------------------------
-   Footer: one row, ladder spacing, muted text
+   Footer (revision decision R5): brand, three link columns, language, boundary
    --------------------------------------------------------------------------- */
 
+/*
+ * `display: block` keeps the specificity low on purpose: the presenter shell
+ * hides the footer with `.site-shell--presenter .site-footer`, and a stronger
+ * selector here would bring it back on stage.
+ */
 .site-footer--chrome {
+  display: block;
+  padding-block: var(--space-10) var(--space-8);
+  padding-inline: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.site-footer-inner {
+  display: grid;
+  gap: var(--space-8);
+}
+
+/* Brand and the one sentence saying what Polis is. Prose keeps a readable
+   measure inside the column (rule L6). */
+.footer-brand {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 60ch;
+}
+
+.footer-wordmark {
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.footer-blurb {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.footer-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: var(--space-6) var(--space-8);
+}
+
+/*
+ * No gap between the label and its list: every link carries a full 2.75rem
+ * target, and that box already separates the rows, so a gap here would leave
+ * the heading as far from its own group as the items are from each other
+ * (rule H6).
+ */
+.footer-column {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+}
+
+/* Group labels, not page sections: the uppercase eyebrow is the right style
+   here and nowhere else on a public surface (revision decisions R3, R5). */
+.footer-column .footer-heading {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.footer-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+/* A footer link is a standalone control, not a word inside a sentence, so it
+ * carries a full target instead of the line height of the row (rule I1). */
+.footer-links a,
+.site-footer--chrome .footer-item a {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+/* The language in view is marked by text weight and an underline, never by
+   colour alone (rule P4). */
+.footer-links a[aria-current] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.25em;
+}
+
+/* Boundary labels in the public world, the version line in the local one. One
+   hairline separates them from the columns; nothing is boxed. */
+.footer-bottom {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  padding-block: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--polis-border);
   color: var(--polis-muted);
   font-size: var(--type-data);
 }
@@ -271,15 +418,6 @@ html[data-release='public'] .release-boundary-banner p {
 .site-footer--chrome .footer-item {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-/* A footer link is a standalone control, not a word inside a sentence, so it
- * carries a full target instead of the line height of the row (rule I1). */
-.site-footer--chrome .footer-item a {
-  min-width: var(--tap-target);
-  min-height: var(--tap-target);
-  display: inline-flex;
-  align-items: center;
 }
 
 /* The separator is a visible glyph, so it keeps the footer's own contrast. */
@@ -293,14 +431,25 @@ html[data-release='public'] .release-boundary-banner p {
 
 @media (max-width: 40rem) {
   .site-header.site-header--chrome {
+    padding-block: var(--space-2);
+  }
+
+  .site-header-inner {
     column-gap: var(--space-2);
     row-gap: 0;
-    padding-block: var(--space-2);
+  }
+
+  /* The public header packs the brand and the scrolling link row onto one
+     line; styles.css used to do this on the band itself. */
+  html[data-release='public'] .site-header-inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
   }
 
   /* styles.css stacks the local header into a column below 56.25rem; the
      grouped nav needs the brand and the Menu button on one row. */
-  html[data-release='local'] .site-header--chrome {
+  html[data-release='local'] .site-header-inner {
     flex-direction: row;
     align-items: center;
   }
@@ -313,10 +462,12 @@ html[data-release='public'] .release-boundary-banner p {
     min-width: 100%;
   }
 
+  /* Positioned against `.site-header-inner`, so the button lands on the
+     column's own right edge. */
   .nav-root-summary {
     position: absolute;
-    top: var(--space-2);
-    right: clamp(1rem, 4vw, 2.5rem);
+    top: 0;
+    right: var(--page-gutter);
     display: inline-flex;
     margin-left: 0;
   }
@@ -359,6 +510,20 @@ html[data-release='public'] .release-boundary-banner p {
   .release-nav a.nav-link {
     padding-inline: var(--space-2);
   }
+
+  /* Footer columns collapse to one on phones (revision decision R5). */
+  .site-footer--chrome {
+    padding-block: var(--space-8) var(--space-6);
+  }
+
+  .site-footer-inner {
+    gap: var(--space-6);
+  }
+
+  .footer-nav {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
 }
 
 @media (min-width: 40.0625rem) {
@@ -378,7 +543,7 @@ html[data-release='public'] .release-boundary-banner p {
    --------------------------------------------------------------------------- */
 
 @media (min-width: 40.0625rem) and (max-width: 56.25rem) {
-  html[data-release='local'] .site-header--chrome {
+  html[data-release='local'] .site-header-inner {
     flex-direction: row;
     align-items: center;
   }

@@ -1,0 +1,28 @@
+---
+import PublicLanding from '../../components/PublicLanding.astro';
+import Base from '../../layouts/Base.astro';
+import type { LandingEntryId } from '../../content/public-release';
+
+if (Astro.url.searchParams.get('present') === '1') {
+  return Astro.redirect('/en/presentation?present=1', 302);
+}
+
+const lang = 'en' as const;
+const entryHrefs: Record<LandingEntryId, string> = {
+  citizen: '/demo/citizen',
+  official: '/demo/official',
+  review: '/demo/review',
+  record: '/demo/record',
+  embed: '/demo/embed',
+  presentation: '/en/presentation',
+};
+---
+
+<Base
+  lang={lang}
+  alternates={{ hr: '/', en: '/en/' }}
+  title="Polis — The public response layer"
+  description="Follow one public response from the first report to an independently reviewed public receipt, then open the demonstration as a citizen, an official, or the reviewer."
+>
+  <PublicLanding lang={lang} entryHrefs={entryHrefs} />
+</Base>

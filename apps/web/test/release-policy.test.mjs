@@ -18,8 +18,10 @@ const pageExtensions = /\.(astro|md|mdx|ts)$/;
 const expectedCurrentByKind = {
   safe: [
     '/',
+    '/en',
     '/presentation',
     '/hr/presentation',
+    '/en/presentation',
     '/demo',
     '/demo/citizen',
     '/demo/official',
@@ -146,8 +148,10 @@ test('release policy matches representative dynamic routes without overlap', () 
   const cases = [
     ['/', 'safe'],
     ['/hr/', 'safe'],
+    ['/en/', 'safe'],
     ['/presentation', 'safe'],
     ['/hr/presentation', 'safe'],
+    ['/en/presentation', 'safe'],
     ['/demo', 'safe'],
     ['/demo/citizen', 'safe'],
     ['/demo/unknown-surface', 'not-live'],

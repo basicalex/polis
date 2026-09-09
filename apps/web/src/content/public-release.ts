@@ -482,12 +482,94 @@ export const landingEntryIds = [
 
 export type LandingEntryId = (typeof landingEntryIds)[number];
 
+/**
+ * Anchor ids for the landing sections. They are localized because the opening
+ * buttons jump to them and a Croatian page should not carry English anchors.
+ */
+export const landingSectionIds = {
+  en: {
+    audience: 'who-it-is-for',
+    howItWorks: 'how-it-works',
+    trust: 'why-it-can-be-trusted',
+    pilot: 'for-municipalities',
+    demonstration: 'demonstration',
+  },
+  hr: {
+    audience: 'za-koga-je',
+    howItWorks: 'kako-radi',
+    trust: 'zasto-se-u-to-moze-vjerovati',
+    pilot: 'za-opcine-i-gradove',
+    demonstration: 'demonstracija',
+  },
+} as const;
+
 export const landing = {
   en: {
-    headline: 'Follow one public response from the first report to the receipt.',
-    lede: 'Polis is the public response layer between community voice and government action. A resident raises a problem, a named office takes responsibility, an official files a commitment, an independent reviewer checks it, and the public record keeps the receipt.',
-    loopTitle: 'The response loop',
-    entriesTitle: 'Open the demonstration',
+    kicker: 'Polis',
+    headline: "A resident's report and their municipality's response, on one public record.",
+    lede: 'Polis is the public response layer between community voice and government action. Who took responsibility, what was promised, and who checked it independently are public; the personal data and the case narrative stay out of the public record.',
+    primaryAction: 'How it works',
+    secondaryAction: 'Open the demonstration',
+    recordTitle: 'A service request asks for the same residence proof twice',
+    recordStages: {
+      voice: 'Report received',
+      responsibility: 'Responsible office assigned',
+      response: 'Commitment filed, waiting for independent review',
+      check: 'Not checked yet',
+      receipt: 'Not appended yet',
+    },
+    audienceTitle: 'Who it is for',
+    audiences: [
+      {
+        title: 'Residents',
+        body: 'File a report and see where it went. The record names the responsible office, the response obligation, what was promised, and whether a separate reviewer accepted it. Your identity and your case narrative stay private.',
+      },
+      {
+        title: 'Municipalities',
+        body: 'Show the work that already happens inside the office and that nobody outside it can see. A commitment publishes only after an independent review, so the public record never rests on self-assessment. The case file stays with the institution.',
+      },
+    ],
+    howItWorksTitle: 'How it works',
+    stageLines: {
+      voice: 'A resident reports a problem or asks a question, and the report opens a public record.',
+      responsibility:
+        'The responsible office and its response obligation are named, and both of them are public.',
+      response:
+        'An official files a commitment with a deadline and a measurable criterion, which starts out waiting for independent review.',
+      check:
+        'A reviewer who is not the filer reads the evidence and either publishes the commitment or returns it with a note.',
+      receipt:
+        'The public record appends the accepted decision, the status, and the sources, linked so a later change to them is visible.',
+    },
+    trustTitle: 'Why it can be trusted',
+    trust: [
+      {
+        title: 'Independent review',
+        body: 'The person who files cannot be the person who reviews. An official cannot grade their own follow-through or close a record alone.',
+      },
+      {
+        title: 'A public receipt',
+        body: 'Every accepted event stays in the public record in the order it happened, so a later edit reads as an edit rather than as history.',
+      },
+      {
+        title: 'Open source',
+        body: 'The whole system is published under the AGPL-3.0 licence. Anyone can read how a status is decided and run their own copy.',
+      },
+      {
+        title: 'A privacy boundary',
+        body: 'Identity documents, the case narrative, contact details, and internal notes never cross into the public record. The public side shows the process, not the person.',
+      },
+    ],
+    pilotTitle: 'For municipalities',
+    pilotBody:
+      'A pilot begins with one written charter: one public process, a named owner, the data boundary, a measurable public result, and a named independent reviewer. The scope stays deliberately small and carries a deadline, retention, and rollback conditions, so the result can be judged rather than asserted. No municipality is engaged, and nothing here runs on real case data.',
+    pilotLinks: {
+      presentation: 'Watch the presentation',
+      source: 'Read the source and the licence',
+    },
+    entriesTitle: 'Demonstration',
+    entriesLede:
+      'Six ways into the same demonstration: one synthetic record, seen from every role that touches it.',
     demoNote:
       'What you do in the demonstration stays in this browser. Nothing is sent anywhere, and a reset restores the starting records.',
     entries: {
@@ -518,10 +600,70 @@ export const landing = {
     },
   },
   hr: {
-    headline: 'Pratite jedan javni odgovor od prve prijave do potvrde.',
-    lede: 'Polis je sloj javnog odgovora između glasa zajednice i djelovanja vlasti. Stanovnik prijavljuje problem, imenovani ured preuzima odgovornost, dužnosnik podnosi obvezu, neovisni provjeritelj ju provjerava, a javni zapis čuva potvrdu.',
-    loopTitle: 'Krug odgovora',
-    entriesTitle: 'Otvorite demonstraciju',
+    kicker: 'Polis',
+    headline: 'Prijava stanovnika i odgovor općine, na jednom javnom zapisu.',
+    lede: 'Polis je sloj javnog odgovora između glasa zajednice i djelovanja vlasti. Javno se vidi tko je preuzeo odgovornost, što je obećano i tko je to neovisno provjerio; osobni podaci i opis predmeta ostaju izvan javnog zapisa.',
+    primaryAction: 'Kako radi',
+    secondaryAction: 'Otvorite demonstraciju',
+    recordTitle: 'Zahtjev za uslugu dva puta traži isti dokaz o prebivalištu',
+    recordStages: {
+      voice: 'Prijava zaprimljena',
+      responsibility: 'Nadležni ured dodijeljen',
+      response: 'Obveza podnesena, čeka neovisnu provjeru',
+      check: 'Još nije provedena',
+      receipt: 'Još nije upisana',
+    },
+    audienceTitle: 'Za koga je',
+    audiences: [
+      {
+        title: 'Stanovnicima',
+        body: 'Podnesite prijavu i vidite kamo je otišla. Zapis imenuje nadležni ured i obvezu odgovora, pokazuje što je obećano i je li to zaseban provjeritelj prihvatio. Vaš identitet i opis predmeta ostaju privatni.',
+      },
+      {
+        title: 'Općinama i gradovima',
+        body: 'Pokažite rad koji se već obavlja u uredu, a izvan njega ga nitko ne vidi. Obveza se objavljuje tek nakon neovisne provjere, pa javni zapis nikada ne počiva na samoocjeni. Spis predmeta ostaje u ustanovi.',
+      },
+    ],
+    howItWorksTitle: 'Kako radi',
+    stageLines: {
+      voice: 'Stanovnik prijavljuje problem ili postavlja pitanje, a prijava otvara javni zapis.',
+      responsibility: 'Imenuju se nadležni ured i njegova obveza odgovora; oboje je javno.',
+      response:
+        'Dužnosnik podnosi obvezu s rokom i mjerljivim kriterijem, koja kreće u stanju koje čeka neovisnu provjeru.',
+      check:
+        'Provjeritelj koji nije podnositelj čita dokaze pa obvezu objavljuje ili je vraća uz obrazloženje.',
+      receipt:
+        'Javni zapis upisuje prihvaćenu odluku, status i izvore, povezane tako da se kasnija izmjena vidi.',
+    },
+    trustTitle: 'Zašto se u to može vjerovati',
+    trust: [
+      {
+        title: 'Neovisna provjera',
+        body: 'Tko podnosi, ne provjerava. Dužnosnik ne može ocijeniti vlastito izvršenje ni sam zaključiti zapis.',
+      },
+      {
+        title: 'Javna potvrda',
+        body: 'Svaki prihvaćeni događaj ostaje u javnom zapisu redoslijedom kojim se dogodio, pa se kasnija izmjena čita kao izmjena, a ne kao povijest.',
+      },
+      {
+        title: 'Otvoreni kod',
+        body: 'Cijeli je sustav objavljen pod licencijom AGPL-3.0. Svatko može pročitati kako se status odlučuje i pokrenuti vlastitu kopiju.',
+      },
+      {
+        title: 'Granica privatnosti',
+        body: 'Osobne isprave, opis slučaja, podaci za kontakt i interne bilješke nikada ne prelaze u javni zapis. Javna strana prikazuje postupak, ne osobu.',
+      },
+    ],
+    pilotTitle: 'Za općine i gradove',
+    pilotBody:
+      'Pilot-projekt počinje jednom pisanom poveljom: jedan javni postupak, imenovani nositelj, granica podataka, mjerljiv javni rezultat i imenovani neovisni provjeritelj. Opseg ostaje namjerno malen i nosi rok, rok čuvanja i uvjete obustave, kako bi se rezultat mogao ocijeniti, a ne samo tvrditi. Nijedna općina nije uključena i ništa ovdje ne radi na stvarnim podacima iz predmeta.',
+    pilotLinks: {
+      presentation: 'Pogledajte prezentaciju',
+      source: 'Pročitajte izvorni kod i licenciju',
+    },
+    entriesTitle: 'Demonstracija',
+    entriesLede:
+      'Šest ulaza u istu demonstraciju: jedan sintetički zapis, viđen iz svake uloge koja ga dodiruje.',
     demoNote:
       'Ono što učinite u demonstraciji ostaje u ovom pregledniku. Ništa se nikamo ne šalje, a demo možete vratiti na početak.',
     entries: {

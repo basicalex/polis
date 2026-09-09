@@ -10,7 +10,7 @@
  * Chrome comes from `DemoShell` (app bar, role switcher, one boundary line, language, reset), so
  * `Base` runs with `chrome="demo"` and the shell renders the boundary itself.
  *
- * Static chrome renders both languages as `data-lang` siblings (EN visible without JavaScript);
+ * Static chrome renders both languages as `data-lang` siblings (Croatian visible without JavaScript);
  * DemoShell's script shows the language held in the demo store. The report cards are built at
  * runtime in the current language, styled through the shared `.demo-*` global classes because
  * Astro scoped styles never reach runtime-built DOM.
@@ -24,7 +24,7 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 ---
 
 <Base
-  lang="en"
+  lang="hr"
   chrome="demo"
   title="Polis demo — Citizen"
   description="File a report in the Polis demonstration and follow it to the public record. Fictional data, held in your browser only."
@@ -40,12 +40,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
       <header class="citizen-head">
         <div class="citizen-head-text">
           <h1>
-            <span data-lang="en">My reports</span>
-            <span data-lang="hr" hidden>Moje prijave</span>
+            <span data-lang="en" hidden>My reports</span>
+            <span data-lang="hr">Moje prijave</span>
           </h1>
           <p class="demo-anchor">
-            <span data-lang="en">{institutionAnchor.en}</span>
-            <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+            <span data-lang="en" hidden>{institutionAnchor.en}</span>
+            <span data-lang="hr">{institutionAnchor.hr}</span>
           </p>
         </div>
         <div class="citizen-head-action">
@@ -57,8 +57,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
             aria-expanded="false"
             aria-controls="citizen-report-form"
           >
-            <span data-lang="en">Report an issue</span>
-            <span data-lang="hr" hidden>Prijavi problem</span>
+            <span data-lang="en" hidden>Report an issue</span>
+            <span data-lang="hr">Prijavi problem</span>
           </button>
         </div>
       </header>
@@ -67,8 +67,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 
       <div class="reports-region" data-reports>
         <p class="reports-state">
-          <span data-lang="en">Loading public record…</span>
-          <span data-lang="hr" hidden>Učitavanje javnog zapisa…</span>
+          <span data-lang="en" hidden>Loading public record…</span>
+          <span data-lang="hr">Učitavanje javnog zapisa…</span>
         </p>
       </div>
 
@@ -81,8 +81,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
           aria-expanded="false"
           aria-controls="citizen-report-form"
         >
-          <span data-lang="en">Report an issue</span>
-          <span data-lang="hr" hidden>Prijavi problem</span>
+          <span data-lang="en" hidden>Report an issue</span>
+          <span data-lang="hr">Prijavi problem</span>
         </button>
       </div>
 
@@ -93,8 +93,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
         hidden
       >
         <h2 class="citizen-form-title" id="citizen-form-title">
-          <span data-lang="en">Report an issue</span>
-          <span data-lang="hr" hidden>Prijavi problem</span>
+          <span data-lang="en" hidden>Report an issue</span>
+          <span data-lang="hr">Prijavi problem</span>
         </h2>
 
         <form class="citizen-form" data-report-form novalidate>
@@ -105,12 +105,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
             data-field="category"
           >
             <legend>
-              <span data-lang="en">Category</span>
-              <span data-lang="hr" hidden>Kategorija</span>
+              <span data-lang="en" hidden>Category</span>
+              <span data-lang="hr">Kategorija</span>
             </legend>
             <p class="field-hint" id="report-category-hint">
-              <span data-lang="en">Pick the one closest to the problem.</span>
-              <span data-lang="hr" hidden>Odaberite onu najbližu problemu.</span>
+              <span data-lang="en" hidden>Pick the one closest to the problem.</span>
+              <span data-lang="hr">Odaberite onu najbližu problemu.</span>
             </p>
             <div class="tiles">
               {
@@ -118,10 +118,8 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
                   <label class="tile">
                     <input type="radio" name="category" value={id} data-category={id} />
                     <span class="tile-text">
-                      <span data-lang="en">{categoryLabels[id].en}</span>
-                      <span data-lang="hr" hidden>
-                        {categoryLabels[id].hr}
-                      </span>
+                      <span data-lang="en" hidden>{categoryLabels[id].en}</span>
+                      <span data-lang="hr">{categoryLabels[id].hr}</span>
                     </span>
                   </label>
                 ))
@@ -132,12 +130,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 
           <div class="field">
             <label for="report-subject">
-              <span data-lang="en">Subject</span>
-              <span data-lang="hr" hidden>Predmet</span>
+              <span data-lang="en" hidden>Subject</span>
+              <span data-lang="hr">Predmet</span>
             </label>
             <p class="field-hint" id="report-subject-hint">
-              <span data-lang="en">One line naming the problem and where it is.</span>
-              <span data-lang="hr" hidden>Jedan redak s problemom i mjestom.</span>
+              <span data-lang="en" hidden>One line naming the problem and where it is.</span>
+              <span data-lang="hr">Jedan redak s problemom i mjestom.</span>
             </p>
             <input
               id="report-subject"
@@ -154,12 +152,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 
           <div class="field">
             <label for="report-narrative">
-              <span data-lang="en">What happened</span>
-              <span data-lang="hr" hidden>Što se dogodilo</span>
+              <span data-lang="en" hidden>What happened</span>
+              <span data-lang="hr">Što se dogodilo</span>
             </label>
             <p class="field-hint" id="report-narrative-hint">
-              <span data-lang="en">What you saw, when, and what it affects.</span>
-              <span data-lang="hr" hidden>Što ste vidjeli, kada i na što to utječe.</span>
+              <span data-lang="en" hidden>What you saw, when, and what it affects.</span>
+              <span data-lang="hr">Što ste vidjeli, kada i na što to utječe.</span>
             </p>
             <textarea
               id="report-narrative"
@@ -176,12 +174,12 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 
           <div class="form-actions">
             <button type="submit" class="btn" data-variant="primary">
-              <span data-lang="en">File the report</span>
-              <span data-lang="hr" hidden>Podnesi prijavu</span>
+              <span data-lang="en" hidden>File the report</span>
+              <span data-lang="hr">Podnesi prijavu</span>
             </button>
             <button type="button" class="btn" data-variant="tertiary" data-report-cancel>
-              <span data-lang="en">Cancel</span>
-              <span data-lang="hr" hidden>Odustani</span>
+              <span data-lang="en" hidden>Cancel</span>
+              <span data-lang="hr">Odustani</span>
             </button>
           </div>
         </form>
@@ -189,21 +187,18 @@ const categoryIds = DEMO_CATEGORIES as readonly (keyof typeof categoryLabels)[];
 
       <footer class="citizen-provenance">
         <p>
-          <span data-lang="en"
+          <span data-lang="en" hidden
             >Seeded records are frozen synthetic fixtures. Records you file are your own demo input
             and stay in this browser. Every record opens its full trace on the record surface.</span
           >
-          <span data-lang="hr" hidden
+          <span data-lang="hr"
             >Početni zapisi zamrznuti su izmišljeni primjeri. Zapisi koje podnesete vaš su demo unos
             i ostaju u ovom pregledniku. Svaki zapis otvara cijeli trag na prikazu zapisa.</span
           >
         </p>
         <noscript>
           <p class="citizen-noscript">
-            This demonstration needs JavaScript: the records are created and stored in your browser.
-            <span lang="hr"
-              >Ova demonstracija treba JavaScript: zapisi nastaju i ostaju u vašem pregledniku.</span
-            >
+            Ova demonstracija treba JavaScript: zapisi nastaju i ostaju u vašem pregledniku.
           </p>
         </noscript>
       </footer>

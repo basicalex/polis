@@ -55,7 +55,7 @@ The smoke script builds with an explicit loopback-only release exception, starts
 
 Required QA results:
 
-- `/` and `/hr/` render all five stages.
+- `/` (Croatian) and `/en/` (English) render all five stages, and `/hr/` still returns 301 to `/`.
 - Match and changed-byte verifier states both work without a network request.
 - Backend-dependent, restricted, and not-live representatives render the boundary.
 - No request reaches `/api/*`, `/version`, another origin, or a backend port.
@@ -83,7 +83,7 @@ Run the exact verification against the printed URL:
 ```bash
 export PREVIEW_URL='https://<printed-preview-host>'
 curl --fail-with-body --silent --show-error --dump-header - --output /dev/null "$PREVIEW_URL/"
-curl --fail-with-body --silent --show-error "$PREVIEW_URL/hr/" >/dev/null
+curl --fail-with-body --silent --show-error "$PREVIEW_URL/en/" >/dev/null
 curl --fail-with-body --silent --show-error --dump-header - --output /dev/null "$PREVIEW_URL/complaints/example"
 POLIS_RELEASE_BASE_URL="$PREVIEW_URL" bun run --filter @polis/apps-web smoke:release
 ```
@@ -129,7 +129,7 @@ If Wrangler cannot attach the route, stop and inspect the reported zone or route
 export PRODUCTION_URL='https://polis.intrface.eu'
 
 curl --fail-with-body --silent --show-error --dump-header - --output /dev/null "$PRODUCTION_URL/"
-curl --fail-with-body --silent --show-error "$PRODUCTION_URL/hr/" >/dev/null
+curl --fail-with-body --silent --show-error "$PRODUCTION_URL/en/" >/dev/null
 curl --fail-with-body --silent --show-error --dump-header - --output /dev/null "$PRODUCTION_URL/partners"
 curl --fail-with-body --silent --show-error --dump-header - --output /dev/null "$PRODUCTION_URL/complaints/example"
 POLIS_RELEASE_BASE_URL="$PRODUCTION_URL" bun run --filter @polis/apps-web smoke:release
@@ -138,7 +138,7 @@ bunx wrangler deployments list --config apps/web/wrangler.jsonc --env=""
 
 Verify:
 
-- `/` and `/hr/` return `200` with the expected release content.
+- `/` (Croatian) and `/en/` (English) return `200` with the expected release content; `/hr/` returns `301` to `/`.
 - `/partners` carries `X-Polis-Release-Boundary: backend-dependent`.
 - `/complaints/example` carries `X-Polis-Release-Boundary: restricted`.
 - HTML responses contain the configured CSP, HSTS, frame, MIME, referrer, permissions, and cache headers.

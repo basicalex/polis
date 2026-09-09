@@ -13,6 +13,8 @@ test('web has required phase 1 and public-release routes', async () => {
   const presentation = await readFile(new URL('presentation.astro', root), 'utf8');
   assert.match(presentation, /PublicReleaseHome/);
   await exists('index.astro');
+  await exists('en/index.astro');
+  await exists(join('en', 'presentation.astro'));
   await exists('hr/index.astro');
   await exists(join('hr', 'presentation.astro'));
   await exists('release-boundary.astro');
@@ -32,13 +34,14 @@ test('web has trust-experience routes', async () => {
 test('resident complaints routes are client-fetched and linked from primary navigation', async () => {
   await exists(join('complaints', 'index.astro'));
   await exists(join('complaints', '[id].astro'));
-  const [base, index, detail] = await Promise.all([
+  const [base, chromeContent, index, detail] = await Promise.all([
     readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/chrome.ts', import.meta.url), 'utf8'),
     readFile(new URL('complaints/index.astro', root), 'utf8'),
     readFile(new URL(join('complaints', '[id].astro'), root), 'utf8'),
   ]);
 
-  assert.equal((base.match(/href: '\/complaints'/g) ?? []).length, 1);
+  assert.equal((chromeContent.match(/href: '\/complaints'/g) ?? []).length, 1);
   assert.match(base, /window\.__API_URL/);
   assert.match(index, /sessionStorage\.getItem\('web_session'\)/);
   assert.match(index, /\/api\/v1\/complaints\/mine/);
@@ -133,15 +136,16 @@ test('pilot demonstrator support pages keep their local-mode disclosure and reso
 });
 
 test('public release uses one bilingual five-stage semantic Trace composition', async () => {
-  const [presentation, hr, component, content] = await Promise.all([
+  const [presentation, english, component, content] = await Promise.all([
     readFile(new URL('presentation.astro', root), 'utf8'),
-    readFile(new URL('hr/presentation.astro', root), 'utf8'),
+    readFile(new URL('en/presentation.astro', root), 'utf8'),
     readFile(new URL('../src/components/PublicReleaseHome.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/content/public-release.ts', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(presentation, /<PublicReleaseHome lang="en" \/>/);
-  assert.match(hr, /<PublicReleaseHome lang="hr" \/>/);
+  // Croatian at the root, English under /en/ (revision decision R1).
+  assert.match(presentation, /<PublicReleaseHome lang="hr" \/>/);
+  assert.match(english, /<PublicReleaseHome lang="en" \/>/);
   assert.match(component, /stages\.map/);
   assert.match(component, /record\.events\.slice\(0, index \+ 1\)/);
   for (const stage of ['voice', 'responsibility', 'response', 'check', 'receipt']) {
@@ -175,13 +179,13 @@ test('public release uses one bilingual five-stage semantic Trace composition', 
 });
 
 test('the landing opens every role demo and keeps old presenter links working', async () => {
-  const [index, hr, hub] = await Promise.all([
+  const [index, english, hub] = await Promise.all([
     readFile(new URL('index.astro', root), 'utf8'),
-    readFile(new URL('hr/index.astro', root), 'utf8'),
+    readFile(new URL('en/index.astro', root), 'utf8'),
     readFile(new URL(join('demo', 'index.astro'), root), 'utf8'),
   ]);
 
-  for (const page of [index, hr]) {
+  for (const page of [index, english]) {
     for (const href of [
       '/demo/citizen',
       '/demo/official',
@@ -197,8 +201,8 @@ test('the landing opens every role demo and keeps old presenter links working', 
 
   assert.match(index, /'\/presentation'/);
   assert.match(index, /Astro\.redirect\('\/presentation\?present=1', 302\)/);
-  assert.match(hr, /'\/hr\/presentation'/);
-  assert.match(hr, /Astro\.redirect\('\/hr\/presentation\?present=1', 302\)/);
+  assert.match(english, /'\/en\/presentation'/);
+  assert.match(english, /Astro\.redirect\('\/en\/presentation\?present=1', 302\)/);
   assert.match(hub, /Astro\.redirect\('\/', 302\)/);
 });
 
@@ -265,9 +269,10 @@ test('release boundary accepts and stores no data', async () => {
 });
 
 test('site chrome groups the local navigation and skips to main content', async () => {
-  const [base, chrome] = await Promise.all([
+  const [base, chrome, chromeContent] = await Promise.all([
     readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/styles/chrome.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/chrome.ts', import.meta.url), 'utf8'),
   ]);
   // The skip link targets the id that actually sits on <main> (audit F13).
   assert.match(base, /class="skip-link" href="#main-content"/);
@@ -279,16 +284,23 @@ test('site chrome groups the local navigation and skips to main content', async 
   // exclusive-accordion name appears at two places in the source.
   assert.match(base, /import '\.\.\/styles\/chrome\.css';/);
   assert.equal((base.match(/name="polis-nav-group"/g) ?? []).length, 2);
-  const groups = base.slice(base.indexOf('const localNavGroups'), base.indexOf('const isCurrentPath'));
-  assert.deepEqual(
-    (groups.match(/^ {4}label: '(\w+)',$/gm) ?? []).map((line) => line.trim()),
-    ["label: 'Record',", "label: 'Trust',", "label: 'Learn',"],
+  const groups = chromeContent.slice(
+    chromeContent.indexOf('export const localNavGroups'),
+    chromeContent.indexOf('export const accountNav'),
   );
-  assert.match(base, /<summary class="nav-group-summary">Account<\/summary>/);
+  assert.deepEqual(
+    (groups.match(/^ {4}label: \{ en: '(\w+)', hr: '[^']+' \},$/gm) ?? []).map((line) => line.trim()),
+    [
+      "label: { en: 'Record', hr: 'Zapis' },",
+      "label: { en: 'Trust', hr: 'Povjerenje' },",
+      "label: { en: 'Learn', hr: 'Upute' },",
+    ],
+  );
+  assert.match(base, /<summary class="nav-group-summary">\{text\(accountNav\.label, lang\)\}<\/summary>/);
 
-  // Every destination keeps a one-line description (rule S3).
+  // Every destination keeps a one-line description in both languages (S3).
   const hrefs = groups.match(/href: '/g) ?? [];
-  const notes = groups.match(/note: '/g) ?? [];
+  const notes = groups.match(/note: \{/g) ?? [];
   assert.equal(hrefs.length, 13);
   assert.equal(notes.length, hrefs.length);
 
@@ -298,9 +310,69 @@ test('site chrome groups the local navigation and skips to main content', async 
   assert.match(chrome, /\.nav-group\[data-current='true'\] > \.nav-group-summary/);
 
   // Phone: one Menu disclosure at the minimum target size.
-  assert.match(base, /<summary class="nav-root-summary">Menu<\/summary>/);
+  assert.match(base, /<summary class="nav-root-summary">\{text\(menuButton, lang\)\}<\/summary>/);
   assert.match(chrome, /\.nav-root-summary \{[^}]*min-height: var\(--tap-target\)/);
   assert.match(chrome, /@media \(max-width: 40rem\)/);
   // Scripting only carries the phone collapse and Escape handling.
   assert.match(base, /event\.key !== 'Escape'/);
+});
+
+test('Croatian is the default language and English lives under /en/', async () => {
+  const [index, presentation, hrIndex, hrPresentation, base] = await Promise.all([
+    readFile(new URL('index.astro', root), 'utf8'),
+    readFile(new URL('presentation.astro', root), 'utf8'),
+    readFile(new URL('hr/index.astro', root), 'utf8'),
+    readFile(new URL('hr/presentation.astro', root), 'utf8'),
+    readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+  ]);
+
+  // The root pair is Croatian and declares both alternates.
+  assert.match(index, /const lang = 'hr' as const;/);
+  assert.match(index, /alternates=\{\{ hr: '\/', en: '\/en\/' \}\}/);
+  assert.match(presentation, /alternates=\{\{ hr: '\/presentation', en: '\/en\/presentation' \}\}/);
+
+  // The old Croatian addresses are permanent redirects that keep the query.
+  assert.match(hrIndex, /Astro\.redirect\(`\/\$\{Astro\.url\.search\}`, 301\)/);
+  assert.match(hrPresentation, /Astro\.redirect\(`\/presentation\$\{Astro\.url\.search\}`, 301\)/);
+
+  // Both languages plus x-default are declared in the head.
+  assert.match(base, /<link rel="alternate" hreflang="hr" href=\{absolute\(alternates\.hr\)\} \/>/);
+  assert.match(base, /<link rel="alternate" hreflang="en" href=\{absolute\(alternates\.en\)\} \/>/);
+  assert.match(base, /<link rel="alternate" hreflang="x-default" href=\{absolute\(alternates\.hr\)\} \/>/);
+});
+
+test('site chrome and footer read one bilingual content source', async () => {
+  const [base, chrome, chromeContent] = await Promise.all([
+    readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/chrome.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/chrome.ts', import.meta.url), 'utf8'),
+  ]);
+
+  // No chrome string is written in the layout; every one comes from chrome.ts.
+  assert.match(base, /from '\.\.\/content\/chrome'/);
+  assert.match(base, /\{text\(skipLink, lang\)\}/);
+  assert.doesNotMatch(base, />Skip to content</);
+  assert.doesNotMatch(base, />Menu</);
+
+  // The banner text keeps one source in public-release.ts and is re-exported.
+  assert.match(chromeContent, /export \{ releaseBanner, releaseBannerDetails \};/);
+
+  // Footer: brand sentence, three link groups, the language switch, and the
+  // boundary or version row (revision decision R5).
+  assert.match(base, /class="footer-blurb"/);
+  for (const group of ["id: 'product'", "id: 'trust'", "id: 'source'"]) {
+    assert.match(chromeContent, new RegExp(group), group);
+  }
+  assert.match(base, /\{text\(languageSwitch, lang\)\}/);
+  assert.match(base, /statusLabels\.demonstrationFixture\[lang\]/);
+  assert.match(base, /statusLabels\.notLive\[lang\]/);
+  assert.match(base, /id="version-meta"/);
+  assert.match(base, /apiUrl \+ '\/version'/);
+
+  // Header, footer, and banner content share the page column (decision R2).
+  assert.equal((base.match(/class="site-container/g) ?? []).length, 3);
+  assert.match(chrome, /\.site-container \{\s*width: min\(var\(--page-measure\), 100%\);/);
+  assert.match(chrome, /padding-inline: var\(--page-gutter\)/);
+  // Footer columns collapse to one on phones.
+  assert.match(chrome, /\.footer-nav \{\s*grid-template-columns: minmax\(0, 1fr\);/);
 });

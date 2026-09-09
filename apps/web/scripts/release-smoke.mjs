@@ -143,7 +143,7 @@ async function assertLanding(page, language) {
     '/demo/review',
     '/demo/record',
     '/demo/embed',
-    language === 'hr' ? '/hr/presentation' : '/presentation',
+    language === 'en' ? '/en/presentation' : '/presentation',
   ];
   const hrefs = await page
     .locator('.landing a[href]')
@@ -210,21 +210,44 @@ async function assertKeyboardFocus(page) {
   );
 }
 
-async function assertVerifier(page) {
-  const original = page.getByRole('button', { name: /use exact fixture bytes/i });
-  const changed = page.getByRole('button', { name: /change one byte/i });
+// The verifier controls and results are reviewed labels, so the smoke run
+// matches both languages rather than assuming the English page (decision R1).
+const verifierCopy = {
+  en: {
+    original: /use exact fixture bytes/i,
+    changed: /change one byte/i,
+    match: 'EXACT MATCH',
+    mismatch: 'CHANGED BYTE — NO MATCH',
+    limitation: 'does not make the claim true',
+  },
+  hr: {
+    original: /koristi izvorne bajtove primjera/i,
+    changed: /promijeni jedan bajt/i,
+    match: 'POTPUNO PODUDARANJE',
+    mismatch: 'PROMIJENJEN BAJT — NEMA PODUDARANJA',
+    limitation: 'ne čini tvrdnju istinitom',
+  },
+};
+
+async function assertVerifier(page, language) {
+  const copy = verifierCopy[language];
+  const original = page.getByRole('button', { name: copy.original });
+  const changed = page.getByRole('button', { name: copy.changed });
   assert((await original.count()) === 1, 'original-byte verifier control is missing');
   assert((await changed.count()) === 1, 'changed-byte verifier control is missing');
 
   await original.click();
-  assert((await page.locator('[data-verifier-result]').textContent())?.trim() === 'EXACT MATCH', 'exact-match result is missing');
+  assert(
+    (await page.locator('[data-verifier-result]').textContent())?.trim() === copy.match,
+    'exact-match result is missing',
+  );
   await changed.click();
   assert(
-    (await page.locator('[data-verifier-result]').textContent())?.trim() === 'CHANGED BYTE — NO MATCH',
+    (await page.locator('[data-verifier-result]').textContent())?.trim() === copy.mismatch,
     'changed-byte mismatch result is missing',
   );
   const body = await page.locator('body').innerText();
-  assert(body.includes('does not make the claim true'), 'verifier truth limitation is missing');
+  assert(body.includes(copy.limitation), 'verifier truth limitation is missing');
 }
 
 async function activePresenterStage(page) {
@@ -250,7 +273,7 @@ async function assertPresenterKeyboard(page) {
   assert(end && end !== home, 'End did not move to the final presenter stage');
 
   for (let index = 0; index < 5; index += 1) {
-    const verifierButton = page.getByRole('button', { name: /use exact fixture bytes/i });
+    const verifierButton = page.getByRole('button', { name: verifierCopy.hr.original });
     if ((await verifierButton.count()) === 1 && (await verifierButton.isVisible())) {
       await verifierButton.focus();
       const stageBeforeControlKey = await activePresenterStage(page);
@@ -339,25 +362,37 @@ try {
   trackRequests(desktop, forbiddenRequests);
   const desktopPage = await desktop.newPage();
   await desktopPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(desktopPage, 'en');
+  await assertLanding(desktopPage, 'hr');
   await assertGeometry(desktopPage, 'landing desktop');
   await assertKeyboardFocus(desktopPage);
   await desktopPage.screenshot({ path: path.join(screenshotsDir, 'landing-1440x900.png'), fullPage: true });
 
-  await desktopPage.goto(`${baseUrl}/hr/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(desktopPage, 'hr');
-  await assertGeometry(desktopPage, 'Croatian landing desktop');
+  await desktopPage.goto(`${baseUrl}/en/`, { waitUntil: 'domcontentloaded' });
+  await assertLanding(desktopPage, 'en');
+  await assertGeometry(desktopPage, 'English landing desktop');
 
   await desktopPage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(desktopPage, 'en');
+  await assertStages(desktopPage, 'hr');
   await assertGeometry(desktopPage, 'desktop');
   await assertKeyboardFocus(desktopPage);
-  await assertVerifier(desktopPage);
+  await assertVerifier(desktopPage, 'hr');
   await desktopPage.screenshot({ path: path.join(screenshotsDir, 'desktop-1440x900.png'), fullPage: true });
 
-  await desktopPage.goto(`${baseUrl}/hr/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(desktopPage, 'hr');
-  await assertGeometry(desktopPage, 'Croatian desktop');
+  await desktopPage.goto(`${baseUrl}/en/presentation`, { waitUntil: 'domcontentloaded' });
+  await assertStages(desktopPage, 'en');
+  await assertGeometry(desktopPage, 'English desktop');
+
+  // The old Croatian addresses stay reachable as permanent redirects (R1).
+  for (const [legacy, target] of [
+    ['/hr/', '/'],
+    ['/hr/presentation', '/presentation'],
+  ]) {
+    await desktopPage.goto(`${baseUrl}${legacy}`, { waitUntil: 'domcontentloaded' });
+    assert(
+      new URL(desktopPage.url()).pathname === target,
+      `${legacy} did not redirect to ${target}: ${desktopPage.url()}`,
+    );
+  }
 
   for (const demoPath of [
     '/demo/citizen',
@@ -405,7 +440,7 @@ try {
     new URL(desktopPage.url()).pathname === '/presentation',
     `/?present=1 did not reach the presentation: ${desktopPage.url()}`,
   );
-  await assertStages(desktopPage, 'en');
+  await assertStages(desktopPage, 'hr');
   await assertGeometry(desktopPage, 'presenter');
   await assertPresenterKeyboard(desktopPage);
   await desktopPage.setViewportSize({ width: 1920, height: 1080 });
@@ -418,19 +453,19 @@ try {
   trackRequests(mobile, forbiddenRequests);
   const mobilePage = await mobile.newPage();
   await mobilePage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(mobilePage, 'en');
+  await assertLanding(mobilePage, 'hr');
   await assertGeometry(mobilePage, 'landing mobile');
   await mobilePage.screenshot({
     path: path.join(screenshotsDir, 'landing-mobile-390x844.png'),
     fullPage: true,
   });
 
-  await mobilePage.goto(`${baseUrl}/hr/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(mobilePage, 'hr');
-  await assertGeometry(mobilePage, 'Croatian landing mobile');
+  await mobilePage.goto(`${baseUrl}/en/`, { waitUntil: 'domcontentloaded' });
+  await assertLanding(mobilePage, 'en');
+  await assertGeometry(mobilePage, 'English landing mobile');
 
   await mobilePage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(mobilePage, 'en');
+  await assertStages(mobilePage, 'hr');
   await assertGeometry(mobilePage, 'mobile');
   await assertKeyboardFocus(mobilePage);
   await mobilePage.screenshot({ path: path.join(screenshotsDir, 'mobile-390x844.png'), fullPage: true });

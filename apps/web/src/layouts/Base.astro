@@ -3,17 +3,34 @@ import '../styles.css';
 import '../styles/chrome.css';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
 import {
-  directionContract,
+  accountNav,
+  footer as footerChrome,
+  languageEndonyms,
+  languageHomes,
+  languageSwitch,
+  localBanner,
+  localNavGroups,
+  menuButton,
+  presentationHrefs,
   releaseBanner,
   releaseBannerDetails,
-  statusLabels,
-  type Lang,
-} from '../content/public-release';
+  releaseNav,
+  skipLink,
+  text,
+} from '../content/chrome';
+import { directionContract, statusLabels, type Lang } from '../content/public-release';
 
 interface Props {
   title?: string;
   description?: string;
   lang?: Lang;
+  /**
+   * The Croatian and English addresses of this same page, for `hreflang` and the
+   * language switch. Only the landing and the presentation exist in both
+   * languages; every other page omits this and the switch falls back to the other
+   * language's home.
+   */
+  alternates?: { hr: string; en: string };
   /**
    * Which chrome the page wants around its content.
    *
@@ -32,92 +49,43 @@ const {
   title = 'Polis Interface',
   description = 'Follow one synthetic public response from community voice to an independently reviewed receipt.',
   lang = 'en',
+  alternates,
   chrome = 'site',
 } = Astro.props as Props;
 const demoChrome = chrome === 'demo';
 const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
 const presenter = Astro.url.searchParams.get('present') === '1';
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
-const homeHref = lang === 'hr' ? '/hr/' : '/';
-const presentationHref = lang === 'hr' ? '/hr/presentation' : '/presentation';
+const otherLang: Lang = lang === 'hr' ? 'en' : 'hr';
+const homeHref = languageHomes[lang];
+const presentationHref = presentationHrefs[lang];
 const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
-const onPresentation = currentPath === '/presentation' || currentPath === '/hr/presentation';
-const otherLanguageHref = onPresentation
-  ? lang === 'hr'
-    ? '/presentation'
-    : '/hr/presentation'
-  : lang === 'hr'
-    ? '/'
-    : '/hr/';
+const onPresentation = currentPath === '/presentation' || currentPath === '/en/presentation';
+const languageHrefs = {
+  hr: alternates?.hr ?? languageHomes.hr,
+  en: alternates?.en ?? languageHomes.en,
+};
+const otherLanguageHref = languageHrefs[otherLang];
 const presentHref = `${presentationHref}?present=1`;
-const releaseNavigation = {
-  en: {
-    primary: 'Public release',
-    boundary: 'Release boundary',
-    presentation: 'Presentation',
-    transparency: 'Transparency',
-    source: 'Source',
-    language: 'Hrvatski',
-    present: 'Present',
-    skip: 'Skip to content',
-    more: 'More',
-  },
-  hr: {
-    primary: 'Javno izdanje',
-    boundary: 'Granica izdanja',
-    presentation: 'Prezentacija',
-    transparency: 'Transparentnost',
-    source: 'Izvor',
-    language: 'English',
-    present: 'Izlaganje',
-    skip: 'Preskoči na sadržaj',
-    more: 'Dalje',
-  },
-}[lang];
 
-/*
- * Local demonstrator navigation. Thirteen flat links became four groups so a
- * reader chooses a subject before a destination (rules I2, S3). Each item
- * carries one line saying what the page does; the group holding the current
- * page and the current page itself are marked by weight, not colour (P4).
- */
-const localNavGroups = [
-  {
-    id: 'record',
-    label: 'Record',
-    items: [
-      { href: '/issues', label: 'Issues', note: 'Public problems under deliberation' },
-      { href: '/complaints', label: 'Complaints', note: 'Your own casework, kept private' },
-      { href: '/deliberate', label: 'Deliberate', note: 'Conversations that feed an issue' },
-      {
-        href: '/governance/jur-croatia-local',
-        label: 'Governance',
-        note: 'Which office answers for what',
-      },
-      { href: '/assistant', label: 'Assistant', note: 'Drafting help with cited sources' },
-    ],
+/** Absolute URL for a site-relative path, for the `hreflang` alternates. */
+const absolute = (path: string) => new URL(path, Astro.site ?? Astro.url).href;
+
+const accountStrings = {
+  login: {
+    label: text(accountNav.login.label, lang),
+    note: text(accountNav.login.note, lang),
   },
-  {
-    id: 'trust',
-    label: 'Trust',
-    items: [
-      { href: '/verify', label: 'Verify', note: 'Check a file against a registered digest' },
-      { href: '/proofs', label: 'Proofs', note: 'Receipts and the proofs behind them' },
-      { href: '/audit', label: 'Audit', note: 'The append-only event trail' },
-      { href: '/transparency', label: 'Transparency', note: 'What this build does and does not do' },
-    ],
+  mandateHolders: {
+    label: text(accountNav.mandateHolders.label, lang),
+    note: text(accountNav.mandateHolders.note, lang),
   },
-  {
-    id: 'learn',
-    label: 'Learn',
-    items: [
-      { href: '/docs', label: 'Docs', note: 'How the platform is put together' },
-      { href: '/methodology', label: 'Methodology', note: 'How evidence and review work' },
-      { href: '/source', label: 'Source', note: 'Repository, licence, and build' },
-      { href: '/privacy', label: 'Privacy', note: 'What is stored and what stays private' },
-    ],
+  logout: {
+    label: text(accountNav.logout.label, lang),
+    note: text(accountNav.logout.note, lang),
   },
-];
+};
+const versionUnavailable = text(footerChrome.versionUnavailable, lang);
 
 const isCurrentPath = (href: string) =>
   currentPath === href || currentPath.startsWith(`${href}/`);
@@ -135,50 +103,65 @@ const isCurrentPath = (href: string) =>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {
+      alternates && (
+        <>
+          <link rel="alternate" hreflang="hr" href={absolute(alternates.hr)} />
+          <link rel="alternate" hreflang="en" href={absolute(alternates.en)} />
+          <link rel="alternate" hreflang="x-default" href={absolute(alternates.hr)} />
+        </>
+      )
+    }
   </head>
   <body><Fragment set:html={`<!-- direction-contract\n${directionContract}\n-->`} />
-    <a class="skip-link" href="#main-content">{publicRelease ? releaseNavigation.skip : 'Skip to content'}</a>
+    <a class="skip-link" href="#main-content">{text(skipLink, lang)}</a>
     <div class:list={['site-shell', { 'site-shell--presenter': publicRelease && presenter }]}>
       {
         demoChrome ? null : publicRelease ? (
-          <aside class="release-boundary-banner" aria-label={releaseNavigation.boundary}>
-            <p>
-              {releaseBanner[lang]}{' '}
-              <a href="/transparency">{releaseBannerDetails[lang]}</a>
-            </p>
+          <aside
+            class="release-boundary-banner release-banner--chrome"
+            aria-label={text(releaseNav.boundary, lang)}
+          >
+            <div class="site-container">
+              <p>
+                {releaseBanner[lang]}{' '}
+                <a href="/transparency">{releaseBannerDetails[lang]}</a>
+              </p>
+            </div>
           </aside>
         ) : (
-          <DemoBadge banner label="Demo — synthetic data, development proof keys." />
+          <DemoBadge banner label={text(localBanner, lang)} />
         )
       }
 
       {!demoChrome && (
       <header class="site-header site-header--chrome">
+        <div class="site-container site-header-inner">
         <a class="site-brand" href={homeHref}>Polis</a>
         {
           publicRelease ? (
             <div class="release-nav-shell">
-              <nav class="site-nav release-nav" aria-label={releaseNavigation.primary}>
+              <nav class="site-nav release-nav" aria-label={text(releaseNav.primary, lang)}>
                 <a class="nav-link" href={presentationHref} aria-current={onPresentation ? 'page' : undefined}>
-                  {releaseNavigation.presentation}
+                  {text(releaseNav.presentation, lang)}
                 </a>
                 <a class="nav-link" href="/transparency" aria-current={currentPath === '/transparency' ? 'page' : undefined}>
-                  {releaseNavigation.transparency}
+                  {text(releaseNav.transparency, lang)}
                 </a>
                 <a class="nav-link" href="/source" aria-current={currentPath === '/source' ? 'page' : undefined}>
-                  {releaseNavigation.source}
+                  {text(releaseNav.source, lang)}
                 </a>
-                <a class="nav-link" href={otherLanguageHref} hreflang={lang === 'hr' ? 'en' : 'hr'}>
-                  {releaseNavigation.language}
+                <a class="nav-link" href={otherLanguageHref} hreflang={otherLang} lang={otherLang}>
+                  {languageEndonyms[otherLang]}
                 </a>
-                {!presenter && <a class="nav-link" href={presentHref}>{releaseNavigation.present}</a>}
+                {!presenter && <a class="nav-link" href={presentHref}>{text(releaseNav.present, lang)}</a>}
               </nav>
-              <span class="release-nav-overflow" aria-hidden="true">{releaseNavigation.more} →</span>
+              <span class="release-nav-overflow" aria-hidden="true">{text(releaseNav.more, lang)} →</span>
             </div>
           ) : (
             <details class="nav-root" data-nav-root open>
-              <summary class="nav-root-summary">Menu</summary>
-              <nav class="site-nav site-nav--groups" aria-label="Primary">
+              <summary class="nav-root-summary">{text(menuButton, lang)}</summary>
+              <nav class="site-nav site-nav--groups" aria-label={text(releaseNav.primary, lang)}>
                 {localNavGroups.map((group) => (
                   <details
                     class="nav-group"
@@ -186,7 +169,7 @@ const isCurrentPath = (href: string) =>
                     data-nav-group
                     data-current={group.items.some((item) => isCurrentPath(item.href)) ? 'true' : undefined}
                   >
-                    <summary class="nav-group-summary">{group.label}</summary>
+                    <summary class="nav-group-summary">{text(group.label, lang)}</summary>
                     <div class="nav-menu">
                       {group.items.map((item) => (
                         <a
@@ -194,8 +177,8 @@ const isCurrentPath = (href: string) =>
                           href={item.href}
                           aria-current={isCurrentPath(item.href) ? 'page' : undefined}
                         >
-                          <span class="nav-item-label">{item.label}</span>
-                          <span class="nav-item-note">{item.note}</span>
+                          <span class="nav-item-label">{text(item.label, lang)}</span>
+                          <span class="nav-item-note">{text(item.note, lang)}</span>
                         </a>
                       ))}
                     </div>
@@ -207,11 +190,11 @@ const isCurrentPath = (href: string) =>
                   data-nav-group
                   data-current={isCurrentPath('/login') || isCurrentPath('/mandate-holders') ? 'true' : undefined}
                 >
-                  <summary class="nav-group-summary">Account</summary>
+                  <summary class="nav-group-summary">{text(accountNav.label, lang)}</summary>
                   <div class="nav-menu" id="auth-nav">
-                    <a class="nav-item" href="/login" aria-current={isCurrentPath('/login') ? 'page' : undefined}>
-                      <span class="nav-item-label">Login</span>
-                      <span class="nav-item-note">Sign in to file and follow casework</span>
+                    <a class="nav-item" href={accountNav.login.href} aria-current={isCurrentPath('/login') ? 'page' : undefined}>
+                      <span class="nav-item-label">{accountStrings.login.label}</span>
+                      <span class="nav-item-note">{accountStrings.login.note}</span>
                     </a>
                   </div>
                 </details>
@@ -219,53 +202,91 @@ const isCurrentPath = (href: string) =>
             </details>
           )
         }
+        </div>
       </header>
       )}
 
       <main class="site-main" id="main-content"><slot /></main>
 
       <footer class="site-footer site-footer--chrome" id="site-footer">
-        {
-          publicRelease ? (
-            <>
-              <span class="footer-item footer-label">{statusLabels.demonstrationFixture[lang]}</span>
-              <span class="footer-separator" aria-hidden="true">·</span>
-              <span class="footer-item footer-label">{statusLabels.notLive[lang]}</span>
-              <span class="footer-separator" aria-hidden="true">·</span>
-              <span class="footer-item">AGPL-3.0-or-later</span>
-              <span class="footer-separator" aria-hidden="true">·</span>
-              <span class="footer-item"><a href="/source">{releaseNavigation.source}</a></span>
-            </>
-          ) : (
-            <>
-              <span class="footer-item">Source: https://github.com/basicalex/polis</span>
-              <span class="footer-separator" aria-hidden="true">·</span>
-              <span class="footer-item">AGPL-3.0-or-later</span>
-              <span class="footer-separator" aria-hidden="true">·</span>
-              <span class="footer-item" id="version-meta">version unavailable</span>
-              <script is:inline define:vars={{ apiUrl }}>
-                const target = document.getElementById('version-meta');
-                fetch(apiUrl + '/version')
-                  .then((response) => (response.ok ? response.json() : null))
-                  .then((version) => {
-                    if (!version) return;
-                    const meta = [
-                      version.version ? 'v' + version.version : '',
-                      version.gitSha ? 'git ' + version.gitSha : '',
-                      version.buildTime ? 'built ' + version.buildTime : '',
-                      version.environment ? version.environment : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' · ');
-                    if (target && meta) target.textContent = meta;
-                  })
-                  .catch(() => {
-                    /* offline/API down: keep static label */
-                  });
-              </script>
-            </>
-          )
-        }
+        <div class="site-container site-footer-inner">
+          <div class="footer-brand">
+            <span class="footer-wordmark">Polis</span>
+            <p class="footer-blurb">{text(footerChrome.blurb, lang)}</p>
+          </div>
+
+          <nav class="footer-nav" aria-label={text(footerChrome.navLabel, lang)}>
+            {footerChrome.groups.map((group) => (
+              <div class="footer-column">
+                <h2 class="footer-heading">{text(group.label, lang)}</h2>
+                <ul class="footer-links">
+                  {group.links.map((link) => (
+                    <li>
+                      <a
+                        href={link.href[lang]}
+                        rel={link.external ? 'noreferrer' : undefined}
+                      >
+                        {text(link.label, lang)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            <div class="footer-column">
+              <h2 class="footer-heading">{text(languageSwitch, lang)}</h2>
+              <ul class="footer-links">
+                <li>
+                  <a href={languageHrefs.hr} hreflang="hr" lang="hr" aria-current={lang === 'hr' ? 'true' : undefined}>
+                    {languageEndonyms.hr}
+                  </a>
+                </li>
+                <li>
+                  <a href={languageHrefs.en} hreflang="en" lang="en" aria-current={lang === 'en' ? 'true' : undefined}>
+                    {languageEndonyms.en}
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </nav>
+
+          <div class="footer-bottom">
+            {
+              publicRelease ? (
+                <>
+                  <span class="footer-item footer-label">{statusLabels.demonstrationFixture[lang]}</span>
+                  <span class="footer-separator" aria-hidden="true">·</span>
+                  <span class="footer-item footer-label">{statusLabels.notLive[lang]}</span>
+                </>
+              ) : (
+                <>
+                  <span class="footer-item" id="version-meta">{versionUnavailable}</span>
+                  <script is:inline define:vars={{ apiUrl }}>
+                    const target = document.getElementById('version-meta');
+                    fetch(apiUrl + '/version')
+                      .then((response) => (response.ok ? response.json() : null))
+                      .then((version) => {
+                        if (!version) return;
+                        const meta = [
+                          version.version ? 'v' + version.version : '',
+                          version.gitSha ? 'git ' + version.gitSha : '',
+                          version.buildTime ? 'built ' + version.buildTime : '',
+                          version.environment ? version.environment : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        if (target && meta) target.textContent = meta;
+                      })
+                      .catch(() => {
+                        /* offline/API down: keep static label */
+                      });
+                  </script>
+                </>
+              )
+            }
+          </div>
+        </div>
       </footer>
     </div>
 
@@ -316,7 +337,7 @@ const isCurrentPath = (href: string) =>
 
     {
       !publicRelease && (
-        <script is:inline define:vars={{ apiUrl }}>
+        <script is:inline define:vars={{ apiUrl, accountStrings }}>
           window.__API_URL = apiUrl;
           const rawSession = sessionStorage.getItem('web_session');
           const authNav = document.getElementById('auth-nav');
@@ -337,14 +358,16 @@ const isCurrentPath = (href: string) =>
               return link;
             };
             if (!rawSession) {
-              authNav.replaceChildren(item('/login', 'Login', 'Sign in to file and follow casework'));
+              authNav.replaceChildren(
+                item('/login', accountStrings.login.label, accountStrings.login.note),
+              );
             } else {
               const mandateHolders = item(
                 '/mandate-holders',
-                'Mandate-holders',
-                'People holding a public mandate',
+                accountStrings.mandateHolders.label,
+                accountStrings.mandateHolders.note,
               );
-              const logout = item('#', 'Logout', 'End this browser session');
+              const logout = item('#', accountStrings.logout.label, accountStrings.logout.note);
               logout.removeAttribute('aria-current');
               logout.addEventListener('click', (event) => {
                 event.preventDefault();

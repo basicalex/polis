@@ -53,7 +53,7 @@ test.beforeEach(() => {
 test('the store seeds from the committed fixtures', () => {
   const state = getState();
   assert.equal(state.version, 1);
-  assert.equal(state.lang, 'en');
+  assert.equal(state.lang, 'hr');
   assert.equal(STORAGE_KEY, 'polis-demo-v1');
   assert.deepEqual(
     state.records.map((record) => record.id),
@@ -233,16 +233,17 @@ test('invalid transitions throw a plain message', () => {
 });
 
 test('setLang keeps the record set and notifies subscribers', () => {
+  // Croatian is the seeded default, so English is the change that notifies.
   const seen = [];
   const unsubscribe = subscribe((state) => seen.push(state.lang));
-  setLang('hr');
-  setLang('hr');
+  setLang('en');
+  setLang('en');
   unsubscribe();
 
-  assert.deepEqual(seen, ['hr']);
-  assert.equal(getState().lang, 'hr');
+  assert.deepEqual(seen, ['en']);
+  assert.equal(getState().lang, 'en');
   assert.equal(getState().records.length, 3);
-  setLang('en');
+  setLang('hr');
 });
 
 test('resetDemo restores the seed and drops filed records', () => {

@@ -3,10 +3,14 @@ import '../styles/public.css';
 import {
   landing,
   landingEntryIds,
+  landingSectionIds,
+  record,
   stageLabels,
   stages,
+  statusLabels,
   type Lang,
   type LandingEntryId,
+  type Stage,
 } from '../content/public-release';
 
 interface Props {
@@ -20,31 +24,122 @@ interface Props {
 
 const { lang, entryHrefs } = Astro.props as Props;
 const text = landing[lang];
+const ids = landingSectionIds[lang];
 const loopStages = stages.map((stage) => stage.stage);
+
+/**
+ * The opening figure is one static synthetic record in the locked engraved
+ * trace material: the first stages are appended history, the record stands on
+ * the response stage, and the review gate and the receipt are still ahead.
+ */
+const recordStageState: Record<Stage, 'is-appended' | 'is-active' | 'is-ahead'> = {
+  voice: 'is-appended',
+  responsibility: 'is-appended',
+  response: 'is-active',
+  check: 'is-ahead',
+  receipt: 'is-ahead',
+};
 ---
 
 <article class="landing" id="public-record">
-  <header class="page-header">
-    <h1>{text.headline}</h1>
-    <p class="page-header-lede">{text.lede}</p>
-  </header>
+  <section class="landing-opening">
+    <div class="landing-opening-text">
+      <p class="kicker">{text.kicker}</p>
+      <h1>{text.headline}</h1>
+      <p class="landing-lede">{text.lede}</p>
+      <p class="landing-actions">
+        <a class="btn" data-variant="primary" href={`#${ids.howItWorks}`}>{text.primaryAction}</a>
+        <a class="landing-actions-link" href={`#${ids.demonstration}`}>{text.secondaryAction}</a>
+      </p>
+    </div>
 
-  <section class="landing-loop" aria-labelledby="landing-loop-title">
-    <h2 class="landing-section-title" id="landing-loop-title">{text.loopTitle}</h2>
-    <ol class="landing-loop-list">
+    <figure class="landing-record panel" aria-labelledby="landing-record-title">
+      <figcaption class="landing-record-head">
+        <p class="landing-record-title" id="landing-record-title">{text.recordTitle}</p>
+        <span class="record-id">{record.id}</span>
+        <span class="status-label" data-tone="warning">
+          {statusLabels.demonstrationFixture[lang]}
+        </span>
+      </figcaption>
+      <ol class="demo-trace">
+        {
+          loopStages.map((stage) => (
+            <li class={`demo-trace-stage ${recordStageState[stage]}`} data-stage={stage}>
+              <span class="demo-trace-marker" aria-hidden="true" />
+              <div class="demo-trace-body">
+                <div class="demo-trace-head">
+                  <p class="demo-trace-line">{stageLabels[stage][lang]}</p>
+                </div>
+                <p class="demo-trace-note">{text.recordStages[stage]}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </figure>
+  </section>
+
+  <section class="landing-section" id={ids.audience} aria-labelledby={`${ids.audience}-title`}>
+    <h2 id={`${ids.audience}-title`}>{text.audienceTitle}</h2>
+    <div class="landing-audiences">
+      {
+        text.audiences.map((audience) => (
+          <div class="landing-audience">
+            <h3>{audience.title}</h3>
+            <p>{audience.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="landing-section" id={ids.howItWorks} aria-labelledby={`${ids.howItWorks}-title`}>
+    <h2 id={`${ids.howItWorks}-title`}>{text.howItWorksTitle}</h2>
+    <ol class="landing-stages">
       {
         loopStages.map((stage, index) => (
           <li>
-            <span class="landing-loop-index">{index + 1}</span>
-            <span class="landing-loop-name">{stageLabels[stage][lang]}</span>
+            <span class="landing-stage-index" aria-hidden="true">
+              {index + 1}
+            </span>
+            <h3 class="landing-stage-name">{stageLabels[stage][lang]}</h3>
+            <p class="landing-stage-line">{text.stageLines[stage]}</p>
           </li>
         ))
       }
     </ol>
   </section>
 
-  <section class="landing-open" aria-labelledby="landing-open-title">
-    <h2 class="landing-section-title" id="landing-open-title">{text.entriesTitle}</h2>
+  <section class="landing-section" id={ids.trust} aria-labelledby={`${ids.trust}-title`}>
+    <h2 id={`${ids.trust}-title`}>{text.trustTitle}</h2>
+    <div class="landing-trust">
+      {
+        text.trust.map((item) => (
+          <div class="landing-trust-item">
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="landing-section" id={ids.pilot} aria-labelledby={`${ids.pilot}-title`}>
+    <h2 id={`${ids.pilot}-title`}>{text.pilotTitle}</h2>
+    <p class="landing-pilot-body">{text.pilotBody}</p>
+    <p class="landing-pilot-links">
+      <a href={entryHrefs.presentation}>{text.pilotLinks.presentation}</a>
+      <a href="/source">{text.pilotLinks.source}</a>
+    </p>
+  </section>
+
+  <section
+    class="landing-section"
+    id={ids.demonstration}
+    aria-labelledby={`${ids.demonstration}-title`}
+  >
+    <h2 id={`${ids.demonstration}-title`}>{text.entriesTitle}</h2>
+    <p class="landing-section-lede">{text.entriesLede}</p>
     <ul class="landing-entries">
       {
         landingEntryIds.map((id) => (

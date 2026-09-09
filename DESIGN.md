@@ -46,14 +46,19 @@ typography:
     lineHeight: '1.4'
   heading-sm:
     fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
-    fontSize: 'clamp(1.35rem, 1.1rem + 1vw, 1.75rem)'
+    fontSize: 'clamp(1.375rem, 1.15rem + 1vw, 1.875rem)'
     fontWeight: '600'
     lineHeight: '1.2'
+  heading-md:
+    fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
+    fontSize: 'clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem)'
+    fontWeight: '600'
+    lineHeight: '1.15'
   heading-lg:
     fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
-    fontSize: 'clamp(2rem, 1.4rem + 2.6vw, 3.4rem)'
+    fontSize: 'clamp(2.25rem, 1.5rem + 3vw, 3.75rem)'
     fontWeight: '600'
-    lineHeight: '1.08'
+    lineHeight: '1.05'
 rounded:
   sm: '0.25rem'
   md: '0.5rem'
@@ -218,8 +223,8 @@ The difference is information density and task priority, not branding. Do not cr
 
 The public release is one site with three kinds of surface (user decision, 2026-08-22):
 
-- `/` is the product landing: what Polis is, one sentence of mechanism, and entry points into each role demo and the presentation. It is not a marketing hero; the record loop is the subject.
-- `/presentation` (and `/hr/presentation`) is the staged Trace line pitch, with presenter mode. It keeps its existing behavior unchanged.
+- `/` is the product landing, in six sections in this order: the opening (kicker, one `h1` saying what Polis does for residents and their municipality, one lede, one primary button to "how it works", one text link to the demonstration, and one static synthetic record beside it); who it is for, in two columns; how it works, the five stages with one sentence each; why it can be trusted — independent review, the public receipt, open source under AGPL, the privacy boundary; for municipalities, what a pilot involves; and the demonstration, the six entry rows under a real heading. It is not a marketing hero: no photo, no gradient, no slogan wall, one primary action on the page, and the synthetic record in the locked engraved trace material is the only visual.
+- `/presentation` (and `/en/presentation`) is the staged Trace line pitch, with presenter mode. It keeps its existing behavior unchanged.
 - `/demo/*` are working role surfaces over one shared synthetic dataset: citizen (`/demo/citizen`), official (`/demo/official`), independent reviewer (`/demo/review`), the public record (`/demo/record`), and the embeddable interface demonstration (`/demo/embed`).
 
 ### Demo state rules
@@ -330,15 +335,18 @@ The root size stays at `100%`; respect browser zoom and user font settings. Use 
 | `--type-data` | `0.875rem` | `1.45` | IDs, hashes, dates, and statuses |
 | `--type-body` | `1rem` | `1.55` | Workhorse prose and controls |
 | `--type-body-lg` | `clamp(1.0625rem, 1rem + 0.3vw, 1.25rem)` | `1.5` | Lead and public explanation |
-| `--type-heading-sm` | `clamp(1.35rem, 1.1rem + 1vw, 1.75rem)` | `1.15` | Panel and section headings |
-| `--type-heading-lg` | `clamp(1.9rem, 1.4rem + 2.4vw, 3.1rem)` | `1.1` | Page and presentation headings |
+| `--type-heading-sm` | `clamp(1.375rem, 1.15rem + 1vw, 1.875rem)` | `1.2` | `h3`: panel titles, sub-section titles, record subjects |
+| `--type-heading-md` | `clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem)` | `1.15` | `h2`: section titles |
+| `--type-heading-lg` | `clamp(2.25rem, 1.5rem + 3vw, 3.75rem)` | `1.05` | `h1`: page and presentation titles |
+
+A page carries three heading ranks and `base.css` sets all three: `h1` is lg, `h2` is md, `h3` is sm. Section titles on public surfaces are display-face headings, not uppercase eyebrows. The eyebrow style survives as `.kicker`, a small uppercase label placed above a heading; it is never the heading itself.
 
 Keep body text at or above `1rem` and critical labels at or above `0.875rem`. Limit prose to `68ch`; evidence compositions may reach `74rem`. Use balanced wrapping only on short display headings. Let IDs and hashes wrap anywhere; never shrink them until unreadable.
 
 ## Layout system
 
 - Use one spacing ladder on a 4px base: `--space-1` `0.25rem`, `--space-2` `0.5rem`, `--space-3` `0.75rem`, `--space-4` `1rem`, `--space-5` `1.25rem`, `--space-6` `1.5rem`, `--space-8` `2rem`, `--space-10` `2.5rem`, `--space-12` `3rem`, `--space-16` `4rem`. Nothing off the ladder. The older names remain as aliases: `--space-xs` = `--space-2`, `--space-sm` = `--space-3`, `--space-md` = `--space-5`, `--space-lg` = `--space-8`, `--space-xl` = `--space-12`.
-- Center public reading surfaces. Use a maximum `74rem` evidence column plus an optional `15rem` stage rail on wide screens.
+- One page column. `.site-main` is `width: min(var(--page-measure), 100%)` (`72rem`) with `padding-inline: var(--page-gutter)` (`clamp(1.25rem, 6vw, 4rem)`), centred. Header and footer content use the same two tokens, so the brand, the page, and the footer share left and right edges. Prose stays at `68ch` inside that column. An evidence composition may opt out with `.site-main--wide`, which widens the content to the `74rem` evidence measure; a `15rem` stage rail is optional on wide screens.
 - Prefer CSS grid with `minmax(0, 1fr)` and intrinsic content sizing. Do not fix application content to presentation capture dimensions.
 - Keep panels flat: either a hairline border or a quiet tint, never both stacked, with `0.25rem` or `0.5rem` corner radius and no ornamental card nesting. Most of the page needs no enclosure at all — whitespace and hairline rules separate sections.
 - Place empty, loading, unavailable, and error states in the content region they replace. Keep the record ID, boundary label, cause, and next permitted action visible.
@@ -390,6 +398,10 @@ The page must have no horizontal body overflow at 320 CSS pixels, 390 × 844, 20
 - A skip link targets primary content. Route changes and record changes produce a clear page heading.
 - Do not hide required navigation behind fullscreen, hover, pointer movement, or animation.
 
+### Footer
+
+The footer is the same in both worlds (user decision, 2026-09-09): the wordmark and one sentence saying what Polis is; three link columns — product (demonstration, presentation, public record), trust (transparency, methodology, privacy, security), source (source code, documentation, licence); the language switch; and a bottom row carrying the boundary labels `DEMONSTRATION FIXTURE` and `NOT LIVE` on the public release, or the build version line locally. The columns collapse to one on phones. Column labels are group labels, so they use the uppercase label style, not a section heading. The footer content sits in the page column, so its left and right edges match the header and the page. Muted text, one hairline above the bottom row, no boxes, no shadows.
+
 ## Motion and interaction
 
 Motion explains one state change. Allowed motion:
@@ -420,6 +432,8 @@ Clamp at the first and last beats. Global shortcuts must ignore events originati
 ## Bilingual EN/HR
 
 - EN and HR are equal product languages with the same information, stage order, actions, status meanings, source references, and privacy boundaries.
+- **Croatian is the default (user decision, 2026-09-09).** `/` and `/presentation` serve Croatian; English is `/en/` and `/en/presentation`. The old `/hr/` addresses return 301 to the Croatian root routes. Every page that exists in both languages carries `<link rel="alternate" hreflang>` for both plus `x-default` to the Croatian URL, and the language switch in the header and the footer moves to the same page in the other language. The demo store opens in Croatian.
+- The site chrome — boundary banner, skip link, navigation labels and notes, the phone menu button, the footer, and the language names — is localized in both worlds from one typed source, `apps/web/src/content/chrome.ts`. Internal tooling pages whose body copy is English only keep `lang="en"` and English chrome; nothing mixes languages inside one page.
 - Use one typed content source when both languages appear in one application. Do not maintain direction-specific or component-specific translations of the same product claim.
 - Set the document `lang` attribute on language change. Keep the language choice reachable by keyboard and preserve the current record and stage.
 - Allow at least 30% text expansion. Do not truncate status labels, action labels, evidence notes, or Croatian diacritics. Do not encode meaning in English abbreviations alone.

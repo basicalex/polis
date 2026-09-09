@@ -4,7 +4,7 @@
  *
  * Same queue anatomy as the official surface: a status-bucket rail with live counts, ledger rows,
  * and a detail panel with the trace timeline plus only the decisions this role may take. Static
- * chrome renders both languages as `data-lang` siblings (EN visible without JavaScript); the queue
+ * chrome renders both languages as `data-lang` siblings (Croatian visible without JavaScript); the queue
  * is client-rendered from the demo store and re-renders on every store notification, cross-tab
  * ones included.
  *
@@ -48,7 +48,7 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
 ---
 
 <Base
-  lang="en"
+  lang="hr"
   chrome="demo"
   title="Polis — Independent review demo surface"
   description="The independent reviewer queue: assess a filed commitment, then publish the receipt or return the record to the office."
@@ -57,35 +57,35 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
     <article class="queue" id="public-record">
       <header class="queue-lead">
         <h1 class="queue-title">
-          <span data-lang="en">{headings.page.en}</span>
-          <span data-lang="hr" hidden>{headings.page.hr}</span>
+          <span data-lang="en" hidden>{headings.page.en}</span>
+          <span data-lang="hr">{headings.page.hr}</span>
         </h1>
         <p class="demo-anchor">
-          <span data-lang="en">{institutionAnchor.en}</span>
-          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+          <span data-lang="en" hidden>{institutionAnchor.en}</span>
+          <span data-lang="hr">{institutionAnchor.hr}</span>
         </p>
       </header>
 
       <noscript>
         <p class="queue-noscript">
-          <span data-lang="en">{noscriptCopy.en}</span>
-          <span data-lang="hr" hidden>{noscriptCopy.hr}</span>
+          <span data-lang="en" hidden>{noscriptCopy.en}</span>
+          <span data-lang="hr">{noscriptCopy.hr}</span>
         </p>
       </noscript>
 
       <div class="queue-grid">
-        <nav class="queue-rail" aria-label={headings.rail.en} data-rail>
+        <nav class="queue-rail" aria-label={headings.rail.hr} data-rail>
           <ul class="queue-buckets" data-buckets></ul>
         </nav>
 
         <section class="queue-ledger" aria-labelledby="queue-ledger-title">
           <h2 class="queue-column-title" id="queue-ledger-title">
-            <span data-lang="en">{headings.ledger.en}</span>
-            <span data-lang="hr" hidden>{headings.ledger.hr}</span>
+            <span data-lang="en" hidden>{headings.ledger.en}</span>
+            <span data-lang="hr">{headings.ledger.hr}</span>
           </h2>
           <p class="queue-loading" data-loading>
-            <span data-lang="en">{loadingCopy.en}</span>
-            <span data-lang="hr" hidden>{loadingCopy.hr}</span>
+            <span data-lang="en" hidden>{loadingCopy.en}</span>
+            <span data-lang="hr">{loadingCopy.hr}</span>
           </p>
           <p class="queue-status" role="status" tabindex="-1" data-status></p>
           <ul class="demo-ledger" data-ledger></ul>
@@ -93,8 +93,8 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
 
         <section class="queue-detail" aria-labelledby="queue-detail-title" data-detail-column>
           <h2 class="queue-column-title" id="queue-detail-title">
-            <span data-lang="en">{headings.detail.en}</span>
-            <span data-lang="hr" hidden>{headings.detail.hr}</span>
+            <span data-lang="en" hidden>{headings.detail.en}</span>
+            <span data-lang="hr">{headings.detail.hr}</span>
           </h2>
           <div data-detail></div>
         </section>
@@ -102,15 +102,15 @@ const provenanceLink = { en: 'Transparency', hr: 'Transparentnost' };
 
       <footer class="queue-foot">
         <p class="queue-role-note">
-          <span data-lang="en">{roleNote.en}</span>
-          <span data-lang="hr" hidden>{roleNote.hr}</span>
+          <span data-lang="en" hidden>{roleNote.en}</span>
+          <span data-lang="hr">{roleNote.hr}</span>
         </p>
         <p class="queue-provenance">
-          <span data-lang="en">{provenance.en}</span>
-          <span data-lang="hr" hidden>{provenance.hr}</span>{' '}
+          <span data-lang="en" hidden>{provenance.en}</span>
+          <span data-lang="hr">{provenance.hr}</span>{' '}
           <a href="/transparency">
-            <span data-lang="en">{provenanceLink.en}</span>
-            <span data-lang="hr" hidden>{provenanceLink.hr}</span>
+            <span data-lang="en" hidden>{provenanceLink.en}</span>
+            <span data-lang="hr">{provenanceLink.hr}</span>
           </a>
         </p>
       </footer>

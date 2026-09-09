@@ -4,7 +4,7 @@
  *
  * Renders the app bar — `Polis` wordmark, the five-segment role switcher, the `EN | HR` toggle and
  * the reset control — then one boundary line and the page content. Both languages are in the HTML
- * as `data-lang` siblings: EN is visible without JavaScript, and the shell script shows the
+ * as `data-lang` siblings: Croatian is visible without JavaScript, and the shell script shows the
  * language held in the demo store.
  *
  * Below the 40rem phone breakpoint the five-segment row gives way to a role pill — a `<details>`
@@ -46,7 +46,7 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
   <header class="demo-appbar">
     <a class="demo-wordmark" href="/">Polis</a>
 
-    <nav class="demo-switcher" aria-label={demoChrome.roleStrip.en} data-demo-roles>
+    <nav class="demo-switcher" aria-label={demoChrome.roleStrip.hr} data-demo-roles>
       <ul class="demo-segments">
         {
           demoSurfaces.map((entry) => (
@@ -57,10 +57,8 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
                 aria-current={entry.id === surface ? 'page' : undefined}
                 data-demo-role={entry.id}
               >
-                <span data-lang="en">{entry.label.en}</span>
-                <span data-lang="hr" hidden>
-                  {entry.label.hr}
-                </span>
+                <span data-lang="en" hidden>{entry.label.en}</span>
+                <span data-lang="hr">{entry.label.hr}</span>
               </a>
             </li>
           ))
@@ -69,14 +67,12 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
     </nav>
 
     {/* Phone variant of the same five destinations: a role pill that discloses the list. */}
-    <nav class="demo-role-nav" aria-label={demoChrome.roleStrip.en} data-demo-roles>
+    <nav class="demo-role-nav" aria-label={demoChrome.roleStrip.hr} data-demo-roles>
       <details class="demo-role-menu" data-demo-role-menu>
         <summary class="demo-role-pill">
           <span class="demo-role-pill-label">
-            <span data-lang="en">{activeSurface.label.en}</span>
-            <span data-lang="hr" hidden>
-              {activeSurface.label.hr}
-            </span>
+            <span data-lang="en" hidden>{activeSurface.label.en}</span>
+            <span data-lang="hr">{activeSurface.label.hr}</span>
           </span>
           <svg
             class="demo-role-caret"
@@ -104,10 +100,8 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
                   aria-current={entry.id === surface ? 'page' : undefined}
                   data-demo-role={entry.id}
                 >
-                  <span data-lang="en">{entry.label.en}</span>
-                  <span data-lang="hr" hidden>
-                    {entry.label.hr}
-                  </span>
+                  <span data-lang="en" hidden>{entry.label.en}</span>
+                  <span data-lang="hr">{entry.label.hr}</span>
                 </a>
               </li>
             ))
@@ -117,13 +111,13 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
     </nav>
 
     <div class="demo-controls">
-      <div class="demo-lang" role="group" aria-label={languageToggle.groupLabel.en} data-demo-lang-group>
+      <div class="demo-lang" role="group" aria-label={languageToggle.groupLabel.hr} data-demo-lang-group>
         <button
           type="button"
           class="btn demo-lang-button"
           data-variant="tertiary"
           data-demo-lang="en"
-          aria-pressed="true"
+          aria-pressed="false"
           lang="en"
         >
           {languageToggle.short.en}
@@ -134,7 +128,7 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
           class="btn demo-lang-button"
           data-variant="tertiary"
           data-demo-lang="hr"
-          aria-pressed="false"
+          aria-pressed="true"
           lang="hr"
         >
           {languageToggle.short.hr}
@@ -146,8 +140,8 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
         class="btn demo-icon-button"
         data-variant="tertiary"
         data-demo-reset
-        aria-label={resetDemoCopy.label.en}
-        title={resetDemoCopy.label.en}
+        aria-label={resetDemoCopy.label.hr}
+        title={resetDemoCopy.label.hr}
       >
         <svg
           viewBox="0 0 24 24"
@@ -171,15 +165,11 @@ const activeSurface = demoSurfaces.find((entry) => entry.id === surface) ?? demo
   {
     banner && (
       <p class="demo-boundary">
-        <span data-lang="en">{demoBoundary.en}</span>
-        <span data-lang="hr" hidden>
-          {demoBoundary.hr}
-        </span>{' '}
+        <span data-lang="en" hidden>{demoBoundary.en}</span>
+        <span data-lang="hr">{demoBoundary.hr}</span>{' '}
         <a href={detailsHref}>
-          <span data-lang="en">{demoBannerDetails.en}</span>
-          <span data-lang="hr" hidden>
-            {demoBannerDetails.hr}
-          </span>
+          <span data-lang="en" hidden>{demoBannerDetails.en}</span>
+          <span data-lang="hr">{demoBannerDetails.hr}</span>
         </a>
       </p>
     )

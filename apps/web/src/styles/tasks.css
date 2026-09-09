@@ -30,11 +30,12 @@
 /*
  * A single-task page does not stretch across 1440px (L5). The form pages use
  * `.form-narrow` (36rem); a task page that also carries a reference table gets
- * this slightly wider column.
+ * this slightly wider column. It starts at the page column's left edge, so the
+ * page title lines up with the header brand (L1, L8).
  */
 .task-page--column {
   width: min(46rem, 100%);
-  margin-inline: auto;
+  margin-inline: 0;
 }
 
 .task-section {

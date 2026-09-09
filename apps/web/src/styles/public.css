@@ -14,68 +14,232 @@
    Landing: one component, two languages (PublicLanding.astro)
    --------------------------------------------------------------------------- */
 
+/* Six sections in a fixed order: opening, who it is for, how it works, why it
+   can be trusted, for municipalities, demonstration. Larger space between
+   sections than inside them (H6, H7, L3). */
 .landing {
-  max-width: 64rem;
   display: grid;
-  gap: var(--space-12);
-  margin-inline: auto;
+  gap: var(--space-16);
 }
 
-/* The grid gap owns the rhythm between the header and the first section. */
-.landing > .page-header {
-  margin-bottom: 0;
+.landing-section {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-6);
+  align-content: start;
 }
 
-/* Section eyebrow: the small label style from the contract, not a heading.
-   It ranks below the page h1 and above the row it introduces (H1, H7). */
-.landing-section-title {
-  max-width: none;
-  margin: 0 0 var(--space-5);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--polis-border);
+.landing-section > * {
+  margin: 0;
+}
+
+.landing-section > h2 {
+  max-width: 24ch;
+}
+
+.landing-section-lede {
+  max-width: 68ch;
   color: var(--polis-muted);
-  font-family: var(--body);
-  font-size: var(--type-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.4;
-  text-transform: uppercase;
+  font-size: var(--type-body-lg);
+  line-height: 1.5;
 }
 
-/* ---- the five-stage loop row ---- */
+/* ---- opening: the claim on the left, one synthetic record on the right ---- */
 
-.landing-loop-list {
+.landing-opening {
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-6) var(--space-5);
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  gap: var(--space-10);
+  align-items: start;
+}
+
+.landing-opening-text {
+  min-width: 0;
+}
+
+.landing-opening h1 {
+  max-width: 20ch;
+  margin: 0;
+}
+
+.landing-lede {
+  max-width: 56ch;
+  margin: var(--space-5) 0 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body-lg);
+  line-height: 1.5;
+}
+
+/* One primary action on the whole page; the second route is a text link, not a
+   second button (H2). */
+.landing-actions {
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
+  margin: var(--space-8) 0 0;
+}
+
+.landing-actions-link {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--polis-trace);
+  font-weight: 600;
+}
+
+/* ---- the synthetic record: the locked engraved trace material, static ---- */
+
+.landing-record {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-6);
+}
+
+.landing-record-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+/* The record subject is a record title, so it keeps the display face
+   (DESIGN.md typography); the id and the fixture label sit under it. */
+.landing-record-title {
+  flex: 1 1 100%;
+  max-width: 34ch;
+  margin: 0;
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.landing-record-head .record-id {
+  color: var(--polis-trace);
+}
+
+.landing-record .demo-trace-note {
+  max-width: 46ch;
+}
+
+/* ---- who it is for ---- */
+
+.landing-audiences {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-10);
+}
+
+.landing-audience {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.landing-audience h3,
+.landing-trust-item h3 {
+  max-width: 24ch;
+  margin: 0;
+}
+
+.landing-audience p,
+.landing-trust-item p {
+  max-width: 48ch;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ---- how it works: the five stages, numbered ---- */
+
+.landing-stages {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-6);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.landing-loop-list li {
+.landing-stages li {
+  min-width: 0;
   display: grid;
-  gap: var(--space-1);
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+}
+
+/* The ordinal only counts; the stage name carries the rank (H3, H4). It sits in
+   the heading row so the two share a baseline at every clamp size. */
+.landing-stage-index {
+  grid-row: 1;
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-stage-name {
+  grid-column: 2;
+  max-width: 24ch;
+  margin: 0;
+}
+
+.landing-stage-line {
+  grid-column: 2;
+  max-width: 62ch;
+  margin: 0;
+  color: var(--polis-muted);
+  line-height: 1.55;
+}
+
+/* ---- why it can be trusted ---- */
+
+.landing-trust {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-10);
+}
+
+.landing-trust-item {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
   align-content: start;
 }
 
-/* Number muted and small, stage name dark and heavy: the value carries the
-   rank, the ordinal only counts (H3, H4). */
-.landing-loop-index {
-  color: var(--polis-muted);
-  font-size: var(--type-meta);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
+/* ---- for municipalities ---- */
+
+.landing-pilot-body {
+  max-width: 68ch;
+  line-height: 1.55;
 }
 
-.landing-loop-name {
-  color: var(--polis-text);
-  font-size: var(--type-body-lg);
+.landing-pilot-links {
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-6);
+}
+
+.landing-pilot-links a {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
   font-weight: 600;
-  line-height: 1.25;
 }
 
-/* ---- entry rows: ledger rows on the 4px ladder ---- */
+/* ---- demonstration: entry rows as ledger rows on the 4px ladder ---- */
 
 .landing-entries {
   margin: 0;
@@ -144,32 +308,44 @@
 
 .landing-note {
   max-width: 68ch;
-  margin: var(--space-6) 0 0;
   color: var(--polis-muted);
   font-size: var(--type-data);
   line-height: 1.5;
 }
 
-@media (max-width: 56.25rem) {
-  .landing-loop-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 64rem) {
+  .landing-opening {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .landing-opening h1 {
+    max-width: 22ch;
   }
 }
 
 @media (max-width: 40rem) {
   .landing {
-    gap: var(--space-8);
+    gap: var(--space-12);
   }
 
-  .landing-loop-list {
+  .landing-audiences,
+  .landing-trust {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
+    gap: var(--space-6);
   }
 
-  .landing-loop-list li {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0 var(--space-3);
-    align-items: baseline;
+  .landing-record {
+    padding: var(--space-5);
+  }
+
+  .landing-actions {
+    margin-top: var(--space-6);
+  }
+
+  .landing-stages li {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
   }
 
   .landing-entries a {
@@ -194,9 +370,11 @@
    (DESIGN.md visual principle 4, D5, D6).
    --------------------------------------------------------------------------- */
 
+/* Left-aligned to the page column so the page title, the header brand, and the
+   footer columns share one left edge (L1, L4). Prose stops at 68ch inside. */
 .reading-page {
-  max-width: 48rem;
-  margin-inline: auto;
+  max-width: 52rem;
+  margin-inline: 0;
 }
 
 /* Sections run the width of the column so every hairline rule is the same
@@ -214,10 +392,11 @@
   border-top: 1px solid var(--polis-border);
 }
 
+/* Section titles take the shared h2 rank; only the leading is tightened for a
+   dense register page. */
 .reading-section > h2 {
   margin: 0 0 var(--space-4);
   color: var(--polis-text);
-  font-size: var(--type-heading-sm);
 }
 
 .reading-section > h2 .status-label {
@@ -380,7 +559,7 @@
 .boundary-language .page-header h2 {
   margin-bottom: 0;
   font-size: var(--type-heading-lg);
-  line-height: 1.08;
+  line-height: 1.05;
 }
 
 .boundary-rule,

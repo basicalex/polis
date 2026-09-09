@@ -22,6 +22,7 @@ const categories = DEMO_CATEGORIES.map((id) => ({
 ---
 
 <Base
+  lang="hr"
   chrome="demo"
   title="Embedded reporting interface — Polis demo"
   description="An emulated municipal website with the Polis reporting widget embedded in it. A report filed there lands in the same public register as one filed in the Polis app."
@@ -30,12 +31,12 @@ const categories = DEMO_CATEGORIES.map((id) => ({
     <article class="embed-page" id="public-record">
       <header class="embed-head">
         <h1>
-          <span data-lang="en" lang="en">Reporting interface on the municipality's own site</span>
-          <span data-lang="hr" hidden>Sučelje za prijave na mrežnim stranicama grada</span>
+          <span data-lang="en" hidden lang="en">Reporting interface on the municipality's own site</span>
+          <span data-lang="hr">Sučelje za prijave na mrežnim stranicama grada</span>
         </h1>
         <p class="demo-anchor">
-          <span data-lang="en">{institutionAnchor.en}</span>
-          <span data-lang="hr" hidden>{institutionAnchor.hr}</span>
+          <span data-lang="en" hidden>{institutionAnchor.en}</span>
+          <span data-lang="hr">{institutionAnchor.hr}</span>
         </p>
       </header>
 
@@ -47,8 +48,8 @@ const categories = DEMO_CATEGORIES.map((id) => ({
           </span>
           <span class="frame-address">www.grad-primjer.example/komunalne-prijave</span>
           <span class="frame-tag">
-            <span data-lang="en" lang="en">Emulated browser — demonstration</span>
-            <span data-lang="hr" hidden>Emulirani preglednik — demonstracija</span>
+            <span data-lang="en" hidden lang="en">Emulated browser — demonstration</span>
+            <span data-lang="hr">Emulirani preglednik — demonstracija</span>
           </span>
         </div>
 
@@ -79,21 +80,21 @@ const categories = DEMO_CATEGORIES.map((id) => ({
             <aside class="pw" data-embed-widget data-state="loading">
               <div class="pw-head">
                 <span class="pw-brand">
-                  <span data-lang="en" lang="en">Polis — public report</span>
-                  <span data-lang="hr" hidden>Polis — javna prijava</span>
+                  <span data-lang="en" hidden lang="en">Polis — public report</span>
+                  <span data-lang="hr">Polis — javna prijava</span>
                 </span>
                 <span class="demo-stamp pw-stamp">
-                  <span data-lang="en" lang="en">DEMONSTRATION FIXTURE</span>
-                  <span data-lang="hr" hidden>DEMONSTRACIJSKI PRIMJER</span>
+                  <span data-lang="en" hidden lang="en">DEMONSTRATION FIXTURE</span>
+                  <span data-lang="hr">DEMONSTRACIJSKI PRIMJER</span>
                 </span>
               </div>
 
               <p class="pw-note">
-                <span data-lang="en" lang="en">
+                <span data-lang="en" hidden lang="en">
                   On a real site the widget carries its own language control. Here it follows the
                   demo language above, while the page around it stays Croatian.
                 </span>
-                <span data-lang="hr" hidden>
+                <span data-lang="hr">
                   Na stvarnim mrežnim stranicama obrazac ima vlastiti odabir jezika. Ovdje slijedi gornji jezik
                   demonstracije, dok stranica oko njega ostaje na hrvatskom.
                 </span>
@@ -103,8 +104,8 @@ const categories = DEMO_CATEGORIES.map((id) => ({
                 <div class="pw-row">
                   <div class="pw-field">
                     <label for="embed-subject">
-                      <span data-lang="en" lang="en">Subject</span>
-                      <span data-lang="hr" hidden>Predmet</span>
+                      <span data-lang="en" hidden lang="en">Subject</span>
+                      <span data-lang="hr">Predmet</span>
                     </label>
                     <input
                       id="embed-subject"
@@ -115,88 +116,87 @@ const categories = DEMO_CATEGORIES.map((id) => ({
                       data-embed-subject
                     />
                     <p class="pw-error" data-embed-error="subject" role="alert" hidden>
-                      <span data-lang="en" lang="en">Add a subject line so the report can be read.</span>
-                      <span data-lang="hr" hidden>Upišite predmet kako bi se prijava mogla pročitati.</span>
+                      <span data-lang="en" hidden lang="en">Add a subject line so the report can be read.</span>
+                      <span data-lang="hr">Upišite predmet kako bi se prijava mogla pročitati.</span>
                     </p>
                   </div>
 
                   <div class="pw-field">
                     <label for="embed-category">
-                      <span data-lang="en" lang="en">Category</span>
-                      <span data-lang="hr" hidden>Kategorija</span>
+                      <span data-lang="en" hidden lang="en">Category</span>
+                      <span data-lang="hr">Kategorija</span>
                     </label>
                     <select id="embed-category" name="category" data-embed-category>
-                      <option value="" data-embed-placeholder>Choose a category</option>
+                      <option value="" data-embed-placeholder>Odaberite kategoriju</option>
                       {
                         categories.map((entry) => (
                           <option value={entry.id} data-embed-option={entry.id}>
-                            {entry.label.en}
+                            {entry.label.hr}
                           </option>
                         ))
                       }
                     </select>
                     <p class="pw-error" data-embed-error="category" role="alert" hidden>
-                      <span data-lang="en" lang="en">Choose a category.</span>
-                      <span data-lang="hr" hidden>Odaberite kategoriju.</span>
+                      <span data-lang="en" hidden lang="en">Choose a category.</span>
+                      <span data-lang="hr">Odaberite kategoriju.</span>
                     </p>
                   </div>
                 </div>
 
                 <div class="pw-field">
                   <label for="embed-narrative">
-                    <span data-lang="en" lang="en">Description (optional)</span>
-                    <span data-lang="hr" hidden>Opis (neobavezno)</span>
+                    <span data-lang="en" hidden lang="en">Description (optional)</span>
+                    <span data-lang="hr">Opis (neobavezno)</span>
                   </label>
                   <textarea id="embed-narrative" name="narrative" rows="3" data-embed-narrative
                   ></textarea>
                 </div>
 
                 <p class="pw-loading" data-embed-loading>
-                  <span data-lang="en" lang="en">Preparing the demo form…</span>
-                  <span data-lang="hr" hidden>Priprema demo obrasca…</span>
+                  <span data-lang="en" hidden lang="en">Preparing the demo form…</span>
+                  <span data-lang="hr">Priprema demo obrasca…</span>
                 </p>
 
                 <button type="submit" class="btn pw-submit" data-variant="primary" data-embed-submit disabled>
-                  <span data-lang="en" lang="en">File the report</span>
-                  <span data-lang="hr" hidden>Podnesi prijavu</span>
+                  <span data-lang="en" hidden lang="en">File the report</span>
+                  <span data-lang="hr">Podnesi prijavu</span>
                 </button>
 
                 <p class="pw-error" data-embed-error="store" role="alert" hidden>
-                  <span data-lang="en" lang="en">The demo store refused this report:</span>
-                  <span data-lang="hr" hidden>Pohrana demonstracije odbila je ovu prijavu:</span>
+                  <span data-lang="en" hidden lang="en">The demo store refused this report:</span>
+                  <span data-lang="hr">Pohrana demonstracije odbila je ovu prijavu:</span>
                   <span class="record-data" data-embed-store-message></span>
                 </p>
 
                 <noscript>
                   <p class="pw-noscript">
-                    This embedded form needs JavaScript: the demo store lives in your browser and
-                    there is no server to post to. · Ovaj ugrađeni obrazac traži JavaScript: demo
-                    pohrana je u vašem pregledniku i nema poslužitelja kojem bi se prijava slala.
+                    Ovaj ugrađeni obrazac traži JavaScript: demo pohrana je u vašem pregledniku i
+                    nema poslužitelja kojem bi se prijava slala.
                   </p>
                 </noscript>
               </form>
 
               <div class="pw-done" data-embed-done role="status" hidden>
                 <p class="pw-done-line">
-                  <span data-lang="en" lang="en">Filed in the demo register as record</span>
-                  <span data-lang="hr" hidden>Zabilježeno u demo registru kao zapis</span>{' '}
+                  <span data-lang="en" hidden lang="en">Filed in the demo register as record</span>
+                  <span data-lang="hr">Zabilježeno u demo registru kao zapis</span>{' '}
                   <span class="record-id" data-embed-record-id></span>
                 </p>
                 <p class="pw-done-note">
-                  <span data-lang="en" lang="en">
+                  <span data-lang="en" hidden lang="en">
                     It is at stage Voice, with no responsible office yet.
                   </span>
-                  <span data-lang="hr" hidden>
+                  <span data-lang="hr">
                     Zapis je u fazi Glas i još nema nadležnog ureda.
                   </span>
                 </p>
                 <a class="pw-done-link" href="/demo/record" data-embed-record-link>
-                  <span data-lang="en" lang="en">Follow this record on Polis</span>
-                  <span data-lang="hr" hidden>Prati ovaj zapis na Polisu</span>
+                  <span data-lang="en" hidden lang="en">Follow this record on Polis</span>
+                  <span data-lang="hr">Prati ovaj zapis na Polisu</span>
                 </a>
                 <button type="button" class="btn pw-again" data-variant="secondary" data-embed-again>
-                  <span data-lang="en" lang="en">File another report</span>
-                  <span data-lang="hr" hidden>Podnesi novu prijavu</span>
+                  <span data-lang="en" hidden lang="en">File another report</span>
+                  <span data-lang="hr">Podnesi novu prijavu</span>
                 </button>
               </div>
             </aside>
@@ -216,14 +216,14 @@ const categories = DEMO_CATEGORIES.map((id) => ({
 
       <footer class="embed-provenance">
         <p>
-          <span data-lang="en" lang="en">
+          <span data-lang="en" hidden lang="en">
             The reporting interface can live on the municipality's own website, beside the services
             people already use there. A report filed in that embedded form lands in the same public
             register as one filed in the Polis app — same record, same trace, same independent
             review before anything is published. The site above is an emulation, with a fictional
             municipality.
           </span>
-          <span data-lang="hr" hidden>
+          <span data-lang="hr">
             Sučelje za prijave može stajati na vlastitim stranicama grada, uz usluge koje stanovnici
             ondje već koriste. Prijava podnesena putem tog ugrađenog obrasca upisuje se u isti javni
             registar kao i prijava iz aplikacije Polis — isti zapis, isti trag, ista neovisna
@@ -232,22 +232,22 @@ const categories = DEMO_CATEGORIES.map((id) => ({
         </p>
 
         <p class="embed-footnote">
-          <span data-lang="en" lang="en">
+          <span data-lang="en" hidden lang="en">
             The emulated site is Croatian only, as a small municipality's site usually is, so it does
             not follow the demo language control. The embedded Polis widget does.
           </span>
-          <span data-lang="hr" hidden>
+          <span data-lang="hr">
             Emulirana stranica samo je na hrvatskom, kao što stranice manjih gradova obično i jesu,
             pa ne prati odabir jezika u demonstraciji. Ugrađeni obrazac Polisa prati taj odabir.
           </span>
         </p>
 
         <p class="embed-followup">
-          <span data-lang="en" lang="en">
+          <span data-lang="en" hidden lang="en">
             Open the <a href="/demo/official">official surface</a> to watch the report you filed here
             arrive in the municipal inbox, marked as embedded input rather than a seeded fixture.
           </span>
-          <span data-lang="hr" hidden>
+          <span data-lang="hr">
             Otvorite <a href="/demo/official">prikaz za dužnosnika</a> i pogledajte kako ovdje podnesena
             prijava stiže među pristigle zapise grada, označena kao unos iz ugrađenog obrasca, a ne kao
             početni primjer.

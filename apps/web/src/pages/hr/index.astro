@@ -1,27 +1,8 @@
 ---
-import PublicLanding from '../../components/PublicLanding.astro';
-import Base from '../../layouts/Base.astro';
-import type { LandingEntryId } from '../../content/public-release';
-
-if (Astro.url.searchParams.get('present') === '1') {
-  return Astro.redirect('/hr/presentation?present=1', 302);
-}
-
-const lang = 'hr' as const;
-const entryHrefs: Record<LandingEntryId, string> = {
-  citizen: '/demo/citizen',
-  official: '/demo/official',
-  review: '/demo/review',
-  record: '/demo/record',
-  embed: '/demo/embed',
-  presentation: '/hr/presentation',
-};
+/*
+ * Croatian moved to the root (revision decision R1). The old address keeps
+ * working as a permanent redirect, query string and all, so `?present=1` still
+ * lands in presenter mode.
+ */
+return Astro.redirect(`/${Astro.url.search}`, 301);
 ---
-
-<Base
-  lang={lang}
-  title="Polis — Sloj javnog odgovora"
-  description="Pratite jedan javni odgovor od prve prijave do neovisno provjerene javne potvrde, pa otvorite demonstraciju kao stanovnik, dužnosnik ili provjeritelj."
->
-  <PublicLanding lang={lang} entryHrefs={entryHrefs} />
-</Base>

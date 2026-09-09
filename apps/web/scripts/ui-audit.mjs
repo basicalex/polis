@@ -21,8 +21,9 @@ const JSON_OUT = process.env.UI_AUDIT_JSON ?? '';
 
 const ROUTES = [
   '/',
-  '/hr',
+  '/en',
   '/presentation',
+  '/en/presentation',
   '/transparency',
   '/source',
   '/docs',

@@ -1,13 +1,8 @@
 ---
-import '../../styles/public.css';
-import PublicReleaseHome from '../../components/PublicReleaseHome.astro';
-import Base from '../../layouts/Base.astro';
+/*
+ * Croatian moved to the root (revision decision R1). The old address keeps
+ * working as a permanent redirect, query string and all, so `?present=1` still
+ * lands in presenter mode.
+ */
+return Astro.redirect(`/presentation${Astro.url.search}`, 301);
 ---
-
-<Base
-  lang="hr"
-  title="Polis — Pratite javni odgovor"
-  description="Pratite jedan sintetički javni odgovor kroz odgovornost, obvezu, neovisnu provjeru i javnu potvrdu."
->
-  <PublicReleaseHome lang="hr" />
-</Base>

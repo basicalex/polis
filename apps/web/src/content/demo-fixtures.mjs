@@ -264,8 +264,5 @@ const records = [
 /** Frozen seed records. The store clones them; nothing mutates this array. */
 export const seedRecords = /** @type {readonly DemoRecord[]} */ (deepFreeze(records));
 
-/** Language the demo starts in before a visitor chooses one. */
-export const seedLang = 'en';
-
 /** Fixture identifier for the provenance line on demo surfaces. */
 export const seedFixtureId = 'demo-grad-primjer-001';
