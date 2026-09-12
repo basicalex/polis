@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -18,6 +19,7 @@ import {
   exists,
   initializeRuntime,
   loadRuntime,
+  randomSecret,
   parseArgs,
   pidHasRuntimeMarker,
   publicRuntimeStatus,
@@ -70,8 +72,36 @@ function defaultLaunchConfiguration() {
       'migrate',
     ],
     traceBuildCommand: ['bun', '--no-env-file', 'run', '--filter', '@polis/trace-service', 'build'],
-    traceExtraEnv: {},
-    platformExtraEnv: {},
+    channelStartCommand: [
+      'bun',
+      '--no-env-file',
+      'run',
+      '--filter',
+      '@polis/channel-gateway',
+      'start',
+    ],
+    channelMigrateCommand: [
+      'bun',
+      '--no-env-file',
+      'run',
+      '--filter',
+      '@polis/channel-gateway',
+      'migrate',
+    ],
+    channelBuildCommand: [
+      'bun',
+      '--no-env-file',
+      'run',
+      '--filter',
+      '@polis/channel-gateway',
+      'build',
+    ],
+    channelExtraEnv: {},
+    traceExtraEnv: { TRACE_GATEWAY_ACTOR_IDS: 'pilot-gateway' },
+    platformExtraEnv: {
+      CHANNEL_ENABLED: 'true',
+      CHANNEL_INTERNAL_URL: 'http://127.0.0.1:8990',
+    },
     intakeClosedCheckCommand: [
       'bun',
       '--no-env-file',
@@ -91,6 +121,12 @@ function defaultLaunchConfiguration() {
       'trace_command_idempotency',
       'trace_attachments',
       'trace_public_snapshots',
+      'trace_case_counters',
+      'trace_case_shells',
+      'trace_case_messages',
+      'trace_case_attention',
+      'trace_ai_proposals',
+      'trace_reopen_attempts',
     ],
   };
 }
@@ -163,6 +199,7 @@ async function start() {
       identity: 8650,
       trace: 8980,
       platform: 3000,
+      channel: 8990,
       web: 4321,
     };
     await requireAvailablePorts(ports);
@@ -287,6 +324,22 @@ async function bootstrapPostgres(runtime) {
     { env: postgresEnvironment(runtime), timeoutMs: 20_000 },
   );
 }
+async function ensureChannelSecrets(runtime) {
+  if (
+    runtime.secrets.phoneVaultKey &&
+    runtime.secrets.phoneVaultPepper &&
+    runtime.secrets.traceAttentionPepper
+  )
+    return runtime;
+  const nextSecrets = {
+    ...runtime.secrets,
+    phoneVaultKey: runtime.secrets.phoneVaultKey ?? `v1:${randomBytes(32).toString('base64')}`,
+    phoneVaultPepper: runtime.secrets.phoneVaultPepper ?? randomSecret(48),
+    traceAttentionPepper: runtime.secrets.traceAttentionPepper ?? randomSecret(48),
+  };
+  await writeJsonPrivate(runtime.paths.secrets, nextSecrets);
+  return loadRuntime(runtime.metadata.runtimePath);
+}
 
 async function migrateCoreAndSeed(runtime) {
   const superEnv = serviceEnvironment(runtime, {
@@ -312,6 +365,30 @@ async function migrateCoreAndSeed(runtime) {
       timeoutMs: 30_000,
     },
   );
+}
+async function runChannelMigration(runtime, launch) {
+  const superEnv = serviceEnvironment(runtime, {
+    DATABASE_URL: databaseUrl(runtime.metadata, runtime.secrets, 'superuser'),
+    POSTGRES_USER: runtime.secrets.postgres.superuser,
+    POSTGRES_PASSWORD: runtime.secrets.postgres.superuserPassword,
+    PILOT_TEST_DATABASE_MARKER: TEST_MARKER,
+    CHANNEL_PROVIDER: 'stub',
+    STT_PROVIDER: 'stub',
+    CHANNEL_ALLOW_STUB_INJECTION: 'true',
+    CHANNEL_MUNICIPALITY_ID: 'vrsar-orsera',
+    TRACE_INTERNAL_URL: 'http://127.0.0.1:8980',
+    TRACE_GATEWAY_ACTOR_ID: 'pilot-gateway',
+    PHONE_VAULT_KEY: runtime.secrets.phoneVaultKey,
+    PHONE_VAULT_PEPPER: runtime.secrets.phoneVaultPepper,
+    ...launch.channelExtraEnv,
+  });
+  const [channelCommand, ...channelArgs] = launch.channelMigrateCommand;
+  await runBounded(channelCommand, channelArgs, {
+    env: superEnv,
+    capture: true,
+    logFile: path.join(runtime.paths.serviceLogDir, 'runtime-failure.log'),
+    timeoutMs: 120_000,
+  });
 }
 
 async function runTraceMigration(runtime, launch) {
@@ -363,6 +440,7 @@ async function buildDependencies(runtime, launch) {
     ['bun', ['--no-env-file', 'run', '--filter', '@polis/citizen-identity-service', 'build']],
     ['bun', ['--no-env-file', 'run', '--filter', '@polis/platform-api', 'build']],
     [launch.traceBuildCommand[0], launch.traceBuildCommand.slice(1)],
+    [launch.channelBuildCommand[0], launch.channelBuildCommand.slice(1)],
   ];
   const buildLog = path.join(runtime.paths.serviceLogDir, 'build.log');
   for (const [executable, buildArgs] of builds) {
@@ -384,6 +462,8 @@ async function requireBuiltArtifacts() {
     path.join(ROOT, 'services/platform-api/dist/index.js'),
     path.join(ROOT, 'services/platform-api/dist/routes.js'),
     path.join(ROOT, 'services/platform-api/dist/trace-routes.js'),
+    path.join(ROOT, 'services/channel-gateway/dist/index.js'),
+    path.join(ROOT, 'services/channel-gateway/dist/routes.js'),
     path.join(ROOT, 'node_modules/astro/bin/astro.mjs'),
   ];
   for (const artifact of required) {
@@ -434,10 +514,32 @@ function serviceDefinition(runtime, launch, name) {
   if (name === 'trace') {
     return traceServiceDefinition(runtime, launch, serviceEnvironment);
   }
+  if (name === 'channel') {
+    return {
+      command: launch.channelStartCommand,
+      env: serviceEnvironment(runtime, {
+        PORT: '8990',
+        CHANNEL_PROVIDER: 'stub',
+        STT_PROVIDER: 'stub',
+        CHANNEL_ALLOW_STUB_INJECTION: 'true',
+        CHANNEL_MUNICIPALITY_ID: 'vrsar-orsera',
+        TRACE_INTERNAL_URL: 'http://127.0.0.1:8980',
+        TRACE_GATEWAY_ACTOR_ID: 'pilot-gateway',
+        PHONE_VAULT_KEY: runtime.secrets.phoneVaultKey,
+        PHONE_VAULT_PEPPER: runtime.secrets.phoneVaultPepper,
+        ...launch.channelExtraEnv,
+      }),
+      healthUrl: 'http://127.0.0.1:8990/readyz',
+      cwd: runtime.metadata.repoRoot,
+    };
+  }
   if (name === 'platform') {
     return {
       command: ['bun', '--no-env-file', pilotPlatformScript],
-      env: serviceEnvironment(runtime, { PORT: '3000', ...launch.platformExtraEnv }),
+      env: serviceEnvironment(runtime, {
+        PORT: '3000',
+        ...launch.platformExtraEnv,
+      }),
       healthUrl: 'http://127.0.0.1:3000/readyz',
       cwd: ROOT,
     };
@@ -529,15 +631,17 @@ async function supervise() {
   await updateState(runtimePath, { phase: 'starting', managerPid: process.pid, services: {} });
   try {
     const launch = await readLaunchConfiguration(runtime);
+    runtime = await ensureChannelSecrets(runtime);
     validateLaunchConfiguration(launch);
     if (args.has('build')) await buildDependencies(runtime, launch);
     await requireBuiltArtifacts();
     await bootstrapPostgres(runtime);
     await migrateCoreAndSeed(runtime);
     await runTraceMigration(runtime, launch);
+    await runChannelMigration(runtime, launch);
     await grantApplicationAccess(runtime);
     runtime = await loadRuntime(runtimePath);
-    for (const name of ['smtp', 'identity', 'trace', 'platform', 'web']) {
+    for (const name of ['smtp', 'identity', 'trace', 'channel', 'platform', 'web']) {
       await spawnService(runtime, launch, name);
       runtime = await loadRuntime(runtimePath);
     }
@@ -612,7 +716,7 @@ async function restartService() {
   if (!match) {
     throw new PilotError('restart-service requires --set TRACE_INTAKE_OPEN=true|false');
   }
-  const runtime = await loadRuntime(runtimePath);
+  const runtime = await ensureChannelSecrets(await loadRuntime(runtimePath));
   if (runtime.state.phase !== 'running') throw new PilotError('runtime is not running');
   const launch = applyTraceIntakeOverride(await readLaunchConfiguration(runtime), match[1]);
   await writeLaunchConfiguration(runtimePath, launch);

@@ -87,7 +87,7 @@ function addOptInNodeService(catalog, inventory) {
 test('the repository catalog, source ports, workspaces, and generated docs agree', async () => {
   const result = await inspectRepository(ROOT);
   assert.deepEqual(result.errors, []);
-  assert.equal(result.catalog.services.length, 19);
+  assert.equal(result.catalog.services.length, 20);
   assert.deepEqual(
     result.catalog.services.find((service) => service.name === 'trace-service')?.dev,
     { launch: false, order: null },

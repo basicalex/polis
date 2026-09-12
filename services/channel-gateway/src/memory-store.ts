@@ -212,6 +212,10 @@ export class MemoryChannelStore implements ChannelStore {
     if (!value) return;
     value.state = 'done';
     value.lastError = null;
+    value.bodyCiphertext = null;
+    value.bodyNonce = null;
+    value.bodyTag = null;
+    value.keyVersion = null;
     if (completion.recordId !== undefined) value.recordId = completion.recordId;
     if (completion.caseNumber !== undefined) value.caseNumber = completion.caseNumber;
   }
@@ -237,8 +241,7 @@ export class MemoryChannelStore implements ChannelStore {
   async claimOutbox(now: Date, limit: number): Promise<ChannelOutbox[]> {
     const claimed = [...this.#outbox.values()]
       .filter(
-        (value) =>
-          (value.state === 'pending' || value.state === 'failed') && value.nextAttemptAt <= now,
+        (value) => value.state === 'pending' && value.nextAttemptAt <= now,
       )
       .sort((left, right) =>
         left.nextAttemptAt.getTime() === right.nextAttemptAt.getTime()
@@ -261,6 +264,13 @@ export class MemoryChannelStore implements ChannelStore {
     value.providerMessageId = providerMessageId;
     value.sentAt = new Date(sentAt);
     value.lastError = null;
+  }
+
+  async markOutboxFailed(id: string, lastError: string): Promise<void> {
+    const value = this.#outbox.get(id);
+    if (!value) return;
+    value.state = 'failed';
+    value.lastError = lastError;
   }
 
   async markOutboxDelivery(

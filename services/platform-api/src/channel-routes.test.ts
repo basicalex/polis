@@ -1,0 +1,190 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import type { IncomingMessage } from 'node:http';
+import { FetchTimeoutError, type Route } from '@polis/service-runtime';
+
+import { channelRoutes } from './channel-routes.js';
+import { platformRoutes } from './routes.js';
+import { withPublicEdge } from './public-edge.js';
+
+type VisibleResult = {
+  status: number;
+  body?: unknown;
+  bytes?: Uint8Array;
+  contentType?: string;
+};
+
+function request(headers: IncomingMessage['headers'] = {}): IncomingMessage {
+  return { method: 'POST', url: '/webhooks/telnyx/voice', headers } as IncomingMessage;
+}
+
+function route(routes: Route[], method: string, path: string): Route {
+  const found = routes.find((candidate) => candidate.method === method && candidate.path === path);
+  assert.ok(found, `missing route ${method} ${path}`);
+  return found;
+}
+
+async function withEnvironment(
+  values: Readonly<Record<string, string | undefined>>,
+  run: () => Promise<void> | void,
+): Promise<void> {
+  const original = Object.fromEntries(
+    Object.keys(values).map((name) => [name, process.env[name]]),
+  ) as Record<string, string | undefined>;
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [name, value] of Object.entries(values)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+function visible(value: unknown): VisibleResult {
+  return value as VisibleResult;
+}
+
+function fetchHeader(headers: HeadersInit | undefined, name: string): string | null {
+  return new Headers(headers).get(name);
+}
+
+test('channelRoutes are disabled by default and expose only the enabled Telnyx ingress contract', async () => {
+  await withEnvironment(
+    { CHANNEL_ENABLED: undefined, CHANNEL_INTERNAL_URL: 'http://channel.internal' },
+    () => {
+      assert.deepEqual(channelRoutes(), []);
+      assert.equal(
+        platformRoutes().some((candidate) => candidate.path.startsWith('/webhooks/telnyx/')),
+        false,
+      );
+    },
+  );
+
+  await withEnvironment({ CHANNEL_ENABLED: 'true' }, () => {
+    assert.deepEqual(
+      channelRoutes().map(
+        ({ method, path, bodyMode, maxBodyBytes }) =>
+          `${method} ${path} bodyMode=${bodyMode} maxBodyBytes=${maxBodyBytes}`,
+      ),
+      [
+        'POST /webhooks/telnyx/messaging bodyMode=raw maxBodyBytes=65536',
+        'POST /webhooks/telnyx/voice bodyMode=raw maxBodyBytes=65536',
+      ],
+    );
+    const paths = platformRoutes().map(({ method, path }) => `${method} ${path}`);
+    assert.ok(paths.includes('POST /webhooks/telnyx/messaging'));
+    assert.ok(paths.includes('POST /webhooks/telnyx/voice'));
+  });
+});
+
+test('channel Telnyx webhooks pass raw bytes, strict signature headers, and relay upstream bytes', async () => {
+  await withEnvironment(
+    {
+      CHANNEL_ENABLED: 'true',
+      CHANNEL_INTERNAL_URL: 'http://channel.internal/',
+      INTERNAL_API_TOKEN: 'platform-token',
+    },
+    async () => {
+      const calls: Array<{ url: string; init?: RequestInit }> = [];
+      const upstreamBytes = new Uint8Array([9, 8, 7]);
+      globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+        calls.push({ url: String(input), init });
+        return new Response(upstreamBytes, {
+          status: 202,
+          headers: { 'content-type': 'application/octet-stream' },
+        });
+      }) as typeof globalThis.fetch;
+
+      const body = new Uint8Array([1, 2, 3, 4]);
+      const response = visible(
+        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+          request({
+            'telnyx-signature-ed25519': 'sig',
+            'telnyx-timestamp': '1700000000',
+            'x-polis-citizen': 'spoofed',
+            'x-polis-internal-token': 'spoofed-token',
+          }),
+          body,
+          {},
+        ),
+      );
+
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].url, 'http://channel.internal/internal/channel/webhooks/telnyx/voice');
+      assert.equal(calls[0].init?.method, 'POST');
+      assert.deepEqual(new Uint8Array(await new Response(calls[0].init?.body).arrayBuffer()), body);
+      assert.equal(fetchHeader(calls[0].init?.headers, 'x-polis-internal-token'), 'platform-token');
+      assert.equal(fetchHeader(calls[0].init?.headers, 'telnyx-signature-ed25519'), 'sig');
+      assert.equal(fetchHeader(calls[0].init?.headers, 'telnyx-timestamp'), '1700000000');
+      assert.equal(fetchHeader(calls[0].init?.headers, 'x-polis-citizen'), null);
+      assert.equal(response.status, 202);
+      assert.equal(response.contentType, 'application/octet-stream');
+      assert.deepEqual(response.bytes, upstreamBytes);
+    },
+  );
+});
+
+test('channel Telnyx webhook timeouts use per-route limits and transport failures are upstream failures', async () => {
+  await withEnvironment({ CHANNEL_ENABLED: 'true', INTERNAL_API_TOKEN: 'platform-token' }, async () => {
+    const timeouts: number[] = [];
+    const originalTimeout = AbortSignal.timeout;
+    AbortSignal.timeout = ((timeoutMs: number) => {
+      timeouts.push(timeoutMs);
+      return originalTimeout(timeoutMs);
+    }) as typeof AbortSignal.timeout;
+    try {
+      globalThis.fetch = (async () => new Response(new Uint8Array(), { status: 204 })) as typeof globalThis.fetch;
+      await route(channelRoutes(), 'POST', '/webhooks/telnyx/messaging').handler(
+        request(),
+        new Uint8Array(),
+        {},
+      );
+      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+        request(),
+        new Uint8Array(),
+        {},
+      );
+      assert.deepEqual(timeouts, [1500, 5000]);
+    } finally {
+      AbortSignal.timeout = originalTimeout;
+    }
+
+    globalThis.fetch = (async () => {
+      throw new FetchTimeoutError(5_000);
+    }) as typeof globalThis.fetch;
+    let response = visible(
+      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(request(), new Uint8Array(), {}),
+    );
+    assert.equal(response.status, 504);
+    assert.deepEqual(response.body, { error: 'upstream_timeout' });
+
+    globalThis.fetch = (async () => {
+      throw new Error('connection refused');
+    }) as typeof globalThis.fetch;
+    response = visible(
+      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(request(), new Uint8Array(), {}),
+    );
+    assert.equal(response.status, 502);
+    assert.deepEqual(response.body, { error: 'bad_gateway' });
+  });
+});
+
+test('public-edge blocks channel Telnyx webhook routes', async () => {
+  await withEnvironment({ CHANNEL_ENABLED: 'true', PUBLIC_EDGE: 'true' }, async () => {
+    for (const candidate of withPublicEdge(channelRoutes())) {
+      const response = visible(await candidate.handler(request(), new Uint8Array(), {}));
+      assert.equal(response.status, 405, `${candidate.method} ${candidate.path}`);
+      assert.deepEqual(response.body, { error: 'method_not_allowed', reason: 'public_edge' });
+    }
+  });
+});

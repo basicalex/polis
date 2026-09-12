@@ -24,6 +24,7 @@ import {
 } from './auth.js';
 import { parseInternalFetchTimeoutMs } from './config.js';
 import { proxyTo, proxyToPath, upstreamFailure } from './proxy.js';
+import { channelRoutes } from './channel-routes.js';
 import { traceRoutes } from './trace-routes.js';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
@@ -88,6 +89,7 @@ export function platformRoutes(): Route[] {
   return [
     ...operationalRoutes('platform-api'),
     ...traceRoutes(),
+    ...channelRoutes(),
     ...graphReadPaths.map((path) => ({
       method: 'GET',
       path,

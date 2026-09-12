@@ -376,6 +376,7 @@ export class PostgresChannelStore implements ChannelStore {
     await this.#sql`
       UPDATE channel_inbox
       SET state = 'done', last_error = NULL,
+          body_ciphertext = NULL, body_nonce = NULL, body_tag = NULL, key_version = NULL,
           record_id = ${completion.recordId === undefined ? row.record_id : completion.recordId},
           case_number = ${completion.caseNumber === undefined ? row.case_number : completion.caseNumber}
       WHERE id = ${id}
@@ -412,7 +413,7 @@ export class PostgresChannelStore implements ChannelStore {
     const rows = await this.#sql<OutboxRow[]>`
       WITH picked AS (
         SELECT id FROM channel_outbox
-        WHERE state IN ('pending', 'failed') AND next_attempt_at <= ${now}
+        WHERE state = 'pending' AND next_attempt_at <= ${now}
         ORDER BY next_attempt_at, id
         FOR UPDATE SKIP LOCKED
         LIMIT ${limit}
@@ -431,6 +432,13 @@ export class PostgresChannelStore implements ChannelStore {
       UPDATE channel_outbox
       SET state = 'sent', provider_message_id = ${providerMessageId}, sent_at = ${sentAt},
           last_error = NULL
+      WHERE id = ${id}
+    `;
+  }
+
+  async markOutboxFailed(id: string, lastError: string): Promise<void> {
+    await this.#sql`
+      UPDATE channel_outbox SET state = 'failed', last_error = ${lastError}
       WHERE id = ${id}
     `;
   }

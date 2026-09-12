@@ -11,6 +11,9 @@ const DIST = 'services/platform-api/dist/index.js';
 const SIGNING_PORT = Number(process.env.DOCUMENT_SIGNING_SERVICE_PORT ?? 8960);
 const SIGNING_BASE = `http://127.0.0.1:${SIGNING_PORT}`;
 const SIGNING_DIST = 'services/document-signing-service/dist/index.js';
+const CHANNEL_PORT = Number(process.env.CHANNEL_GATEWAY_PORT ?? 8990);
+const CHANNEL_BASE = `http://127.0.0.1:${CHANNEL_PORT}`;
+const CHANNEL_DIST = 'services/channel-gateway/dist/routes.js';
 
 function assert(label, cond, detail = '') {
   if (!cond) throw new Error(`smoke failed: ${label} ${detail}`.trim());
@@ -31,7 +34,7 @@ async function poll(base, label, timeoutMs = 20_000) {
   }
 }
 
-if (!existsSync(DIST) || !existsSync(SIGNING_DIST)) {
+if (!existsSync(DIST) || !existsSync(SIGNING_DIST) || !existsSync(CHANNEL_DIST)) {
   console.log('[v1-smoke] dist missing — building workspace…');
   execSync('bun run build', { stdio: 'inherit' });
 }
@@ -43,15 +46,21 @@ svc.stderr.on('data', (d) => process.stderr.write(d));
 
 // The signing route table can serve operational routes without a database.
 // Bind it with inert dependencies so this smoke remains hermetic.
-const [{ signingRoutes }, { startService }] = await Promise.all([
+const [{ signingRoutes }, { channelRoutes }, { startService }] = await Promise.all([
   import('../services/document-signing-service/dist/index.js'),
+  import('../services/channel-gateway/dist/routes.js'),
   import('../packages/service-runtime/dist/index.js'),
 ]);
 const signingSvc = startService('document-signing-service', SIGNING_PORT, signingRoutes({}));
+const channelSvc = startService('channel-gateway', CHANNEL_PORT, channelRoutes({}));
 
 let failed = false;
 try {
-  await Promise.all([poll(BASE, 'platform-api'), poll(SIGNING_BASE, 'document-signing-service')]);
+  await Promise.all([
+    poll(BASE, 'platform-api'),
+    poll(SIGNING_BASE, 'document-signing-service'),
+    poll(CHANNEL_BASE, 'channel-gateway'),
+  ]);
   console.log('[v1-smoke] checking §23 contract…');
 
   const hz = await (await fetch(`${BASE}/healthz`)).json();
@@ -61,6 +70,12 @@ try {
     'document-signing-service GET /healthz → status=ok',
     signingHealth.status === 'ok',
     JSON.stringify(signingHealth),
+  );
+  const channelHealth = await (await fetch(`${CHANNEL_BASE}/healthz`)).json();
+  assert(
+    'channel-gateway GET /healthz → status=ok',
+    channelHealth.status === 'ok',
+    JSON.stringify(channelHealth),
   );
 
   const ver = await (await fetch(`${BASE}/version`)).json();
@@ -113,6 +128,7 @@ try {
     }
   }
   await new Promise((resolve) => signingSvc.close(resolve));
+  await new Promise((resolve) => channelSvc.close(resolve));
 }
 
 if (failed) process.exit(1);

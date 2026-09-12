@@ -42,6 +42,8 @@ export interface ChannelStore {
   enqueueOutbox(item: ChannelOutbox): Promise<void>;
   claimOutbox(now: Date, limit: number): Promise<ChannelOutbox[]>;
   markOutboxSent(id: string, providerMessageId: string, sentAt: Date): Promise<void>;
+  /** Terminal: the row is never claimed again. */
+  markOutboxFailed(id: string, lastError: string): Promise<void>;
   markOutboxDelivery(providerMessageId: string, state: Extract<OutboxState, 'delivered' | 'failed'>): Promise<void>;
   findOutboxBySource(sourceMessageId: string): Promise<ChannelOutbox | null>;
   putRecording(recording: ChannelRecording): Promise<void>;

@@ -285,6 +285,21 @@
       },
       "devPortEnv": "TRACE_SERVICE_PORT",
       "internalUrlEnv": "TRACE_INTERNAL_URL"
+    },
+    {
+      "name": "channel-gateway",
+      "path": "services/channel-gateway",
+      "workspace": "@polis/channel-gateway",
+      "runtime": "node-24",
+      "defaultPort": 8990,
+      "role": "Terminates Telnyx SMS and voice webhooks, holds the only phone data, relays case messages.",
+      "healthRoute": "/readyz",
+      "dev": {
+        "launch": false,
+        "order": null
+      },
+      "devPortEnv": "CHANNEL_GATEWAY_PORT",
+      "internalUrlEnv": "CHANNEL_INTERNAL_URL"
     }
   ]
 }

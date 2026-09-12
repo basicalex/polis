@@ -57,6 +57,8 @@ Node services using `packages/service-runtime` expose:
 | GET | `/api/v1/mandate-holders/:id/charter-signing-status` | Requires a citizen session; returns the latest signing request for the mandate-holder. |
 | POST | `/api/v1/signing-requests/:id/stub-complete` | Requires the signer citizen's session; completes and reconciles a stub request. |
 | POST | `/webhooks/documenso` | Forwards the raw body and `X-Documenso-Secret` to the signing service. |
+| POST | `/webhooks/telnyx/messaging` | Forwards the raw body plus `telnyx-signature-ed25519` and `telnyx-timestamp` to `channel-gateway`. |
+| POST | `/webhooks/telnyx/voice` | Forwards the raw body plus `telnyx-signature-ed25519` and `telnyx-timestamp` to `channel-gateway`. |
 | POST | `/api/v1/complaints` | Requires a citizen session; creates a resident-owned complaint case. |
 | GET | `/api/v1/complaints/mine` | Requires a citizen session; lists the caller's complaint summaries. |
 | GET | `/api/v1/complaints/queue` | Requires a staff session and authorized complaints right; lists the intake queue. |
@@ -95,6 +97,7 @@ Node services using `packages/service-runtime` expose:
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | `GET /readyz` | 15 |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | `GET /readyz` | 16 |
 | `trace-service` | Node 24 | 8980 | Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration. | `GET /readyz` | opt-in |
+| `channel-gateway` | Node 24 | 8990 | Terminates Telnyx SMS and voice webhooks, holds the only phone data, relays case messages. | `GET /readyz` | opt-in |
 <!-- service-catalog:service-map:end -->
 
 `document-signing-service` depends on Postgres, `proof-service`,
@@ -103,14 +106,15 @@ acceptance. Paperless archival and audit emission are best-effort.
 
 `complaints-service` depends on Postgres and `audit-service`. Its case content, resident ownership identifier, and audit correlation identifier are private; serialized responses omit the latter two.
 
-The isolated public-read pilot Compose deliberately omits `complaints-service`, its port, and `COMPLAINTS_INTERNAL_URL`.
+The isolated public-read pilot Compose deliberately omits `complaints-service`, `channel-gateway`, their ports, and `COMPLAINTS_INTERNAL_URL`/`CHANNEL_INTERNAL_URL`; `channel-gateway` holds the only phone data.
 
 ## Internal service routes
 
 Every `/internal/*` route requires `X-Polis-Internal-Token`. The shared runtime
 returns `401 internal_auth_required` when `INTERNAL_API_TOKEN` is missing or the
-header does not match. The public BFF injects this header for service calls. The
-Documenso webhook also requires `X-Documenso-Secret`.
+header does not match. The public BFF injects this header for service calls.
+Documenso webhooks also require `X-Documenso-Secret`; Telnyx webhooks require
+`telnyx-signature-ed25519` and `telnyx-timestamp`.
 
 | Service | Port | Method | Path | Current behavior |
 | --- | ---: | --- | --- | --- |
@@ -156,10 +160,14 @@ Documenso webhook also requires `X-Documenso-Secret`.
 | `document-signing-service` | 8960 | POST | `/internal/signing/requests/:id/stub-complete` | In stub mode, completes the signing recipient's test envelope and reconciles it. |
 | `document-signing-service` | 8960 | GET | `/internal/signing/artifacts/:id/content` | Downloads restricted artifact bytes with private, no-store caching. |
 | `document-signing-service` | 8960 | POST | `/internal/signing/webhooks/documenso` | Deduplicates a secret-authenticated wake-up event and schedules reconciliation. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/telnyx/messaging` | Verifies and deduplicates Telnyx SMS webhooks, seals private phone/message data, and relays case messages. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/telnyx/voice` | Verifies and deduplicates Telnyx voice webhooks, drives Call Control handling, and processes recording callbacks. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/stub/inbound` | Stub-only inbound SMS/voice injection for hermetic local and pilot runs when enabled. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/relay/outbox` | Claims pending trace outbox messages and sends them through the configured channel provider. |
 
 ## Local ports
 
-The generated service table above is the canonical local port map. Compose publishes only `platform-api` at host port `8080`; Postgres and internal services use `expose`. `scripts/dev-services.mjs` launches 17 of the 18 catalogued Node services in the listed dependency-safe order and supplies their development internal URLs. `trace-service` is opt-in and remains outside the default launcher. The Python `ai-gateway` remains an external process.
+The generated service table above is the canonical local port map. Compose publishes only `platform-api` at host port `8080`; Postgres and internal services use `expose`. `scripts/dev-services.mjs` launches 17 catalogued Node services in the listed dependency-safe order and supplies their development internal URLs. `trace-service` and `channel-gateway` are opt-in and remain outside the default launcher. The Python `ai-gateway` remains an external process.
 
 ## Integration warning
 

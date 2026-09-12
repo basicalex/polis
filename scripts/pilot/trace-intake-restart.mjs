@@ -16,9 +16,17 @@ export function applyTraceIntakeOverride(launch, value) {
 }
 
 export function traceServiceDefinition(runtime, launch, serviceEnvironment) {
+  const traceExtraEnv = {
+    ...launch.traceExtraEnv,
+    TRACE_ATTENTION_PEPPER:
+      launch.traceExtraEnv.TRACE_ATTENTION_PEPPER ?? runtime.secrets.traceAttentionPepper,
+  };
   return {
     command: launch.traceStartCommand,
-    env: serviceEnvironment(runtime, { PORT: '8980', ...launch.traceExtraEnv }),
+    env: serviceEnvironment(runtime, {
+      PORT: '8980',
+      ...traceExtraEnv,
+    }),
     healthUrl: 'http://127.0.0.1:8980/readyz',
     cwd: runtime.metadata.repoRoot,
   };

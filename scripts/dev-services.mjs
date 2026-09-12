@@ -76,6 +76,8 @@ for (const service of services) {
       INTERNAL_API_TOKEN: process.env.INTERNAL_API_TOKEN ?? 'polis-internal-dev-token',
       GRAPH_INTERNAL_URL: process.env.GRAPH_INTERNAL_URL ?? 'http://localhost:8100',
       AUDIT_INTERNAL_URL: process.env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
+      TRACE_INTERNAL_URL: process.env.TRACE_INTERNAL_URL ?? 'http://localhost:8980',
+      CHANNEL_INTERNAL_URL: process.env.CHANNEL_INTERNAL_URL ?? 'http://localhost:8990',
       POLIS_INTERNAL_URL: process.env.POLIS_INTERNAL_URL ?? 'http://localhost:8200',
       POLIS_MODE: process.env.POLIS_MODE ?? 'stub',
       PAPERLESS_INTERNAL_URL: process.env.PAPERLESS_INTERNAL_URL ?? 'http://localhost:8300',
@@ -97,6 +99,8 @@ for (const service of services) {
       TIMESTAMP_MODE: process.env.TIMESTAMP_MODE ?? 'stub',
       SIGNATURE_MODE: process.env.SIGNATURE_MODE ?? 'stub',
       SIGNING_PROVIDER: process.env.SIGNING_PROVIDER ?? 'stub',
+      CHANNEL_PROVIDER: process.env.CHANNEL_PROVIDER ?? 'stub',
+      STT_PROVIDER: process.env.STT_PROVIDER ?? 'stub',
       ARTIFACT_STORE_MODE: process.env.ARTIFACT_STORE_MODE ?? 'database',
     },
   });
