@@ -2,12 +2,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type {
+  AiProposal,
+  CaseMessage,
   PilotConfig,
   PilotSession,
   PrivateTraceRecord,
+  PublicCaseShell,
   PublicTraceRecord,
 } from './model.ts';
 import {
+  attentionCountsFromEnvelope,
+  closeResultFromEnvelope,
+  messageResultFromEnvelope,
+  messagesFromEnvelope,
+  proposalDecisionFromEnvelope,
+  publicCaseFromEnvelope,
+  publicCasesFromEnvelope,
   publicRecordFromEnvelope,
   recordFromEnvelope,
   recordsFromEnvelope,
@@ -211,6 +221,56 @@ export async function reviewResolution(
   });
 }
 
+export async function listCaseMessages(
+  id: string,
+  signal?: AbortSignal,
+): Promise<CaseMessage[]> {
+  return requestJson<CaseMessage[]>(`/records/${encodeURIComponent(id)}/messages`, {
+    signal,
+    parse: messagesFromEnvelope,
+  });
+}
+
+export async function sendCaseMessage(
+  id: string,
+  input: { expectedVersion: number; kind: 'question' | 'answer' | 'status-update'; body: string },
+): Promise<{ message: CaseMessage; record: PrivateTraceRecord }> {
+  return requestJson(`/records/${encodeURIComponent(id)}/messages`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: messageResultFromEnvelope,
+  });
+}
+
+export async function decideAiProposal(
+  id: string,
+  proposalId: string,
+  input: { expectedVersion: number; decision: 'accepted' | 'rejected'; note?: string },
+): Promise<{ proposal: AiProposal; record: PrivateTraceRecord }> {
+  return requestJson(
+    `/records/${encodeURIComponent(id)}/ai-proposals/${encodeURIComponent(proposalId)}/decision`,
+    {
+      method: 'POST',
+      body: input,
+      idempotent: true,
+      parse: proposalDecisionFromEnvelope,
+    },
+  );
+}
+
+export async function closeCase(
+  id: string,
+  input: { expectedVersion: number; reason: string; publicReason: string; note?: string },
+): Promise<{ record: PrivateTraceRecord; shell: PublicCaseShell }> {
+  return requestJson(`/records/${encodeURIComponent(id)}/close`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: closeResultFromEnvelope,
+  });
+}
+
 export async function uploadPrivateAttachment(
   id: string,
   input: {
@@ -243,6 +303,39 @@ export async function getPublicRecord(id: string, signal?: AbortSignal): Promise
   return requestJson<PublicTraceRecord>(`/public/records/${encodeURIComponent(id)}`, {
     signal,
     parse: publicRecordFromEnvelope,
+  });
+}
+
+export async function listPublicCases(
+  limit?: number,
+  signal?: AbortSignal,
+): Promise<PublicCaseShell[]> {
+  const query = Number.isInteger(limit) && limit ? `?limit=${limit}` : '';
+  return requestJson<PublicCaseShell[]>(`/public/cases${query}`, {
+    signal,
+    parse: publicCasesFromEnvelope,
+  });
+}
+
+export async function getPublicCase(
+  caseNumber: string,
+  signal?: AbortSignal,
+): Promise<{ case: PublicCaseShell; record: PublicTraceRecord | null }> {
+  return requestJson(`/public/cases/${encodeURIComponent(caseNumber)}`, {
+    signal,
+    parse: publicCaseFromEnvelope,
+  });
+}
+
+export async function recordCaseAttention(
+  caseNumber: string,
+  input: { followerKey: string; kind: 'follow' | 'also-affected'; action: 'add' | 'remove' },
+): Promise<{ followerCount: number; alsoAffectedCount: number }> {
+  return requestJson(`/public/cases/${encodeURIComponent(caseNumber)}/attention`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: attentionCountsFromEnvelope,
   });
 }
 

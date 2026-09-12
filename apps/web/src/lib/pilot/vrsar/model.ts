@@ -11,7 +11,34 @@ export type TraceStatus =
   | 'returned'
   | 'published'
   | 'resolution-pending-review'
-  | 'resolved';
+  | 'resolved'
+  | 'closed';
+
+/** How the filer reached the office. The web form is one channel among three. */
+export type TraceOrigin = 'web' | 'sms' | 'voice';
+export type FilerKind = 'account' | 'anonymous-channel';
+export type ClosedReason =
+  | 'duplicate'
+  | 'out-of-scope'
+  | 'withdrawn'
+  | 'insufficient-information'
+  | 'no-action-possible'
+  | 'resolved-elsewhere';
+export const CLOSED_REASONS: readonly ClosedReason[] = [
+  'duplicate',
+  'out-of-scope',
+  'withdrawn',
+  'insufficient-information',
+  'no-action-possible',
+  'resolved-elsewhere',
+];
+export type CaseShellState =
+  | 'received'
+  | 'assigned'
+  | 'in-review'
+  | 'published'
+  | 'resolved'
+  | 'closed';
 
 export interface LocalizedName {
   hr?: string;
@@ -48,6 +75,79 @@ export interface PilotSession {
   email?: string;
   role: PilotRole;
   municipalityId: string;
+}
+
+export type CaseMessageDirection = 'inbound' | 'outbound';
+export type CaseMessageKind =
+  | 'append'
+  | 'answer'
+  | 'question'
+  | 'status-update'
+  | 'receipt'
+  | 'transcript'
+  | 'transcript-failed';
+export type CaseMessageSource = 'typed' | 'transcript' | 'system';
+export type CaseMessageAuthorKind = 'filer' | 'official' | 'reviewer' | 'system';
+export type CaseMessageDeliveryState =
+  | 'pending'
+  | 'handed-off'
+  | 'delivered'
+  | 'failed'
+  | 'not-applicable';
+
+/** One message on the case. The filer's phone number never reaches this view. */
+export interface CaseMessage {
+  id: string;
+  recordId: string;
+  direction: CaseMessageDirection;
+  kind: CaseMessageKind;
+  channel: TraceOrigin;
+  source: CaseMessageSource;
+  body: string;
+  authorKind: CaseMessageAuthorKind;
+  authorActorId?: string | null;
+  inReplyTo?: string | null;
+  deliveryState: CaseMessageDeliveryState;
+  deliveryFailureCode?: string | null;
+  deliveredAt?: string | null;
+  createdAt: string;
+}
+
+export type AiProposalKind = 'category' | 'location' | 'duplicate-of' | 'office';
+export type AiProposalStatus = 'proposed' | 'accepted' | 'rejected' | 'superseded';
+
+/** A machine suggestion. It changes nothing until an official or reviewer decides. */
+export interface AiProposal {
+  id: string;
+  recordId: string;
+  kind: AiProposalKind;
+  proposedValue: Record<string, unknown>;
+  confidence: number;
+  modelId: string;
+  modelVersion: string;
+  status: AiProposalStatus;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  decisionNote?: string | null;
+  createdAt: string;
+}
+
+/** The public shell of a case: it exists in every state, with no private text. */
+export interface PublicCaseShell {
+  caseNumber: string;
+  municipalityId: string;
+  area: string;
+  category: string;
+  track: 'standard';
+  state: CaseShellState;
+  closedPublicReason: string | null;
+  filedAt: string;
+  clockDueAt: string | null;
+  followerCount: number;
+  alsoAffectedCount: number;
+  shellHash: string;
+  updatedAt: string;
+  testEnvironment: true;
 }
 
 export interface TraceAttachment {
@@ -127,6 +227,15 @@ export interface PrivateTraceRecord {
   updatedAt: string;
   events: TraceEvent[];
   attachments: TraceAttachment[];
+  /** The identifier a filer and the public both quote. The UUID stays internal. */
+  caseNumber?: string;
+  origin?: TraceOrigin;
+  filerKind?: FilerKind;
+  closedReason?: ClosedReason | null;
+  closedPublicReason?: string | null;
+  followerCount?: number;
+  alsoAffectedCount?: number;
+  aiProposals?: AiProposal[];
 }
 
 /** Public fields are deliberately separate from the private record type. */
@@ -160,7 +269,8 @@ export function isTraceStatus(value: unknown): value is TraceStatus {
     value === 'returned' ||
     value === 'published' ||
     value === 'resolution-pending-review' ||
-    value === 'resolved'
+    value === 'resolved' ||
+    value === 'closed'
   );
 }
 
@@ -176,6 +286,76 @@ export function publicRecordFromEnvelope(value: unknown): PublicTraceRecord {
   const record = (value as { record?: unknown }).record;
   if (!record || typeof record !== 'object') throw new Error('invalid_public_record_response');
   return record as PublicTraceRecord;
+}
+
+function envelopeMember(value: unknown, key: string, error: string): unknown {
+  if (!value || typeof value !== 'object' || !(key in value)) throw new Error(error);
+  return (value as Record<string, unknown>)[key];
+}
+
+export function messagesFromEnvelope(value: unknown): CaseMessage[] {
+  const messages = envelopeMember(value, 'messages', 'invalid_messages_response');
+  if (!Array.isArray(messages)) throw new Error('invalid_messages_response');
+  return messages as CaseMessage[];
+}
+
+export function messageResultFromEnvelope(value: unknown): {
+  message: CaseMessage;
+  record: PrivateTraceRecord;
+} {
+  const message = envelopeMember(value, 'message', 'invalid_message_response');
+  if (!message || typeof message !== 'object') throw new Error('invalid_message_response');
+  return { message: message as CaseMessage, record: recordFromEnvelope(value) };
+}
+
+export function proposalDecisionFromEnvelope(value: unknown): {
+  proposal: AiProposal;
+  record: PrivateTraceRecord;
+} {
+  const proposal = envelopeMember(value, 'proposal', 'invalid_proposal_response');
+  if (!proposal || typeof proposal !== 'object') throw new Error('invalid_proposal_response');
+  return { proposal: proposal as AiProposal, record: recordFromEnvelope(value) };
+}
+
+export function closeResultFromEnvelope(value: unknown): {
+  record: PrivateTraceRecord;
+  shell: PublicCaseShell;
+} {
+  const shell = envelopeMember(value, 'shell', 'invalid_close_response');
+  if (!shell || typeof shell !== 'object') throw new Error('invalid_close_response');
+  return { record: recordFromEnvelope(value), shell: shell as PublicCaseShell };
+}
+
+export function publicCasesFromEnvelope(value: unknown): PublicCaseShell[] {
+  const cases = envelopeMember(value, 'cases', 'invalid_public_cases_response');
+  if (!Array.isArray(cases)) throw new Error('invalid_public_cases_response');
+  return cases as PublicCaseShell[];
+}
+
+export function publicCaseFromEnvelope(value: unknown): {
+  case: PublicCaseShell;
+  record: PublicTraceRecord | null;
+} {
+  const shell = envelopeMember(value, 'case', 'invalid_public_case_response');
+  if (!shell || typeof shell !== 'object') throw new Error('invalid_public_case_response');
+  const record = value && typeof value === 'object' ? (value as { record?: unknown }).record : null;
+  return {
+    case: shell as PublicCaseShell,
+    record: record && typeof record === 'object' ? (record as PublicTraceRecord) : null,
+  };
+}
+
+export function attentionCountsFromEnvelope(value: unknown): {
+  followerCount: number;
+  alsoAffectedCount: number;
+} {
+  const counts = envelopeMember(value, 'counts', 'invalid_attention_response');
+  if (!counts || typeof counts !== 'object') throw new Error('invalid_attention_response');
+  const shape = counts as { followerCount?: unknown; alsoAffectedCount?: unknown };
+  if (typeof shape.followerCount !== 'number' || typeof shape.alsoAffectedCount !== 'number') {
+    throw new Error('invalid_attention_response');
+  }
+  return { followerCount: shape.followerCount, alsoAffectedCount: shape.alsoAffectedCount };
 }
 
 export function recordsFromEnvelope<T>(value: unknown): T[] {

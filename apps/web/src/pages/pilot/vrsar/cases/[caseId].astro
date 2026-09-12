@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import VrsarOriginBadge from '../../../../components/pilot/vrsar/VrsarOriginBadge.astro';
 import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
 import VrsarPrivateBoundary from '../../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
 import VrsarTraceSummary from '../../../../components/pilot/vrsar/VrsarTraceSummary.astro';
@@ -18,23 +19,50 @@ const lang = parsePilotLang(Astro.url);
     <header class="pilot-page-header">
       <h1>{pilotCopy.detail.heading[lang]}</h1>
       <p class="pilot-ledger-id" data-record-id></p>
+      <p class="pilot-ledger-meta" data-record-origin><VrsarOriginBadge origin="unknown" lang={lang} /></p>
     </header>
     <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
     <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
     <div class="pilot-page" data-private-record hidden>
+      <section class="pilot-section panel" data-closed-notice hidden></section>
       <section class="pilot-section panel">
         <span class="status-label" data-tone="unknown" data-record-status data-status="unknown"></span>
         <dl class="pilot-meta" data-private-fields></dl>
       </section>
+
+      {/* Machine suggestions. Staff decide; nothing here changes the case on its own. */}
+      <section class="pilot-section" aria-labelledby="case-ai-title" data-ai-section hidden>
+        <h2 id="case-ai-title">{pilotCopy.ai.heading[lang]}</h2>
+        <p class="pilot-disclosure">{pilotCopy.ai.rule[lang]}</p>
+        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-ai-state hidden></p>
+        <ul class="pilot-ledger" data-ai-list></ul>
+      </section>
+
+      <section class="pilot-section" aria-labelledby="case-messages-title" data-messages-section hidden>
+        <h2 id="case-messages-title">{pilotCopy.messages.heading[lang]}</h2>
+        <p class="pilot-disclosure">{pilotCopy.messages.noPhone[lang]}</p>
+        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-messages-state hidden></p>
+        <ul class="pilot-ledger" data-messages-list></ul>
+        <div class="pilot-section" data-message-form hidden></div>
+      </section>
+
       <section class="pilot-section" aria-labelledby="case-trace-title">
         <h2 id="case-trace-title">{pilotCopy.detail.events[lang]}</h2>
         <VrsarTraceSummary lang={lang} />
         <ol class="pilot-event-list" data-private-events></ol>
         <p class="pilot-disclosure">{pilotCopy.detail.hashLinked[lang]}</p>
       </section>
+
       <section class="pilot-section" aria-labelledby="case-attachments-title">
         <h2 id="case-attachments-title">{pilotCopy.detail.attachments[lang]}</h2>
         <ul class="pilot-ledger" data-private-attachments></ul>
+      </section>
+
+      {/* Reviewer-only, and only while the case is still open to closing. */}
+      <section class="pilot-section" aria-labelledby="case-close-title" data-close-section hidden>
+        <h2 id="case-close-title">{pilotCopy.close.heading[lang]}</h2>
+        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-close-state hidden></p>
+        <div data-close-form></div>
       </section>
     </div>
     <div class="pilot-state-actions"><button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button></div>

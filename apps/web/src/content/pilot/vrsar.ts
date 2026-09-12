@@ -73,6 +73,7 @@ export const pilotCopy = Object.freeze({
     municipality: localized('Općina', 'Comune', 'Municipality'),
     office: localized('Nadležni odsjek', 'Ufficio responsabile', 'Responsible office'),
     category: localized('Kategorija', 'Categoria', 'Category'),
+    caseNumber: localized('Broj predmeta', 'Numero del caso', 'Case number'),
     recordId: localized('Oznaka zapisa', 'Identificativo del record', 'Record ID'),
     status: localized('Status', 'Stato', 'Status'),
     updated: localized('Ažurirano', 'Aggiornato', 'Updated'),
@@ -312,6 +313,114 @@ export const pilotCopy = Object.freeze({
       'The decision is written permanently into the hash-linked trail and cannot be undone.',
     ),
   },
+  channel: {
+    label: localized('Kanal prijave', 'Canale della segnalazione', 'Report channel'),
+    web: localized('Web obrazac', 'Modulo web', 'Web form'),
+    sms: localized('SMS', 'SMS', 'SMS'),
+    voice: localized('Telefonski poziv', 'Chiamata telefonica', 'Phone call'),
+    unknown: localized('Kanal nije poznat', 'Canale sconosciuto', 'Channel unknown'),
+  },
+  ai: {
+    heading: localized('Prijedlozi AI pripreme', 'Proposte di preparazione AI', 'AI intake proposals'),
+    rule: localized(
+      'Prijedlog nije odluka. Vrijedi tek kad ga službena osoba prihvati.',
+      'Una proposta non è una decisione. Vale solo quando il personale la accetta.',
+      'A proposal is not a decision. It counts only once a staff member accepts it.',
+    ),
+    empty: localized(
+      'Za ovaj predmet nema prijedloga AI pripreme.',
+      'Nessuna proposta di preparazione AI per questo caso.',
+      'No AI intake proposal for this case.',
+    ),
+    proposed: localized('Prijedlog', 'Proposta', 'Proposal'),
+    confidence: localized('Navedena pouzdanost modela', 'Affidabilità dichiarata dal modello', 'Stated model confidence'),
+    model: localized('Model', 'Modello', 'Model'),
+    lowConfidence: localized(
+      'Model je za ovaj prijedlog naveo nisku pouzdanost. Provjerite ga prije prihvaćanja.',
+      'Il modello dichiara una bassa affidabilità per questa proposta. Verificala prima di accettarla.',
+      'The model states low confidence in this proposal. Check it before accepting.',
+    ),
+    duplicateRisk: localized(
+      'Model tvrdi da je ovo duplikat drugog predmeta. Prihvaćanje povezuje dva predmeta, pa provjerite oba.',
+      'Il modello sostiene che questo sia un duplicato di un altro caso. Accettando si collegano i due casi: controllali entrambi.',
+      'The model claims this duplicates another case. Accepting links the two cases, so check both.',
+    ),
+    accept: localized('Prihvati', 'Accetta', 'Accept'),
+    reject: localized('Odbaci', 'Rifiuta', 'Reject'),
+    deciding: localized('Spremanje odluke…', 'Salvataggio della decisione…', 'Saving decision…'),
+    decided: localized('Odluka je zabilježena.', 'La decisione è stata registrata.', 'The decision was recorded.'),
+    decidedAt: localized('Odlučeno', 'Deciso', 'Decided'),
+    note: localized('Bilješka uz odluku (neobvezno)', 'Nota sulla decisione (facoltativa)', 'Decision note (optional)'),
+    loadError: localized(
+      'Prijedlozi AI pripreme nisu se mogli učitati.',
+      'Impossibile caricare le proposte di preparazione AI.',
+      'The AI intake proposals could not be loaded.',
+    ),
+  },
+  messages: {
+    heading: localized('Poruke s podnositeljem', 'Messaggi con il segnalante', 'Messages with the filer'),
+    noPhone: localized(
+      'Broj podnositelja nije dostupan u ovom prikazu.',
+      'Il numero del segnalante non è disponibile in questa vista.',
+      'The filer’s number is not available in this view.',
+    ),
+    empty: localized(
+      'Još nema poruka na ovom predmetu.',
+      'Nessun messaggio su questo caso.',
+      'No messages on this case yet.',
+    ),
+    inbound: localized('Podnositelj', 'Segnalante', 'Filer'),
+    outbound: localized('Ured', 'Ufficio', 'Office'),
+    formHeading: localized('Pošalji pitanje podnositelju', 'Invia una domanda al segnalante', 'Send a question to the filer'),
+    body: localized('Tekst pitanja', 'Testo della domanda', 'Question text'),
+    bodyHint: localized(
+      'Najviše 480 znakova. Poruka odlazi kanalom kojim je prijava zaprimljena.',
+      'Massimo 480 caratteri. Il messaggio segue il canale di arrivo della segnalazione.',
+      'Up to 480 characters. The message leaves on the channel the report arrived by.',
+    ),
+    remaining: localized('Preostalo znakova', 'Caratteri rimanenti', 'Characters left'),
+    send: localized('Pošalji pitanje', 'Invia la domanda', 'Send question'),
+    sending: localized('Slanje poruke…', 'Invio del messaggio…', 'Sending message…'),
+    sent: localized('Poruka je predana na dostavu.', 'Il messaggio è stato consegnato al recapito.', 'The message was handed over for delivery.'),
+    loadError: localized(
+      'Poruke se nisu mogle učitati.',
+      'Impossibile caricare i messaggi.',
+      'The messages could not be loaded.',
+    ),
+  },
+  close: {
+    heading: localized('Zatvori predmet uz razlog', 'Chiudi il caso con una motivazione', 'Close the case with a reason'),
+    intro: localized(
+      'Zatvaranje zaustavlja rad na predmetu. Javni zapis ostaje vidljiv i nosi javni razlog koji ovdje upišete.',
+      'La chiusura ferma il lavoro sul caso. Il record pubblico resta visibile e riporta la motivazione pubblica scritta qui.',
+      'Closing stops work on the case. The public record stays visible and carries the public reason written here.',
+    ),
+    reason: localized('Razlog zatvaranja', 'Motivo della chiusura', 'Closing reason'),
+    publicReason: localized('Javni razlog (jedna rečenica)', 'Motivazione pubblica (una frase)', 'Public reason (one sentence)'),
+    publicReasonHint: localized(
+      'Ovaj tekst čitaju svi. Ne upisujte privatne podatke podnositelja.',
+      'Questo testo è leggibile da tutti. Non inserire dati privati del segnalante.',
+      'Anyone can read this text. Do not enter the filer’s private details.',
+    ),
+    note: localized('Interna bilješka (neobvezno)', 'Nota interna (facoltativa)', 'Internal note (optional)'),
+    submit: localized('Zatvori predmet', 'Chiudi il caso', 'Close case'),
+    confirmHeading: localized('Potvrdite zatvaranje predmeta', 'Conferma la chiusura del caso', 'Confirm closing the case'),
+    confirmWarning: localized(
+      'Zatvaranje se upisuje u hash-povezani slijed i ne može se poništiti.',
+      'La chiusura viene scritta nella cronologia collegata tramite hash e non può essere annullata.',
+      'Closing is written into the hash-linked trail and cannot be undone.',
+    ),
+    confirm: localized('Potvrdi zatvaranje', 'Conferma la chiusura', 'Confirm closing'),
+    closing: localized('Zatvaranje predmeta…', 'Chiusura del caso…', 'Closing the case…'),
+    closed: localized('Predmet je zatvoren.', 'Il caso è chiuso.', 'The case is closed.'),
+    closedHeading: localized('Predmet je zatvoren', 'Caso chiuso', 'Case closed'),
+    closedPublicReason: localized('Javni razlog zatvaranja', 'Motivazione pubblica della chiusura', 'Public closing reason'),
+    noAction: localized(
+      'Predmet se u ovom statusu više ne može zatvoriti.',
+      'In questo stato il caso non può più essere chiuso.',
+      'The case can no longer be closed in this status.',
+    ),
+  },
   receipts: {
     heading: localized('Javne potvrde', 'Ricevute pubbliche', 'Public receipts'),
     singular: localized('Javna potvrda', 'Ricevuta pubblica', 'Public receipt'),
@@ -369,14 +478,64 @@ export const pilotCopy = Object.freeze({
 });
 
 export const statusLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
-  open: localized('Otvoreno', 'Aperto', 'Open'),
+  open: localized('ZAPRIMLJENO', 'RICEVUTO', 'RECEIVED'),
   assigned: localized('Odgovornost preuzeta', 'Responsabilità assunta', 'Responsibility assigned'),
   'commitment-pending-review': localized('ČEKA NEOVISNU PROVJERU', 'IN ATTESA DI REVISIONE INDIPENDENTE', 'PENDING REVIEW'),
   returned: localized('Vraćeno iz neovisne provjere', 'Restituito dalla revisione indipendente', 'Returned by independent review'),
   published: localized('Obveza objavljena', 'Impegno pubblicato', 'Commitment published'),
   'resolution-pending-review': localized('Dovršetak čeka neovisnu provjeru', 'Completamento in revisione indipendente', 'Completion pending independent review'),
   resolved: localized('Dovršetak neovisno prihvaćen', 'Completamento accettato indipendentemente', 'Completion independently accepted'),
+  closed: localized('ZATVORENO', 'CHIUSO', 'CLOSED'),
   unknown: localized('Status nije poznat', 'Stato sconosciuto', 'Status unknown'),
+});
+
+/**
+ * Origin, AI, delivery, and closing labels. Croatian first; the terms new in
+ * this wave (kanal prijave, prijedlog AI pripreme, predano na dostavu, javni
+ * razlog zatvaranja) are not yet in the FLAGGED glossary rows in
+ * docs/communication/hr-terminology-glossary.md and still need the native
+ * public-sector editor's yes/no.
+ */
+export const originLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  web: pilotCopy.channel.web,
+  sms: pilotCopy.channel.sms,
+  voice: pilotCopy.channel.voice,
+  unknown: pilotCopy.channel.unknown,
+});
+
+export const aiStatusLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  proposed: localized('PREDLOŽENO', 'PROPOSTO', 'PROPOSED'),
+  accepted: localized('PRIHVAĆENO', 'ACCETTATO', 'ACCEPTED'),
+  rejected: localized('ODBAČENO', 'RIFIUTATO', 'REJECTED'),
+  superseded: localized('ZAMIJENJENO', 'SOSTITUITO', 'SUPERSEDED'),
+  unknown: localized('STANJE NIJE POZNATO', 'STATO SCONOSCIUTO', 'STATUS UNKNOWN'),
+});
+
+export const aiKindLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  category: localized('Kategorija', 'Categoria', 'Category'),
+  location: localized('Oznaka lokacije', 'Riferimento del luogo', 'Location reference'),
+  'duplicate-of': localized('Mogući duplikat', 'Possibile duplicato', 'Possible duplicate'),
+  office: localized('Nadležni odsjek', 'Ufficio responsabile', 'Responsible office'),
+  unknown: localized('Prijedlog', 'Proposta', 'Proposal'),
+});
+
+export const deliveryLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  pending: localized('U DOSTAVI', 'IN CONSEGNA', 'IN DELIVERY'),
+  'handed-off': localized('U DOSTAVI', 'IN CONSEGNA', 'IN DELIVERY'),
+  delivered: localized('DOSTAVLJENO', 'CONSEGNATO', 'DELIVERED'),
+  failed: localized('NEUSPJELA DOSTAVA', 'CONSEGNA NON RIUSCITA', 'DELIVERY FAILED'),
+  'not-applicable': localized('NIJE PRIMJENJIVO', 'NON APPLICABILE', 'NOT APPLICABLE'),
+  unknown: localized('STANJE DOSTAVE NIJE POZNATO', 'STATO DI CONSEGNA SCONOSCIUTO', 'DELIVERY STATE UNKNOWN'),
+});
+
+export const closedReasonLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  duplicate: localized('Duplikat postojećeg predmeta', 'Duplicato di un caso esistente', 'Duplicate of an existing case'),
+  'out-of-scope': localized('Izvan nadležnosti odsjeka', 'Fuori dalla competenza dell’ufficio', 'Outside the office’s remit'),
+  withdrawn: localized('Podnositelj je povukao prijavu', 'Il segnalante ha ritirato la segnalazione', 'The filer withdrew the report'),
+  'insufficient-information': localized('Nedovoljno podataka za postupanje', 'Informazioni insufficienti per agire', 'Not enough information to act'),
+  'no-action-possible': localized('Postupanje nije moguće', 'Nessuna azione possibile', 'No action is possible'),
+  'resolved-elsewhere': localized('Riješeno u drugom postupku', 'Risolto in un altro procedimento', 'Resolved in another process'),
+  unknown: localized('Razlog nije poznat', 'Motivo sconosciuto', 'Reason unknown'),
 });
 
 export const roleLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
@@ -408,6 +567,10 @@ export const actionLabels: Readonly<Record<string, LocalizedText>> = Object.free
   'resolution-approved': localized('Neovisna provjera prihvatila dovršetak', 'La revisione indipendente ha accettato il completamento', 'Independent review accepted completion'),
   'resolution-returned': localized('Neovisna provjera vratila dokaze', 'La revisione indipendente ha restituito le prove', 'Independent review returned the evidence'),
   'attachment-added': localized('Privatni privitak dodan', 'Allegato privato aggiunto', 'Private attachment added'),
+  'message-appended': localized('Poruka upisana u predmet', 'Messaggio registrato nel caso', 'Message recorded on the case'),
+  'ai-proposal-accepted': localized('Službena osoba prihvatila prijedlog AI pripreme', 'Il personale ha accettato la proposta di preparazione AI', 'Staff accepted the AI intake proposal'),
+  'ai-proposal-rejected': localized('Službena osoba odbacila prijedlog AI pripreme', 'Il personale ha rifiutato la proposta di preparazione AI', 'Staff rejected the AI intake proposal'),
+  'case-closed': localized('Predmet zatvoren uz navedeni razlog', 'Caso chiuso con la motivazione indicata', 'Case closed with a stated reason'),
   published: localized('Obveza objavljena nakon neovisne provjere', 'Impegno pubblicato dopo la revisione indipendente', 'Commitment published after independent review'),
   resolved: localized('Dovršetak objavljen nakon zasebne neovisne provjere', 'Completamento pubblicato dopo una revisione indipendente separata', 'Completion published after separate independent review'),
 });
@@ -469,6 +632,15 @@ export const errorMessages: Readonly<Record<string, LocalizedText>> = Object.fre
   broken_previous_hash: localized('Hash-povezani slijed zapisa nije prošao provjeru. Obratite se operateru.', 'La cronologia collegata tramite hash non ha superato la verifica. Contatta l’operatore.', 'The hash-linked record trail failed verification. Contact the operator.'),
   event_hash_mismatch: localized('Hash-povezani slijed zapisa nije prošao provjeru. Obratite se operateru.', 'La cronologia collegata tramite hash non ha superato la verifica. Contatta l’operatore.', 'The hash-linked record trail failed verification. Contact the operator.'),
   invalid_sequence: localized('Redoslijed događaja nije prošao provjeru. Obratite se operateru.', 'La sequenza degli eventi non ha superato la verifica. Contatta l’operatore.', 'The event sequence failed verification. Contact the operator.'),
+  case_not_found: localized('Predmet s tim brojem nije pronađen.', 'Nessun caso con questo numero.', 'No case with that number was found.'),
+  message_not_found: localized('Poruka nije pronađena.', 'Messaggio non trovato.', 'The message was not found.'),
+  ai_proposal_not_found: localized('Prijedlog AI pripreme nije pronađen.', 'Proposta di preparazione AI non trovata.', 'The AI intake proposal was not found.'),
+  ai_proposal_decided: localized('O ovom je prijedlogu već odlučeno. Ponovno učitajte predmet.', 'Questa proposta è già stata decisa. Ricarica il caso.', 'This proposal was already decided. Reload the case.'),
+  category_not_allowed: localized('Predložena kategorija nije dopuštena u ovom pilot-projektu.', 'La categoria proposta non è ammessa in questo pilot-progetto.', 'The proposed category is not allowed in this pilot.'),
+  duplicate_not_allowed: localized('Predmet naveden kao duplikat ne može se povezati. Provjerite broj predmeta.', 'Il caso indicato come duplicato non può essere collegato. Controlla il numero del caso.', 'The case named as the duplicate cannot be linked. Check the case number.'),
+  unknown_field: pilotCopy.common.connectionError,
+  invalid_limit: pilotCopy.common.connectionError,
+  too_many_attempts: localized('Previše pokušaja. Pričekajte pa pokušajte ponovno.', 'Troppi tentativi. Attendi e riprova.', 'Too many attempts. Wait and try again.'),
   record_state_mismatch: localized('Status zapisa nije prošao provjeru. Obratite se operateru.', 'Lo stato del record non ha superato la verifica. Contatta l’operatore.', 'The record status failed verification. Contact the operator.'),
 });
 
@@ -484,6 +656,7 @@ export const statusTones: Readonly<Record<string, string>> = Object.freeze({
   'resolution-pending-review': 'warning',
   published: 'valid',
   resolved: 'valid',
+  closed: 'unknown',
   unknown: 'unknown',
 });
 
@@ -505,6 +678,32 @@ export function translatedRole(role: unknown, lang: PilotLang): string {
 export function translatedAction(action: unknown, lang: PilotLang): string {
   const key = typeof action === 'string' ? action : '';
   return actionLabels[key]?.[lang] ?? localized('Zapis ažuriran', 'Record aggiornato', 'Record updated')[lang];
+}
+
+/** The origin badge stays monochrome: the word carries the channel (rule P4). */
+export function translatedOrigin(origin: unknown, lang: PilotLang): string {
+  const key = typeof origin === 'string' ? origin : 'unknown';
+  return (originLabels[key] ?? originLabels.unknown)[lang];
+}
+
+export function translatedAiStatus(status: unknown, lang: PilotLang): string {
+  const key = typeof status === 'string' ? status : 'unknown';
+  return (aiStatusLabels[key] ?? aiStatusLabels.unknown)[lang];
+}
+
+export function translatedAiKind(kind: unknown, lang: PilotLang): string {
+  const key = typeof kind === 'string' ? kind : 'unknown';
+  return (aiKindLabels[key] ?? aiKindLabels.unknown)[lang];
+}
+
+export function translatedDelivery(state: unknown, lang: PilotLang): string {
+  const key = typeof state === 'string' ? state : 'unknown';
+  return (deliveryLabels[key] ?? deliveryLabels.unknown)[lang];
+}
+
+export function translatedClosedReason(reason: unknown, lang: PilotLang): string {
+  const key = typeof reason === 'string' ? reason : 'unknown';
+  return (closedReasonLabels[key] ?? closedReasonLabels.unknown)[lang];
 }
 
 export function translatedError(code: unknown, lang: PilotLang, fallback?: string): string {

@@ -502,7 +502,9 @@ async function waitForWorkspace(page, kind) {
 
 async function selectQueueRecord(page, recordId, kind) {
   await waitForWorkspace(page, kind);
-  const row = page.locator('[data-record-list] .pilot-ledger-row').filter({ hasText: recordId }).first();
+  // The staff queue leads with the case number and carries the record id as data; the review queue still prints it.
+  const rows = page.locator('[data-record-list] .pilot-ledger-row');
+  const row = rows.filter({ hasText: recordId }).or(rows.and(page.locator(`[data-record-id="${recordId}"]`))).first();
   await row.waitFor({ state: 'visible', timeout: NAVIGATION_TIMEOUT_MS });
   await row.click();
   await waitUntil(async () => {

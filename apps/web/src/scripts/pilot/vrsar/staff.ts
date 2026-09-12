@@ -10,7 +10,13 @@ import {
   uploadPrivateAttachment,
 } from '../../../lib/pilot/vrsar/api';
 import type { PrivateTraceRecord, TraceEvent } from '../../../lib/pilot/vrsar/model';
-import { pilotCopy, translatedRole } from '../../../content/pilot/vrsar';
+import {
+  pilotCopy,
+  pilotHref,
+  translatedClosedReason,
+  translatedOrigin,
+  translatedRole,
+} from '../../../content/pilot/vrsar';
 import {
   apiErrorMessage,
   clearState,
@@ -38,6 +44,19 @@ async function fileBase64(file: File): Promise<string> {
     binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
   }
   return btoa(binary);
+}
+
+/**
+ * The channel a case arrived by, in the shared stamp recipe at its neutral
+ * tone. It states a fact about the case and never competes with the status.
+ */
+function originBadge(origin: unknown, lang: ReturnType<typeof currentPilotLang>): HTMLSpanElement {
+  const value = typeof origin === 'string' ? origin : 'unknown';
+  const badge = createTextElement('span', translatedOrigin(value, lang), 'status-label');
+  badge.dataset.tone = 'unknown';
+  badge.dataset.origin = value;
+  badge.setAttribute('aria-label', `${pilotCopy.channel.label[lang]}: ${translatedOrigin(value, lang)}`);
+  return badge;
 }
 
 function fieldRow(term: string, value: string): HTMLDivElement {
@@ -94,15 +113,19 @@ export function initVrsarStaff(): void {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'pilot-ledger-row';
+      button.dataset.recordId = record.id;
       if (record.id === selectedId) button.setAttribute('aria-current', 'true');
       const main = document.createElement('span');
       main.className = 'pilot-ledger-main';
       main.append(
-        createTextElement('span', record.subject || record.id, 'pilot-ledger-title'),
-        createTextElement('span', record.id, 'pilot-ledger-id'),
+        createTextElement('span', record.subject || record.caseNumber || record.id, 'pilot-ledger-title'),
+        createTextElement('span', record.caseNumber || record.id, 'pilot-ledger-id'),
         createTextElement('span', formatPilotDate(record.updatedAt, lang), 'pilot-ledger-meta'),
       );
-      button.append(main, createStatus(record.status, lang));
+      const marks = document.createElement('span');
+      marks.className = 'pilot-ledger-meta';
+      marks.append(createStatus(record.status, lang), originBadge(record.origin, lang));
+      button.append(main, marks);
       button.addEventListener('click', () => void selectRecord(record.id));
       item.append(button);
       return item;
@@ -114,10 +137,18 @@ export function initVrsarStaff(): void {
     if (!detail) return;
     const panel = document.createElement('section');
     panel.className = 'panel pilot-section';
-    panel.append(createStatus(record.status, lang));
+    const marks = document.createElement('p');
+    marks.className = 'pilot-ledger-meta';
+    marks.append(createStatus(record.status, lang), originBadge(record.origin, lang));
+    panel.append(
+      createTextElement('h3', record.caseNumber || record.id),
+      marks,
+    );
     const fields = document.createElement('dl');
     fields.className = 'pilot-meta';
     fields.append(
+      fieldRow(pilotCopy.common.caseNumber[lang], record.caseNumber || pilotCopy.common.notAvailable[lang]),
+      fieldRow(pilotCopy.channel.label[lang], translatedOrigin(record.origin, lang)),
       fieldRow(pilotCopy.common.recordId[lang], record.id),
       fieldRow(pilotCopy.detail.subject[lang], record.subject),
       fieldRow(pilotCopy.detail.narrative[lang], record.narrative),
@@ -129,7 +160,24 @@ export function initVrsarStaff(): void {
       fieldRow(pilotCopy.staff.evidenceNote[lang], record.evidenceNote || pilotCopy.common.notAvailable[lang]),
       fieldRow(pilotCopy.common.version[lang], String(record.version)),
     );
+    if (record.status === 'closed') {
+      fields.append(
+        fieldRow(pilotCopy.close.reason[lang], translatedClosedReason(record.closedReason, lang)),
+        fieldRow(
+          pilotCopy.close.closedPublicReason[lang],
+          record.closedPublicReason || pilotCopy.common.notAvailable[lang],
+        ),
+      );
+    }
     panel.append(fields);
+    // Messages, AI proposals, and the closing action live on the case page.
+    const open = createTextElement('a', pilotCopy.common.details[lang], 'btn');
+    open.dataset.variant = 'secondary';
+    open.href = pilotHref(`/pilot/vrsar/cases/${encodeURIComponent(record.id)}`, lang);
+    const openRow = document.createElement('div');
+    openRow.className = 'pilot-actions';
+    openRow.append(open);
+    panel.append(openRow);
     const feedback = [...(Array.isArray(record.events) ? record.events : [])]
       .reverse()
       .find((event: TraceEvent) => event.note && (event.action?.toLowerCase().includes('return') || event.action?.toLowerCase().includes('vrat')));

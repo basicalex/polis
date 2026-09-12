@@ -5,6 +5,9 @@ const SESSION_COOKIE = 'polis_pilot_session';
 const LOCAL_BACKEND = 'http://127.0.0.1:3000';
 const MAX_JSON_BYTES = 3 * 1024 * 1024;
 const ID_SEGMENT = '[A-Za-z0-9_-]{1,128}';
+/** Case numbers are the public identifier: an office prefix and a counter. */
+const CASE_SEGMENT = '[A-Z]{2,4}-[0-9]{1,8}';
+const MAX_LIST_LIMIT = 100;
 
 interface ProxyContext {
   request: Request;
@@ -25,6 +28,8 @@ interface RouteMatch {
   responseKind: 'json' | 'attachment' | 'identity-session' | 'identity-authorize' | 'logout';
   bodyKeys?: readonly string[];
   upstreamBody?: Record<string, unknown>;
+  /** Only `limit` is forwarded, and only for routes that page a list. */
+  listQuery?: boolean;
 }
 
 function jsonError(status: number, error: string, message: string, extraHeaders?: HeadersInit): Response {
@@ -171,6 +176,13 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       idempotency: false,
       responseKind: 'json',
     },
+    'GET public/cases': {
+      upstreamPath: '/api/trace/public/cases',
+      needsSession: false,
+      idempotency: false,
+      responseKind: 'json',
+      listQuery: true,
+    },
     'POST identity/magic-link': {
       upstreamPath: '/api/v1/identity/magic-link',
       needsSession: false,
@@ -216,6 +228,50 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
     };
   }
 
+  const messages = path.match(new RegExp(`^records/(${ID_SEGMENT})/messages$`));
+  if (method === 'GET' && messages) {
+    return {
+      upstreamPath: `/api/trace/records/${encodeURIComponent(messages[1])}/messages`,
+      needsSession: true,
+      idempotency: false,
+      responseKind: 'json',
+    };
+  }
+
+  const publicCase = path.match(new RegExp(`^public/cases/(${CASE_SEGMENT})$`));
+  if (method === 'GET' && publicCase) {
+    return {
+      upstreamPath: `/api/trace/public/cases/${encodeURIComponent(publicCase[1])}`,
+      needsSession: false,
+      idempotency: false,
+      responseKind: 'json',
+    };
+  }
+
+  const attention = path.match(new RegExp(`^public/cases/(${CASE_SEGMENT})/attention$`));
+  if (method === 'POST' && attention) {
+    return {
+      upstreamPath: `/api/trace/public/cases/${encodeURIComponent(attention[1])}/attention`,
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['followerKey', 'kind', 'action'],
+    };
+  }
+
+  const proposalDecision = path.match(
+    new RegExp(`^records/(${ID_SEGMENT})/ai-proposals/(${ID_SEGMENT})/decision$`),
+  );
+  if (method === 'POST' && proposalDecision) {
+    return {
+      upstreamPath: `/api/trace/records/${encodeURIComponent(proposalDecision[1])}/ai-proposals/${encodeURIComponent(proposalDecision[2])}/decision`,
+      needsSession: true,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['expectedVersion', 'decision', 'note'],
+    };
+  }
+
   const attachmentDownload = path.match(
     new RegExp(`^records/(${ID_SEGMENT})/attachments/(${ID_SEGMENT})$`),
   );
@@ -230,7 +286,7 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
 
   const action = path.match(
     new RegExp(
-      `^records/(${ID_SEGMENT})/(assign|commitment|review|resolution|resolution-review|attachments)$`,
+      `^records/(${ID_SEGMENT})/(assign|commitment|review|resolution|resolution-review|attachments|messages|close)$`,
     ),
   );
   if (method !== 'POST' || !action) return null;
@@ -241,6 +297,8 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
     resolution: ['expectedVersion', 'evidenceNote', 'evidenceUrls'],
     'resolution-review': ['expectedVersion', 'decision', 'note'],
     attachments: ['expectedVersion', 'filename', 'contentType', 'base64'],
+    messages: ['expectedVersion', 'kind', 'body'],
+    close: ['expectedVersion', 'reason', 'publicReason', 'note'],
   };
   return {
     upstreamPath: `/api/trace/records/${encodeURIComponent(action[1])}/${action[2]}`,
@@ -272,6 +330,16 @@ function identityAuthorizeRoute(method: string, path: string, appOrigin: string)
     };
   }
   return null;
+}
+
+/** The browser may ask for a page size and nothing else. */
+function listQuery(route: RouteMatch, url: URL): string {
+  if (!route.listQuery) return '';
+  const raw = url.searchParams.get('limit');
+  if (!raw || !/^[0-9]{1,3}$/.test(raw)) return '';
+  const limit = Number(raw);
+  if (limit < 1 || limit > MAX_LIST_LIMIT) return '';
+  return `?limit=${limit}`;
 }
 
 function cleanProxyPath(raw: string | undefined): string | null {
@@ -370,7 +438,7 @@ export async function handlePilotProxy(
   const fetchImpl = overrides.fetchImpl ?? fetch;
   let upstream: Response;
   try {
-    upstream = await fetchImpl(new URL(route.upstreamPath, backend), {
+    upstream = await fetchImpl(new URL(route.upstreamPath + listQuery(route, context.url), backend), {
       method,
       headers: upstreamHeaders,
       body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
