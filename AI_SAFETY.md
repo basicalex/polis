@@ -11,6 +11,15 @@ The current local v1 build exposes an AI assistant v0 through `ai-gateway` on `:
 - Prompt-injection heuristics block instructions that try to override source grounding, citation rules, or system constraints.
 - Human review state is append-only so operators can queue, inspect, and resolve assistant output without rewriting history.
 
+## Case intake
+
+`POST /internal/ai/intake` is disabled unless `AI_INTAKE_ENABLED=true`. Its
+`case-intake-v1` prompt template, version `0.1`, proposes only a category,
+location, responsible office, and possible duplicate. The proposal is stored as
+an unpublished draft and cannot publish or decide a case. An official or
+reviewer accepts or rejects each proposal through the audited Trace review
+path. The AI intake trace stores a hash of the report text, not the raw text.
+
 ## Rules for AI features
 
 - AI output must cite source evidence where it makes public claims.

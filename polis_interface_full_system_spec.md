@@ -3959,6 +3959,17 @@ Decision: Project-owned server software AGPL where possible.
 
 Reason: Prevent private capture of civic infrastructure.
 
+### ADR-009: Channel intake and the phone boundary
+
+Decision: Keep phone numbers in `channel-gateway` only, separate legal identity
+from channel identity, and expose narrative-free case shells by sequential case
+number.
+
+Reason: Municipal staff can handle SMS and voice reports without receiving a
+phone number, while the public can track case state without access to the
+report narrative. Voice distortion reduces casual recognition but does not
+claim anonymity.
+
 ---
 
 ## 37. References and standards

@@ -4,7 +4,7 @@
 
 This profile exposes one API edge over Caddy and seeded synthetic/public data only. It runs PostgreSQL, the seed/migration job, governance graph, public audit, proof, Polis bridge, platform API, and Caddy. `PUBLIC_EDGE=true` denies write, login, and participation routes. Stateless proof verification remains available.
 
-This is not a writable pilot, a real-person-data pilot, a production identity system, or a private-document system. It does not run identity, vault, contribution, complaints, AI, signing, Paperless, Keycloak, TSA, rewards, VC issuance, payment, or private-document services. Seeded proof and Polis records do not establish that external signing, timestamping, or upstream Polis providers are live. Do not add provider services to this profile.
+This is not a writable pilot, a real-person-data pilot, a production identity system, or a private-document system. It does not run identity, vault, contribution, complaints, `ai-gateway`, `channel-gateway`, signing, Paperless, Keycloak, TSA, rewards, VC issuance, payment, or private-document services. Never add `ai-gateway` or `channel-gateway` to the public-read profile. Seeded proof and Polis records do not establish that external signing, timestamping, or upstream Polis providers are live. Do not add provider services to this profile.
 
 TLS is not active merely because Compose is running. It becomes active only after public DNS resolves the configured hostname to this host, inbound TCP 80/443 is reachable, and Caddy obtains a valid certificate. Record the certificate check before opening the pilot.
 

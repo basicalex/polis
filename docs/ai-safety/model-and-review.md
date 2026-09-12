@@ -10,6 +10,16 @@ The current local v1 build exposes an AI assistant v0 through `ai-gateway` and t
 - `packages/policy-rules/ai/ai.rego` keeps the production rule shape: publish only cited, approved outputs.
 - Assistant traces and output review decisions are persisted append-only for operator review.
 
+## Case-intake task
+
+The opt-in `POST /internal/ai/intake` task uses prompt template
+`case-intake-v1`, version `0.1`. It may propose a category, location,
+responsible office, and possible duplicate. The output stays an unpublished
+draft. It does not change the case or publish content. An official or reviewer
+must accept or reject each proposal, and Trace audits that decision. The AI
+intake trace stores the report text only as a SHA-256 hash; it does not store
+the raw text.
+
 ## Review model
 
 AI output should be treated as draft assistance until a human or approved review process accepts it. Review should check citation coverage, unsupported claims, sensitive data, jurisdictional accuracy, and user-facing risk.

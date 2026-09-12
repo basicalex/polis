@@ -156,6 +156,62 @@ bun --no-env-file scripts/pilot/operational-smoke.mjs --runtime /private/tmp/pol
 ```
 
 
+## Stub SMS and voice flow
+
+The managed `channel` service binds to `127.0.0.1:8990`. The runtime sets
+`CHANNEL_PROVIDER=stub`, `STT_PROVIDER=stub`,
+`CHANNEL_ALLOW_STUB_INJECTION=true`,
+`CHANNEL_MUNICIPALITY_ID=vrsar-orsera`,
+`TRACE_INTERNAL_URL=http://127.0.0.1:8980`, and
+`TRACE_GATEWAY_ACTOR_ID=pilot-gateway`. It generates the phone-vault key and
+pepper and passes the shared internal token without printing them. The platform
+gets `CHANNEL_ENABLED=true` and
+`CHANNEL_INTERNAL_URL=http://127.0.0.1:8990`.
+
+Run the full stub flow against an owned running runtime:
+
+```sh
+export PILOT_RUNTIME_DIR=/private/tmp/polis-vrsar-prepartner-XXXXXX
+bun --no-env-file scripts/pilot/channel-smoke.mjs
+```
+
+The equivalent explicit form is:
+
+```sh
+bun --no-env-file scripts/pilot/channel-smoke.mjs --runtime /private/tmp/polis-vrsar-prepartner-XXXXXX
+```
+
+The helper prints the SMS case number and confirmation, the public shell state,
+the append check, and the voice case's readback and transcript checks. It
+rejects output that looks like a phone number.
+
+For one direct injection, set `INTERNAL_API_TOKEN` from the runtime's private
+credentials without printing it, then use the helper:
+
+```sh
+CHANNEL_INTERNAL_URL=http://127.0.0.1:8990 \
+  bun --no-env-file scripts/channel/stub-inbound.mjs sms \
+  --from +385911234567 --text "Rupa na kolniku u Ulici Primjer."
+
+CHANNEL_INTERNAL_URL=http://127.0.0.1:8990 \
+  bun --no-env-file scripts/channel/stub-inbound.mjs call \
+  --from +385911234568
+```
+
+The stub response redacts the destination number. Do not paste the command or
+shell history into shared logs because the input still contains the synthetic
+number and the environment holds the token.
+
+Look up the narrative-free public shell by its returned case number:
+
+```sh
+curl --fail --silent --show-error \
+  http://127.0.0.1:3000/api/trace/public/cases/VRS-1842
+```
+
+This lookup returns the shell and any separately published public record. It
+does not return the phone number or private report text.
+
 The recovery drill creates an encrypted local `pg_dump`, tests authenticated
 ciphertext tamper detection, restores to a newly generated owned `*_test`
 database, compares configured exact trace tables by row count and canonical

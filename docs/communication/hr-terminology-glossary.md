@@ -114,3 +114,25 @@ used correctly throughout.
 **Fictional material.** "Grad Primjer" is the fictional municipality and never a real one. Vrsar
 appears only as a prospective pilot target, always with the boundary sentence attached. Neither
 convention changes with language.
+
+## Channel intake terms for native review
+
+| EN | HR (current) | Where used | Rationale / alternative considered |
+| --- | --- | --- | --- |
+| case number (FLAGGED) | broj predmeta | channel SMS and voice copy | **FLAGGED.** Standard administrative term; native editor to confirm it for all public case references. |
+| reporting channel (FLAGGED) | kanal prijave | channel intake | **FLAGGED.** Distinguishes SMS, voice, and web origin without changing the report's status. |
+| report by SMS (FLAGGED) | prijava SMS-om | channel intake | **FLAGGED.** Instrumental form follows current formal administrative copy; editor to confirm. |
+| phone call (FLAGGED) | telefonski poziv | voice intake | **FLAGGED.** Plain term for the inbound voice path; editor to confirm. |
+| I have the same problem / follow (FLAGGED) | imam isti problem / prati | public case shell | **FLAGGED.** These are attention signals and never a vote. Keep the two actions distinct. |
+| closed with reason (FLAGGED) | zatvoreno uz razlog | case shell | **FLAGGED.** Closure must show a public reason; editor to confirm the status phrasing. |
+| AI proposal (FLAGGED) | prijedlog (AI) | staff case review | **FLAGGED.** A draft for human review, never an AI decision or published fact. |
+| public case shell (FLAGGED) | javni okvir predmeta | public case lookup | **FLAGGED.** Means the narrative-free public state record, not the private case file. |
+| received stamp (FLAGGED) | ZAPRIMLJENO | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| in progress stamp (FLAGGED) | U OBRADI | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| closed stamp (FLAGGED) | ZATVORENO | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| proposed stamp (FLAGGED) | PREDLOŽENO | AI proposal stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| accepted stamp (FLAGGED) | PRIHVAĆENO | AI proposal stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| rejected stamp (FLAGGED) | ODBAČENO | AI proposal stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| queued for delivery stamp (FLAGGED) | U DOSTAVI | channel delivery stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| delivered stamp (FLAGGED) | DOSTAVLJENO | channel delivery stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
+| delivery failed stamp (FLAGGED) | NEUSPJELA DOSTAVA | channel delivery stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
