@@ -47,7 +47,11 @@ test('openai-compatible provider posts strict multipart request', async () => {
   });
 
   assert.deepEqual(
-    await provider.transcribe({ audio: new TextEncoder().encode('abc'), mimeType: 'audio/wav', languageHint: 'hr' }),
+    await provider.transcribe({
+      audio: new TextEncoder().encode('abc'),
+      mimeType: 'audio/wav',
+      languageHint: 'hr',
+    }),
     { text: 'tekst', durationSeconds: 3.5 },
   );
 });
@@ -69,7 +73,9 @@ test('openai-compatible provider rejects oversized audio before fetch', async ()
 test('openai-compatible provider times out with SttProviderError', async () => {
   const provider = createOpenAiSttProvider({ ...sttConfig, timeoutMs: 1 }, (_input, init) => {
     return new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      init?.signal?.addEventListener('abort', () =>
+        reject(new DOMException('aborted', 'AbortError')),
+      );
     });
   });
 
@@ -84,15 +90,24 @@ test('openai-compatible provider rejects non-2xx and malformed responses', async
     return new Response(JSON.stringify({ error: 'bad' }), { status: 401 });
   });
   await assert.rejects(
-    httpProvider.transcribe({ audio: new Uint8Array(1), mimeType: 'audio/wav', languageHint: 'hr' }),
-    (error) => error instanceof SttProviderError && error.code === 'stt_http_error' && error.status === 401,
+    httpProvider.transcribe({
+      audio: new Uint8Array(1),
+      mimeType: 'audio/wav',
+      languageHint: 'hr',
+    }),
+    (error) =>
+      error instanceof SttProviderError && error.code === 'stt_http_error' && error.status === 401,
   );
 
   const malformedProvider = createOpenAiSttProvider(sttConfig, async () => {
     return new Response(JSON.stringify({ text: 1 }), { status: 200 });
   });
   await assert.rejects(
-    malformedProvider.transcribe({ audio: new Uint8Array(1), mimeType: 'audio/wav', languageHint: 'hr' }),
+    malformedProvider.transcribe({
+      audio: new Uint8Array(1),
+      mimeType: 'audio/wav',
+      languageHint: 'hr',
+    }),
     (error) => error instanceof SttProviderError && error.code === 'stt_malformed_response',
   );
 });
@@ -165,5 +180,6 @@ function wavBytes({ seconds }: { seconds: number }): Uint8Array {
 }
 
 function writeAscii(bytes: Uint8Array, offset: number, value: string): void {
-  for (let index = 0; index < value.length; index += 1) bytes[offset + index] = value.charCodeAt(index);
+  for (let index = 0; index < value.length; index += 1)
+    bytes[offset + index] = value.charCodeAt(index);
 }

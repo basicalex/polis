@@ -57,7 +57,10 @@ interface Fixture extends PipelineDeps {
   advance(ms: number): void;
 }
 
-function fixture(trace: Partial<TraceClient> = {}, configOverrides: Partial<ChannelConfig> = {}): Fixture {
+function fixture(
+  trace: Partial<TraceClient> = {},
+  configOverrides: Partial<ChannelConfig> = {},
+): Fixture {
   const sent: Array<{ to: string; text: string; idempotencyKey: string }> = [];
   const deliveries: Array<{ id: string; state: string; failureCode?: string }> = [];
   let currentNow = initialNow;
@@ -227,7 +230,10 @@ test('runRelayCycle maps by record id and dedupes repeated source ids', async ()
     ),
     'status',
   );
-  assert.equal(subject.deliveries.some((ack) => /\+?\d{8,}/.test(JSON.stringify(ack))), false);
+  assert.equal(
+    subject.deliveries.some((ack) => /\+?\d{8,}/.test(JSON.stringify(ack))),
+    false,
+  );
 });
 
 test('deliverOutbound wraps relay copy but sends confirmation copy raw', async () => {
@@ -238,10 +244,7 @@ test('deliverOutbound wraps relay copy but sends confirmation copy raw', async (
   assert.deepEqual(await deliverOutbound(subject), { sent: 2, deferred: 0, failed: 0 });
   assert.deepEqual(
     subject.sent.map((message) => message.text).sort(),
-    [
-      'Predmet VRS-1: status',
-      'Prijava je zaprimljena. Broj predmeta: VRS-1.',
-    ].sort(),
+    ['Predmet VRS-1: status', 'Prijava je zaprimljena. Broj predmeta: VRS-1.'].sort(),
   );
   const redacted = subject.sent.map((message) => ({ ...message, to: '[redacted]' }));
   assert.equal(/\+?\d{8,}/.test(JSON.stringify(redacted)), false);
@@ -269,7 +272,10 @@ test('provider failures back off, then terminate and fail the Trace delivery', a
   assert.deepEqual(await deliverOutbound(subject), { sent: 0, deferred: 1, failed: 0 });
   subject.advance(60_000);
   assert.deepEqual(await deliverOutbound(subject), { sent: 0, deferred: 0, failed: 1 });
-  assert.equal(subject.deliveries.some((item) => item.failureCode === 'provider_failed'), true);
+  assert.equal(
+    subject.deliveries.some((item) => item.failureCode === 'provider_failed'),
+    true,
+  );
   subject.advance(60_000);
   assert.deepEqual(await subject.store.claimOutbox(subject.now(), 1), []);
   assert.equal((await subject.store.findOutboxBySource('trace-fail'))?.state, 'failed');

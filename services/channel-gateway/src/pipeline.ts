@@ -37,13 +37,9 @@ function header(headers: HeaderBag, name: string): string | undefined {
   }
   return undefined;
 }
-function emitAudit(
-  deps: PipelineDeps,
-  event: Parameters<PipelineDeps['audit']['emit']>[0],
-): void {
+function emitAudit(deps: PipelineDeps, event: Parameters<PipelineDeps['audit']['emit']>[0]): void {
   void deps.audit.emit(event).catch(() => undefined);
 }
-
 
 function sha256Hex(bytes: Uint8Array | string): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -63,7 +59,6 @@ function activeKey(deps: PipelineDeps): { version: number; key: Uint8Array } {
 function ttl(deps: PipelineDeps, days: number): Date {
   return new Date(deps.now().getTime() + days * 86_400_000);
 }
-
 
 function plus(ms: number, deps: PipelineDeps): Date {
   return new Date(deps.now().getTime() + ms);
@@ -122,8 +117,11 @@ function deliveryState(event: TelnyxEvent): 'delivered' | 'failed' {
   return failed ? 'failed' : 'delivered';
 }
 
-
-function sealBody(deps: PipelineDeps, text: string, aad: 'sms-body' | 'outbox-body' | 'phone' | 'reopen-key') {
+function sealBody(
+  deps: PipelineDeps,
+  text: string,
+  aad: 'sms-body' | 'outbox-body' | 'phone' | 'reopen-key',
+) {
   const { version, key } = activeKey(deps);
   return { version, sealed: sealString(key, text, aad) };
 }
@@ -234,7 +232,12 @@ export async function handleMessagingEvent(
 
   const event = parseEvent(rawBody);
   if (!event) return { status: 400, body: { error: 'invalid_event' } };
-  const recorded = await deps.store.recordEvent(deps.provider.name, event.id, event.eventType, event.payloadSha256);
+  const recorded = await deps.store.recordEvent(
+    deps.provider.name,
+    event.id,
+    event.eventType,
+    event.payloadSha256,
+  );
   if (recorded.duplicate) return { status: 202, body: { accepted: true, duplicate: true } };
 
   try {
@@ -256,7 +259,12 @@ export async function handleMessagingEvent(
       e164 = from ? normalizeE164(from) : '';
       if (!e164) throw new Error('missing sender');
     } catch {
-      emitAudit(deps, { eventType: 'channel.identity.blocked', code: 'sender_rejected', channel: 'sms', eventId: event.id });
+      emitAudit(deps, {
+        eventType: 'channel.identity.blocked',
+        code: 'sender_rejected',
+        channel: 'sms',
+        eventId: event.id,
+      });
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
       return { status: 202, body: { accepted: true, code: 'sender_rejected' } };
     }
@@ -274,7 +282,13 @@ export async function handleMessagingEvent(
         sourceMessageId: `stop:${event.id}`,
         origin: 'system',
       });
-      emitAudit(deps, { eventType: 'channel.identity.blocked', code: 'blocked', channel: 'sms', eventId: event.id, phoneHashPrefix: phoneHashPrefix(hash) });
+      emitAudit(deps, {
+        eventType: 'channel.identity.blocked',
+        code: 'blocked',
+        channel: 'sms',
+        eventId: event.id,
+        phoneHashPrefix: phoneHashPrefix(hash),
+      });
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
       return { status: 202, body: { accepted: true, duplicate: false } };
     }
@@ -287,7 +301,6 @@ export async function handleMessagingEvent(
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
       return { status: 202, body: { accepted: true, duplicate: false } };
     }
-
 
     const { version, sealed } = sealBody(deps, text, 'sms-body');
     const now = deps.now();
@@ -313,7 +326,13 @@ export async function handleMessagingEvent(
       createdAt,
       expiresAt: ttl(deps, deps.config.vaultTtlDays),
     });
-    emitAudit(deps, { eventType: 'channel.sms.received', code: 'received', channel: 'sms', eventId: event.id, phoneHashPrefix: phoneHashPrefix(hash) });
+    emitAudit(deps, {
+      eventType: 'channel.sms.received',
+      code: 'received',
+      channel: 'sms',
+      eventId: event.id,
+      phoneHashPrefix: phoneHashPrefix(hash),
+    });
     await deps.store.markEvent(deps.provider.name, event.id, 'processed');
     if (options.scheduleProcessing !== false) {
       queueMicrotask(() => {
@@ -329,7 +348,12 @@ export async function handleMessagingEvent(
     }
     return { status: 202, body: { accepted: true, duplicate: false } };
   } catch (error) {
-    await deps.store.markEvent(deps.provider.name, event.id, 'failed', error instanceof Error ? error.message : 'failed');
+    await deps.store.markEvent(
+      deps.provider.name,
+      event.id,
+      'failed',
+      error instanceof Error ? error.message : 'failed',
+    );
     throw error;
   }
 }
@@ -354,10 +378,39 @@ async function createOrAppend(
   const link = selectedLink(links, text);
   if (link) {
     const reopenKey = openReopenKey(deps, link);
-    await deps.trace.appendChannelMessage(link.caseNumber, { reopenKey, channel: 'sms', kind: 'append', text, source: 'typed', occurredAt: row.createdAt.toISOString() }, `append:${row.id}`);
-    await deps.store.upsertLink({ ...link, lastMessageAt: deps.now(), expiresAt: ttl(deps, deps.config.vaultTtlDays) });
-    await deps.audit.emit({ eventType: 'channel.message.appended', code: 'appended', channel: 'sms', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: link.recordId, caseNumber: link.caseNumber });
-    if (deps.config.ackAppends) await enqueueConfirmation(deps, { phoneHash: row.phoneHash, recordId: link.recordId, caseNumber: link.caseNumber, text: SMS_APPENDED(link.caseNumber), sourceMessageId: `ack:${row.id}` });
+    await deps.trace.appendChannelMessage(
+      link.caseNumber,
+      {
+        reopenKey,
+        channel: 'sms',
+        kind: 'append',
+        text,
+        source: 'typed',
+        occurredAt: row.createdAt.toISOString(),
+      },
+      `append:${row.id}`,
+    );
+    await deps.store.upsertLink({
+      ...link,
+      lastMessageAt: deps.now(),
+      expiresAt: ttl(deps, deps.config.vaultTtlDays),
+    });
+    await deps.audit.emit({
+      eventType: 'channel.message.appended',
+      code: 'appended',
+      channel: 'sms',
+      phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+      recordId: link.recordId,
+      caseNumber: link.caseNumber,
+    });
+    if (deps.config.ackAppends)
+      await enqueueConfirmation(deps, {
+        phoneHash: row.phoneHash,
+        recordId: link.recordId,
+        caseNumber: link.caseNumber,
+        text: SMS_APPENDED(link.caseNumber),
+        sourceMessageId: `ack:${row.id}`,
+      });
     return { recordId: link.recordId, caseNumber: link.caseNumber, created: false };
   }
 
@@ -366,7 +419,10 @@ async function createOrAppend(
   );
   const newCases = await deps.store.bumpRate('new-cases-per-hash-day', row.phoneHash, day);
   if (newCases > deps.config.newCasesPerHashPerDay) return null;
-  const created = await deps.trace.createChannelCase({ channel: 'sms', text, source: 'typed', occurredAt: row.createdAt.toISOString() }, `case:${row.id}`);
+  const created = await deps.trace.createChannelCase(
+    { channel: 'sms', text, source: 'typed', occurredAt: row.createdAt.toISOString() },
+    `case:${row.id}`,
+  );
   const reopen = sealBody(deps, created.case.reopenKey, 'reopen-key');
   await deps.store.upsertLink({
     phoneHash: row.phoneHash,
@@ -381,8 +437,21 @@ async function createOrAppend(
     lastMessageAt: deps.now(),
     expiresAt: ttl(deps, deps.config.vaultTtlDays),
   });
-  await deps.audit.emit({ eventType: 'channel.case.created', code: 'created', channel: 'sms', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: created.case.recordId, caseNumber: created.case.caseNumber });
-  await enqueueConfirmation(deps, { phoneHash: row.phoneHash, recordId: created.case.recordId, caseNumber: created.case.caseNumber, text: SMS_CONFIRM(created.case.caseNumber), sourceMessageId: `ack:${row.id}` });
+  await deps.audit.emit({
+    eventType: 'channel.case.created',
+    code: 'created',
+    channel: 'sms',
+    phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+    recordId: created.case.recordId,
+    caseNumber: created.case.caseNumber,
+  });
+  await enqueueConfirmation(deps, {
+    phoneHash: row.phoneHash,
+    recordId: created.case.recordId,
+    caseNumber: created.case.caseNumber,
+    text: SMS_CONFIRM(created.case.caseNumber),
+    sourceMessageId: `ack:${row.id}`,
+  });
   return { recordId: created.case.recordId, caseNumber: created.case.caseNumber, created: true };
 }
 
@@ -401,12 +470,7 @@ export async function runInboxCycle(
       } else if (row.kind === 'sms_inbound') {
         const now = deps.now();
         const hour = new Date(
-          Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            now.getUTCHours(),
-          ),
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours()),
         );
         const inbound = await deps.store.bumpRate('inbound-hash-hour', row.phoneHash, hour);
         if (inbound > deps.config.inboundPerHashPerHour) {

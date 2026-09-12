@@ -3,12 +3,7 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import {
-  operationalRoutes,
-  result,
-  type HttpResult,
-  type Route,
-} from '@polis/service-runtime';
+import { operationalRoutes, result, type HttpResult, type Route } from '@polis/service-runtime';
 
 import { verifyTelnyxSignature } from './crypto.js';
 import { phoneHash } from './crypto.js';
@@ -53,9 +48,7 @@ function parseEvent(rawBody: Uint8Array): TelnyxEvent | null {
     eventType: record.event_type,
     occurredAt: typeof record.occurred_at === 'string' ? record.occurred_at : null,
     payload:
-      typeof payload === 'object' && payload !== null
-        ? (payload as Record<string, unknown>)
-        : {},
+      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {},
     payloadSha256: createHash('sha256').update(rawBody).digest('hex'),
   };
 }
@@ -140,13 +133,7 @@ function routeResult(value: { status: number; body: unknown }): HttpResult {
 
 function hasPipelineDeps(deps: Partial<PipelineDeps>): deps is PipelineDeps {
   return Boolean(
-    deps.config &&
-      deps.store &&
-      deps.provider &&
-      deps.trace &&
-      deps.audit &&
-      deps.log &&
-      deps.now,
+    deps.config && deps.store && deps.provider && deps.trace && deps.audit && deps.log && deps.now,
   );
 }
 

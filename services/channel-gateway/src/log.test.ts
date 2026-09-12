@@ -36,8 +36,14 @@ test('structured logs allowlist fields and redact phone-like values', () => {
     console.log = original;
   }
   assert.equal(lines.length, 2);
-  assert.equal(lines.some((line) => /\+?\d{8,}/.test(line)), false);
-  assert.equal(lines.some((line) => line.includes('"phone"') || line.includes('rawBody')), false);
+  assert.equal(
+    lines.some((line) => /\+?\d{8,}/.test(line)),
+    false,
+  );
+  assert.equal(
+    lines.some((line) => line.includes('"phone"') || line.includes('rawBody')),
+    false,
+  );
   assert.deepEqual(Object.keys(JSON.parse(lines[0]!) as object), [
     'service',
     'stage',

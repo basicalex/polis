@@ -971,11 +971,10 @@ test(
         occurredAt: '2026-09-12T12:02:00.000Z',
       };
       const appended = await repository.appendChannelMessage(
-        ctx(
-          gateway,
-          `/internal/trace/channel/cases/${first.case.caseNumber}/messages`,
-          { reopenKey: first.case.reopenKey, ...transcriptInput },
-        ),
+        ctx(gateway, `/internal/trace/channel/cases/${first.case.caseNumber}/messages`, {
+          reopenKey: first.case.reopenKey,
+          ...transcriptInput,
+        }),
         first.case.caseNumber,
         transcriptInput,
       );
@@ -1041,11 +1040,10 @@ test(
         channel: 'voice' as const,
       };
       const officialMessage = await repository.postOfficialMessage(
-        ctx(
-          official,
-          `/internal/trace/records/${first.case.recordId}/messages`,
-          { expectedVersion: 1, ...officialInput },
-        ),
+        ctx(official, `/internal/trace/records/${first.case.recordId}/messages`, {
+          expectedVersion: 1,
+          ...officialInput,
+        }),
         first.case.recordId,
         officialInput,
       );
@@ -1054,28 +1052,21 @@ test(
         ctx(gateway, '/internal/trace/channel/outbox', {}),
         10,
       );
-      const queued = outbox.messages.find(
-        (message) => message.id === officialMessage.message.id,
-      );
+      const queued = outbox.messages.find((message) => message.id === officialMessage.message.id);
       assert.ok(queued);
       assert.equal(queued.authorActorId, null);
       assert.equal(JSON.stringify(queued).includes(OFFICIAL), false);
       const delivered = await repository.markOutboxDelivery(
-        ctx(
-          gateway,
-          `/internal/trace/channel/outbox/${queued.id}/delivery`,
-          { state: 'delivered' },
-        ),
+        ctx(gateway, `/internal/trace/channel/outbox/${queued.id}/delivery`, {
+          state: 'delivered',
+        }),
         queued.id,
         { state: 'delivered' },
       );
       assert.equal(delivered.message.deliveryState, 'delivered');
       assert.ok(delivered.message.deliveredAt);
 
-      const reopened = await repository.readFilerCase(
-        first.case.caseNumber,
-        first.case.reopenKey,
-      );
+      const reopened = await repository.readFilerCase(first.case.caseNumber, first.case.reopenKey);
       assert.equal(reopened.case.narrative, transcriptInput.text);
       assert.equal(reopened.case.messages.length, 2);
       assert.ok(reopened.case.events.every((event) => !('note' in event)));
@@ -1083,9 +1074,7 @@ test(
         await assert.rejects(
           () => repository.readFilerCase(first.case.caseNumber, 'x'.repeat(27)),
           (error: unknown) =>
-            error instanceof DomainError &&
-            error.status === 404 &&
-            error.code === 'case_not_found',
+            error instanceof DomainError && error.status === 404 && error.code === 'case_not_found',
         );
       }
       await assert.rejects(
@@ -1105,11 +1094,7 @@ test(
         promptSha256: 'a'.repeat(64),
       };
       const proposed = await repository.proposeAi(
-        ctx(
-          official,
-          `/internal/trace/records/${first.case.recordId}/ai-proposals`,
-          proposalInput,
-        ),
+        ctx(official, `/internal/trace/records/${first.case.recordId}/ai-proposals`, proposalInput),
         first.case.recordId,
         proposalInput,
       );
@@ -1142,40 +1127,32 @@ test(
         `
       )[0]!.location;
       assert.equal(acceptedLocation, 'AI predložena lokacija');
-      assert.ok(
-        accepted.record.events.some((event) => event.action === 'ai-proposal-accepted'),
-      );
+      assert.ok(accepted.record.events.some((event) => event.action === 'ai-proposal-accepted'));
       await repository.proposeAi(
-        ctx(
-          official,
-          `/internal/trace/records/${first.case.recordId}/ai-proposals`,
-          { ...proposalInput, promptSha256: 'b'.repeat(64) },
-        ),
+        ctx(official, `/internal/trace/records/${first.case.recordId}/ai-proposals`, {
+          ...proposalInput,
+          promptSha256: 'b'.repeat(64),
+        }),
         first.case.recordId,
         { ...proposalInput, promptSha256: 'b'.repeat(64) },
       );
       await assert.rejects(() =>
         repository.proposeAi(
-          ctx(
-            official,
-            `/internal/trace/records/${first.case.recordId}/ai-proposals`,
-            { ...proposalInput, promptSha256: 'c'.repeat(64) },
-          ),
+          ctx(official, `/internal/trace/records/${first.case.recordId}/ai-proposals`, {
+            ...proposalInput,
+            promptSha256: 'c'.repeat(64),
+          }),
           first.case.recordId,
           { ...proposalInput, promptSha256: 'c'.repeat(64) },
         ),
       );
 
       const closed = await repository.closeCase(
-        ctx(
-          reviewer,
-          `/internal/trace/records/${first.case.recordId}/close`,
-          {
-            expectedVersion: 3,
-            reason: 'out-of-scope',
-            publicReason: 'Prijava nije u nadležnosti.',
-          },
-        ),
+        ctx(reviewer, `/internal/trace/records/${first.case.recordId}/close`, {
+          expectedVersion: 3,
+          reason: 'out-of-scope',
+          publicReason: 'Prijava nije u nadležnosti.',
+        }),
         first.case.recordId,
         {
           reason: 'out-of-scope',
@@ -1194,64 +1171,54 @@ test(
 
       let publishRecord = (
         await repository.assign(
-          ctx(
-            official,
-            `/internal/trace/records/${second.case.recordId}/assign`,
-            { expectedVersion: 0 },
-          ),
+          ctx(official, `/internal/trace/records/${second.case.recordId}/assign`, {
+            expectedVersion: 0,
+          }),
           second.case.recordId,
         )
       ).body;
       assert.ok(hasRecordBody(publishRecord));
       publishRecord = (
         await repository.commitment(
-          ctx(
-            official,
-            `/internal/trace/records/${second.case.recordId}/commitment`,
-            {
-              expectedVersion: 1,
-              publicSummary: 'Javna prijava rasvjete',
-              commitment: 'Pregledati i popraviti rasvjetu',
-              dueDate: '2026-12-01',
-            },
-          ),
+          ctx(official, `/internal/trace/records/${second.case.recordId}/commitment`, {
+            expectedVersion: 1,
+            publicSummary: 'Javna prijava rasvjete',
+            commitment: 'Pregledati i popraviti rasvjetu',
+            dueDate: '2026-12-01',
+          }),
           second.case.recordId,
         )
       ).body;
       assert.ok(hasRecordBody(publishRecord));
       publishRecord = (
         await repository.review(
-          ctx(
-            reviewer,
-            `/internal/trace/records/${second.case.recordId}/review`,
-            { expectedVersion: 2, decision: 'accept', note: null },
-          ),
+          ctx(reviewer, `/internal/trace/records/${second.case.recordId}/review`, {
+            expectedVersion: 2,
+            decision: 'accept',
+            note: null,
+          }),
           second.case.recordId,
         )
       ).body;
       assert.ok(hasRecordBody(publishRecord));
       publishRecord = (
         await repository.resolution(
-          ctx(
-            official,
-            `/internal/trace/records/${second.case.recordId}/resolution`,
-            {
-              expectedVersion: 3,
-              evidenceNote: 'Rasvjeta je popravljena.',
-              evidenceUrls: ['https://example.test/channel-proof'],
-            },
-          ),
+          ctx(official, `/internal/trace/records/${second.case.recordId}/resolution`, {
+            expectedVersion: 3,
+            evidenceNote: 'Rasvjeta je popravljena.',
+            evidenceUrls: ['https://example.test/channel-proof'],
+          }),
           second.case.recordId,
         )
       ).body;
       assert.ok(hasRecordBody(publishRecord));
       publishRecord = (
         await repository.resolutionReview(
-          ctx(
-            reviewer,
-            `/internal/trace/records/${second.case.recordId}/resolution-review`,
-            { expectedVersion: 4, decision: 'accept', note: null },
-          ),
+          ctx(reviewer, `/internal/trace/records/${second.case.recordId}/resolution-review`, {
+            expectedVersion: 4,
+            decision: 'accept',
+            note: null,
+          }),
           second.case.recordId,
         )
       ).body;

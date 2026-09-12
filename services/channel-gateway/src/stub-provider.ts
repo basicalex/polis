@@ -23,7 +23,8 @@ function wavTone(): Uint8Array {
   const bytes = new Uint8Array(44 + dataBytes);
   const view = new DataView(bytes.buffer);
   const text = (offset: number, value: string): void => {
-    for (let index = 0; index < value.length; index += 1) bytes[offset + index] = value.charCodeAt(index);
+    for (let index = 0; index < value.length; index += 1)
+      bytes[offset + index] = value.charCodeAt(index);
   };
   text(0, 'RIFF');
   view.setUint32(4, 36 + dataBytes, true);
@@ -68,7 +69,9 @@ export class StubChannelProvider implements ChannelProvider {
 
   async recordStart(callControlId: string, input: RecordStartInput): Promise<void> {
     this.#recordingCounter += 1;
-    this.commands.push(`record_start:${callControlId}:${input.commandId}:${nextId('stub-rec', this.#recordingCounter)}`);
+    this.commands.push(
+      `record_start:${callControlId}:${input.commandId}:${nextId('stub-rec', this.#recordingCounter)}`,
+    );
   }
 
   async hangup(callControlId: string): Promise<void> {

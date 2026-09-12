@@ -20,7 +20,8 @@ function safeText(value: string): string {
 }
 
 export function phoneHashPrefix(hash: string): string {
-  if (!/^[a-f0-9]{64}$/i.test(hash)) throw new Error('phone hash must be 64 hexadecimal characters');
+  if (!/^[a-f0-9]{64}$/i.test(hash))
+    throw new Error('phone hash must be 64 hexadecimal characters');
   return hash.slice(0, 8).toLowerCase();
 }
 

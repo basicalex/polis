@@ -37,7 +37,9 @@ function parseJsonState(value: unknown): Record<string, unknown> {
   if (typeof value !== 'string' || value.length === 0) return {};
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
@@ -94,7 +96,8 @@ function voiceCallInboxId(callControlId: string): string {
 
 function recordingUrl(payload: Record<string, unknown>): string | null {
   const urls = payload.recording_urls;
-  if (urls && typeof urls === 'object' && !Array.isArray(urls)) return stringField((urls as Record<string, unknown>).wav);
+  if (urls && typeof urls === 'object' && !Array.isArray(urls))
+    return stringField((urls as Record<string, unknown>).wav);
   return payloadString(payload, 'recording_url');
 }
 
@@ -194,14 +197,32 @@ async function handleAnswered(event: TelnyxEvent, deps: PipelineDeps): Promise<v
     }),
   );
   const readback = `Broj predmeta: ${created.case.caseNumber}. Slovkano: ${spellCaseNumberHr(created.case.caseNumber)}.`;
-  await deps.provider.speak(id, speakInput(`${PROMPT_HR}\n\n${readback}`, { v: 1, eventId: event.id, step: 'prompt', caseNumber: created.case.caseNumber, recordId: created.case.recordId }, deps));
+  await deps.provider.speak(
+    id,
+    speakInput(
+      `${PROMPT_HR}\n\n${readback}`,
+      {
+        v: 1,
+        eventId: event.id,
+        step: 'prompt',
+        caseNumber: created.case.caseNumber,
+        recordId: created.case.recordId,
+      },
+      deps,
+    ),
+  );
 }
 
 async function handleSpeakEnded(event: TelnyxEvent, deps: PipelineDeps): Promise<void> {
   const id = callControlId(event);
   if (!id) return;
   const state = parseJsonState(event.payload.client_state);
-  if (state.step !== 'prompt' || typeof state.caseNumber !== 'string' || typeof state.recordId !== 'string') return;
+  if (
+    state.step !== 'prompt' ||
+    typeof state.caseNumber !== 'string' ||
+    typeof state.recordId !== 'string'
+  )
+    return;
   const caseNumber = state.caseNumber;
   const recordId = state.recordId;
   // The prompt already includes the readback; after Telnyx reports it ended, start recording.
@@ -224,7 +245,14 @@ async function handleRecordingEvent(event: TelnyxEvent, deps: PipelineDeps): Pro
     const state = parseJsonState(event.payload.client_state);
     if (typeof state.caseNumber === 'string' && typeof state.recordId === 'string') {
       await deps.store.failInbox(voiceCallInboxId(id), 'recording error', deps.now());
-      await deps.audit.emit({ eventType: 'channel.voice.recording_error', code: 'recording_error', channel: 'voice', eventId: event.id, caseNumber: state.caseNumber, recordId: state.recordId });
+      await deps.audit.emit({
+        eventType: 'channel.voice.recording_error',
+        code: 'recording_error',
+        channel: 'voice',
+        eventId: event.id,
+        caseNumber: state.caseNumber,
+        recordId: state.recordId,
+      });
     }
     await deps.provider.hangup(id);
     return;
@@ -272,7 +300,10 @@ export async function handleVoiceEvent(event: TelnyxEvent, deps: PipelineDeps): 
     await handleAnswered(event, deps);
   } else if (event.eventType === 'call.speak.ended') {
     await handleSpeakEnded(event, deps);
-  } else if (event.eventType === 'call.recording.saved' || event.eventType === 'call.recording.error') {
+  } else if (
+    event.eventType === 'call.recording.saved' ||
+    event.eventType === 'call.recording.error'
+  ) {
     await handleRecordingEvent(event, deps);
   } else if (event.eventType === 'call.hangup') {
     // Telnyx hangup is terminal state notification; no command needed.
@@ -286,22 +317,39 @@ async function reopenKeyForRecord(recordId: string, deps: PipelineDeps): Promise
   if (!key) throw new Error('voice link key is missing');
   return openString(
     key,
-    { ciphertext: Buffer.from(link.reopenKeyCiphertext), nonce: Buffer.from(link.reopenKeyNonce), tag: Buffer.from(link.reopenKeyTag) },
+    {
+      ciphertext: Buffer.from(link.reopenKeyCiphertext),
+      nonce: Buffer.from(link.reopenKeyNonce),
+      tag: Buffer.from(link.reopenKeyTag),
+    },
     'reopen-key',
   );
 }
 
 export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): Promise<void> {
-  if (row.kind !== 'voice_recording' || !row.providerRef || !row.callControlId || !row.caseNumber || !row.recordId) return;
+  if (
+    row.kind !== 'voice_recording' ||
+    !row.providerRef ||
+    !row.callControlId ||
+    !row.caseNumber ||
+    !row.recordId
+  )
+    return;
 
-  const maxBytes = deps.config.stt?.maxBytes ?? Math.max(1024, deps.config.maxRecordingSeconds * RECORDING_MAX_BYTES_PER_SECOND);
+  const maxBytes =
+    deps.config.stt?.maxBytes ??
+    Math.max(1024, deps.config.maxRecordingSeconds * RECORDING_MAX_BYTES_PER_SECOND);
   const recording = await deps.store.getRecording(row.id);
   const recordingId = recording?.providerRecordingId;
   let original: Uint8Array | null = null;
   let reopenKey = '';
   try {
     try {
-      original = await deps.provider.fetchRecording(row.providerRef, maxBytes, RECORDING_DOWNLOAD_TIMEOUT_MS);
+      original = await deps.provider.fetchRecording(
+        row.providerRef,
+        maxBytes,
+        RECORDING_DOWNLOAD_TIMEOUT_MS,
+      );
     } finally {
       if (recordingId) await deps.provider.deleteRecording(recordingId);
     }
@@ -317,11 +365,22 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       expiresAt: addMinutes(deps.now(), deps.config.audioTtlMinutes),
     });
 
-    const transcript = await deps.stt?.transcribe({ audio: distorted.bytes, mimeType: 'audio/wav', languageHint: 'hr' });
+    const transcript = await deps.stt?.transcribe({
+      audio: distorted.bytes,
+      mimeType: 'audio/wav',
+      languageHint: 'hr',
+    });
     if (!transcript) throw new Error('STT provider is not configured');
     await deps.trace.appendChannelMessage(
       row.caseNumber,
-      { reopenKey, channel: 'voice', kind: 'transcript', text: transcript.text, source: 'transcript', occurredAt: deps.now().toISOString() },
+      {
+        reopenKey,
+        channel: 'voice',
+        kind: 'transcript',
+        text: transcript.text,
+        source: 'transcript',
+        occurredAt: deps.now().toISOString(),
+      },
       row.id,
     );
     if (deps.config.audioSink === 'gateway') {
@@ -330,7 +389,14 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       await deps.store.updateRecording(row.id, { state: 'discarded', bytes: null });
     }
     if (deps.config.audioSink === 'trace') {
-      deps.log({ service: 'channel-gateway', stage: 'voice', code: 'sink_unsupported', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber });
+      deps.log({
+        service: 'channel-gateway',
+        stage: 'voice',
+        code: 'sink_unsupported',
+        phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+        recordId: row.recordId,
+        caseNumber: row.caseNumber,
+      });
     }
     await deps.store.completeInbox(row.id, { recordId: row.recordId, caseNumber: row.caseNumber });
 
@@ -355,7 +421,14 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       createdAt: deps.now(),
       expiresAt: ttl(deps),
     });
-    deps.log({ service: 'channel-gateway', stage: 'voice', code: 'transcribed', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber });
+    deps.log({
+      service: 'channel-gateway',
+      stage: 'voice',
+      code: 'transcribed',
+      phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+      recordId: row.recordId,
+      caseNumber: row.caseNumber,
+    });
   } catch (cause) {
     if (original) original.fill(0);
     const message = cause instanceof Error ? cause.message : String(cause);
@@ -369,12 +442,27 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
     if (reopenKey) {
       await deps.trace.appendChannelMessage(
         row.caseNumber,
-        { reopenKey, channel: 'voice', kind: 'transcript-failed', text: TRANSCRIPT_FAILED_TEXT, source: 'system', occurredAt: deps.now().toISOString() },
+        {
+          reopenKey,
+          channel: 'voice',
+          kind: 'transcript-failed',
+          text: TRANSCRIPT_FAILED_TEXT,
+          source: 'system',
+          occurredAt: deps.now().toISOString(),
+        },
         `${row.id}:failed`,
       );
     }
     await deps.store.updateRecording(row.id, { state: 'failed', bytes: null });
     await deps.store.failInbox(row.id, message, addMinutes(deps.now(), 5));
-    deps.log({ service: 'channel-gateway', stage: 'voice', code: 'transcript_failed', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber, error: message });
+    deps.log({
+      service: 'channel-gateway',
+      stage: 'voice',
+      code: 'transcript_failed',
+      phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+      recordId: row.recordId,
+      caseNumber: row.caseNumber,
+      error: message,
+    });
   }
 }

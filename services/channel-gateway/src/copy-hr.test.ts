@@ -6,7 +6,11 @@ import test from 'node:test';
 
 import { SMS_APPENDED, SMS_BLOCKED, SMS_CONFIRM, SMS_RELAY, spellCaseNumberHr } from './copy-hr.js';
 
-const GSM_7_BASIC = new Set('@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà'.split(''));
+const GSM_7_BASIC = new Set(
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà'.split(
+    '',
+  ),
+);
 const GSM_7_EXT = new Set('^{}\\[~]|€'.split(''));
 
 function gsm7Length(value: string): number {

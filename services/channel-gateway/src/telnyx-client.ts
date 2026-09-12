@@ -7,21 +7,28 @@ import { ChannelProviderError, type ChannelProvider } from './channel-provider.j
 import type { TelnyxConfig } from './config.js';
 import type { RecordStartInput, SendSmsInput, SpeakInput } from './pipeline-types.js';
 
-export type FetchImplementation = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+export type FetchImplementation = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
 
 const DEFAULT_BASE_URL = 'https://api.telnyx.com/v2';
 const REQUEST_TIMEOUT_MS = 5_000;
 
 function record(value: unknown): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new ChannelProviderError('Telnyx returned an invalid response', { code: 'invalid_response' });
+    throw new ChannelProviderError('Telnyx returned an invalid response', {
+      code: 'invalid_response',
+    });
   }
   return value as Record<string, unknown>;
 }
 
 function telnyxId(value: unknown): string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new ChannelProviderError('Telnyx returned an invalid response', { code: 'invalid_response' });
+    throw new ChannelProviderError('Telnyx returned an invalid response', {
+      code: 'invalid_response',
+    });
   }
   return value;
 }
@@ -40,7 +47,8 @@ export class TelnyxClient implements ChannelProvider {
 
   constructor(options: TelnyxClientOptions) {
     this.#config = options.config;
-    this.#fetch = options.fetch ?? ((input, init) => fetchWithTimeout(input, init, REQUEST_TIMEOUT_MS));
+    this.#fetch =
+      options.fetch ?? ((input, init) => fetchWithTimeout(input, init, REQUEST_TIMEOUT_MS));
     this.#baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
   }
 
@@ -94,7 +102,12 @@ export class TelnyxClient implements ChannelProvider {
   }
 
   async fetchRecording(url: string, maxBytes: number, timeoutMs: number): Promise<Uint8Array> {
-    if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    if (
+      !Number.isSafeInteger(maxBytes) ||
+      maxBytes <= 0 ||
+      !Number.isSafeInteger(timeoutMs) ||
+      timeoutMs <= 0
+    ) {
       throw new ChannelProviderError('Telnyx recording limits are invalid', {
         code: 'invalid_config',
       });
@@ -157,7 +170,11 @@ export class TelnyxClient implements ChannelProvider {
     await this.#request(`/recordings/${encodeURIComponent(recordingId)}`, { method: 'DELETE' });
   }
 
-  async #callAction(callControlId: string, action: string, body: Record<string, unknown>): Promise<void> {
+  async #callAction(
+    callControlId: string,
+    action: string,
+    body: Record<string, unknown>,
+  ): Promise<void> {
     await this.#request(`/calls/${encodeURIComponent(callControlId)}/actions/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,14 +190,27 @@ export class TelnyxClient implements ChannelProvider {
         headers: { ...init.headers, Authorization: `Bearer ${this.#config.apiKey}` },
       });
     } catch (cause) {
-      throw new ChannelProviderError('Telnyx request failed', { code: 'network_error', retryable: true, cause });
+      throw new ChannelProviderError('Telnyx request failed', {
+        code: 'network_error',
+        retryable: true,
+        cause,
+      });
     }
-    if (!response.ok) throw new ChannelProviderError('Telnyx request was rejected', { code: 'http_error', status: response.status, retryable: response.status === 429 || response.status >= 500 });
+    if (!response.ok)
+      throw new ChannelProviderError('Telnyx request was rejected', {
+        code: 'http_error',
+        status: response.status,
+        retryable: response.status === 429 || response.status >= 500,
+      });
     if (response.status === 204) return {};
     try {
       return await response.json();
     } catch (cause) {
-      throw new ChannelProviderError('Telnyx returned an invalid response', { code: 'invalid_response', status: response.status, cause });
+      throw new ChannelProviderError('Telnyx returned an invalid response', {
+        code: 'invalid_response',
+        status: response.status,
+        cause,
+      });
     }
   }
 }

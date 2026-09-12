@@ -319,10 +319,7 @@ test('reopen and public case routes proxy without browser actor headers', async 
       assert.equal(headers.has('x-polis-identity-level'), false);
       assert.equal(headers.has('authorization'), false);
     }
-    assert.equal(
-      new Headers(calls[1]?.init?.headers).has('idempotency-key'),
-      false,
-    );
+    assert.equal(new Headers(calls[1]?.init?.headers).has('idempotency-key'), false);
     assert.equal(
       new Headers(calls[2]?.init?.headers).get('idempotency-key'),
       VALID_IDEMPOTENCY_KEY,
@@ -365,7 +362,11 @@ test('new staff case routes require a verified session and trusted actor forward
     for (const [method, path] of privateRoutes) {
       const response = result(
         await route(routes, method, path).handler(
-          request(method, path, method === 'POST' ? { 'idempotency-key': VALID_IDEMPOTENCY_KEY } : {}),
+          request(
+            method,
+            path,
+            method === 'POST' ? { 'idempotency-key': VALID_IDEMPOTENCY_KEY } : {},
+          ),
           {},
           { id: 'record-1', proposalId: 'proposal-1' },
         ),

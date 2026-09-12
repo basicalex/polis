@@ -92,7 +92,12 @@ function parseDatabaseUrl(raw: string): string {
   } catch {
     throw new Error('DATABASE_URL must be a postgres:// URL with a database name');
   }
-  if ((parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') || !parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
+  if (
+    (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') ||
+    !parsed.hostname ||
+    !parsed.pathname ||
+    parsed.pathname === '/'
+  ) {
     throw new Error('DATABASE_URL must be a postgres:// URL with a database name');
   }
   return raw;
@@ -225,7 +230,10 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
   );
   const internalApiToken = requiredSecret(env, 'INTERNAL_API_TOKEN');
   const databaseUrl = parseDatabaseUrl(requiredSecret(env, 'DATABASE_URL'));
-  const traceInternalUrl = parseHttpUrl(requiredValue(env, 'TRACE_INTERNAL_URL'), 'TRACE_INTERNAL_URL');
+  const traceInternalUrl = parseHttpUrl(
+    requiredValue(env, 'TRACE_INTERNAL_URL'),
+    'TRACE_INTERNAL_URL',
+  );
   const traceGatewayActorId = requiredValue(env, 'TRACE_GATEWAY_ACTOR_ID', 64);
   if (!/^[a-z0-9-]{3,64}$/.test(traceGatewayActorId)) {
     throw new Error('TRACE_GATEWAY_ACTOR_ID must match /^[a-z0-9-]{3,64}$/');
@@ -261,7 +269,9 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
   const activeVaultKeyVersion = Math.max(...vaultKeys.keys());
   const vaultPepper = requiredSecret(env, 'PHONE_VAULT_PEPPER');
   if (vaultPepper.length < 32) throw new Error('PHONE_VAULT_PEPPER must be at least 32 characters');
-  const encodedVaultKeys = rawVaultKeys.split(',').map((entry) => entry.slice(entry.indexOf(':') + 1));
+  const encodedVaultKeys = rawVaultKeys
+    .split(',')
+    .map((entry) => entry.slice(entry.indexOf(':') + 1));
   if (
     encodedVaultKeys.includes(vaultPepper) ||
     [...vaultKeys.values()].some((key) => key.equals(Buffer.from(vaultPepper, 'utf8')))
@@ -378,7 +388,13 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
       10_000,
     ),
     vaultTtlDays: integerValue(env.CHANNEL_VAULT_TTL_DAYS, 'CHANNEL_VAULT_TTL_DAYS', 180, 1, 3_650),
-    eventTtlHours: integerValue(env.CHANNEL_EVENT_TTL_HOURS, 'CHANNEL_EVENT_TTL_HOURS', 168, 1, 8_760),
+    eventTtlHours: integerValue(
+      env.CHANNEL_EVENT_TTL_HOURS,
+      'CHANNEL_EVENT_TTL_HOURS',
+      168,
+      1,
+      8_760,
+    ),
     audioTtlMinutes: integerValue(
       env.CHANNEL_AUDIO_TTL_MINUTES,
       'CHANNEL_AUDIO_TTL_MINUTES',

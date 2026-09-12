@@ -13,7 +13,8 @@ const DEFAULT_MAX_RECORDING_SECONDS = 180;
 
 function maxRecordingSeconds(): number {
   const parsed = Number(process.env.CHANNEL_MAX_RECORDING_SECONDS ?? DEFAULT_MAX_RECORDING_SECONDS);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 600) return DEFAULT_MAX_RECORDING_SECONDS;
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 600)
+    return DEFAULT_MAX_RECORDING_SECONDS;
   return parsed;
 }
 
@@ -60,7 +61,8 @@ export function decodeWav(bytes: Uint8Array): DecodedWav {
   if (audioFormat !== PCM_FORMAT) throw new Error('WAV must be PCM');
   if (channels !== MONO_CHANNELS) throw new Error('WAV must be mono');
   if (bitsPerSample !== BITS_PER_SAMPLE) throw new Error('WAV must be PCM16');
-  if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new Error('WAV sample rate is invalid');
+  if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0)
+    throw new Error('WAV sample rate is invalid');
   if (dataOffset < 0) throw new Error('WAV data chunk is missing');
   if (dataSize % 2 !== 0) throw new Error('WAV PCM16 data must be aligned');
 
@@ -78,7 +80,8 @@ export function decodeWav(bytes: Uint8Array): DecodedWav {
 }
 
 export function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
-  if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new Error('sampleRate must be positive');
+  if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0)
+    throw new Error('sampleRate must be positive');
   if (samples.length > sampleRate * maxRecordingSeconds()) {
     throw new Error('WAV exceeds CHANNEL_MAX_RECORDING_SECONDS');
   }

@@ -185,9 +185,7 @@ interface AiProposalRow {
   created_at: Date | string;
 }
 
-type ReopenResult =
-  | { record: RecordRow; actor: Actor }
-  | { error: DomainError };
+type ReopenResult = { record: RecordRow; actor: Actor } | { error: DomainError };
 
 type RootSql = postgres.Sql;
 type QuerySql = postgres.Sql | postgres.TransactionSql;
@@ -562,10 +560,7 @@ export class TraceRepository implements TraceStore {
     return outcome.value;
   }
 
-  async listOutbox(
-    ctx: CommandContext,
-    limit: number,
-  ): Promise<{ messages: CaseMessage[] }> {
+  async listOutbox(ctx: CommandContext, limit: number): Promise<{ messages: CaseMessage[] }> {
     requireRole(ctx.actor, 'gateway');
     const rows = await this.#sql<CaseMessageRow[]>`
       SELECT messages.*
@@ -620,10 +615,7 @@ export class TraceRepository implements TraceStore {
     return result;
   }
 
-  async readFilerCase(
-    caseNumber: string,
-    reopenKey: string,
-  ): Promise<{ case: FilerCaseView }> {
+  async readFilerCase(caseNumber: string, reopenKey: string): Promise<{ case: FilerCaseView }> {
     const outcome = await this.#sql.begin(async (tx) => {
       const authenticated = await this.#authenticateReopen(tx, caseNumber, reopenKey);
       if ('error' in authenticated) return { error: authenticated.error };
@@ -658,10 +650,7 @@ export class TraceRepository implements TraceStore {
     return outcome.value;
   }
 
-  async listMessages(
-    ctx: CommandContext,
-    recordId: string,
-  ): Promise<{ messages: CaseMessage[] }> {
+  async listMessages(ctx: CommandContext, recordId: string): Promise<{ messages: CaseMessage[] }> {
     const records = await this.#sql<RecordRow[]>`
       SELECT * FROM trace_records WHERE id = ${recordId} LIMIT 1
     `;
@@ -690,9 +679,7 @@ export class TraceRepository implements TraceStore {
         authorActorId: ctx.actor.id,
         deliveryState: channel === 'web' ? 'not-applicable' : 'pending',
       });
-      const next = (
-        await tx<RecordRow[]>`SELECT * FROM trace_records WHERE id = ${recordId}`
-      )[0]!;
+      const next = (await tx<RecordRow[]>`SELECT * FROM trace_records WHERE id = ${recordId}`)[0]!;
       await this.#markOfficial(tx, recordId, ctx.actor.id);
       return {
         status: 201,
@@ -1125,11 +1112,7 @@ export class TraceRepository implements TraceStore {
     `;
   }
 
-  async #authenticateReopen(
-    tx: QuerySql,
-    caseNumber: string,
-    key: string,
-  ): Promise<ReopenResult> {
+  async #authenticateReopen(tx: QuerySql, caseNumber: string, key: string): Promise<ReopenResult> {
     const attempts = await tx<{ attempts: number }[]>`
       INSERT INTO trace_reopen_attempts (case_number, window_start, attempts)
       VALUES (${caseNumber}, NOW(), 1)
@@ -1380,11 +1363,7 @@ export class TraceRepository implements TraceStore {
     };
   }
 
-  async #proposeAi(
-    tx: QuerySql,
-    recordId: string,
-    input: AiProposalInput,
-  ): Promise<AiProposal> {
+  async #proposeAi(tx: QuerySql, recordId: string, input: AiProposalInput): Promise<AiProposal> {
     const now = new Date().toISOString();
     const rows = await tx<AiProposalRow[]>`
       INSERT INTO trace_ai_proposals (
@@ -1420,7 +1399,11 @@ export class TraceRepository implements TraceStore {
     if (input.decision === 'accepted') {
       if (proposal.kind === 'category') {
         if (proposal.proposed_value.category !== this.config.pilot.category.id) {
-          throw new DomainError(409, 'category_not_allowed', 'The proposed category is not allowed.');
+          throw new DomainError(
+            409,
+            'category_not_allowed',
+            'The proposed category is not allowed.',
+          );
         }
         await tx`
           UPDATE trace_records SET category = ${String(proposal.proposed_value.category)}
@@ -1525,9 +1508,7 @@ export class TraceRepository implements TraceStore {
   async #requestAiIntake(recordId: string, text: string): Promise<void> {
     if (!this.config.aiIntakeUrl) return;
     try {
-      const knownOpenCases = await this.#sql<
-        { id: string; category: string; narrative: string }[]
-      >`
+      const knownOpenCases = await this.#sql<{ id: string; category: string; narrative: string }[]>`
         SELECT records.id, records.category, private.narrative
         FROM trace_records AS records
         JOIN trace_report_private AS private ON private.record_id = records.id

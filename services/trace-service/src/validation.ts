@@ -342,11 +342,7 @@ export function parseListLimit(urlText: string | undefined): number {
   return limit;
 }
 
-function oneOf<T extends string>(
-  value: unknown,
-  name: string,
-  allowed: readonly T[],
-): T {
+function oneOf<T extends string>(value: unknown, name: string, allowed: readonly T[]): T {
   if (typeof value !== 'string' || !allowed.includes(value as T)) {
     throw new InputError('invalid_request', `${name} is invalid.`);
   }
@@ -382,11 +378,7 @@ function optionalUuid(value: unknown, name: string): string | null {
   return value.toLowerCase();
 }
 
-function optionalBoundedText(
-  value: unknown,
-  name: string,
-  maximum: number,
-): string | null {
+function optionalBoundedText(value: unknown, name: string, maximum: number): string | null {
   return optionalText(value, name, maximum);
 }
 
@@ -407,19 +399,8 @@ export function normalizeGatewayCreate(value: unknown): Record<string, unknown> 
 }
 
 export function normalizeGatewayMessage(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, [
-    'reopenKey',
-    'channel',
-    'kind',
-    'text',
-    'source',
-    'occurredAt',
-  ]);
-  const kind = oneOf(body.kind, 'kind', [
-    'append',
-    'transcript',
-    'transcript-failed',
-  ] as const);
+  const body = exactBody(value, ['reopenKey', 'channel', 'kind', 'text', 'source', 'occurredAt']);
+  const kind = oneOf(body.kind, 'kind', ['append', 'transcript', 'transcript-failed'] as const);
   const messageText = optionalMessageText(body.text, 'text');
   if (messageText === null && kind !== 'transcript-failed') {
     throw new InputError('invalid_request', 'text may be null only for transcript-failed.');
@@ -558,10 +539,7 @@ export function normalizeClose(value: unknown): Record<string, unknown> {
 
 export function normalizeAttention(value: unknown): Record<string, unknown> {
   const body = exactBody(value, ['followerKey', 'kind', 'action']);
-  if (
-    typeof body.followerKey !== 'string' ||
-    !/^[A-Za-z0-9_-]{16,128}$/.test(body.followerKey)
-  ) {
+  if (typeof body.followerKey !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(body.followerKey)) {
     throw new InputError('invalid_request', 'followerKey is invalid.');
   }
   return {

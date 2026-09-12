@@ -18,8 +18,7 @@ const BODY_LIMIT_BYTES = 65_536;
 type ChannelWebhookSpec = {
   path: '/webhooks/telnyx/messaging' | '/webhooks/telnyx/voice';
   upstreamPath:
-    | '/internal/channel/webhooks/telnyx/messaging'
-    | '/internal/channel/webhooks/telnyx/voice';
+    '/internal/channel/webhooks/telnyx/messaging' | '/internal/channel/webhooks/telnyx/voice';
   timeoutMs: 1500 | 5000;
 };
 

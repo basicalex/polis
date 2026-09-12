@@ -90,7 +90,8 @@ export function verifyTelnyxSignature(input: TelnyxSignatureInput): boolean {
     const timestamp = Number(input.timestamp);
     if (!Number.isSafeInteger(timestamp)) return false;
     const rawNow = input.now instanceof Date ? input.now.getTime() / 1_000 : input.now;
-    const nowSeconds = rawNow === undefined ? Date.now() / 1_000 : rawNow > 1e12 ? rawNow / 1_000 : rawNow;
+    const nowSeconds =
+      rawNow === undefined ? Date.now() / 1_000 : rawNow > 1e12 ? rawNow / 1_000 : rawNow;
     if (Math.abs(nowSeconds - timestamp) > input.toleranceSeconds) return false;
 
     const signature = strictBase64(input.signature);
@@ -102,7 +103,11 @@ export function verifyTelnyxSignature(input: TelnyxSignatureInput): boolean {
           const raw = strictBase64(publicKey);
           if (!raw || raw.byteLength !== 32) throw new Error('invalid Telnyx public key');
           const prefix = Buffer.from('302a300506032b6570032100', 'hex');
-          return createPublicKey({ key: Buffer.concat([prefix, raw]), format: 'der', type: 'spki' });
+          return createPublicKey({
+            key: Buffer.concat([prefix, raw]),
+            format: 'der',
+            type: 'spki',
+          });
         })();
     const message = Buffer.concat([
       Buffer.from(input.timestamp, 'utf8'),

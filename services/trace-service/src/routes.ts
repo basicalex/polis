@@ -378,12 +378,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
       handler: safe(async (request, body) => {
         const actor = gatewayActorFromRequest(request, config);
         const normalized = normalizeGatewayCreate(body);
-        const ctx = commandContext(
-          request,
-          actor,
-          '/internal/trace/channel/cases',
-          normalized,
-        );
+        const ctx = commandContext(request, actor, '/internal/trace/channel/cases', normalized);
         return result(
           201,
           await store.createChannelCase(ctx, normalized as unknown as GatewayCreateInput),

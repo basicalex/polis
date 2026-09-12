@@ -244,10 +244,7 @@ const RECORD_ID = '20000000-0000-4000-8000-000000000001';
 const MESSAGE_ID = '30000000-0000-4000-8000-000000000001';
 const PROPOSAL_ID = '40000000-0000-4000-8000-000000000001';
 
-function gatewayHeaders(
-  gateway: string | undefined,
-  citizen?: string,
-): Record<string, string> {
+function gatewayHeaders(gateway: string | undefined, citizen?: string): Record<string, string> {
   return {
     ...internalHeaders(citizen, VALID_IDEMPOTENCY_KEY),
     ...(gateway === undefined ? {} : { 'x-polis-trace-gateway': gateway }),
@@ -599,14 +596,11 @@ test('only channel creation responses expose a reopen key', async () => {
           }),
         }),
       () =>
-        fetch(
-          `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`,
-          {
-            method: 'POST',
-            headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
-            body: JSON.stringify({ expectedVersion: 0, decision: 'accepted' }),
-          },
-        ),
+        fetch(`${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`, {
+          method: 'POST',
+          headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({ expectedVersion: 0, decision: 'accepted' }),
+        }),
       () =>
         fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
           method: 'POST',
@@ -667,8 +661,7 @@ test('public cases need no actor; close and AI decisions enforce staff roles', a
     });
     assert.equal(reviewerClose.status, 200);
 
-    const decisionUrl =
-      `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`;
+    const decisionUrl = `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`;
     const decisionBody = JSON.stringify({ expectedVersion: 0, decision: 'accepted' });
     const residentDecision = await fetch(decisionUrl, {
       method: 'POST',

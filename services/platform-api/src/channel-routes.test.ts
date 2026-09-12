@@ -135,48 +135,60 @@ test('channel Telnyx webhooks pass raw bytes, strict signature headers, and rela
 });
 
 test('channel Telnyx webhook timeouts use per-route limits and transport failures are upstream failures', async () => {
-  await withEnvironment({ CHANNEL_ENABLED: 'true', INTERNAL_API_TOKEN: 'platform-token' }, async () => {
-    const timeouts: number[] = [];
-    const originalTimeout = AbortSignal.timeout;
-    AbortSignal.timeout = ((timeoutMs: number) => {
-      timeouts.push(timeoutMs);
-      return originalTimeout(timeoutMs);
-    }) as typeof AbortSignal.timeout;
-    try {
-      globalThis.fetch = (async () => new Response(new Uint8Array(), { status: 204 })) as typeof globalThis.fetch;
-      await route(channelRoutes(), 'POST', '/webhooks/telnyx/messaging').handler(
-        request(),
-        new Uint8Array(),
-        {},
-      );
-      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
-        request(),
-        new Uint8Array(),
-        {},
-      );
-      assert.deepEqual(timeouts, [1500, 5000]);
-    } finally {
-      AbortSignal.timeout = originalTimeout;
-    }
+  await withEnvironment(
+    { CHANNEL_ENABLED: 'true', INTERNAL_API_TOKEN: 'platform-token' },
+    async () => {
+      const timeouts: number[] = [];
+      const originalTimeout = AbortSignal.timeout;
+      AbortSignal.timeout = ((timeoutMs: number) => {
+        timeouts.push(timeoutMs);
+        return originalTimeout(timeoutMs);
+      }) as typeof AbortSignal.timeout;
+      try {
+        globalThis.fetch = (async () =>
+          new Response(new Uint8Array(), { status: 204 })) as typeof globalThis.fetch;
+        await route(channelRoutes(), 'POST', '/webhooks/telnyx/messaging').handler(
+          request(),
+          new Uint8Array(),
+          {},
+        );
+        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+          request(),
+          new Uint8Array(),
+          {},
+        );
+        assert.deepEqual(timeouts, [1500, 5000]);
+      } finally {
+        AbortSignal.timeout = originalTimeout;
+      }
 
-    globalThis.fetch = (async () => {
-      throw new FetchTimeoutError(5_000);
-    }) as typeof globalThis.fetch;
-    let response = visible(
-      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(request(), new Uint8Array(), {}),
-    );
-    assert.equal(response.status, 504);
-    assert.deepEqual(response.body, { error: 'upstream_timeout' });
+      globalThis.fetch = (async () => {
+        throw new FetchTimeoutError(5_000);
+      }) as typeof globalThis.fetch;
+      let response = visible(
+        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+          request(),
+          new Uint8Array(),
+          {},
+        ),
+      );
+      assert.equal(response.status, 504);
+      assert.deepEqual(response.body, { error: 'upstream_timeout' });
 
-    globalThis.fetch = (async () => {
-      throw new Error('connection refused');
-    }) as typeof globalThis.fetch;
-    response = visible(
-      await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(request(), new Uint8Array(), {}),
-    );
-    assert.equal(response.status, 502);
-    assert.deepEqual(response.body, { error: 'bad_gateway' });
-  });
+      globalThis.fetch = (async () => {
+        throw new Error('connection refused');
+      }) as typeof globalThis.fetch;
+      response = visible(
+        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+          request(),
+          new Uint8Array(),
+          {},
+        ),
+      );
+      assert.equal(response.status, 502);
+      assert.deepEqual(response.body, { error: 'bad_gateway' });
+    },
+  );
 });
 
 test('public-edge blocks channel Telnyx webhook routes', async () => {

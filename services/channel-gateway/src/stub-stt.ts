@@ -8,7 +8,11 @@ const STUB_TRANSCRIPT = 'Ulična rasvjeta ne radi u ulici Primjer, već tri dana
 
 export function wavDurationSeconds(bytes: Uint8Array): number {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (bytes.byteLength < 44 || readAscii(bytes, 0, 4) !== 'RIFF' || readAscii(bytes, 8, 4) !== 'WAVE') {
+  if (
+    bytes.byteLength < 44 ||
+    readAscii(bytes, 0, 4) !== 'RIFF' ||
+    readAscii(bytes, 8, 4) !== 'WAVE'
+  ) {
     throw new SttProviderError('audio/wav input must contain a RIFF WAVE header', {
       code: 'invalid_wav',
     });
@@ -25,7 +29,8 @@ export function wavDurationSeconds(bytes: Uint8Array): number {
       throw new SttProviderError('audio/wav chunk exceeds input size', { code: 'invalid_wav' });
     }
     if (chunkId === 'fmt ') {
-      if (chunkSize < 16) throw new SttProviderError('audio/wav fmt chunk is too short', { code: 'invalid_wav' });
+      if (chunkSize < 16)
+        throw new SttProviderError('audio/wav fmt chunk is too short', { code: 'invalid_wav' });
       byteRate = view.getUint32(dataOffset + 8, true);
     } else if (chunkId === 'data') {
       dataBytes = chunkSize;
@@ -34,7 +39,9 @@ export function wavDurationSeconds(bytes: Uint8Array): number {
   }
 
   if (!byteRate || dataBytes === null) {
-    throw new SttProviderError('audio/wav input must contain fmt and data chunks', { code: 'invalid_wav' });
+    throw new SttProviderError('audio/wav input must contain fmt and data chunks', {
+      code: 'invalid_wav',
+    });
   }
   return dataBytes / byteRate;
 }

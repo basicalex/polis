@@ -23,7 +23,8 @@ export function readMigrations(folder = migrationsFolder): MigrationFile[] {
   const versions = new Set<string>();
   return names.map((name) => {
     const version = name.slice(0, 4);
-    if (versions.has(version)) throw new Error(`duplicate channel gateway migration version ${version}`);
+    if (versions.has(version))
+      throw new Error(`duplicate channel gateway migration version ${version}`);
     versions.add(version);
     const sql = readFileSync(join(folder, name), 'utf8');
     return { version, hash: createHash('sha256').update(sql).digest('hex'), sql };

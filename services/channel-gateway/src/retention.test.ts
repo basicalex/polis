@@ -7,7 +7,13 @@ import test from 'node:test';
 
 import { MemoryChannelStore } from './memory-store.js';
 import { purgeExpired } from './retention.js';
-import type { ChannelIdentity, ChannelInbox, ChannelLink, ChannelOutbox, ChannelRecording } from './types.js';
+import type {
+  ChannelIdentity,
+  ChannelInbox,
+  ChannelLink,
+  ChannelOutbox,
+  ChannelRecording,
+} from './types.js';
 
 const old = new Date('2020-01-01T00:00:00.000Z');
 const expired = new Date('2020-02-01T00:00:00.000Z');

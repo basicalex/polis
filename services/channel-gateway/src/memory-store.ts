@@ -99,9 +99,12 @@ export class MemoryChannelStore implements ChannelStore {
         existing
           ? {
               ...value,
-              firstSeenAt: existing.firstSeenAt < value.firstSeenAt ? existing.firstSeenAt : value.firstSeenAt,
-              lastSeenAt: existing.lastSeenAt > value.lastSeenAt ? existing.lastSeenAt : value.lastSeenAt,
-              expiresAt: existing.expiresAt > value.expiresAt ? existing.expiresAt : value.expiresAt,
+              firstSeenAt:
+                existing.firstSeenAt < value.firstSeenAt ? existing.firstSeenAt : value.firstSeenAt,
+              lastSeenAt:
+                existing.lastSeenAt > value.lastSeenAt ? existing.lastSeenAt : value.lastSeenAt,
+              expiresAt:
+                existing.expiresAt > value.expiresAt ? existing.expiresAt : value.expiresAt,
               blocked: existing.blocked || value.blocked,
             }
           : value,
@@ -240,9 +243,7 @@ export class MemoryChannelStore implements ChannelStore {
 
   async claimOutbox(now: Date, limit: number): Promise<ChannelOutbox[]> {
     const claimed = [...this.#outbox.values()]
-      .filter(
-        (value) => value.state === 'pending' && value.nextAttemptAt <= now,
-      )
+      .filter((value) => value.state === 'pending' && value.nextAttemptAt <= now)
       .sort((left, right) =>
         left.nextAttemptAt.getTime() === right.nextAttemptAt.getTime()
           ? left.id.localeCompare(right.id)
@@ -321,7 +322,14 @@ export class MemoryChannelStore implements ChannelStore {
   }
 
   async purgeExpired(now: Date): Promise<PurgeCounts> {
-    const counts: PurgeCounts = { events: 0, inbox: 0, outbox: 0, recordings: 0, links: 0, identities: 0 };
+    const counts: PurgeCounts = {
+      events: 0,
+      inbox: 0,
+      outbox: 0,
+      recordings: 0,
+      links: 0,
+      identities: 0,
+    };
     for (const [key, value] of this.#events) {
       if (value.expiresAt <= now) {
         this.#events.delete(key);

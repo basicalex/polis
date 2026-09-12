@@ -298,7 +298,10 @@ const VALID_TIME = '2026-09-12T12:00:00.000Z';
 test('case numbers are strict uppercase public identifiers with 404-shaped failures', () => {
   assert.equal(validateCaseNumber('VRS-1842'), 'VRS-1842');
   for (const value of ['vrs-1842', 'VRS-', 'V-1', 'ABCDE-1', 'VRS-123456789', 'VRS-1\n']) {
-    assert.equal(code(() => validateCaseNumber(value)), 'case_not_found');
+    assert.equal(
+      code(() => validateCaseNumber(value)),
+      'case_not_found',
+    );
     assert.throws(
       () => validateCaseNumber(value),
       (error: unknown) => error instanceof InputError && error.status === 404,
@@ -410,9 +413,7 @@ test('filer and official messages enforce bodies, references, versions, and chan
     },
   );
   assert.equal(
-    code(() =>
-      normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'x'.repeat(4_001) }),
-    ),
+    code(() => normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'x'.repeat(4_001) })),
     'invalid_request',
   );
   assert.equal(
@@ -512,9 +513,7 @@ test('attention and delivery inputs enforce idempotent public actions and delive
     failureCode: 'provider_rejected',
   });
   assert.equal(
-    code(() =>
-      normalizeAttention({ followerKey: 'short', kind: 'follow', action: 'add' }),
-    ),
+    code(() => normalizeAttention({ followerKey: 'short', kind: 'follow', action: 'add' })),
     'invalid_request',
   );
   assert.equal(
@@ -558,8 +557,7 @@ test('every channel normalizer rejects unknown and server-authority fields', () 
         ...extra,
       }),
     (extra) => normalizeReopenRead({ reopenKey: VALID_REOPEN_KEY, ...extra }),
-    (extra) =>
-      normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'Dopuna', ...extra }),
+    (extra) => normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'Dopuna', ...extra }),
     (extra) =>
       normalizeOfficialMessage({
         expectedVersion: 0,
@@ -595,7 +593,13 @@ test('every channel normalizer rejects unknown and server-authority fields', () 
     (extra) => normalizeDelivery({ state: 'delivered', ...extra }),
   ];
   for (const normalize of cases) {
-    assert.equal(code(() => normalize({ extra: true })), 'unknown_field');
-    assert.equal(code(() => normalize({ actorId: 'forged' })), 'authority_field_forbidden');
+    assert.equal(
+      code(() => normalize({ extra: true })),
+      'unknown_field',
+    );
+    assert.equal(
+      code(() => normalize({ actorId: 'forged' })),
+      'authority_field_forbidden',
+    );
   }
 });

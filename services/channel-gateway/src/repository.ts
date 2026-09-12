@@ -245,7 +245,8 @@ export class PostgresChannelStore implements ChannelStore {
   }
 
   async setBlocked(phoneHash: string, blocked: boolean): Promise<void> {
-    await this.#sql`UPDATE channel_identities SET blocked = ${blocked} WHERE phone_hash = ${phoneHash}`;
+    await this
+      .#sql`UPDATE channel_identities SET blocked = ${blocked} WHERE phone_hash = ${phoneHash}`;
   }
 
   async listOpenLinks(phoneHash: string): Promise<ChannelLink[]> {

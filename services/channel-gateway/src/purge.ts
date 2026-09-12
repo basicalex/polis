@@ -12,7 +12,9 @@ try {
   await verifyChannelMigrations(config.databaseUrl);
   repository = new PostgresChannelStore(config.databaseUrl);
   const counts = await purgeExpired(repository);
-  console.log(JSON.stringify({ service: 'channel-gateway', stage: 'purge', status: 'complete', ...counts }));
+  console.log(
+    JSON.stringify({ service: 'channel-gateway', stage: 'purge', status: 'complete', ...counts }),
+  );
 } catch (error) {
   console.error(
     JSON.stringify({

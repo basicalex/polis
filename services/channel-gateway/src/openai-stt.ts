@@ -7,7 +7,10 @@ import { SttProviderError } from './stt-provider.js';
 
 export type FetchLike = (input: URL | string, init?: RequestInit) => Promise<Response>;
 
-export function createOpenAiSttProvider(config: SttConfig, fetchImpl: FetchLike = fetch): SttProvider {
+export function createOpenAiSttProvider(
+  config: SttConfig,
+  fetchImpl: FetchLike = fetch,
+): SttProvider {
   return {
     name: 'openai-compatible',
     async transcribe(input) {
@@ -31,12 +34,15 @@ export function createOpenAiSttProvider(config: SttConfig, fetchImpl: FetchLike 
         form.set('language', input.languageHint);
         form.set('response_format', 'json');
 
-        const response = await fetchImpl(new URL('audio/transcriptions', withTrailingSlash(config.baseUrl)), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${config.apiKey}` },
-          body: form,
-          signal: controller.signal,
-        });
+        const response = await fetchImpl(
+          new URL('audio/transcriptions', withTrailingSlash(config.baseUrl)),
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${config.apiKey}` },
+            body: form,
+            signal: controller.signal,
+          },
+        );
         return await parseTranscriptionResponse(response);
       } catch (error) {
         if (error instanceof SttProviderError) throw error;
@@ -46,7 +52,10 @@ export function createOpenAiSttProvider(config: SttConfig, fetchImpl: FetchLike 
             cause: error,
           });
         }
-        throw new SttProviderError('STT request failed', { code: 'stt_request_failed', cause: error });
+        throw new SttProviderError('STT request failed', {
+          code: 'stt_request_failed',
+          cause: error,
+        });
       } finally {
         clearTimeout(timeout);
       }
@@ -87,7 +96,10 @@ async function parseTranscriptionResponse(response: Response) {
       status: response.status,
     });
   }
-  if (duration !== null && (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0)) {
+  if (
+    duration !== null &&
+    (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0)
+  ) {
     throw new SttProviderError('STT response duration must be a non-negative number when present', {
       code: 'stt_malformed_response',
       status: response.status,

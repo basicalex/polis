@@ -39,7 +39,10 @@ export class HttpAuditClient implements AuditClient {
           action: event.code,
           visibility: 'restricted',
           actor: { type: 'service', id: 'channel-gateway' },
-          target: { type: 'channel_gateway', id: event.recordId ?? event.caseNumber ?? event.eventId ?? 'channel' },
+          target: {
+            type: 'channel_gateway',
+            id: event.recordId ?? event.caseNumber ?? event.eventId ?? 'channel',
+          },
           data: {
             eventId: event.eventId,
             phoneHashPrefix: event.phoneHashPrefix,
@@ -51,15 +54,20 @@ export class HttpAuditClient implements AuditClient {
         }),
       });
     } catch (error) {
-      console.error(JSON.stringify({
-        service: 'channel-gateway',
-        stage: 'audit-emit',
-        warning: error instanceof Error ? error.message : 'unknown',
-      }));
+      console.error(
+        JSON.stringify({
+          service: 'channel-gateway',
+          stage: 'audit-emit',
+          warning: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
     }
   }
 }
 
-export function createAuditClient(config: ChannelConfig, fetchImpl?: FetchImplementation): AuditClient {
+export function createAuditClient(
+  config: ChannelConfig,
+  fetchImpl?: FetchImplementation,
+): AuditClient {
   return new HttpAuditClient(config, fetchImpl);
 }

@@ -90,14 +90,38 @@ export class HttpTraceClient implements TraceClient {
     this.#fetch = fetchImpl ?? globalThis.fetch;
   }
 
-  async createChannelCase(input: CreateChannelCaseInput, idempotencyKey: string): Promise<{ case: TraceChannelCase }> {
-    const json = record(await this.#request('/internal/trace/channel/cases', 'POST', input, idempotencyKey, 201));
+  async createChannelCase(
+    input: CreateChannelCaseInput,
+    idempotencyKey: string,
+  ): Promise<{ case: TraceChannelCase }> {
+    const json = record(
+      await this.#request('/internal/trace/channel/cases', 'POST', input, idempotencyKey, 201),
+    );
     const source = record(json.case);
-    return { case: { recordId: requiredString(source, 'recordId'), caseNumber: requiredString(source, 'caseNumber'), reopenKey: requiredString(source, 'reopenKey'), state: requiredString(source, 'state') } };
+    return {
+      case: {
+        recordId: requiredString(source, 'recordId'),
+        caseNumber: requiredString(source, 'caseNumber'),
+        reopenKey: requiredString(source, 'reopenKey'),
+        state: requiredString(source, 'state'),
+      },
+    };
   }
 
-  async appendChannelMessage(caseNumber: string, input: AppendChannelMessageInput, idempotencyKey: string): Promise<{ message: { id: string } }> {
-    const json = record(await this.#request(`/internal/trace/channel/cases/${encodeURIComponent(caseNumber)}/messages`, 'POST', input, idempotencyKey, 201));
+  async appendChannelMessage(
+    caseNumber: string,
+    input: AppendChannelMessageInput,
+    idempotencyKey: string,
+  ): Promise<{ message: { id: string } }> {
+    const json = record(
+      await this.#request(
+        `/internal/trace/channel/cases/${encodeURIComponent(caseNumber)}/messages`,
+        'POST',
+        input,
+        idempotencyKey,
+        201,
+      ),
+    );
     const message = record(json.message);
     return { message: { id: requiredString(message, 'id') } };
   }
@@ -133,7 +157,11 @@ export class HttpTraceClient implements TraceClient {
     };
   }
 
-  async markDelivery(messageId: string, input: MarkDeliveryInput, idempotencyKey: string): Promise<void> {
+  async markDelivery(
+    messageId: string,
+    input: MarkDeliveryInput,
+    idempotencyKey: string,
+  ): Promise<void> {
     const json = record(
       await this.#request(
         `/internal/trace/channel/outbox/${encodeURIComponent(messageId)}/delivery`,
@@ -147,7 +175,13 @@ export class HttpTraceClient implements TraceClient {
     requiredString(message, 'id');
   }
 
-  async #request(path: string, method: string, body?: unknown, idempotencyKey?: string, expectedStatus?: number): Promise<unknown> {
+  async #request(
+    path: string,
+    method: string,
+    body?: unknown,
+    idempotencyKey?: string,
+    expectedStatus?: number,
+  ): Promise<unknown> {
     let response: Response;
     try {
       response = await this.#fetch(`${this.#baseUrl}${path}`, {
@@ -160,7 +194,11 @@ export class HttpTraceClient implements TraceClient {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch (cause) {
-      throw new TraceClientError('Trace request failed', { code: 'network_error', retryable: true, cause });
+      throw new TraceClientError('Trace request failed', {
+        code: 'network_error',
+        retryable: true,
+        cause,
+      });
     }
     if (expectedStatus !== undefined ? response.status !== expectedStatus : !response.ok) {
       let code = 'http_error';
@@ -182,11 +220,18 @@ export class HttpTraceClient implements TraceClient {
     try {
       return await response.json();
     } catch (cause) {
-      throw new TraceClientError('Trace returned an invalid response', { code: 'invalid_response', status: response.status, cause });
+      throw new TraceClientError('Trace returned an invalid response', {
+        code: 'invalid_response',
+        status: response.status,
+        cause,
+      });
     }
   }
 }
 
-export function createTraceClient(config: ChannelConfig, fetchImpl?: FetchImplementation): TraceClient {
+export function createTraceClient(
+  config: ChannelConfig,
+  fetchImpl?: FetchImplementation,
+): TraceClient {
   return new HttpTraceClient(config, fetchImpl);
 }

@@ -162,14 +162,14 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
   const outboxClaim = await store.claimOutbox(value.now, 10);
   assert.equal(outboxClaim.length, 1);
   assert.equal(outboxClaim[0]?.attempts, 1);
-  assert.equal((await store.findOutboxBySource(value.outbox.sourceMessageId!))?.id, value.outbox.id);
+  assert.equal(
+    (await store.findOutboxBySource(value.outbox.sourceMessageId!))?.id,
+    value.outbox.id,
+  );
   const sentAt = new Date(value.now.getTime() + 2_000);
   await store.markOutboxSent(value.outbox.id, 'provider-message-1', sentAt);
   await store.markOutboxDelivery('provider-message-1', 'delivered');
-  assert.equal(
-    (await store.findOutboxBySource(value.outbox.sourceMessageId!))?.state,
-    'delivered',
-  );
+  assert.equal((await store.findOutboxBySource(value.outbox.sourceMessageId!))?.state, 'delivered');
 
   await store.putRecording(value.recording);
   assert.equal((await store.getRecording(value.recording.id))?.state, 'fetched');
@@ -193,25 +193,29 @@ test('MemoryChannelStore conforms to the shared channel contract', async () => {
 
 const postgresDatabaseUrl = process.env.DATABASE_URL;
 if (postgresDatabaseUrl) {
-  test('PostgresChannelStore conforms when DATABASE_URL is explicit', { timeout: 120_000 }, async () => {
-    await runChannelMigrations(postgresDatabaseUrl);
-    const repository = new PostgresChannelStore(postgresDatabaseUrl);
-    const sql = postgres(postgresDatabaseUrl, { prepare: false, onnotice: () => undefined });
-    let value: ConformanceState | undefined;
-    try {
-      value = await assertConformance(repository);
-    } finally {
-      if (value) {
-        await sql`DELETE FROM channel_recordings WHERE id = ${value.recording.id}`;
-        await sql`DELETE FROM channel_inbox WHERE id = ${value.inbox.id}`;
-        await sql`DELETE FROM channel_outbox WHERE id = ${value.outbox.id}`;
-        await sql`DELETE FROM channel_links WHERE phone_hash = ${value.phoneHash}`;
-        await sql`DELETE FROM channel_identities WHERE phone_hash = ${value.phoneHash}`;
-        await sql`DELETE FROM channel_events WHERE provider = 'telnyx' AND event_id = ${value.eventId}`;
-        await sql`DELETE FROM channel_rate_windows WHERE scope = 'inbound-hour' AND key = ${value.phoneHash}`;
+  test(
+    'PostgresChannelStore conforms when DATABASE_URL is explicit',
+    { timeout: 120_000 },
+    async () => {
+      await runChannelMigrations(postgresDatabaseUrl);
+      const repository = new PostgresChannelStore(postgresDatabaseUrl);
+      const sql = postgres(postgresDatabaseUrl, { prepare: false, onnotice: () => undefined });
+      let value: ConformanceState | undefined;
+      try {
+        value = await assertConformance(repository);
+      } finally {
+        if (value) {
+          await sql`DELETE FROM channel_recordings WHERE id = ${value.recording.id}`;
+          await sql`DELETE FROM channel_inbox WHERE id = ${value.inbox.id}`;
+          await sql`DELETE FROM channel_outbox WHERE id = ${value.outbox.id}`;
+          await sql`DELETE FROM channel_links WHERE phone_hash = ${value.phoneHash}`;
+          await sql`DELETE FROM channel_identities WHERE phone_hash = ${value.phoneHash}`;
+          await sql`DELETE FROM channel_events WHERE provider = 'telnyx' AND event_id = ${value.eventId}`;
+          await sql`DELETE FROM channel_rate_windows WHERE scope = 'inbound-hour' AND key = ${value.phoneHash}`;
+        }
+        await repository.close();
+        await sql.end({ timeout: 5 });
       }
-      await repository.close();
-      await sql.end({ timeout: 5 });
-    }
-  });
+    },
+  );
 }

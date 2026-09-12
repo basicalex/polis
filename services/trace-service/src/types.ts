@@ -25,7 +25,8 @@ export type ClosedReason =
   | 'insufficient-information'
   | 'no-action-possible'
   | 'resolved-elsewhere';
-export type ShellState = 'received' | 'assigned' | 'in-review' | 'published' | 'resolved' | 'closed';
+export type ShellState =
+  'received' | 'assigned' | 'in-review' | 'published' | 'resolved' | 'closed';
 
 export interface Actor {
   id: string;
@@ -224,11 +225,7 @@ export type CaseMessageKind =
 export type CaseMessageSource = 'typed' | 'transcript' | 'system';
 export type CaseMessageAuthorKind = 'filer' | 'official' | 'reviewer' | 'system';
 export type CaseMessageDeliveryState =
-  | 'pending'
-  | 'handed-off'
-  | 'delivered'
-  | 'failed'
-  | 'not-applicable';
+  'pending' | 'handed-off' | 'delivered' | 'failed' | 'not-applicable';
 
 export interface CaseMessage {
   id: string;
@@ -418,10 +415,7 @@ export interface TraceStore {
     caseNumber: string,
     input: GatewayMessageInput,
   ): Promise<{ message: CaseMessage }>;
-  listOutbox(
-    ctx: CommandContext,
-    limit: number,
-  ): Promise<{ messages: CaseMessage[] }>;
+  listOutbox(ctx: CommandContext, limit: number): Promise<{ messages: CaseMessage[] }>;
   markOutboxDelivery(
     ctx: CommandContext,
     messageId: string,
@@ -433,10 +427,7 @@ export interface TraceStore {
     reopenKey: string,
     input: FilerMessageInput,
   ): Promise<{ message: CaseMessage }>;
-  listMessages(
-    ctx: CommandContext,
-    recordId: string,
-  ): Promise<{ messages: CaseMessage[] }>;
+  listMessages(ctx: CommandContext, recordId: string): Promise<{ messages: CaseMessage[] }>;
   postOfficialMessage(
     ctx: CommandContext,
     recordId: string,

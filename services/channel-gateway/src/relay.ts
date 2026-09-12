@@ -20,7 +20,9 @@ function ttl(deps: PipelineDeps): Date {
 }
 
 function windowHour(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours()));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours()),
+  );
 }
 
 function windowDay(now: Date): Date {
@@ -28,19 +30,38 @@ function windowDay(now: Date): Date {
 }
 
 function windowMinute(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes()));
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes(),
+    ),
+  );
 }
-
 
 function sealOutbox(deps: PipelineDeps, text: string) {
   const version = deps.config.activeVaultKeyVersion;
   return { version, sealed: sealString(keyFor(deps, version), text, 'outbox-body') };
 }
 
-function decryptPhone(deps: PipelineDeps, row: { phoneCiphertext: Uint8Array; phoneNonce: Uint8Array; phoneTag: Uint8Array; keyVersion: number }): string {
+function decryptPhone(
+  deps: PipelineDeps,
+  row: {
+    phoneCiphertext: Uint8Array;
+    phoneNonce: Uint8Array;
+    phoneTag: Uint8Array;
+    keyVersion: number;
+  },
+): string {
   return openString(
     keyFor(deps, row.keyVersion),
-    { ciphertext: Buffer.from(row.phoneCiphertext), nonce: Buffer.from(row.phoneNonce), tag: Buffer.from(row.phoneTag) },
+    {
+      ciphertext: Buffer.from(row.phoneCiphertext),
+      nonce: Buffer.from(row.phoneNonce),
+      tag: Buffer.from(row.phoneTag),
+    },
     'phone',
   );
 }
@@ -48,7 +69,11 @@ function decryptPhone(deps: PipelineDeps, row: { phoneCiphertext: Uint8Array; ph
 function decryptBody(deps: PipelineDeps, row: ChannelOutbox): string {
   return openString(
     keyFor(deps, row.keyVersion),
-    { ciphertext: Buffer.from(row.bodyCiphertext), nonce: Buffer.from(row.bodyNonce), tag: Buffer.from(row.bodyTag) },
+    {
+      ciphertext: Buffer.from(row.bodyCiphertext),
+      nonce: Buffer.from(row.bodyNonce),
+      tag: Buffer.from(row.bodyTag),
+    },
     'outbox-body',
   );
 }
@@ -61,11 +86,17 @@ async function failTrace(deps: PipelineDeps, messageId: string, code: string): P
   );
 }
 
-async function markLocalFailed(deps: PipelineDeps, row: ChannelOutbox, code: string): Promise<void> {
+async function markLocalFailed(
+  deps: PipelineDeps,
+  row: ChannelOutbox,
+  code: string,
+): Promise<void> {
   await deps.store.markOutboxFailed(row.id, code);
 }
 
-export async function runRelayCycle(deps: PipelineDeps): Promise<{ handedOff: number; failed: number; duplicates: number }> {
+export async function runRelayCycle(
+  deps: PipelineDeps,
+): Promise<{ handedOff: number; failed: number; duplicates: number }> {
   const outbox = await deps.trace.listOutbox(50);
   let handedOff = 0;
   let failed = 0;
@@ -110,7 +141,11 @@ export async function runRelayCycle(deps: PipelineDeps): Promise<{ handedOff: nu
       createdAt: now,
       expiresAt: ttl(deps),
     });
-    await deps.trace.markDelivery(message.id, { state: 'handed-off' }, `relay-handed-off:${message.id}`);
+    await deps.trace.markDelivery(
+      message.id,
+      { state: 'handed-off' },
+      `relay-handed-off:${message.id}`,
+    );
     handedOff += 1;
   }
   return { handedOff, failed, duplicates };
@@ -126,7 +161,10 @@ async function withinCaps(deps: PipelineDeps, row: ChannelOutbox): Promise<boole
   return globalCount <= deps.config.outboundPerMinute;
 }
 
-export async function deliverOutbound(deps: PipelineDeps, limit = 25): Promise<{ sent: number; deferred: number; failed: number }> {
+export async function deliverOutbound(
+  deps: PipelineDeps,
+  limit = 25,
+): Promise<{ sent: number; deferred: number; failed: number }> {
   const rows = await deps.store.claimOutbox(deps.now(), limit);
   let sent = 0;
   let deferred = 0;
@@ -151,7 +189,14 @@ export async function deliverOutbound(deps: PipelineDeps, limit = 25): Promise<{
       const text = row.origin === 'relay' ? SMS_RELAY(row.caseNumber, body) : body;
       const delivered = await deps.provider.sendSms({ to, text, idempotencyKey: row.id });
       await deps.store.markOutboxSent(row.id, delivered.providerMessageId, deps.now());
-      await deps.audit.emit({ eventType: 'channel.sms.sent', code: 'sent', channel: 'sms', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber });
+      await deps.audit.emit({
+        eventType: 'channel.sms.sent',
+        code: 'sent',
+        channel: 'sms',
+        phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+        recordId: row.recordId,
+        caseNumber: row.caseNumber,
+      });
       sent += 1;
     } catch (error) {
       const attempts = row.attempts;
@@ -159,13 +204,29 @@ export async function deliverOutbound(deps: PipelineDeps, limit = 25): Promise<{
       if (attempts >= deps.config.outboundMaxAttempts) {
         await markLocalFailed(deps, row, 'provider_failed');
         if (row.sourceMessageId) await failTrace(deps, row.sourceMessageId, 'provider_failed');
-        await deps.audit.emit({ eventType: 'channel.sms.failed', code: 'provider_failed', channel: 'sms', phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber });
+        await deps.audit.emit({
+          eventType: 'channel.sms.failed',
+          code: 'provider_failed',
+          channel: 'sms',
+          phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+          recordId: row.recordId,
+          caseNumber: row.caseNumber,
+        });
         failed += 1;
       } else {
         // claimOutbox's lease is the retry backoff available through the frozen store contract.
         deferred += 1;
       }
-      deps.log({ service: 'channel-gateway', stage: 'outbox', code: 'failed', attempts, error: message, phoneHashPrefix: phoneHashPrefix(row.phoneHash), recordId: row.recordId, caseNumber: row.caseNumber });
+      deps.log({
+        service: 'channel-gateway',
+        stage: 'outbox',
+        code: 'failed',
+        attempts,
+        error: message,
+        phoneHashPrefix: phoneHashPrefix(row.phoneHash),
+        recordId: row.recordId,
+        caseNumber: row.caseNumber,
+      });
     }
   }
   return { sent, deferred, failed };

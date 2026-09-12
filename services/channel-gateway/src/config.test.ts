@@ -81,15 +81,14 @@ test('pilot requires explicit providers and the processing agreement for either 
   assert.doesNotThrow(() =>
     parse({ DEPLOYMENT_PROFILE: 'pilot', CHANNEL_PROVIDER: 'stub', STT_PROVIDER: 'stub' }),
   );
-  assert.throws(
-    () => parse({ STT_PROVIDER: 'openai-compatible' }),
-    /CHANNEL_PROCESSING_AGREEMENT/,
-  );
+  assert.throws(() => parse({ STT_PROVIDER: 'openai-compatible' }), /CHANNEL_PROCESSING_AGREEMENT/);
   assert.throws(() => parse({ CHANNEL_PROVIDER: 'telnyx' }), /CHANNEL_PROCESSING_AGREEMENT/);
 });
 
 test('Telnyx settings validate E.164, Ed25519 keys, voice, tolerance, and placeholders', () => {
-  const publicKey = generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  const publicKey = generateKeyPairSync('ed25519')
+    .publicKey.export({ type: 'spki', format: 'pem' })
+    .toString();
   const telnyx: NodeJS.ProcessEnv = {
     CHANNEL_PROVIDER: 'telnyx',
     CHANNEL_PROCESSING_AGREEMENT: 'true',

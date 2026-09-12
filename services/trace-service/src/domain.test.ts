@@ -83,7 +83,16 @@ test('close eligibility and shell state mapping cover every trace status', () =>
   assert.deepEqual(statuses.filter(canCloseCase), ['open', 'assigned', 'returned']);
   assert.deepEqual(
     statuses.map((status) => shellStateFor(status, false)),
-    ['received', 'assigned', 'in-review', 'in-review', 'published', 'in-review', 'resolved', 'closed'],
+    [
+      'received',
+      'assigned',
+      'in-review',
+      'in-review',
+      'published',
+      'in-review',
+      'resolved',
+      'closed',
+    ],
   );
   assert.equal(shellStateFor('open', true), 'closed');
 });

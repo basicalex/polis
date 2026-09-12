@@ -48,11 +48,17 @@ test('createChannelCase posts trace wire payload, headers, and timeout-safe body
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const fetchImpl: FetchImplementation = async (input, init) => {
     calls.push({ url: String(input), init: init ?? {} });
-    return Response.json({ case: { recordId: 'rec-1', caseNumber: 'VRS-1', reopenKey: 'rk', state: 'open' } }, { status: 201 });
+    return Response.json(
+      { case: { recordId: 'rec-1', caseNumber: 'VRS-1', reopenKey: 'rk', state: 'open' } },
+      { status: 201 },
+    );
   };
   const client = createTraceClient(config(), fetchImpl);
 
-  const result = await client.createChannelCase({ channel: 'sms', text: 'Tekst', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' }, 'inbox-1');
+  const result = await client.createChannelCase(
+    { channel: 'sms', text: 'Tekst', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' },
+    'inbox-1',
+  );
 
   assert.equal(result.case.caseNumber, 'VRS-1');
   assert.equal(calls[0]?.url, 'http://trace.local/base/internal/trace/channel/cases');
@@ -61,7 +67,12 @@ test('createChannelCase posts trace wire payload, headers, and timeout-safe body
   assert.equal(headers['x-polis-trace-gateway'], 'channel-gateway');
   assert.equal(headers['idempotency-key'], idempotencyUuid('inbox-1'));
   assert.equal(calls[0]?.init.signal instanceof AbortSignal, true);
-  assert.deepEqual(JSON.parse(String(calls[0]?.init.body)), { channel: 'sms', text: 'Tekst', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' });
+  assert.deepEqual(JSON.parse(String(calls[0]?.init.body)), {
+    channel: 'sms',
+    text: 'Tekst',
+    source: 'typed',
+    occurredAt: '2026-09-12T00:00:00.000Z',
+  });
 });
 
 test('appendChannelMessage uses text field and delivery ack uses failureCode', async () => {
@@ -69,18 +80,43 @@ test('appendChannelMessage uses text field and delivery ack uses failureCode', a
   const calls: Array<{ url: string; body: unknown }> = [];
   const fetchImpl: FetchImplementation = async (input, init) => {
     calls.push({ url: String(input), body: init?.body ? JSON.parse(String(init.body)) : null });
-    if (String(input).endsWith('/messages')) return Response.json({ message: { id: 'message-1' } }, { status: 201 });
+    if (String(input).endsWith('/messages'))
+      return Response.json({ message: { id: 'message-1' } }, { status: 201 });
     return Response.json({ message: { id: 'outbox-1' } }, { status: 200 });
   };
   const client = createTraceClient(config(), fetchImpl);
 
-  await client.appendChannelMessage('VRS-1', { reopenKey: 'rk', channel: 'sms', kind: 'append', text: 'Nastavak', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' }, 'append-1');
+  await client.appendChannelMessage(
+    'VRS-1',
+    {
+      reopenKey: 'rk',
+      channel: 'sms',
+      kind: 'append',
+      text: 'Nastavak',
+      source: 'typed',
+      occurredAt: '2026-09-12T00:00:00.000Z',
+    },
+    'append-1',
+  );
   await client.markDelivery('out-1', { state: 'failed', failureCode: 'blocked' }, 'delivery-1');
 
-  assert.equal(calls[0]?.url, 'http://trace.local/base/internal/trace/channel/cases/VRS-1/messages');
-  assert.deepEqual(calls[0]?.body, { reopenKey: 'rk', channel: 'sms', kind: 'append', text: 'Nastavak', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' });
+  assert.equal(
+    calls[0]?.url,
+    'http://trace.local/base/internal/trace/channel/cases/VRS-1/messages',
+  );
+  assert.deepEqual(calls[0]?.body, {
+    reopenKey: 'rk',
+    channel: 'sms',
+    kind: 'append',
+    text: 'Nastavak',
+    source: 'typed',
+    occurredAt: '2026-09-12T00:00:00.000Z',
+  });
   assert.equal(Object.hasOwn(calls[0]?.body as object, 'body'), false);
-  assert.equal(calls[1]?.url, 'http://trace.local/base/internal/trace/channel/outbox/out-1/delivery');
+  assert.equal(
+    calls[1]?.url,
+    'http://trace.local/base/internal/trace/channel/outbox/out-1/delivery',
+  );
   assert.deepEqual(calls[1]?.body, { state: 'failed', failureCode: 'blocked' });
 });
 
@@ -119,7 +155,9 @@ test('listOutbox validates trace messages and authenticates the poll', async () 
 
 test('trace errors carry status and retryability', async () => {
   process.env.INTERNAL_API_TOKEN = 'internal-token';
-  const client = createTraceClient(config(), async () => Response.json({ error: 'too_many_attempts' }, { status: 429 }));
+  const client = createTraceClient(config(), async () =>
+    Response.json({ error: 'too_many_attempts' }, { status: 429 }),
+  );
 
   await assert.rejects(
     client.listOutbox(50),

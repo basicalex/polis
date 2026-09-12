@@ -1860,34 +1860,31 @@ test('reviewer approval promotes the pending commitment submission and its claim
   const { db, updates } = queuedDb([[activeReviewBinding], [submission], [activeReviewBinding]], {
     updateReturningRows: [[{ ...submission, status: 'in_review' }], [approved]],
   });
-  await withAudit(
-    (async () => new Response(null, { status: 204 })) as typeof fetch,
-    async () => {
-      const route = contributionRoutes(db as never).find(
-        (candidate) =>
-          candidate.method === 'POST' && candidate.path === '/internal/review/:id/decide',
-      );
-      assert.ok(route);
-      const out = await route.handler(
-        reqWithActor('staff-reviewer', 'staff'),
-        { decision: 'approve' },
-        { id: submission.id },
-      );
-      assert.equal(httpStatus(out), 201);
-      assert.ok(out && typeof out === 'object' && 'body' in out);
-      const responseBody = out.body;
-      assert.ok(
-        responseBody &&
-          typeof responseBody === 'object' &&
-          'status' in responseBody &&
-          'decidedAt' in responseBody &&
-          'applied' in responseBody,
-      );
-      assert.equal(responseBody.status, 'approved');
-      assert.notEqual(responseBody.decidedAt, null);
-      assert.equal(responseBody.applied, true);
-    },
-  );
+  await withAudit((async () => new Response(null, { status: 204 })) as typeof fetch, async () => {
+    const route = contributionRoutes(db as never).find(
+      (candidate) =>
+        candidate.method === 'POST' && candidate.path === '/internal/review/:id/decide',
+    );
+    assert.ok(route);
+    const out = await route.handler(
+      reqWithActor('staff-reviewer', 'staff'),
+      { decision: 'approve' },
+      { id: submission.id },
+    );
+    assert.equal(httpStatus(out), 201);
+    assert.ok(out && typeof out === 'object' && 'body' in out);
+    const responseBody = out.body;
+    assert.ok(
+      responseBody &&
+        typeof responseBody === 'object' &&
+        'status' in responseBody &&
+        'decidedAt' in responseBody &&
+        'applied' in responseBody,
+    );
+    assert.equal(responseBody.status, 'approved');
+    assert.notEqual(responseBody.decidedAt, null);
+    assert.equal(responseBody.applied, true);
+  });
   assert.ok(
     updates.some((entry) => {
       const values = entry.values;

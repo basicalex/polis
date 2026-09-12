@@ -134,18 +134,21 @@ async function accept(subject: PipelineDeps, id: string, text: string): Promise<
 }
 
 test('handleMessagingEvent verifies signatures and dedupes accepted event ids', async () => {
-  const telnyx = fixture({}, {
-    channelProvider: 'telnyx',
-    telnyx: {
-      numberE164: phone,
-      apiKey: 'k',
-      publicKey: 'bad',
-      messagingProfileId: 'm',
-      connectionId: 'c',
-      ttsVoice: 'v',
-      signatureToleranceSeconds: 300,
+  const telnyx = fixture(
+    {},
+    {
+      channelProvider: 'telnyx',
+      telnyx: {
+        numberE164: phone,
+        apiKey: 'k',
+        publicKey: 'bad',
+        messagingProfileId: 'm',
+        connectionId: 'c',
+        ttsVoice: 'v',
+        signatureToleranceSeconds: 300,
+      },
     },
-  }).deps;
+  ).deps;
   assert.deepEqual(await handleMessagingEvent(event('evt-unauth', phone, 'Kvar'), {}, telnyx), {
     status: 401,
     body: { error: 'invalid_signature' },
@@ -168,7 +171,11 @@ test('runInboxCycle creates a case and confirms only after Trace returns it', as
   assert.deepEqual(await subject.deps.store.claimOutbox(now, 5), []);
   assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
   assert.equal(subject.caseRequests.length, 1);
-  const hash = phoneHash(phone, subject.deps.config.vaultPepper, subject.deps.config.municipalityId);
+  const hash = phoneHash(
+    phone,
+    subject.deps.config.vaultPepper,
+    subject.deps.config.municipalityId,
+  );
   assert.equal((await subject.deps.store.findLinkByRecord('rec-1'))?.phoneHash, hash);
   const outbox = await subject.deps.store.claimOutbox(now, 5);
   assert.equal(outbox.length, 1);
@@ -188,7 +195,11 @@ test('runInboxCycle creates a case and confirms only after Trace returns it', as
 
 test('multi-link prefix selects the owned case and append acknowledgement names it', async () => {
   const subject = fixture();
-  const hash = phoneHash(phone, subject.deps.config.vaultPepper, subject.deps.config.municipalityId);
+  const hash = phoneHash(
+    phone,
+    subject.deps.config.vaultPepper,
+    subject.deps.config.municipalityId,
+  );
   for (const [recordId, caseNumber] of [
     ['rec-old', 'VRS-1'],
     ['rec-new', 'VRS-2'],
@@ -230,7 +241,11 @@ test('multi-link prefix selects the owned case and append acknowledgement names 
 test('STOP blocks once, blocked messages are ignored, and POČNI unblocks', async () => {
   const subject = fixture();
   await accept(subject.deps, 'evt-stop', 'STOP');
-  const hash = phoneHash(phone, subject.deps.config.vaultPepper, subject.deps.config.municipalityId);
+  const hash = phoneHash(
+    phone,
+    subject.deps.config.vaultPepper,
+    subject.deps.config.municipalityId,
+  );
   assert.equal((await subject.deps.store.getIdentity(hash))?.blocked, true);
   await accept(subject.deps, 'evt-blocked', 'Ovo se ne obrađuje');
   assert.deepEqual(await runInboxCycle(subject.deps), { processed: 0, failed: 0 });
@@ -254,7 +269,11 @@ test('inbound and new-case caps complete without creating or confirming excess w
   const newCases = fixture({}, { newCasesPerHashPerDay: 1 });
   await accept(newCases.deps, 'evt-case-1', 'Prva prijava');
   await runInboxCycle(newCases.deps);
-  const hash = phoneHash(phone, newCases.deps.config.vaultPepper, newCases.deps.config.municipalityId);
+  const hash = phoneHash(
+    phone,
+    newCases.deps.config.vaultPepper,
+    newCases.deps.config.municipalityId,
+  );
   const link = await newCases.deps.store.findLinkByRecord('rec-1');
   assert.ok(link);
   await newCases.deps.store.closeLink(hash, link.recordId);
@@ -273,15 +292,15 @@ test('Trace failure backs off and does not enqueue confirmation before a case ex
   await accept(subject.deps, 'evt-failure', 'Rupa u cesti');
   assert.deepEqual(await runInboxCycle(subject.deps), { processed: 0, failed: 1 });
   assert.deepEqual(await subject.deps.store.claimOutbox(now, 5), []);
-  assert.deepEqual(
-    await subject.deps.store.claimInbox(new Date(now.getTime() + 119_999), 5),
-    [],
-  );
+  assert.deepEqual(await subject.deps.store.claimInbox(new Date(now.getTime() + 119_999), 5), []);
   assert.equal(
     (await subject.deps.store.claimInbox(new Date(now.getTime() + 120_000), 5)).length,
     1,
   );
-  assert.equal(subject.logs.some((line) => /\+?\d{8,}/.test(line)), false);
+  assert.equal(
+    subject.logs.some((line) => /\+?\d{8,}/.test(line)),
+    false,
+  );
 });
 
 test('best-effort audit cannot delay the messaging acknowledgement', async () => {

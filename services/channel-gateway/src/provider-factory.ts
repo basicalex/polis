@@ -12,7 +12,9 @@ export function createChannelProvider(
 ): ChannelProvider {
   if (config.channelProvider === 'stub') return new StubChannelProvider();
   if (!config.telnyx) {
-    throw new ChannelProviderError('Telnyx configuration is incomplete', { code: 'invalid_config' });
+    throw new ChannelProviderError('Telnyx configuration is incomplete', {
+      code: 'invalid_config',
+    });
   }
   const values = [
     config.telnyx.numberE164,

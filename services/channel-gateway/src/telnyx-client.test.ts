@@ -25,7 +25,11 @@ test('sendSms posts Telnyx message shape with bearer and idempotency key', async
   };
   const client = new TelnyxClient({ config, fetch: fetchImpl });
 
-  const result = await client.sendSms({ to: '+385921111111', text: 'Poruka', idempotencyKey: 'idem-1' });
+  const result = await client.sendSms({
+    to: '+385921111111',
+    text: 'Poruka',
+    idempotencyKey: 'idem-1',
+  });
 
   assert.deepEqual(result, { providerMessageId: 'msg-1' });
   assert.equal(calls[0]?.url, 'https://api.telnyx.com/v2/messages');
@@ -48,16 +52,40 @@ test('call control methods post expected Telnyx action payloads', async () => {
   const client = new TelnyxClient({ config, fetch: fetchImpl });
 
   await client.answerCall('call-1', 'state-1');
-  await client.speak('call-1', { text: 'Dobar dan', voice: 'Azure.hr-HR-GabrijelaNeural', language: 'hr-HR' });
-  await client.recordStart('call-1', { format: 'wav', channels: 'single', maxLengthSeconds: 60, timeoutSeconds: 3, trim: 'trim-silence', playBeep: true, commandId: 'rec-1' });
+  await client.speak('call-1', {
+    text: 'Dobar dan',
+    voice: 'Azure.hr-HR-GabrijelaNeural',
+    language: 'hr-HR',
+  });
+  await client.recordStart('call-1', {
+    format: 'wav',
+    channels: 'single',
+    maxLengthSeconds: 60,
+    timeoutSeconds: 3,
+    trim: 'trim-silence',
+    playBeep: true,
+    commandId: 'rec-1',
+  });
   await client.hangup('call-1');
 
   assert.equal(calls[0]?.url, 'https://api.telnyx.com/v2/calls/call-1/actions/answer');
   assert.deepEqual(calls[0]?.body, { client_state: 'state-1' });
   assert.equal(calls[1]?.url, 'https://api.telnyx.com/v2/calls/call-1/actions/speak');
-  assert.deepEqual(calls[1]?.body, { payload: 'Dobar dan', voice: 'Azure.hr-HR-GabrijelaNeural', language: 'hr-HR' });
+  assert.deepEqual(calls[1]?.body, {
+    payload: 'Dobar dan',
+    voice: 'Azure.hr-HR-GabrijelaNeural',
+    language: 'hr-HR',
+  });
   assert.equal(calls[2]?.url, 'https://api.telnyx.com/v2/calls/call-1/actions/record_start');
-  assert.deepEqual(calls[2]?.body, { format: 'wav', channels: 'single', max_length: 60, timeout_secs: 3, trim: 'trim-silence', play_beep: true, command_id: 'rec-1' });
+  assert.deepEqual(calls[2]?.body, {
+    format: 'wav',
+    channels: 'single',
+    max_length: 60,
+    timeout_secs: 3,
+    trim: 'trim-silence',
+    play_beep: true,
+    command_id: 'rec-1',
+  });
   assert.equal(calls[3]?.url, 'https://api.telnyx.com/v2/calls/call-1/actions/hangup');
 });
 
@@ -70,7 +98,10 @@ test('sendSms rejects invalid success response strictly', async () => {
 });
 
 test('fetchRecording enforces byte limit', async () => {
-  const client = new TelnyxClient({ config, fetch: async () => new Response(new Uint8Array([1, 2, 3])) });
+  const client = new TelnyxClient({
+    config,
+    fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+  });
   await assert.rejects(
     client.fetchRecording('https://recording.example/audio.wav', 2, 1000),
     (error) => error instanceof ChannelProviderError && error.code === 'download_too_large',

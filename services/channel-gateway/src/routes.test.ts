@@ -20,18 +20,12 @@ const key = Buffer.alloc(32, 7);
 const phone = ['+385', '91', '111', '1111'].join('');
 
 function assertRouteResult(value: unknown, status: number, body: unknown): void {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    !('status' in value) ||
-    !('body' in value)
-  ) {
+  if (value === null || typeof value !== 'object' || !('status' in value) || !('body' in value)) {
     assert.fail('route did not return an HTTP result');
   }
   assert.equal(value.status, status);
   assert.deepEqual(value.body, body);
 }
-
 
 function baseConfig(publicKey: string, allowStubInjection = false): ChannelConfig {
   return {
@@ -180,24 +174,31 @@ function envelope(
 }
 
 const request = (headers: Record<string, string> = {}): IncomingMessage =>
-  ({ headers } as IncomingMessage);
+  ({ headers }) as IncomingMessage;
 
 test('smoke mount returns only operational routes and stub routes are conditional', () => {
-  assert.deepEqual(channelRoutes({}).map((entry) => entry.path), [
-    '/healthz',
-    '/readyz',
-    '/metrics',
-    '/version',
-  ]);
+  assert.deepEqual(
+    channelRoutes({}).map((entry) => entry.path),
+    ['/healthz', '/readyz', '/metrics', '/version'],
+  );
   const { deps } = signedDeps(new RouteStore(), false);
   const routes = channelRoutes(deps);
-  assert.equal(routes.some((entry) => entry.path.startsWith('/internal/channel/stub/')), false);
+  assert.equal(
+    routes.some((entry) => entry.path.startsWith('/internal/channel/stub/')),
+    false,
+  );
   const enabled = channelRoutes({
     ...deps,
     config: { ...deps.config, allowStubInjection: true },
   });
-  assert.equal(enabled.some((entry) => entry.path === '/internal/channel/stub/inbound-sms'), true);
-  assert.equal(enabled.some((entry) => entry.path === '/internal/channel/stub/inbound-call'), true);
+  assert.equal(
+    enabled.some((entry) => entry.path === '/internal/channel/stub/inbound-sms'),
+    true,
+  );
+  assert.equal(
+    enabled.some((entry) => entry.path === '/internal/channel/stub/inbound-call'),
+    true,
+  );
 });
 
 test('webhook routes use raw 64 KiB bodies and reject oversized input with 413', async () => {
@@ -251,11 +252,7 @@ test('messaging webhook returns 401, 400, 202, and duplicate shapes', async () =
   const duplicate = await route(
     '/internal/channel/webhooks/telnyx/messaging',
     duplicateFixture.deps,
-  ).handler(
-    request(signedHeaders(duplicateRaw, duplicateFixture.privateKey)),
-    duplicateRaw,
-    {},
-  );
+  ).handler(request(signedHeaders(duplicateRaw, duplicateFixture.privateKey)), duplicateRaw, {});
   assertRouteResult(duplicate, 202, { accepted: true, duplicate: true });
 });
 
@@ -276,11 +273,10 @@ test('voice webhook verifies and validates before fast acceptance', async () => 
     400,
     { error: 'invalid_event' },
   );
-  assertRouteResult(
-    await voice.handler(request(signedHeaders(raw, privateKey)), raw, {}),
-    202,
-    { accepted: true, duplicate: false },
-  );
+  assertRouteResult(await voice.handler(request(signedHeaders(raw, privateKey)), raw, {}), 202, {
+    accepted: true,
+    duplicate: false,
+  });
 });
 
 test('stub SMS injection returns the exact redacted response after synchronous delivery', async () => {
@@ -324,8 +320,17 @@ test('stub call injection drives call control, recording, transcript, and confir
   assert.equal(value.recordId, 'rec-1');
   assert.equal(value.sentMessages[0]?.to, '[redacted]');
   assert.equal(value.sentMessages[0]?.text.includes('VRS-1'), true);
-  assert.equal(value.commands.some((command) => command.startsWith('answer:')), true);
-  assert.equal(value.commands.some((command) => command.startsWith('record_start:')), true);
-  assert.equal(value.commands.some((command) => command.startsWith('delete_recording:')), true);
+  assert.equal(
+    value.commands.some((command) => command.startsWith('answer:')),
+    true,
+  );
+  assert.equal(
+    value.commands.some((command) => command.startsWith('record_start:')),
+    true,
+  );
+  assert.equal(
+    value.commands.some((command) => command.startsWith('delete_recording:')),
+    true,
+  );
   assert.equal(JSON.stringify(value).includes(phone), false);
 });

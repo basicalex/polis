@@ -58,7 +58,12 @@ function hannWindow(length: number): Float32Array {
   return window;
 }
 
-function timeStretch(input: Float32Array, sampleRate: number, outputLength: number, random: () => number): Float32Array {
+function timeStretch(
+  input: Float32Array,
+  sampleRate: number,
+  outputLength: number,
+  random: () => number,
+): Float32Array {
   if (input.length === 0 || outputLength <= 0) return new Float32Array();
   const frameLength = Math.max(16, Math.round(sampleRate * WINDOW_SECONDS));
   const synthesisHop = Math.max(1, Math.round(frameLength * HOP_RATIO));
@@ -73,7 +78,10 @@ function timeStretch(input: Float32Array, sampleRate: number, outputLength: numb
     const outOffset = frame * synthesisHop;
     if (outOffset >= output.length) break;
     const jitter = 1 + (random() * 2 - 1) * 0.01;
-    const inOffset = Math.max(0, Math.min(input.length - 1, Math.round(frame * analysisHop * jitter)));
+    const inOffset = Math.max(
+      0,
+      Math.min(input.length - 1, Math.round(frame * analysisHop * jitter)),
+    );
     for (let index = 0; index < frameLength && outOffset + index < output.length; index += 1) {
       const sample = input[inOffset + index] ?? 0;
       const weight = window[index] ?? 0;
@@ -98,7 +106,7 @@ function lowPass(input: Float32Array, sampleRate: number): Float32Array {
   const q = Math.SQRT1_2;
   const alpha = sin / (2 * q);
   const a0 = 1 + alpha;
-  const b0 = ((1 - cos) / 2) / a0;
+  const b0 = (1 - cos) / 2 / a0;
   const b1 = (1 - cos) / a0;
   const b2 = b0;
   const a1 = (-2 * cos) / a0;
@@ -122,8 +130,13 @@ function lowPass(input: Float32Array, sampleRate: number): Float32Array {
 export function distortRecording(bytes: Uint8Array, options: DistortOptions): DistortedRecording {
   const decoded = decodeWav(bytes);
   const pitchFactor = 2 ** (options.semitones / 12);
-  if (!Number.isFinite(pitchFactor) || pitchFactor <= 0) throw new Error('semitones must be finite');
-  const shifted = resampleLinear(decoded.samples, decoded.sampleRate, decoded.sampleRate / pitchFactor);
+  if (!Number.isFinite(pitchFactor) || pitchFactor <= 0)
+    throw new Error('semitones must be finite');
+  const shifted = resampleLinear(
+    decoded.samples,
+    decoded.sampleRate,
+    decoded.sampleRate / pitchFactor,
+  );
   const random = xorshift32(seedToUint32(options.seed));
   const stretched = timeStretch(shifted, decoded.sampleRate, decoded.samples.length, random);
   const filtered = lowPass(stretched, decoded.sampleRate);

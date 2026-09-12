@@ -9,7 +9,10 @@ import { readMigrations } from './migrations.js';
 
 test('bundled channel migration is ordered, hashed, and complete', () => {
   const migrations = readMigrations();
-  assert.deepEqual(migrations.map((migration) => migration.version), ['0001']);
+  assert.deepEqual(
+    migrations.map((migration) => migration.version),
+    ['0001'],
+  );
   assert.match(migrations[0]!.hash, /^[a-f0-9]{64}$/);
   for (const table of [
     'channel_identities',

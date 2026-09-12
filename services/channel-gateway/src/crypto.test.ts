@@ -33,8 +33,18 @@ test('versioned vault keys preserve old reads and select the highest version for
   const activeVersion = Math.max(...keys.keys());
   assert.equal(activeVersion, 2);
   assert.equal(openString(keys.get(1)!, oldValue, 'phone'), 'old');
-  assert.equal(openString(keys.get(activeVersion)!, sealString(keys.get(activeVersion)!, 'new', 'phone'), 'phone'), 'new');
-  assert.throws(() => parseVaultKeys(`v1:${Buffer.alloc(31).toString('base64')}`), /PHONE_VAULT_KEY/);
+  assert.equal(
+    openString(
+      keys.get(activeVersion)!,
+      sealString(keys.get(activeVersion)!, 'new', 'phone'),
+      'phone',
+    ),
+    'new',
+  );
+  assert.throws(
+    () => parseVaultKeys(`v1:${Buffer.alloc(31).toString('base64')}`),
+    /PHONE_VAULT_KEY/,
+  );
 });
 
 test('phone hashes are municipality-bound HMAC-SHA256 values', () => {
