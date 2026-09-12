@@ -36,7 +36,7 @@ ALTER TABLE trace_records
     CHECK ((filer_kind = 'anonymous-channel') = (reopen_key_hash IS NOT NULL)),
   ADD CONSTRAINT trace_records_gateway_origin_check
     CHECK ((gateway_actor_id IS NULL) = (origin = 'web')),
-  ADD CONSTRAINT trace_records_closed_reason_check
+  ADD CONSTRAINT trace_records_closed_requires_reason_check
     CHECK ((status = 'closed') = (closed_reason IS NOT NULL)),
   ADD CONSTRAINT trace_records_not_self_duplicate_check
     CHECK (duplicate_of_record_id IS DISTINCT FROM id);
