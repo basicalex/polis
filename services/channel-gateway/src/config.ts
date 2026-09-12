@@ -92,7 +92,7 @@ function parseDatabaseUrl(raw: string): string {
   } catch {
     throw new Error('DATABASE_URL must be a postgres:// URL with a database name');
   }
-  if (parsed.protocol !== 'postgres:' || !parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
+  if ((parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') || !parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
     throw new Error('DATABASE_URL must be a postgres:// URL with a database name');
   }
   return raw;
