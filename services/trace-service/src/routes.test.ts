@@ -77,6 +77,14 @@ function privateRecord(): PrivateRecord {
     updatedAt: '2026-09-05T00:00:00.000Z',
     events: [],
     attachments: [],
+    caseNumber: 'VRS-1842',
+    origin: 'web',
+    filerKind: 'account',
+    closedReason: null,
+    closedPublicReason: null,
+    followerCount: 0,
+    alsoAffectedCount: 0,
+    aiProposals: [],
   };
 }
 function caseShell(): CaseShell {

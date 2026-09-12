@@ -167,6 +167,14 @@ export interface PrivateRecord {
   updatedAt: string;
   events: PrivateEvent[];
   attachments: AttachmentMetadata[];
+  caseNumber: string;
+  origin: TraceOrigin;
+  filerKind: FilerKind;
+  closedReason: ClosedReason | null;
+  closedPublicReason: string | null;
+  followerCount: number;
+  alsoAffectedCount: number;
+  aiProposals: AiProposal[];
 }
 
 export interface PublicRecord {

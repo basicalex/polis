@@ -2021,6 +2021,10 @@ export class TraceRepository implements TraceStore {
       FROM trace_attachments WHERE record_id = ${record.id} ORDER BY created_at
       LIMIT ${MAX_ATTACHMENTS_PER_RECORD + 1}
     `;
+    const proposalRows = await sql<AiProposalRow[]>`
+      SELECT * FROM trace_ai_proposals WHERE record_id = ${record.id} ORDER BY created_at, id
+      LIMIT 200
+    `;
     const material = materialRows[0];
     if (!material) throw integrityError();
     if (
@@ -2054,6 +2058,14 @@ export class TraceRepository implements TraceStore {
       updatedAt: iso(record.updated_at),
       events: eventRows.map(privateEvent),
       attachments: attachmentRows.map(attachmentMetadata),
+      caseNumber: record.case_number,
+      origin: record.origin,
+      filerKind: record.filer_kind,
+      closedReason: record.closed_reason,
+      closedPublicReason: record.closed_public_reason,
+      followerCount: record.follower_count,
+      alsoAffectedCount: record.also_affected_count,
+      aiProposals: proposalRows.map(aiProposal),
     };
   }
 }
