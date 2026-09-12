@@ -294,8 +294,8 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
           });
           await voiceEvent('call.recording.saved', {
             call_control_id: callControlId,
-            recording_id: 'stub-rec-0001',
-            recording_urls: { wav: 'stub://recording/stub-rec-0001' },
+            recording_id: `stub-rec-${callControlId}`,
+            recording_urls: { wav: `stub://recording/stub-rec-${callControlId}` },
             client_state: clientState({
               step: 'recording',
               caseNumber: link.caseNumber,
