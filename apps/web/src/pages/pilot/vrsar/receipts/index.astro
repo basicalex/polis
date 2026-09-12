@@ -5,8 +5,10 @@
 import EmptyState from '@polis/ui/astro/EmptyState.astro';
 import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
 import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+import { CASE_NUMBER_PATTERN, publicCaseCopy } from '../../../../content/pilot/vrsar-public-case';
 
 const lang = parsePilotLang(Astro.url);
+const lookup = publicCaseCopy.lookup;
 ---
 
 <VrsarPilotShell lang={lang} page="receipts" title={`${pilotCopy.receipts.heading[lang]} — Polis`} description={pilotCopy.receipts.intro[lang]}>
@@ -15,6 +17,32 @@ const lang = parsePilotLang(Astro.url);
       <h1>{pilotCopy.receipts.heading[lang]}</h1>
       <p class="pilot-lead">{pilotCopy.receipts.intro[lang]}</p>
     </header>
+    <section class="pilot-section panel" aria-labelledby="receipts-lookup-title">
+      <h2 id="receipts-lookup-title">{lookup.heading[lang]}</h2>
+      <form class="pilot-form" data-case-lookup novalidate>
+        <div class="field" data-width="code">
+          <label for="receipts-case-number">{lookup.label[lang]}</label>
+          <input
+            id="receipts-case-number"
+            name="caseNumber"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            pattern={CASE_NUMBER_PATTERN}
+            placeholder="VRS-1842"
+            aria-describedby="receipts-case-number-hint receipts-case-number-error"
+          />
+          <p class="field-hint" id="receipts-case-number-hint">{lookup.hint[lang]}</p>
+          <p class="field-error" id="receipts-case-number-error" data-case-lookup-error></p>
+        </div>
+        <div class="pilot-actions">
+          <button class="btn" data-variant="primary" type="submit">{lookup.submit[lang]}</button>
+        </div>
+      </form>
+    </section>
+
     <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
     <ul class="pilot-ledger" data-public-list></ul>
     <div data-empty-state hidden>
@@ -32,6 +60,8 @@ const lang = parsePilotLang(Astro.url);
   </article>
   <script>
     import { initVrsarReceipts } from '../../../../scripts/pilot/vrsar/receipts';
+    import { initVrsarCaseLookup } from '../../../../scripts/pilot/vrsar/public-case';
     initVrsarReceipts();
+    initVrsarCaseLookup();
   </script>
 </VrsarPilotShell>

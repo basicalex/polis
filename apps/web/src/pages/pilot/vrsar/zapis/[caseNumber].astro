@@ -1,0 +1,58 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * One public case, addressed by its case number. The shell is readable in every
+ * state; the approved public text appears only once independent review cleared
+ * it. An unknown number and a number whose text has not published yet get the
+ * same not-found answer, so the page never leaks which of the two it is.
+ */
+
+import VrsarChannelHelp from '../../../../components/pilot/vrsar/VrsarChannelHelp.astro';
+import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
+import VrsarPublicShell from '../../../../components/pilot/vrsar/VrsarPublicShell.astro';
+import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+import { publicCaseCopy } from '../../../../content/pilot/vrsar-public-case';
+
+const lang = parsePilotLang(Astro.url);
+const copy = publicCaseCopy.page;
+---
+
+<VrsarPilotShell
+  lang={lang}
+  page="receipt-detail"
+  title={`${copy.heading[lang]} — Polis`}
+  description={copy.intro[lang]}
+>
+  <article class="pilot-page">
+    <div class="pilot-actions pilot-print-hidden">
+      <a class="btn" data-variant="secondary" href={pilotHref('/pilot/vrsar/receipts', lang)}>
+        {pilotCopy.common.back[lang]}
+      </a>
+    </div>
+
+    <header class="pilot-page-header">
+      <h1>{copy.heading[lang]}</h1>
+      <p class="pilot-lead">{copy.intro[lang]}</p>
+    </header>
+
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>
+      {pilotCopy.common.loading[lang]}
+    </p>
+
+    <VrsarPublicShell lang={lang} />
+    <VrsarChannelHelp lang={lang} />
+
+    <div class="pilot-state-actions">
+      <button class="btn" data-variant="secondary" type="button" data-retry hidden>
+        {pilotCopy.common.retry[lang]}
+      </button>
+    </div>
+  </article>
+
+  <script>
+    import { initVrsarPublicCase } from '../../../../scripts/pilot/vrsar/public-case';
+    initVrsarPublicCase();
+  </script>
+</VrsarPilotShell>

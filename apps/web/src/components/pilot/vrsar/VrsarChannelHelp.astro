@@ -1,0 +1,89 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * How to reach the case channel by phone or SMS, and what happens to what the
+ * caller says. The number comes from PUBLIC_PILOT_PHONE; with nothing
+ * configured the block says so with a stamp instead of showing a number that
+ * would not answer (rule P4: the word carries the state, the stamp reinforces).
+ */
+
+import type { PilotLang } from '../../../content/pilot/vrsar';
+import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+
+interface Props {
+  lang: PilotLang;
+  headingId?: string;
+}
+
+const { lang, headingId = 'pilot-channel-title' } = Astro.props as Props;
+const copy = publicCaseCopy.channel;
+
+const configured = String(import.meta.env.PUBLIC_PILOT_PHONE ?? '').trim();
+const active = /^\+?[\d\s()-]{6,}$/.test(configured);
+const number = active ? configured : copy.numberUnset[lang];
+const dial = active ? `tel:${configured.replace(/[^+\d]/g, '')}` : null;
+---
+
+<section class="pilot-section panel" aria-labelledby={headingId}>
+  <h2 id={headingId}>{copy.heading[lang]}</h2>
+
+  <p class="pilot-channel-number">
+    <span class="pilot-channel-label">{copy.numberLabel[lang]}</span>
+    {dial ? (
+      <a class="pilot-channel-value" href={dial}>{number}</a>
+    ) : (
+      <span class="pilot-channel-value">{number}</span>
+    )}
+    {!active && (
+      <span class="status-label" data-style="stamp" data-tone="warning">{copy.inactiveStamp[lang]}</span>
+    )}
+  </p>
+
+  <ul class="pilot-channel-notes">
+    <li>{copy.privacyLine[lang]}</li>
+    <li>{copy.recordingLine[lang]}</li>
+    <li>{copy.tariffLine[lang]}</li>
+  </ul>
+</section>
+
+<style>
+  .pilot-channel-number {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-4);
+  }
+
+  .pilot-channel-label {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    font-weight: 650;
+  }
+
+  .pilot-channel-value {
+    font-family: var(--mono);
+    font-size: var(--type-body-lg);
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  a.pilot-channel-value {
+    color: var(--polis-trace);
+  }
+
+  .pilot-channel-notes {
+    max-width: 68ch;
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    line-height: 1.45;
+  }
+
+  .pilot-channel-notes li + li {
+    margin-top: var(--space-2);
+  }
+</style>

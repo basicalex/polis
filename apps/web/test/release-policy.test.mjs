@@ -58,6 +58,7 @@ const expectedCurrentByKind = {
     '/pilot/results',
     '/pilot/vrsar/receipts',
     '/pilot/vrsar/receipts/:receiptId',
+    '/pilot/vrsar/zapis/:caseNumber',
     '/proofs',
     '/proofs/:id',
     '/rewards',

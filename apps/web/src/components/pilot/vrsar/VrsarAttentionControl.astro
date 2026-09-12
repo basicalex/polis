@@ -1,0 +1,103 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * Attention on a public case: two independent marks, each with its own count.
+ * The count is a count, never a vote and never queue order, so the line under
+ * the controls says so (rule C2). State lives in the browser: the script fills
+ * the counts and swaps a button to the withdraw label once this browser's key
+ * has been counted.
+ */
+
+import type { PilotLang } from '../../../content/pilot/vrsar';
+import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+
+interface Props {
+  lang: PilotLang;
+}
+
+const { lang } = Astro.props as Props;
+const copy = publicCaseCopy.attention;
+const items = [
+  { kind: 'also-affected', label: copy.alsoAffectedCount[lang], action: copy.alsoAffectedAdd[lang] },
+  { kind: 'follow', label: copy.followCount[lang], action: copy.followAdd[lang] },
+] as const;
+---
+
+<section class="pilot-section panel" aria-labelledby="pilot-attention-title" data-attention>
+  <h2 id="pilot-attention-title">{copy.heading[lang]}</h2>
+
+  <div class="pilot-attention">
+    {items.map((item) => (
+      <div class="pilot-attention-item" data-attention-item={item.kind}>
+        <p class="pilot-attention-count" role="status" aria-live="polite">
+          <span class="pilot-attention-label">{item.label}:</span>
+          <span class="pilot-attention-value" data-attention-count>—</span>
+        </p>
+        <button
+          class="btn"
+          data-variant="secondary"
+          type="button"
+          aria-pressed="false"
+          data-attention-button
+        >
+          {item.action}
+        </button>
+      </div>
+    ))}
+  </div>
+
+  <p class="field-hint">{copy.notAVote[lang]}</p>
+  <p class="field-error" role="alert" data-attention-error></p>
+</section>
+
+<style>
+  .pilot-attention {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    margin-bottom: var(--space-3);
+  }
+
+  .pilot-attention-item {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+  }
+
+  .pilot-attention-count {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  /* The value is the fact; the label only names it (rule H3). */
+  .pilot-attention-label {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    font-weight: 650;
+  }
+
+  .pilot-attention-value {
+    font-size: var(--type-body-lg);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 40rem) {
+    .pilot-attention {
+      gap: var(--space-4);
+    }
+
+    .pilot-attention-item {
+      flex: 1 1 100%;
+    }
+
+    .pilot-attention-item .btn {
+      width: 100%;
+    }
+  }
+</style>

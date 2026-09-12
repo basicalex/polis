@@ -1,0 +1,80 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * The public case shell: what everyone may read about a case from the moment it
+ * is received. It is not a receipt. The approved public text below only appears
+ * once independent review has cleared it, and until then the note says so
+ * rather than leaving an empty space (rule S1).
+ */
+
+import type { PilotLang } from '../../../content/pilot/vrsar';
+import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+import VrsarAttentionControl from './VrsarAttentionControl.astro';
+import VrsarReceipt from './VrsarReceipt.astro';
+import VrsarTraceSummary from './VrsarTraceSummary.astro';
+
+interface Props {
+  lang: PilotLang;
+}
+
+const { lang } = Astro.props as Props;
+const copy = publicCaseCopy.shell;
+---
+
+<div class="pilot-page" data-public-case hidden>
+  <section class="pilot-section panel" aria-labelledby="public-case-title">
+    <div class="pilot-public-case-head">
+      <h2 id="public-case-title">{copy.heading[lang]}</h2>
+      <span class="status-label" data-style="stamp" data-tone="unknown" data-case-state></span>
+    </div>
+
+    <dl class="pilot-meta">
+      <div>
+        <dt>{copy.caseNumber[lang]}</dt>
+        <dd class="pilot-ledger-id" data-case-number></dd>
+      </div>
+      <div>
+        <dt>{copy.area[lang]}</dt>
+        <dd data-case-area></dd>
+      </div>
+      <div>
+        <dt>{copy.category[lang]}</dt>
+        <dd data-case-category></dd>
+      </div>
+      <div>
+        <dt>{copy.time[lang]}</dt>
+        <dd data-case-time></dd>
+      </div>
+    </dl>
+
+    <p class="pilot-state" data-case-closed-reason hidden></p>
+  </section>
+
+  <section class="pilot-section" aria-labelledby="public-case-trace-title" data-case-trace>
+    <h2 id="public-case-trace-title">{copy.trace[lang]}</h2>
+    <VrsarTraceSummary lang={lang} />
+  </section>
+
+  <VrsarAttentionControl lang={lang} />
+
+  <p class="pilot-state" data-case-pending-text hidden></p>
+
+  <VrsarReceipt lang={lang} />
+</div>
+
+<style>
+  .pilot-public-case-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .pilot-public-case-head h2 {
+    margin: 0;
+  }
+</style>

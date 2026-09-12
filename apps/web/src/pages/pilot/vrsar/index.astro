@@ -2,11 +2,14 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import VrsarChannelHelp from '../../../components/pilot/vrsar/VrsarChannelHelp.astro';
 import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.astro';
 import VrsarTraceSummary from '../../../components/pilot/vrsar/VrsarTraceSummary.astro';
 import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
+import { CASE_NUMBER_PATTERN, publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
 
 const lang = parsePilotLang(Astro.url);
+const lookup = publicCaseCopy.lookup;
 ---
 
 <VrsarPilotShell
@@ -20,6 +23,32 @@ const lang = parsePilotLang(Astro.url);
       <h1>{pilotCopy.entry.heading[lang]}</h1>
       <p class="pilot-lead">{pilotCopy.entry.intro[lang]}</p>
     </header>
+
+    <section class="pilot-section panel" aria-labelledby="pilot-lookup-title">
+      <h2 id="pilot-lookup-title">{lookup.heading[lang]}</h2>
+      <form class="pilot-form" data-case-lookup novalidate>
+        <div class="field" data-width="code">
+          <label for="pilot-case-number">{lookup.label[lang]}</label>
+          <input
+            id="pilot-case-number"
+            name="caseNumber"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            pattern={CASE_NUMBER_PATTERN}
+            placeholder="VRS-1842"
+            aria-describedby="pilot-case-number-hint pilot-case-number-error"
+          />
+          <p class="field-hint" id="pilot-case-number-hint">{lookup.hint[lang]}</p>
+          <p class="field-error" id="pilot-case-number-error" data-case-lookup-error></p>
+        </div>
+        <div class="pilot-actions">
+          <button class="btn" data-variant="secondary" type="submit">{lookup.submit[lang]}</button>
+        </div>
+      </form>
+    </section>
 
     <section class="pilot-section" aria-labelledby="pilot-config-title">
       <h2 id="pilot-config-title">{pilotCopy.entry.contextHeading[lang]}</h2>
@@ -48,6 +77,8 @@ const lang = parsePilotLang(Astro.url);
       <p>{pilotCopy.entry.publicationRule[lang]}</p>
     </section>
 
+    <VrsarChannelHelp lang={lang} />
+
     <section class="pilot-section panel" aria-labelledby="pilot-session-title">
       <h2 id="pilot-session-title">{pilotCopy.common.role[lang]}</h2>
       <p class="pilot-state" tabindex="-1" data-page-state>{pilotCopy.entry.sessionChecking[lang]}</p>
@@ -57,6 +88,8 @@ const lang = parsePilotLang(Astro.url);
 
   <script>
     import { initVrsarEntry } from '../../../scripts/pilot/vrsar/index';
+    import { initVrsarCaseLookup } from '../../../scripts/pilot/vrsar/public-case';
     initVrsarEntry();
+    initVrsarCaseLookup();
   </script>
 </VrsarPilotShell>

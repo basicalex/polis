@@ -68,6 +68,7 @@ const policy = [
   { id: 'pilot-results', pattern: '/pilot/results', kind: 'backend-dependent', inventory: 'current' },
   { id: 'pilot-vrsar-receipts', pattern: '/pilot/vrsar/receipts', kind: 'backend-dependent', inventory: 'current' },
   { id: 'pilot-vrsar-receipt-detail', pattern: '/pilot/vrsar/receipts/:receiptId', kind: 'backend-dependent', inventory: 'current' },
+  { id: 'pilot-vrsar-public-case', pattern: '/pilot/vrsar/zapis/:caseNumber', kind: 'backend-dependent', inventory: 'current' },
   { id: 'proofs', pattern: '/proofs', kind: 'backend-dependent', inventory: 'current' },
   { id: 'proof-detail', pattern: '/proofs/:id', kind: 'backend-dependent', inventory: 'current' },
   { id: 'rewards', pattern: '/rewards', kind: 'backend-dependent', inventory: 'current' },
