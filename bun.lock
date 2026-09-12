@@ -152,6 +152,18 @@
         "typescript": "^5.9.3",
       },
     },
+    "services/channel-gateway": {
+      "name": "@polis/channel-gateway",
+      "version": "0.1.0-v1",
+      "dependencies": {
+        "@polis/service-runtime": "workspace:*",
+        "postgres": "^3.4.9",
+      },
+      "devDependencies": {
+        "@types/node": "^24.10.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "services/citizen-identity-service": {
       "name": "@polis/citizen-identity-service",
       "version": "0.1.0-v1",
@@ -698,6 +710,8 @@
     "@polis/audit-service": ["@polis/audit-service@workspace:services/audit-service"],
 
     "@polis/canonicalization-service": ["@polis/canonicalization-service@workspace:services/canonicalization-service"],
+
+    "@polis/channel-gateway": ["@polis/channel-gateway@workspace:services/channel-gateway"],
 
     "@polis/citizen-identity-service": ["@polis/citizen-identity-service@workspace:services/citizen-identity-service"],
 
