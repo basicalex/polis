@@ -1,12 +1,23 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { createHash } from 'node:crypto';
+
 import { internalHeaders } from '@polis/service-runtime';
 
 import type { ChannelConfig } from './config.js';
 import type { ChannelKind } from './types.js';
 import type { TraceChannelCase, TraceClient, TraceOutboxMessage } from './pipeline-types.js';
 import type { FetchImplementation } from './telnyx-client.js';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** trace-service accepts only UUID idempotency keys; map composite keys to a stable UUID. */
+export function idempotencyUuid(key: string): string {
+  if (UUID_PATTERN.test(key)) return key.toLowerCase();
+  const hex = createHash('sha256').update(key).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
 
 const TRACE_TIMEOUT_MS = 5_000;
 
@@ -144,7 +155,7 @@ export class HttpTraceClient implements TraceClient {
         signal: AbortSignal.timeout(TRACE_TIMEOUT_MS),
         headers: internalHeaders({
           'x-polis-trace-gateway': this.#actorId,
-          ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
+          ...(idempotencyKey ? { 'idempotency-key': idempotencyUuid(idempotencyKey) } : {}),
         }),
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });

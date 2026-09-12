@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { distortRecording } from './audio/distort.js';
 import { PROMPT_HR, SMS_CONFIRM, spellCaseNumberHr } from './copy-hr.js';
@@ -87,7 +87,9 @@ function speakInput(text: string, clientState: Record<string, unknown>, deps: Pi
 }
 
 function voiceCallInboxId(callControlId: string): string {
-  return `voice-call:${callControlId}`;
+  // channel_inbox.id is a uuid; derive a stable one from the call so replays hit the same row.
+  const hex = createHash('sha256').update(`voice-call:${callControlId}`).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 function recordingUrl(payload: Record<string, unknown>): string | null {

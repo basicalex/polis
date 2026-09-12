@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { ChannelConfig } from './config.js';
-import { createTraceClient, TraceClientError } from './trace-client.js';
+import { createTraceClient, idempotencyUuid, TraceClientError } from './trace-client.js';
 import type { FetchImplementation } from './telnyx-client.js';
 
 function config(): ChannelConfig {
@@ -59,7 +59,7 @@ test('createChannelCase posts trace wire payload, headers, and timeout-safe body
   const headers = calls[0]?.init.headers as Record<string, string>;
   assert.equal(headers['x-polis-internal-token'], 'internal-token');
   assert.equal(headers['x-polis-trace-gateway'], 'channel-gateway');
-  assert.equal(headers['idempotency-key'], 'inbox-1');
+  assert.equal(headers['idempotency-key'], idempotencyUuid('inbox-1'));
   assert.equal(calls[0]?.init.signal instanceof AbortSignal, true);
   assert.deepEqual(JSON.parse(String(calls[0]?.init.body)), { channel: 'sms', text: 'Tekst', source: 'typed', occurredAt: '2026-09-12T00:00:00.000Z' });
 });
@@ -90,7 +90,7 @@ test('listOutbox validates trace messages and authenticates the poll', async () 
     assert.equal(String(input), 'http://trace.local/base/internal/trace/channel/outbox?limit=50');
     const headers = init?.headers as Record<string, string>;
     assert.equal(headers['x-polis-trace-gateway'], 'channel-gateway');
-    assert.equal(headers['idempotency-key'], 'list-outbox:50');
+    assert.equal(headers['idempotency-key'], idempotencyUuid('list-outbox:50'));
     return Response.json({
       messages: [
         {

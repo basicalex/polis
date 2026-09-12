@@ -277,7 +277,8 @@ test('recording.error fails deterministic voice_call row, audits, and hangs up',
   );
 
   const [failedCall] = await store.claimInbox(now, 10) as ChannelInbox[];
-  assert.equal(failedCall!.id, 'voice-call:call-1');
+  assert.match(failedCall!.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.equal(failedCall!.callControlId, 'call-1');
   assert.equal(failedCall!.state, 'processing');
   assert.equal(failedCall!.attempts, 1);
   assert.deepEqual(provider.hangups, ['call-1']);
