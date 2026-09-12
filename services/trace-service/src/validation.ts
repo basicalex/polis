@@ -170,6 +170,13 @@ export function validateRecordId(value: string): string {
   return value.toLowerCase();
 }
 
+export function validateCaseNumber(value: string): string {
+  if (!/^[A-Z]{2,4}-[0-9]{1,8}$/.test(value)) {
+    throw new InputError('case_not_found', 'Case not found.', 404);
+  }
+  return value;
+}
+
 export function validateDateOnly(value: unknown): string {
   if (typeof value !== 'string')
     throw new InputError('invalid_due_date', 'dueDate must be YYYY-MM-DD.');
@@ -333,4 +340,240 @@ export function parseListLimit(urlText: string | undefined): number {
   const limit = Number(raw);
   if (limit > 100) throw new InputError('invalid_limit', 'limit must be an integer from 1 to 100.');
   return limit;
+}
+
+function oneOf<T extends string>(
+  value: unknown,
+  name: string,
+  allowed: readonly T[],
+): T {
+  if (typeof value !== 'string' || !allowed.includes(value as T)) {
+    throw new InputError('invalid_request', `${name} is invalid.`);
+  }
+  return value as T;
+}
+
+function optionalMessageText(value: unknown, name: string): string | null {
+  if (value === null) return null;
+  return text(value, name, 4_000);
+}
+
+function reopenKey(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{20,64}$/.test(value)) {
+    throw new InputError('invalid_request', 'reopenKey is invalid.');
+  }
+  return value;
+}
+
+function occurredAt(value: unknown): string {
+  const normalized = text(value, 'occurredAt', 64);
+  const parsed = new Date(normalized);
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(normalized) || !Number.isFinite(parsed.getTime())) {
+    throw new InputError('invalid_request', 'occurredAt must be an ISO timestamp.');
+  }
+  return parsed.toISOString();
+}
+
+function optionalUuid(value: unknown, name: string): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !UUID.test(value)) {
+    throw new InputError('invalid_request', `${name} must be a UUID.`);
+  }
+  return value.toLowerCase();
+}
+
+function optionalBoundedText(
+  value: unknown,
+  name: string,
+  maximum: number,
+): string | null {
+  return optionalText(value, name, maximum);
+}
+
+export function normalizeGatewayCreate(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['channel', 'text', 'location', 'source', 'occurredAt']);
+  const channel = oneOf(body.channel, 'channel', ['sms', 'voice'] as const);
+  const narrative = body.text === null ? null : text(body.text, 'text', 4_000);
+  if (narrative === null && channel !== 'voice') {
+    throw new InputError('invalid_request', 'text may be null only for voice intake.');
+  }
+  return {
+    channel,
+    text: narrative,
+    location: optionalBoundedText(body.location, 'location', 1_000),
+    source: oneOf(body.source, 'source', ['typed', 'transcript', 'system'] as const),
+    occurredAt: occurredAt(body.occurredAt),
+  };
+}
+
+export function normalizeGatewayMessage(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, [
+    'reopenKey',
+    'channel',
+    'kind',
+    'text',
+    'source',
+    'occurredAt',
+  ]);
+  const kind = oneOf(body.kind, 'kind', [
+    'append',
+    'transcript',
+    'transcript-failed',
+  ] as const);
+  const messageText = optionalMessageText(body.text, 'text');
+  if (messageText === null && kind !== 'transcript-failed') {
+    throw new InputError('invalid_request', 'text may be null only for transcript-failed.');
+  }
+  return {
+    reopenKey: reopenKey(body.reopenKey),
+    channel: oneOf(body.channel, 'channel', ['sms', 'voice'] as const),
+    kind,
+    text: messageText,
+    source: oneOf(body.source, 'source', ['typed', 'transcript', 'system'] as const),
+    occurredAt: occurredAt(body.occurredAt),
+  };
+}
+
+export function normalizeReopenRead(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['reopenKey']);
+  return { reopenKey: reopenKey(body.reopenKey) };
+}
+
+export function normalizeFilerMessage(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['reopenKey', 'body', 'inReplyTo']);
+  return {
+    reopenKey: reopenKey(body.reopenKey),
+    body: text(body.body, 'body', 4_000),
+    inReplyTo: optionalUuid(body.inReplyTo, 'inReplyTo'),
+  };
+}
+
+export function normalizeOfficialMessage(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['expectedVersion', 'kind', 'body', 'channel', 'inReplyTo']);
+  return {
+    expectedVersion: expectedVersion(body.expectedVersion),
+    kind: oneOf(body.kind, 'kind', ['answer', 'question', 'status-update'] as const),
+    body: text(body.body, 'body', 4_000),
+    channel:
+      body.channel === undefined
+        ? undefined
+        : oneOf(body.channel, 'channel', ['web', 'sms', 'voice'] as const),
+    inReplyTo: optionalUuid(body.inReplyTo, 'inReplyTo'),
+  };
+}
+
+function proposalValue(
+  kind: 'category' | 'location' | 'duplicate-of' | 'office',
+  value: unknown,
+): Record<string, unknown> {
+  const expectedKey =
+    kind === 'category'
+      ? 'category'
+      : kind === 'location'
+        ? 'locationText'
+        : kind === 'duplicate-of'
+          ? 'caseId'
+          : 'office';
+  const body = objectBody(value);
+  if (Object.keys(body).some((key) => key !== expectedKey)) {
+    throw new InputError('unknown_field', 'The request contains an unknown field.');
+  }
+  if (expectedKey === 'caseId') {
+    if (typeof body.caseId !== 'string' || !UUID.test(body.caseId)) {
+      throw new InputError('invalid_request', 'caseId must be a UUID.');
+    }
+    return { caseId: body.caseId.toLowerCase() };
+  }
+  return { [expectedKey]: text(body[expectedKey], expectedKey, kind === 'location' ? 1_000 : 200) };
+}
+
+function confidence(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new InputError('invalid_request', 'confidence must be between 0 and 1.');
+  }
+  return value;
+}
+
+function sha256Hex(value: unknown): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new InputError('invalid_request', 'promptSha256 must be lowercase SHA-256 hex.');
+  }
+  return value;
+}
+
+export function normalizeAiProposal(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, [
+    'kind',
+    'proposedValue',
+    'confidence',
+    'modelId',
+    'modelVersion',
+    'promptSha256',
+    'aiTraceId',
+    'aiOutputId',
+  ]);
+  const kind = oneOf(body.kind, 'kind', [
+    'category',
+    'location',
+    'duplicate-of',
+    'office',
+  ] as const);
+  return {
+    kind,
+    proposedValue: proposalValue(kind, body.proposedValue),
+    confidence: confidence(body.confidence),
+    modelId: text(body.modelId, 'modelId', 200),
+    modelVersion: text(body.modelVersion, 'modelVersion', 200),
+    promptSha256: sha256Hex(body.promptSha256),
+    aiTraceId: optionalBoundedText(body.aiTraceId, 'aiTraceId', 500),
+    aiOutputId: optionalBoundedText(body.aiOutputId, 'aiOutputId', 500),
+  };
+}
+
+export function normalizeAiDecision(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['expectedVersion', 'decision', 'note']);
+  return {
+    expectedVersion: expectedVersion(body.expectedVersion),
+    decision: oneOf(body.decision, 'decision', ['accepted', 'rejected'] as const),
+    note: optionalBoundedText(body.note, 'note', 5_000),
+  };
+}
+
+export function normalizeClose(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['expectedVersion', 'reason', 'note', 'publicReason']);
+  return {
+    expectedVersion: expectedVersion(body.expectedVersion),
+    reason: oneOf(body.reason, 'reason', [
+      'duplicate',
+      'out-of-scope',
+      'withdrawn',
+      'insufficient-information',
+      'no-action-possible',
+      'resolved-elsewhere',
+    ] as const),
+    note: optionalBoundedText(body.note, 'note', 5_000),
+    publicReason: text(body.publicReason, 'publicReason', 2_000),
+  };
+}
+
+export function normalizeAttention(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['followerKey', 'kind', 'action']);
+  if (
+    typeof body.followerKey !== 'string' ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(body.followerKey)
+  ) {
+    throw new InputError('invalid_request', 'followerKey is invalid.');
+  }
+  return {
+    followerKey: body.followerKey,
+    kind: oneOf(body.kind, 'kind', ['follow', 'also-affected'] as const),
+    action: oneOf(body.action, 'action', ['add', 'remove'] as const),
+  };
+}
+
+export function normalizeDelivery(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['state', 'failureCode']);
+  const state = oneOf(body.state, 'state', ['handed-off', 'delivered', 'failed'] as const);
+  const failureCode = optionalBoundedText(body.failureCode, 'failureCode', 200);
+  return { state, failureCode };
 }

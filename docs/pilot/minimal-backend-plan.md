@@ -75,10 +75,11 @@ The state names and return rule follow the [trace API contract](trace-api-contra
 The two paths share an append-only event trail spanning the five stages
 (voice, responsibility, response, check, receipt). The pilot backend adopts
 this shape as its primary object: one `trace_records` table (record id,
-category, restricted original subject, restricted original narrative, origin,
-status, timestamps) plus one `trace_events` table (record id, stage, actor,
-action, note, created at, hash link to the previous event). Resident contact
-data and attachments remain restricted.
+category, restricted original subject, restricted original narrative, origin
+(`web`, `sms`, or `voice`), public case number, reopen-key hash, status,
+timestamps) plus one `trace_events` table (record id, stage, actor, action,
+note, created at, hash link to the previous event). Resident contact data and
+attachments remain restricted.
 
 This is a deliberate departure from `packages/db/src/schema.ts`, which spreads
 the same loop across separate `complaintCases`, `claims`, `commitments`,
@@ -133,6 +134,8 @@ for this loop), and initially `governance-graph-api`. Evidence attachments are
 restricted links or plain uploads with a size cap, not proof-registered
 documents. `hash-linked`, not `immutable`, remains the only claim made about
 the trail.
+
+The case shell is public from creation while filer text stays restricted.
 
 ## What this document does not decide
 

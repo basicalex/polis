@@ -4,18 +4,43 @@
 import type { IncomingMessage } from 'node:http';
 import { binaryResult, result, type HttpResult, type Route } from '@polis/service-runtime';
 
-import { DomainError, roleForActor } from './domain.js';
+import { DomainError, requireRole, roleForActor } from './domain.js';
 import { publicTraceConfig } from './config.js';
-import type { Actor, CommandContext, TraceConfig, TraceStore } from './types.js';
+import type {
+  Actor,
+  AiDecisionInput,
+  AiProposalInput,
+  AttentionInput,
+  CaseMessageDeliveryState,
+  CloseInput,
+  CommandContext,
+  FilerMessageInput,
+  GatewayCreateInput,
+  GatewayMessageInput,
+  OfficialMessageInput,
+  TraceConfig,
+  TraceStore,
+} from './types.js';
 import {
   InputError,
+  normalizeAiDecision,
+  normalizeAiProposal,
   normalizeAssign,
   normalizeAttachment,
+  normalizeAttention,
+  normalizeClose,
   normalizeCommitment,
   normalizeCreate,
+  normalizeDelivery,
+  normalizeFilerMessage,
+  normalizeGatewayCreate,
+  normalizeGatewayMessage,
+  normalizeOfficialMessage,
+  normalizeReopenRead,
   normalizeResolution,
   normalizeReview,
   parseListLimit,
+  validateCaseNumber,
   validateIdempotencyKey,
   validateRecordId,
 } from './validation.js';
@@ -58,6 +83,54 @@ function actorFromRequest(request: IncomingMessage, config: TraceConfig): Actor 
   }
   const id = value.trim();
   return { id, email: null, role: roleForActor(config, id) };
+}
+function gatewayActorFromRequest(request: IncomingMessage, config: TraceConfig): Actor {
+  const citizen = request.headers['x-polis-citizen'];
+  const value = request.headers['x-polis-trace-gateway'];
+  if (
+    citizen !== undefined ||
+    typeof value !== 'string' ||
+    !value.trim() ||
+    value.length > 200 ||
+    hasControl(value)
+  ) {
+    throw new DomainError(401, 'authentication_required', 'Authentication is required.');
+  }
+  const id = value.trim();
+  if (!config.gatewayIds?.has(id)) {
+    throw new DomainError(401, 'authentication_required', 'Authentication is required.');
+  }
+  return { id: `gateway:${id}`, email: null, role: 'gateway' };
+}
+
+function aiActorFromRequest(request: IncomingMessage, config: TraceConfig): Actor {
+  if (
+    request.headers['x-polis-trace-gateway'] !== undefined ||
+    request.headers['x-polis-citizen'] !== undefined
+  ) {
+    return gatewayActorFromRequest(request, config);
+  }
+  return { id: 'internal:service', email: null, role: 'gateway' };
+}
+
+function requireOfficialOrReviewer(actor: Actor): void {
+  if (actor.role !== 'official' && actor.role !== 'reviewer') {
+    throw new DomainError(403, 'forbidden', 'This role cannot perform the requested action.');
+  }
+}
+
+function readContext(
+  actor: Actor,
+  path: string,
+  normalizedBody: Record<string, unknown> = {},
+): CommandContext {
+  return {
+    actor,
+    method: 'GET',
+    path,
+    idempotencyKey: '',
+    normalizedBody,
+  };
 }
 
 function commandContext(
@@ -296,6 +369,228 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
         if (!record)
           throw new DomainError(404, 'public_record_not_found', 'Published record not found.');
         return { record };
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/channel/cases',
+      maxBodyBytes: 20_000,
+      handler: safe(async (request, body) => {
+        const actor = gatewayActorFromRequest(request, config);
+        const normalized = normalizeGatewayCreate(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          '/internal/trace/channel/cases',
+          normalized,
+        );
+        return result(
+          201,
+          await store.createChannelCase(ctx, normalized as unknown as GatewayCreateInput),
+        );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/channel/cases/:caseNumber/messages',
+      maxBodyBytes: 20_000,
+      handler: safe(async (request, body, params) => {
+        const actor = gatewayActorFromRequest(request, config);
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeGatewayMessage(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          `/internal/trace/channel/cases/${caseNumber}/messages`,
+          normalized as unknown as Record<string, unknown>,
+        );
+        const { reopenKey: _reopenKey, ...input } = normalized;
+        return result(
+          201,
+          await store.appendChannelMessage(
+            ctx,
+            caseNumber,
+            input as unknown as GatewayMessageInput,
+          ),
+        );
+      }),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/channel/outbox',
+      handler: safe(async (request) => {
+        const actor = gatewayActorFromRequest(request, config);
+        const limit = parseListLimit(request.url);
+        return store.listOutbox(
+          readContext(actor, '/internal/trace/channel/outbox', { limit }),
+          limit,
+        );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/channel/outbox/:messageId/delivery',
+      maxBodyBytes: 2_000,
+      handler: safe(async (request, body, params) => {
+        const actor = gatewayActorFromRequest(request, config);
+        const messageId = validateRecordId(params.messageId ?? '');
+        const normalized = normalizeDelivery(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          `/internal/trace/channel/outbox/${messageId}/delivery`,
+          normalized,
+        );
+        return store.markOutboxDelivery(
+          ctx,
+          messageId,
+          normalized as unknown as {
+            state: CaseMessageDeliveryState;
+            failureCode?: string;
+          },
+        );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/cases/:caseNumber/private',
+      maxBodyBytes: 2_000,
+      handler: safe(async (_request, body, params) => {
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeReopenRead(body);
+        return store.readFilerCase(caseNumber, String(normalized.reopenKey));
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/cases/:caseNumber/messages',
+      maxBodyBytes: 20_000,
+      handler: safe(async (request, body, params) => {
+        validateIdempotencyKey(request.headers['idempotency-key']);
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeFilerMessage(body);
+        const { reopenKey, ...input } = normalized;
+        return result(
+          201,
+          await store.appendFilerMessage(
+            caseNumber,
+            String(reopenKey),
+            input as unknown as FilerMessageInput,
+          ),
+        );
+      }),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/records/:id/messages',
+      handler: safe(async (request, _body, params) => {
+        const actor = actorFromRequest(request, config);
+        requireOfficialOrReviewer(actor);
+        const id = validateRecordId(params.id ?? '');
+        return store.listMessages(readContext(actor, recordPath(id, '/messages')), id);
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/messages',
+      maxBodyBytes: 20_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        requireRole(actor, 'official');
+        const id = validateRecordId(params.id ?? '');
+        const normalized = normalizeOfficialMessage(body);
+        const ctx = commandContext(request, actor, recordPath(id, '/messages'), normalized);
+        const { expectedVersion: _expectedVersion, ...input } = normalized;
+        return result(
+          201,
+          await store.postOfficialMessage(ctx, id, input as unknown as OfficialMessageInput),
+        );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/ai-proposals',
+      maxBodyBytes: 20_000,
+      handler: safe(async (request, body, params) => {
+        const actor = aiActorFromRequest(request, config);
+        const id = validateRecordId(params.id ?? '');
+        const normalized = normalizeAiProposal(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          recordPath(id, '/ai-proposals'),
+          normalized as unknown as Record<string, unknown>,
+        );
+        return result(
+          201,
+          await store.proposeAi(ctx, id, normalized as unknown as AiProposalInput),
+        );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/ai-proposals/:proposalId/decision',
+      maxBodyBytes: 10_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        requireOfficialOrReviewer(actor);
+        const id = validateRecordId(params.id ?? '');
+        const proposalId = validateRecordId(params.proposalId ?? '');
+        const normalized = normalizeAiDecision(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          recordPath(id, `/ai-proposals/${proposalId}/decision`),
+          normalized as unknown as Record<string, unknown>,
+        );
+        const { expectedVersion: _expectedVersion, ...input } = normalized;
+        return store.decideAi(ctx, id, proposalId, input as unknown as AiDecisionInput);
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/close',
+      maxBodyBytes: 10_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        requireRole(actor, 'reviewer');
+        const id = validateRecordId(params.id ?? '');
+        const normalized = normalizeClose(body);
+        const ctx = commandContext(
+          request,
+          actor,
+          recordPath(id, '/close'),
+          normalized as unknown as Record<string, unknown>,
+        );
+        const { expectedVersion: _expectedVersion, ...input } = normalized;
+        return store.closeCase(ctx, id, input as unknown as CloseInput);
+      }),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/public/cases',
+      handler: safe(async (request) => store.listPublicShells(parseListLimit(request.url))),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/public/cases/:caseNumber',
+      handler: safe(async (_request, _body, params) => {
+        const found = await store.getPublicCase(validateCaseNumber(params.caseNumber ?? ''));
+        if (!found) throw new DomainError(404, 'case_not_found', 'Case not found.');
+        return found;
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/public/cases/:caseNumber/attention',
+      maxBodyBytes: 2_000,
+      handler: safe(async (request, body, params) => {
+        validateIdempotencyKey(request.headers['idempotency-key']);
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        return store.recordAttention(
+          caseNumber,
+          normalizeAttention(body) as unknown as AttentionInput,
+        );
       }),
     },
   ];

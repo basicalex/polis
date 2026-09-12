@@ -92,6 +92,30 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
   },
   { method: 'GET', path: '/public/records', access: 'public', listQuery: true },
   { method: 'GET', path: '/public/records/:id', access: 'public' },
+  { method: 'GET', path: '/public/cases', access: 'public', listQuery: true },
+  { method: 'GET', path: '/public/cases/:caseNumber', access: 'public' },
+  {
+    method: 'POST',
+    path: '/public/cases/:caseNumber/attention',
+    access: 'public',
+    write: true,
+  },
+  { method: 'POST', path: '/cases/:caseNumber/private', access: 'public' },
+  {
+    method: 'POST',
+    path: '/cases/:caseNumber/messages',
+    access: 'public',
+    write: true,
+  },
+  { method: 'GET', path: '/records/:id/messages', access: 'private' },
+  { method: 'POST', path: '/records/:id/messages', access: 'private', write: true },
+  {
+    method: 'POST',
+    path: '/records/:id/ai-proposals/:proposalId/decision',
+    access: 'private',
+    write: true,
+  },
+  { method: 'POST', path: '/records/:id/close', access: 'private', write: true },
 ];
 
 function configuredTraceBase(): string | null {

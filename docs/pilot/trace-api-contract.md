@@ -19,6 +19,7 @@ Anonymous reads are config and reviewed public records only. All private respons
 - `published`: independent review approved the public summary and commitment. This does NOT mean the reported problem is fixed.
 - `resolution-pending-review`: the official submitted completion evidence for independent review. The public record retains the previously approved commitment/status until review.
 - `resolved`: a distinct reviewer approved the completion evidence.
+- `closed`: a reviewer ended an open case with a private reason and note plus a short `closedPublicReason` safe for the public case shell.
 
 Returning resolution evidence restores `published` and records required private feedback. Resubmission is allowed. No official may approve publication or resolution. A reviewer cannot review any record they filed or materially acted on as an official, even if their configured role later changes. A role mapping cannot grant official and reviewer simultaneously.
 
@@ -28,13 +29,13 @@ Use additive Postgres tables for trace records, private report material, append-
 
 Every successful command locks its record and atomically writes state, event, and idempotency result. Events carry a per-record sequence, previous hash, and canonical event hash. Corrections append; no update/delete event API. Verification must detect changed payloads, broken links, omitted sequence entries, and record/event state mismatch where applicable. Call the trail `hash-linked`, not immutable. A separate remote audit call cannot substitute for the authoritative transactional record event.
 
-Every write accepts `Idempotency-Key` (UUID) and, except creation, `expectedVersion` (integer). Same actor/key and same request returns the original result without new events; same key with different input is 409. A stale version is 409 with a stable error code. Scope replay authorization to the current authenticated actor and record access. Generate identifiers and timestamps on the server.
+Every write accepts `Idempotency-Key` (UUID) and, except creation, `expectedVersion` (integer). Channel and filer message appends are the explicit `expectedVersion` carve-out because their ordered append semantics do not overwrite a caller-supplied record version. Same actor/key and same request returns the original result without new events; same key with different input is 409. A stale version is 409 with a stable error code. Scope replay authorization to the current authenticated actor and record access. Generate identifiers and timestamps on the server.
 
 Private fields: original subject, narrative, location detail, resident identity/contact, raw upload bytes, staff/reviewer private feedback, internal actor identifiers. They never appear in public serialization, public event descriptions, public exports, client error responses, or application logs. Authorized private views and protected backups are separate channels. A separate public summary, commitment, and public evidence note/links must be deliberately drafted and independently approved before publication. Public event history uses a strict allowlist with role labels and milestone timestamps, not copies of private event payloads.
 
 ## Endpoints
 
-All paths below start with `/api/trace`. Handler errors use `{ "error": "stable_code", "message": "safe explanation" }`. Shared runtime and transport errors may omit `message`; clients translate the stable error code into HR/IT/EN and use a localized generic fallback for unknown codes. Lists use `{ "records": [...] }`; a record response uses `{ "record": ... }`.
+Paths in the first table start with `/api/trace`; the second table gives exact internal paths. Handler errors use `{ "error": "stable_code", "message": "safe explanation" }`. Shared runtime and transport errors may omit `message`; clients translate the stable error code into HR/IT/EN and use a localized generic fallback for unknown codes. Lists use `{ "records": [...] }`; a record response uses `{ "record": ... }`.
 
 | Method | Path | Access | Request / result |
 | --- | --- | --- | --- |
@@ -53,6 +54,27 @@ All paths below start with `/api/trace`. Handler errors use `{ "error": "stable_
 | GET | `/public/records` | public | Reviewed public projections only, no pagination-free unbounded database dump. |
 | GET | `/public/records/:id` | public | Approved summary, office, approved commitment/due date, approved evidence when resolved, public status, sanitized public events, public receipt hash. Unpublished records return 404. |
 
+Channel gateway routes use `x-polis-trace-gateway` with a configured gateway id; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Staff routes use the configured `official` and `reviewer` roles. Public case routes are anonymous behind the internal service boundary.
+
+| Method | Internal path | Principal | Request / result |
+| --- | --- | --- | --- |
+| POST | `/internal/trace/channel/cases` | gateway | `{ channel, text: string \| null, location?, source, occurredAt }`; returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
+| POST | `/internal/trace/channel/cases/:caseNumber/messages` | gateway | `{ reopenKey, channel, kind, text: string \| null, source, occurredAt }`; returns 201 `{ message }`. |
+| GET | `/internal/trace/channel/outbox?limit=` | gateway | Returns `{ messages }`. |
+| POST | `/internal/trace/channel/outbox/:messageId/delivery` | gateway | `{ state, failureCode? }`; returns `{ message }`. |
+| POST | `/internal/trace/cases/:caseNumber/private` | reopen key | `{ reopenKey }`; returns `{ case }`. |
+| POST | `/internal/trace/cases/:caseNumber/messages` | reopen key | `{ reopenKey, body, inReplyTo? }`; returns 201 `{ message }`. |
+| GET | `/internal/trace/records/:id/messages` | official or reviewer | Returns `{ messages }`. |
+| POST | `/internal/trace/records/:id/messages` | official | `{ expectedVersion, kind, body, channel? }`; returns 201 `{ message, record }`. |
+| POST | `/internal/trace/records/:id/ai-proposals` | gateway or internal service | `{ kind, proposedValue, confidence, modelId, modelVersion, promptSha256 }`; returns 201 `{ proposal }`. |
+| POST | `/internal/trace/records/:id/ai-proposals/:proposalId/decision` | official or reviewer | `{ expectedVersion, decision, note? }`; returns `{ proposal, record }`. |
+| POST | `/internal/trace/records/:id/close` | reviewer | `{ expectedVersion, reason, publicReason, note? }`; returns `{ record, shell }`. |
+| GET | `/internal/trace/public/cases?limit=` | anonymous | Returns `{ cases }`. |
+| GET | `/internal/trace/public/cases/:caseNumber` | anonymous | Returns `{ case, record }`; an unknown case is 404 `case_not_found`. |
+| POST | `/internal/trace/public/cases/:caseNumber/attention` | anonymous | `{ followerKey, kind, action }`; returns `{ counts }`. |
+
+The BFF exposes the public case routes, the two reopen routes, staff message routes, AI proposal decisions, and close under `/api/trace`. It does not expose `/channel/*`.
+
 ## Response shape
 
 Private record fields: `id`, `municipalityId`, `category`, `status`, `version`, `subject`, `narrative`, `location`, `contactEmail`, `office`, `publicSummary` (proposal), `commitment` (proposal), `dueDate`, `evidenceNote` (proposal), `evidenceUrls` (proposal), `createdAt`, `updatedAt`, `events`, `attachments`. Actor ownership fields may be available privately for authorization but are never public.
@@ -62,6 +84,14 @@ An event exposes privately: `id`, `sequence`, `stage`, `action`, `actorRole`, `n
 Public fields: `id`, `municipalityId`, `category`, `office`, `status` (`published` or `resolved`), approved `publicSummary`, approved `commitment`, `dueDate`, approved `evidenceNote`/`evidenceUrls` only after resolution approval, `publishedAt`, `resolvedAt`, sanitized `events`, `receiptHash`, `testEnvironment: true`. While resolution review is pending or returned, public state stays at the last approved publication. Do not derive public fields from unapproved mutable proposal fields.
 
 Bound and validate every string, list and upload. Reject unknown authority fields. Dates must be valid date-only values, not merely strings. Service configuration must fail closed if required internal credentials or role mapping are absent or contradictory.
+
+## Case shell
+
+The public case shell exists from creation. It carries `caseNumber`, `municipalityId`, `area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`, `clockDueAt`, `followerCount`, `alsoAffectedCount`, `shellHash`, `updatedAt`, and `testEnvironment`. `shellHash` covers exactly `[caseNumber, municipalityId, area, category, track, state, closedPublicReason, filedAt, clockDueAt, followerCount, alsoAffectedCount, testEnvironment]`. It is not a public receipt; `receiptHash` material is unchanged.
+
+The reopen key appears only in a JSON body, never in a path or query. Only the channel case creation response echoes it. An unknown case number and a wrong key return indistinguishable 404 responses.
+
+Attention is a count, never a vote and never queue order. `follow` and `also-affected` counts do not change staff priority or represent a decision.
 
 ## Public receipt hash
 

@@ -7,12 +7,23 @@ import test from 'node:test';
 import {
   MAX_ATTACHMENT_BYTES,
   InputError,
+  normalizeAiDecision,
+  normalizeAiProposal,
   normalizeAttachment,
+  normalizeAttention,
+  normalizeClose,
   normalizeCommitment,
   normalizeCreate,
+  normalizeDelivery,
+  normalizeFilerMessage,
+  normalizeGatewayCreate,
+  normalizeGatewayMessage,
+  normalizeOfficialMessage,
+  normalizeReopenRead,
   normalizeResolution,
   normalizeReview,
   parseListLimit,
+  validateCaseNumber,
   validateDateOnly,
   validateIdempotencyKey,
 } from './validation.js';
@@ -278,4 +289,313 @@ test('idempotency UUIDs and list limits are bounded', () => {
     code(() => parseListLimit('/internal/trace/records?limit=1%20OR%201=1')),
     'invalid_limit',
   );
+});
+
+const VALID_REOPEN_KEY = 'Abcdefghijklmnop_1234';
+const VALID_ID = '10000000-0000-4000-8000-000000000001';
+const VALID_TIME = '2026-09-12T12:00:00.000Z';
+
+test('case numbers are strict uppercase public identifiers with 404-shaped failures', () => {
+  assert.equal(validateCaseNumber('VRS-1842'), 'VRS-1842');
+  for (const value of ['vrs-1842', 'VRS-', 'V-1', 'ABCDE-1', 'VRS-123456789', 'VRS-1\n']) {
+    assert.equal(code(() => validateCaseNumber(value)), 'case_not_found');
+    assert.throws(
+      () => validateCaseNumber(value),
+      (error: unknown) => error instanceof InputError && error.status === 404,
+    );
+  }
+});
+
+test('gateway create, gateway message, and reopen inputs preserve bounded channel data', () => {
+  assert.deepEqual(
+    normalizeGatewayCreate({
+      channel: 'voice',
+      text: null,
+      location: 'Riva',
+      source: 'transcript',
+      occurredAt: VALID_TIME,
+    }),
+    {
+      channel: 'voice',
+      text: null,
+      location: 'Riva',
+      source: 'transcript',
+      occurredAt: VALID_TIME,
+    },
+  );
+  assert.deepEqual(
+    normalizeGatewayMessage({
+      reopenKey: VALID_REOPEN_KEY,
+      channel: 'sms',
+      kind: 'append',
+      text: 'Još detalja',
+      source: 'typed',
+      occurredAt: VALID_TIME,
+    }),
+    {
+      reopenKey: VALID_REOPEN_KEY,
+      channel: 'sms',
+      kind: 'append',
+      text: 'Još detalja',
+      source: 'typed',
+      occurredAt: VALID_TIME,
+    },
+  );
+  assert.deepEqual(normalizeReopenRead({ reopenKey: VALID_REOPEN_KEY }), {
+    reopenKey: VALID_REOPEN_KEY,
+  });
+  assert.equal(
+    code(() =>
+      normalizeGatewayCreate({
+        channel: 'sms',
+        text: null,
+        source: 'typed',
+        occurredAt: VALID_TIME,
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeGatewayCreate({
+        channel: 'sms',
+        text: 'x'.repeat(4_001),
+        source: 'typed',
+        occurredAt: VALID_TIME,
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeGatewayMessage({
+        reopenKey: VALID_REOPEN_KEY,
+        channel: 'voice',
+        kind: 'transcript',
+        text: 'x'.repeat(4_001),
+        source: 'transcript',
+        occurredAt: VALID_TIME,
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() => normalizeReopenRead({ reopenKey: 'short' })),
+    'invalid_request',
+  );
+});
+
+test('filer and official messages enforce bodies, references, versions, and channel enums', () => {
+  assert.deepEqual(
+    normalizeFilerMessage({
+      reopenKey: VALID_REOPEN_KEY,
+      body: 'Molim odgovor.',
+      inReplyTo: VALID_ID,
+    }),
+    { reopenKey: VALID_REOPEN_KEY, body: 'Molim odgovor.', inReplyTo: VALID_ID },
+  );
+  assert.deepEqual(
+    normalizeOfficialMessage({
+      expectedVersion: 2,
+      kind: 'question',
+      body: 'Možete li potvrditi lokaciju?',
+      channel: 'sms',
+    }),
+    {
+      expectedVersion: 2,
+      kind: 'question',
+      body: 'Možete li potvrditi lokaciju?',
+      channel: 'sms',
+      inReplyTo: null,
+    },
+  );
+  assert.equal(
+    code(() =>
+      normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'x'.repeat(4_001) }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeOfficialMessage({
+        expectedVersion: -1,
+        kind: 'answer',
+        body: 'Odgovor',
+        channel: 'sms',
+      }),
+    ),
+    'invalid_expected_version',
+  );
+  assert.equal(
+    code(() =>
+      normalizeOfficialMessage({
+        expectedVersion: 0,
+        kind: 'answer',
+        body: 'bad\u0000body',
+        channel: 'sms',
+      }),
+    ),
+    'invalid_request',
+  );
+});
+
+test('AI proposal, decision, and close inputs validate typed values without authority injection', () => {
+  const proposal = normalizeAiProposal({
+    kind: 'duplicate-of',
+    proposedValue: { caseId: VALID_ID },
+    confidence: 0.75,
+    modelId: 'ai-gateway/case-intake-v1',
+    modelVersion: '0.1',
+    promptSha256: 'a'.repeat(64),
+    aiTraceId: 'trace-1',
+    aiOutputId: 'output-1',
+  });
+  assert.deepEqual(proposal.proposedValue, { caseId: VALID_ID });
+  assert.deepEqual(normalizeAiDecision({ expectedVersion: 3, decision: 'accepted' }), {
+    expectedVersion: 3,
+    decision: 'accepted',
+    note: null,
+  });
+  assert.deepEqual(
+    normalizeClose({
+      expectedVersion: 3,
+      reason: 'out-of-scope',
+      publicReason: 'Prijava nije u nadležnosti.',
+    }),
+    {
+      expectedVersion: 3,
+      reason: 'out-of-scope',
+      note: null,
+      publicReason: 'Prijava nije u nadležnosti.',
+    },
+  );
+  assert.equal(
+    code(() =>
+      normalizeAiProposal({
+        kind: 'category',
+        proposedValue: { category: 'public-lighting', office: 'forged' },
+        confidence: 0.5,
+        modelId: 'm',
+        modelVersion: 'v',
+        promptSha256: 'a'.repeat(64),
+      }),
+    ),
+    'unknown_field',
+  );
+  assert.equal(
+    code(() => normalizeAiDecision({ expectedVersion: 0, decision: 'approved' })),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeClose({
+        expectedVersion: 0,
+        reason: 'other',
+        publicReason: 'Razlog',
+      }),
+    ),
+    'invalid_request',
+  );
+});
+
+test('attention and delivery inputs enforce idempotent public actions and delivery state rules', () => {
+  assert.deepEqual(
+    normalizeAttention({
+      followerKey: 'follower_key_1234',
+      kind: 'also-affected',
+      action: 'remove',
+    }),
+    { followerKey: 'follower_key_1234', kind: 'also-affected', action: 'remove' },
+  );
+  assert.deepEqual(normalizeDelivery({ state: 'failed', failureCode: 'provider_rejected' }), {
+    state: 'failed',
+    failureCode: 'provider_rejected',
+  });
+  assert.equal(
+    code(() =>
+      normalizeAttention({ followerKey: 'short', kind: 'follow', action: 'add' }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeAttention({
+        followerKey: 'follower_key_1234',
+        kind: 'follow',
+        action: 'withdraw',
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.deepEqual(normalizeDelivery({ state: 'failed' }), {
+    state: 'failed',
+    failureCode: null,
+  });
+  assert.equal(
+    code(() => normalizeDelivery({ state: 'delivered', failureCode: 'x'.repeat(201) })),
+    'invalid_request',
+  );
+});
+
+test('every channel normalizer rejects unknown and server-authority fields', () => {
+  const cases: Array<(extra: Record<string, unknown>) => unknown> = [
+    (extra) =>
+      normalizeGatewayCreate({
+        channel: 'sms',
+        text: 'Prijava',
+        source: 'typed',
+        occurredAt: VALID_TIME,
+        ...extra,
+      }),
+    (extra) =>
+      normalizeGatewayMessage({
+        reopenKey: VALID_REOPEN_KEY,
+        channel: 'sms',
+        kind: 'append',
+        text: 'Dopuna',
+        source: 'typed',
+        occurredAt: VALID_TIME,
+        ...extra,
+      }),
+    (extra) => normalizeReopenRead({ reopenKey: VALID_REOPEN_KEY, ...extra }),
+    (extra) =>
+      normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'Dopuna', ...extra }),
+    (extra) =>
+      normalizeOfficialMessage({
+        expectedVersion: 0,
+        kind: 'question',
+        body: 'Pitanje',
+        ...extra,
+      }),
+    (extra) =>
+      normalizeAiProposal({
+        kind: 'category',
+        proposedValue: { category: 'public-lighting' },
+        confidence: 0.5,
+        modelId: 'm',
+        modelVersion: 'v',
+        promptSha256: 'a'.repeat(64),
+        ...extra,
+      }),
+    (extra) => normalizeAiDecision({ expectedVersion: 0, decision: 'rejected', ...extra }),
+    (extra) =>
+      normalizeClose({
+        expectedVersion: 0,
+        reason: 'withdrawn',
+        publicReason: 'Povučeno.',
+        ...extra,
+      }),
+    (extra) =>
+      normalizeAttention({
+        followerKey: 'follower_key_1234',
+        kind: 'follow',
+        action: 'add',
+        ...extra,
+      }),
+    (extra) => normalizeDelivery({ state: 'delivered', ...extra }),
+  ];
+  for (const normalize of cases) {
+    assert.equal(code(() => normalize({ extra: true })), 'unknown_field');
+    assert.equal(code(() => normalize({ actorId: 'forged' })), 'authority_field_forbidden');
+  }
 });

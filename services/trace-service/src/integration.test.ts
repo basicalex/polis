@@ -6,9 +6,14 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import postgres from 'postgres';
 
-import { verifyEventChain, verifyReceiptHash, type StoredEvent } from './canonical.js';
+import {
+  verifyEventChain,
+  verifyReceiptHash,
+  verifyShellHash,
+  type StoredEvent,
+} from './canonical.js';
 import { parseTraceConfig } from './config.js';
-import { DomainError } from './domain.js';
+import { DomainError, reopenKeyHash } from './domain.js';
 import { readMigrations, runTraceMigrations, verifyTraceMigrations } from './migrations.js';
 import { TraceRepository } from './repository.js';
 import type { Actor, CommandContext, PrivateRecord, TraceRole } from './types.js';
@@ -25,6 +30,8 @@ const OFFICIAL = 'trace-official-test';
 const REVIEWER = 'trace-reviewer-test';
 const RESIDENT = 'trace-resident-test';
 const OTHER_RESIDENT = 'trace-resident-other-test';
+const GATEWAY = 'trace-gateway-test';
+const ATTENTION_PEPPER = 'trace-integration-attention-pepper-value';
 
 function actor(id: string, role: TraceRole): Actor {
   return { id, role, email: null };
@@ -59,15 +66,13 @@ async function rejectsCode(run: () => Promise<unknown>, expected: string): Promi
 
 test(
   'explicit trace database supports the complete reviewed publication and resolution loop',
-  { timeout: 120_000 },
-  async (t) => {
+  {
+    timeout: 120_000,
+    skip: process.env.TRACE_TEST_DATABASE_URL ? false : 'TRACE_TEST_DATABASE_URL is not set',
+  },
+  async () => {
     const databaseUrl = process.env.TRACE_TEST_DATABASE_URL;
-    if (!databaseUrl) {
-      t.skip(
-        'TRACE_TEST_DATABASE_URL is not set; trace integration tests require an explicit isolated database',
-      );
-      return;
-    }
+    if (!databaseUrl) return;
     assert.equal(
       process.env.DATABASE_URL,
       databaseUrl,
@@ -103,6 +108,8 @@ test(
       TRACE_INTAKE_OPEN: 'true',
       TRACE_OFFICIAL_CITIZEN_IDS: OFFICIAL,
       TRACE_REVIEWER_CITIZEN_IDS: REVIEWER,
+      TRACE_GATEWAY_ACTOR_IDS: GATEWAY,
+      TRACE_ATTENTION_PEPPER: ATTENTION_PEPPER,
     });
     const repository = new TraceRepository(databaseUrl, config);
     const sql = postgres(databaseUrl, { prepare: false, onnotice: () => undefined });
@@ -853,6 +860,428 @@ test(
         trace_records
       CASCADE
     `);
+      await repository.close();
+      await sql.end({ timeout: 5 });
+    }
+  },
+);
+
+test(
+  'channel cases preserve reopen privacy, outbox delivery, AI review, closure, and publication',
+  {
+    timeout: 120_000,
+    skip: process.env.TRACE_TEST_DATABASE_URL ? false : 'TRACE_TEST_DATABASE_URL is not set',
+  },
+  async () => {
+    const databaseUrl = process.env.TRACE_TEST_DATABASE_URL;
+    if (!databaseUrl) return;
+    assert.equal(process.env.DATABASE_URL, databaseUrl);
+    const target = new URL(databaseUrl);
+    assert.ok(target.hostname === '127.0.0.1' || target.hostname === 'localhost');
+    assert.equal(target.port, '55432');
+    assert.equal(target.pathname, '/polis_trace_test');
+    assert.equal(target.username, 'polis_test_owner');
+    await runTraceMigrations(databaseUrl);
+    await verifyTraceMigrations(databaseUrl);
+
+    const config = parseTraceConfig({
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      INTERNAL_API_TOKEN: 'trace-integration-internal-token',
+      TRACE_INTAKE_OPEN: 'true',
+      TRACE_OFFICIAL_CITIZEN_IDS: OFFICIAL,
+      TRACE_REVIEWER_CITIZEN_IDS: REVIEWER,
+      TRACE_GATEWAY_ACTOR_IDS: GATEWAY,
+      TRACE_ATTENTION_PEPPER: ATTENTION_PEPPER,
+      TRACE_AI_INTAKE_URL: '',
+    });
+    const repository = new TraceRepository(databaseUrl, config);
+    const sql = postgres(databaseUrl, { prepare: false, onnotice: () => undefined });
+    const gateway = actor(`gateway:${GATEWAY}`, 'gateway');
+    const official = actor(OFFICIAL, 'official');
+    const reviewer = actor(REVIEWER, 'reviewer');
+
+    await sql.unsafe(`
+      TRUNCATE TABLE
+        trace_reopen_attempts,
+        trace_case_counters,
+        trace_command_idempotency,
+        trace_attachments,
+        trace_events,
+        trace_public_snapshots,
+        trace_record_participants,
+        trace_report_private,
+        trace_records
+      CASCADE
+    `);
+
+    try {
+      const firstInput = {
+        channel: 'voice' as const,
+        text: null,
+        location: 'Privatna lokacija',
+        source: 'transcript' as const,
+        occurredAt: '2026-09-12T12:00:00.000Z',
+      };
+      const first = await repository.createChannelCase(
+        ctx(gateway, '/internal/trace/channel/cases', firstInput),
+        firstInput,
+      );
+      assert.match(first.case.caseNumber, /^VRS-[0-9]{1,8}$/);
+      assert.equal(first.case.state, 'received');
+      assert.equal(first.shell.state, 'received');
+      assert.equal(verifyShellHash(first.shell), true);
+      const storedFirst = (
+        await sql<
+          {
+            owner_actor_id: string | null;
+            filer_kind: string;
+            reopen_key_hash: string;
+            version: number;
+          }[]
+        >`
+          SELECT owner_actor_id, filer_kind, reopen_key_hash, version
+          FROM trace_records WHERE id = ${first.case.recordId}
+        `
+      )[0]!;
+      assert.equal(storedFirst.owner_actor_id, null);
+      assert.equal(storedFirst.filer_kind, 'anonymous-channel');
+      assert.equal(storedFirst.reopen_key_hash.trim(), reopenKeyHash(first.case.reopenKey));
+
+      const secondInput = {
+        channel: 'sms' as const,
+        text: 'Druga prijava za objavu',
+        location: 'Druga privatna lokacija',
+        source: 'typed' as const,
+        occurredAt: '2026-09-12T12:01:00.000Z',
+      };
+      const second = await repository.createChannelCase(
+        ctx(gateway, '/internal/trace/channel/cases', secondInput),
+        secondInput,
+      );
+      const firstNumber = Number(first.case.caseNumber.split('-')[1]);
+      const secondNumber = Number(second.case.caseNumber.split('-')[1]);
+      assert.equal(secondNumber, firstNumber + 1);
+
+      const transcriptInput = {
+        channel: 'voice' as const,
+        kind: 'transcript' as const,
+        text: 'Transkript glasovne prijave',
+        source: 'transcript' as const,
+        occurredAt: '2026-09-12T12:02:00.000Z',
+      };
+      const appended = await repository.appendChannelMessage(
+        ctx(
+          gateway,
+          `/internal/trace/channel/cases/${first.case.caseNumber}/messages`,
+          { reopenKey: first.case.reopenKey, ...transcriptInput },
+        ),
+        first.case.caseNumber,
+        transcriptInput,
+      );
+      assert.equal(appended.message.body, transcriptInput.text);
+      const recordAfterAppend = (
+        await sql<{ version: number; status: StoredEvent['resultingStatus'] }[]>`
+          SELECT version, status FROM trace_records WHERE id = ${first.case.recordId}
+        `
+      )[0]!;
+      assert.equal(recordAfterAppend.version, 1);
+      const eventRows = await sql<
+        {
+          id: string;
+          record_id: string;
+          sequence: number;
+          previous_hash: string | null;
+          hash: string;
+          stage: StoredEvent['stage'];
+          action: string;
+          actor_id: string;
+          actor_role: StoredEvent['actorRole'];
+          note: string | null;
+          payload: Record<string, unknown>;
+          resulting_version: number;
+          resulting_status: StoredEvent['resultingStatus'];
+          created_at: Date;
+        }[]
+      >`SELECT * FROM trace_events WHERE record_id = ${first.case.recordId} ORDER BY sequence`;
+      const storedEvents: StoredEvent[] = eventRows.map((row) => ({
+        id: row.id,
+        recordId: row.record_id,
+        sequence: row.sequence,
+        previousHash: row.previous_hash?.trim() ?? null,
+        hash: row.hash.trim(),
+        stage: row.stage,
+        action: row.action,
+        actorId: row.actor_id,
+        actorRole: row.actor_role,
+        note: row.note,
+        payload: row.payload,
+        resultingVersion: row.resulting_version,
+        resultingStatus: row.resulting_status,
+        createdAt: row.created_at.toISOString(),
+      }));
+      assert.deepEqual(
+        verifyEventChain(storedEvents, {
+          version: recordAfterAppend.version,
+          status: recordAfterAppend.status,
+        }),
+        { valid: true },
+      );
+      const messageEvent = storedEvents.find((event) => event.action === 'message-appended');
+      assert.ok(messageEvent);
+      assert.deepEqual(messageEvent.payload, {
+        bodySha256: appended.message.bodySha256,
+        kind: 'transcript',
+      });
+      assert.equal(JSON.stringify(messageEvent.payload).includes(transcriptInput.text), false);
+
+      const officialInput = {
+        kind: 'question' as const,
+        body: 'Možete li dodati još detalja?',
+        channel: 'voice' as const,
+      };
+      const officialMessage = await repository.postOfficialMessage(
+        ctx(
+          official,
+          `/internal/trace/records/${first.case.recordId}/messages`,
+          { expectedVersion: 1, ...officialInput },
+        ),
+        first.case.recordId,
+        officialInput,
+      );
+      assert.equal(officialMessage.record.version, 2);
+      const outbox = await repository.listOutbox(
+        ctx(gateway, '/internal/trace/channel/outbox', {}),
+        10,
+      );
+      const queued = outbox.messages.find(
+        (message) => message.id === officialMessage.message.id,
+      );
+      assert.ok(queued);
+      assert.equal(queued.authorActorId, null);
+      assert.equal(JSON.stringify(queued).includes(OFFICIAL), false);
+      const delivered = await repository.markOutboxDelivery(
+        ctx(
+          gateway,
+          `/internal/trace/channel/outbox/${queued.id}/delivery`,
+          { state: 'delivered' },
+        ),
+        queued.id,
+        { state: 'delivered' },
+      );
+      assert.equal(delivered.message.deliveryState, 'delivered');
+      assert.ok(delivered.message.deliveredAt);
+
+      const reopened = await repository.readFilerCase(
+        first.case.caseNumber,
+        first.case.reopenKey,
+      );
+      assert.equal(reopened.case.narrative, transcriptInput.text);
+      assert.equal(reopened.case.messages.length, 2);
+      assert.ok(reopened.case.events.every((event) => !('note' in event)));
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        await assert.rejects(
+          () => repository.readFilerCase(first.case.caseNumber, 'x'.repeat(27)),
+          (error: unknown) =>
+            error instanceof DomainError &&
+            error.status === 404 &&
+            error.code === 'case_not_found',
+        );
+      }
+      await assert.rejects(
+        () => repository.readFilerCase(first.case.caseNumber, 'x'.repeat(27)),
+        (error: unknown) =>
+          error instanceof DomainError &&
+          error.status === 429 &&
+          error.code === 'too_many_attempts',
+      );
+
+      const proposalInput = {
+        kind: 'location' as const,
+        proposedValue: { locationText: 'AI predložena lokacija' },
+        confidence: 0.9,
+        modelId: 'ai-gateway/case-intake-v1',
+        modelVersion: '0.1',
+        promptSha256: 'a'.repeat(64),
+      };
+      const proposed = await repository.proposeAi(
+        ctx(
+          official,
+          `/internal/trace/records/${first.case.recordId}/ai-proposals`,
+          proposalInput,
+        ),
+        first.case.recordId,
+        proposalInput,
+      );
+      const beforeDecision = (
+        await sql<{ category: string; location: string }[]>`
+          SELECT records.category, private.location
+          FROM trace_records AS records
+          JOIN trace_report_private AS private ON private.record_id = records.id
+          WHERE records.id = ${first.case.recordId}
+        `
+      )[0]!;
+      assert.equal(beforeDecision.category, 'public-lighting');
+      assert.equal(beforeDecision.location, firstInput.location);
+      const accepted = await repository.decideAi(
+        ctx(
+          official,
+          `/internal/trace/records/${first.case.recordId}/ai-proposals/${proposed.proposal.id}/decision`,
+          { expectedVersion: 2, decision: 'accepted' },
+        ),
+        first.case.recordId,
+        proposed.proposal.id,
+        { decision: 'accepted' },
+      );
+      assert.equal(accepted.proposal.status, 'accepted');
+      assert.equal(accepted.record.version, 3);
+      assert.equal(accepted.record.category, 'public-lighting');
+      const acceptedLocation = (
+        await sql<{ location: string }[]>`
+          SELECT location FROM trace_report_private WHERE record_id = ${first.case.recordId}
+        `
+      )[0]!.location;
+      assert.equal(acceptedLocation, 'AI predložena lokacija');
+      assert.ok(
+        accepted.record.events.some((event) => event.action === 'ai-proposal-accepted'),
+      );
+      await repository.proposeAi(
+        ctx(
+          official,
+          `/internal/trace/records/${first.case.recordId}/ai-proposals`,
+          { ...proposalInput, promptSha256: 'b'.repeat(64) },
+        ),
+        first.case.recordId,
+        { ...proposalInput, promptSha256: 'b'.repeat(64) },
+      );
+      await assert.rejects(() =>
+        repository.proposeAi(
+          ctx(
+            official,
+            `/internal/trace/records/${first.case.recordId}/ai-proposals`,
+            { ...proposalInput, promptSha256: 'c'.repeat(64) },
+          ),
+          first.case.recordId,
+          { ...proposalInput, promptSha256: 'c'.repeat(64) },
+        ),
+      );
+
+      const closed = await repository.closeCase(
+        ctx(
+          reviewer,
+          `/internal/trace/records/${first.case.recordId}/close`,
+          {
+            expectedVersion: 3,
+            reason: 'out-of-scope',
+            publicReason: 'Prijava nije u nadležnosti.',
+          },
+        ),
+        first.case.recordId,
+        {
+          reason: 'out-of-scope',
+          publicReason: 'Prijava nije u nadležnosti.',
+        },
+      );
+      assert.equal(closed.record.status, 'closed');
+      assert.equal(closed.shell.state, 'closed');
+      assert.equal(closed.shell.closedPublicReason, 'Prijava nije u nadležnosti.');
+      assert.equal(verifyShellHash(closed.shell), true);
+      const closedSnapshots = await sql<{ count: number }[]>`
+        SELECT count(*)::int AS count
+        FROM trace_public_snapshots WHERE record_id = ${first.case.recordId}
+      `;
+      assert.equal(closedSnapshots[0]!.count, 0);
+
+      let publishRecord = (
+        await repository.assign(
+          ctx(
+            official,
+            `/internal/trace/records/${second.case.recordId}/assign`,
+            { expectedVersion: 0 },
+          ),
+          second.case.recordId,
+        )
+      ).body;
+      assert.ok(hasRecordBody(publishRecord));
+      publishRecord = (
+        await repository.commitment(
+          ctx(
+            official,
+            `/internal/trace/records/${second.case.recordId}/commitment`,
+            {
+              expectedVersion: 1,
+              publicSummary: 'Javna prijava rasvjete',
+              commitment: 'Pregledati i popraviti rasvjetu',
+              dueDate: '2026-12-01',
+            },
+          ),
+          second.case.recordId,
+        )
+      ).body;
+      assert.ok(hasRecordBody(publishRecord));
+      publishRecord = (
+        await repository.review(
+          ctx(
+            reviewer,
+            `/internal/trace/records/${second.case.recordId}/review`,
+            { expectedVersion: 2, decision: 'accept', note: null },
+          ),
+          second.case.recordId,
+        )
+      ).body;
+      assert.ok(hasRecordBody(publishRecord));
+      publishRecord = (
+        await repository.resolution(
+          ctx(
+            official,
+            `/internal/trace/records/${second.case.recordId}/resolution`,
+            {
+              expectedVersion: 3,
+              evidenceNote: 'Rasvjeta je popravljena.',
+              evidenceUrls: ['https://example.test/channel-proof'],
+            },
+          ),
+          second.case.recordId,
+        )
+      ).body;
+      assert.ok(hasRecordBody(publishRecord));
+      publishRecord = (
+        await repository.resolutionReview(
+          ctx(
+            reviewer,
+            `/internal/trace/records/${second.case.recordId}/resolution-review`,
+            { expectedVersion: 4, decision: 'accept', note: null },
+          ),
+          second.case.recordId,
+        )
+      ).body;
+      assert.ok(hasRecordBody(publishRecord));
+      const publicCase = await repository.getPublicCase(second.case.caseNumber);
+      assert.ok(publicCase?.record);
+      assert.equal(publicCase.record.status, 'resolved');
+      assert.equal(verifyReceiptHash(publicCase.record), true);
+      assert.deepEqual(publicCase.record.events[0], {
+        stage: 'voice',
+        action: 'report-filed',
+        actorRole: 'resident',
+        createdAt: publicCase.record.events[0]!.createdAt,
+      });
+      assert.equal(verifyShellHash(publicCase.case), true);
+      assert.equal(publicCase.case.state, 'resolved');
+    } finally {
+      await sql.unsafe(`
+        TRUNCATE TABLE
+          trace_reopen_attempts,
+          trace_case_counters,
+          trace_command_idempotency,
+          trace_attachments,
+          trace_events,
+          trace_public_snapshots,
+          trace_record_participants,
+          trace_report_private,
+          trace_records
+        CASCADE
+      `);
       await repository.close();
       await sql.end({ timeout: 5 });
     }

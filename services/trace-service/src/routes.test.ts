@@ -9,8 +9,12 @@ import { startService } from '@polis/service-runtime';
 
 import { DomainError } from './domain.js';
 import type {
+  AiProposal,
   AttachmentDownload,
+  CaseMessage,
+  CaseShell,
   CommandContext,
+  FilerCaseView,
   PilotConfig,
   PrivateRecord,
   PublicRecord,
@@ -47,6 +51,7 @@ function config(intakeOpen = true): TraceConfig {
     intakeOpen,
     officialIds: new Set(['trace-official-test']),
     reviewerIds: new Set(['trace-reviewer-test']),
+    gatewayIds: new Set(['sms-gateway']),
     pilot,
   };
 }
@@ -74,10 +79,85 @@ function privateRecord(): PrivateRecord {
     attachments: [],
   };
 }
+function caseShell(): CaseShell {
+  return {
+    caseNumber: 'VRS-1842',
+    municipalityId: 'vrsar-orsera',
+    area: 'Square',
+    category: 'public-lighting',
+    track: 'standard',
+    state: 'received',
+    closedPublicReason: null,
+    filedAt: '2026-09-12T10:00:00.000Z',
+    clockDueAt: null,
+    followerCount: 0,
+    alsoAffectedCount: 0,
+    shellHash: 'a'.repeat(64),
+    updatedAt: '2026-09-12T10:00:00.000Z',
+    testEnvironment: true,
+  };
+}
+
+function caseMessage(): CaseMessage {
+  return {
+    id: '30000000-0000-4000-8000-000000000001',
+    recordId: '20000000-0000-4000-8000-000000000001',
+    direction: 'inbound',
+    kind: 'append',
+    channel: 'sms',
+    source: 'typed',
+    body: 'Lamp is dark.',
+    bodySha256: 'b'.repeat(64),
+    authorKind: 'filer',
+    authorActorId: null,
+    inReplyTo: null,
+    deliveryState: 'not-applicable',
+    deliveryFailureCode: null,
+    deliveredAt: null,
+    createdAt: '2026-09-12T10:00:00.000Z',
+  };
+}
+
+function aiProposal(): AiProposal {
+  return {
+    id: '40000000-0000-4000-8000-000000000001',
+    recordId: '20000000-0000-4000-8000-000000000001',
+    kind: 'category',
+    proposedValue: { category: 'public-lighting' },
+    confidence: 0.9,
+    modelId: 'ai-gateway/case-intake-v1',
+    modelVersion: '0.1',
+    promptSha256: 'c'.repeat(64),
+    aiTraceId: null,
+    aiOutputId: null,
+    status: 'proposed',
+    decidedBy: null,
+    decidedAt: null,
+    decisionNote: null,
+    createdAt: '2026-09-12T10:00:00.000Z',
+  };
+}
 
 function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
   const record = privateRecord();
+  const shell = caseShell();
+  const message = caseMessage();
+  const proposal = aiProposal();
   const ok = async () => ({ status: 200, body: { record } });
+  const filerCase: FilerCaseView = {
+    caseNumber: shell.caseNumber,
+    state: shell.state,
+    category: shell.category,
+    office: 'communal-system',
+    location: 'Square',
+    narrative: 'Lamp is dark.',
+    clockDueAt: null,
+    createdAt: shell.filedAt,
+    updatedAt: shell.updatedAt,
+    messages: [message],
+    events: [],
+    shell,
+  };
   return {
     check: async () => undefined,
     listPrivate: async () => [record],
@@ -96,6 +176,28 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     }),
     listPublic: async (): Promise<PublicRecord[]> => [],
     getPublic: async () => null,
+    createChannelCase: async () => ({
+      case: {
+        recordId: record.id,
+        caseNumber: shell.caseNumber,
+        reopenKey: 'reopen-secret-12345678',
+        state: shell.state,
+      },
+      shell,
+    }),
+    appendChannelMessage: async () => ({ message }),
+    listOutbox: async () => ({ messages: [message] }),
+    markOutboxDelivery: async () => ({ message }),
+    readFilerCase: async () => ({ case: filerCase }),
+    appendFilerMessage: async () => ({ message }),
+    listMessages: async () => ({ messages: [message] }),
+    postOfficialMessage: async () => ({ message, record }),
+    proposeAi: async () => ({ proposal }),
+    decideAi: async () => ({ proposal, record }),
+    closeCase: async () => ({ record, shell }),
+    listPublicShells: async () => ({ cases: [shell] }),
+    getPublicCase: async () => ({ case: shell, record: null }),
+    recordAttention: async () => ({ counts: { followerCount: 1, alsoAffectedCount: 0 } }),
     close: async () => undefined,
     ...overrides,
   };
@@ -129,6 +231,20 @@ function internalHeaders(actor?: string, key?: string): Record<string, string> {
     'content-type': 'application/json',
   };
 }
+const VALID_IDEMPOTENCY_KEY = '10000000-0000-4000-8000-000000000001';
+const RECORD_ID = '20000000-0000-4000-8000-000000000001';
+const MESSAGE_ID = '30000000-0000-4000-8000-000000000001';
+const PROPOSAL_ID = '40000000-0000-4000-8000-000000000001';
+
+function gatewayHeaders(
+  gateway: string | undefined,
+  citizen?: string,
+): Record<string, string> {
+  return {
+    ...internalHeaders(citizen, VALID_IDEMPOTENCY_KEY),
+    ...(gateway === undefined ? {} : { 'x-polis-trace-gateway': gateway }),
+  };
+}
 
 test('route table exposes every exact internal trace path', () => {
   const paths = traceRoutes(fakeStore(), config()).map((route) => `${route.method} ${route.path}`);
@@ -149,6 +265,20 @@ test('route table exposes every exact internal trace path', () => {
     'GET /internal/trace/records/:id/attachments/:attachmentId',
     'GET /internal/trace/public/records',
     'GET /internal/trace/public/records/:id',
+    'POST /internal/trace/channel/cases',
+    'POST /internal/trace/channel/cases/:caseNumber/messages',
+    'GET /internal/trace/channel/outbox',
+    'POST /internal/trace/channel/outbox/:messageId/delivery',
+    'POST /internal/trace/cases/:caseNumber/private',
+    'POST /internal/trace/cases/:caseNumber/messages',
+    'GET /internal/trace/records/:id/messages',
+    'POST /internal/trace/records/:id/messages',
+    'POST /internal/trace/records/:id/ai-proposals',
+    'POST /internal/trace/records/:id/ai-proposals/:proposalId/decision',
+    'POST /internal/trace/records/:id/close',
+    'GET /internal/trace/public/cases',
+    'GET /internal/trace/public/cases/:caseNumber',
+    'POST /internal/trace/public/cases/:caseNumber/attention',
   ]) {
     assert.ok(paths.includes(expected), expected);
   }
@@ -323,6 +453,228 @@ test('health and readiness both fail closed when the database is unavailable', a
       const text = await response.text();
       assert.equal(text.includes('private database detail'), false);
       assert.equal((JSON.parse(text) as { dependency: string }).dependency, 'database');
+    }
+  });
+});
+
+test('gateway routes reject missing, unknown, and mixed principals', async () => {
+  await withServer(fakeStore(), config(), async (base) => {
+    const url = `${base}/internal/trace/channel/cases`;
+    const body = JSON.stringify({
+      channel: 'sms',
+      text: 'Lamp is dark.',
+      source: 'typed',
+      occurredAt: '2026-09-12T10:00:00.000Z',
+    });
+    for (const headers of [
+      gatewayHeaders(undefined),
+      gatewayHeaders('unknown-gateway'),
+      gatewayHeaders('sms-gateway', 'trace-resident-test'),
+    ]) {
+      const response = await fetch(url, { method: 'POST', headers, body });
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), {
+        error: 'authentication_required',
+        message: 'Authentication is required.',
+      });
+    }
+    const accepted = await fetch(url, {
+      method: 'POST',
+      headers: gatewayHeaders('sms-gateway'),
+      body,
+    });
+    assert.equal(accepted.status, 201);
+  });
+});
+
+test('reopen reads need no actor and conceal wrong keys like unknown case numbers', async () => {
+  const store = fakeStore({
+    readFilerCase: async (caseNumber, reopenKey) => {
+      if (caseNumber !== 'VRS-1842' || reopenKey !== 'correct-secret-12345678') {
+        throw new DomainError(404, 'case_not_found', 'Case not found.');
+      }
+      return fakeStore().readFilerCase(caseNumber, reopenKey);
+    },
+  });
+  await withServer(store, config(), async (base) => {
+    const readCase = (caseNumber: string, reopenKey: string) =>
+      fetch(`${base}/internal/trace/cases/${caseNumber}/private`, {
+        method: 'POST',
+        headers: internalHeaders(),
+        body: JSON.stringify({ reopenKey }),
+      });
+    const accepted = await readCase('VRS-1842', 'correct-secret-12345678');
+    assert.equal(accepted.status, 200);
+    const wrongKey = await readCase('VRS-1842', 'wrong-secret-123456789');
+    const unknownCase = await readCase('VRS-9999', 'correct-secret-12345678');
+    assert.equal(wrongKey.status, 404);
+    assert.equal(unknownCase.status, 404);
+    assert.equal(await wrongKey.text(), await unknownCase.text());
+  });
+});
+
+test('only channel creation responses expose a reopen key', async () => {
+  await withServer(fakeStore(), config(), async (base) => {
+    const create = await fetch(`${base}/internal/trace/channel/cases`, {
+      method: 'POST',
+      headers: gatewayHeaders('sms-gateway'),
+      body: JSON.stringify({
+        channel: 'sms',
+        text: 'Lamp is dark.',
+        source: 'typed',
+        occurredAt: '2026-09-12T10:00:00.000Z',
+      }),
+    });
+    assert.equal((await create.text()).includes('reopenKey'), true);
+
+    const requests: Array<() => Promise<Response>> = [
+      () =>
+        fetch(`${base}/internal/trace/channel/cases/VRS-1842/messages`, {
+          method: 'POST',
+          headers: gatewayHeaders('sms-gateway'),
+          body: JSON.stringify({
+            reopenKey: 'reopen-secret-12345678',
+            channel: 'sms',
+            kind: 'append',
+            text: 'More detail.',
+            source: 'typed',
+            occurredAt: '2026-09-12T10:01:00.000Z',
+          }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/channel/outbox`, {
+          headers: gatewayHeaders('sms-gateway'),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/channel/outbox/${MESSAGE_ID}/delivery`, {
+          method: 'POST',
+          headers: gatewayHeaders('sms-gateway'),
+          body: JSON.stringify({ state: 'delivered' }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/cases/VRS-1842/private`, {
+          method: 'POST',
+          headers: internalHeaders(),
+          body: JSON.stringify({ reopenKey: 'reopen-secret-12345678' }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/cases/VRS-1842/messages`, {
+          method: 'POST',
+          headers: internalHeaders(undefined, VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({ reopenKey: 'reopen-secret-12345678', body: 'More detail.' }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/records/${RECORD_ID}/messages`, {
+          headers: internalHeaders('trace-official-test'),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/records/${RECORD_ID}/messages`, {
+          method: 'POST',
+          headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({
+            expectedVersion: 0,
+            kind: 'answer',
+            body: 'Crew notified.',
+          }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/records/${RECORD_ID}/ai-proposals`, {
+          method: 'POST',
+          headers: internalHeaders(undefined, VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({
+            kind: 'category',
+            proposedValue: { category: 'public-lighting' },
+            confidence: 0.9,
+            modelId: 'ai-gateway/case-intake-v1',
+            modelVersion: '0.1',
+            promptSha256: 'c'.repeat(64),
+          }),
+        }),
+      () =>
+        fetch(
+          `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`,
+          {
+            method: 'POST',
+            headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+            body: JSON.stringify({ expectedVersion: 0, decision: 'accepted' }),
+          },
+        ),
+      () =>
+        fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
+          method: 'POST',
+          headers: internalHeaders('trace-reviewer-test', VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({
+            expectedVersion: 0,
+            reason: 'out-of-scope',
+            publicReason: 'Outside this pilot category.',
+          }),
+        }),
+      () => fetch(`${base}/internal/trace/public/cases`, { headers: internalHeaders() }),
+      () =>
+        fetch(`${base}/internal/trace/public/cases/VRS-1842`, {
+          headers: internalHeaders(),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/public/cases/VRS-1842/attention`, {
+          method: 'POST',
+          headers: internalHeaders(undefined, VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({
+            followerKey: 'browser-follower-secret',
+            kind: 'follow',
+            action: 'add',
+          }),
+        }),
+    ];
+    for (const request of requests) {
+      const response = await request();
+      const responseText = await response.text();
+      assert.ok(response.status < 400, `${response.status}: ${responseText}`);
+      assert.equal(responseText.includes('reopenKey'), false);
+    }
+  });
+});
+
+test('public cases need no actor; close and AI decisions enforce staff roles', async () => {
+  await withServer(fakeStore(), config(), async (base) => {
+    const publicCase = await fetch(`${base}/internal/trace/public/cases/VRS-1842`, {
+      headers: internalHeaders(),
+    });
+    assert.equal(publicCase.status, 200);
+
+    const closeBody = JSON.stringify({
+      expectedVersion: 0,
+      reason: 'out-of-scope',
+      publicReason: 'Outside this pilot category.',
+    });
+    const officialClose = await fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
+      method: 'POST',
+      headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+      body: closeBody,
+    });
+    assert.equal(officialClose.status, 403);
+    const reviewerClose = await fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
+      method: 'POST',
+      headers: internalHeaders('trace-reviewer-test', VALID_IDEMPOTENCY_KEY),
+      body: closeBody,
+    });
+    assert.equal(reviewerClose.status, 200);
+
+    const decisionUrl =
+      `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`;
+    const decisionBody = JSON.stringify({ expectedVersion: 0, decision: 'accepted' });
+    const residentDecision = await fetch(decisionUrl, {
+      method: 'POST',
+      headers: internalHeaders('trace-resident-test', VALID_IDEMPOTENCY_KEY),
+      body: decisionBody,
+    });
+    assert.equal(residentDecision.status, 403);
+    for (const actor of ['trace-official-test', 'trace-reviewer-test']) {
+      const accepted = await fetch(decisionUrl, {
+        method: 'POST',
+        headers: internalHeaders(actor, VALID_IDEMPOTENCY_KEY),
+        body: decisionBody,
+      });
+      assert.equal(accepted.status, 200);
     }
   });
 });
