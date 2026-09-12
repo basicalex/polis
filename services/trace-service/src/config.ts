@@ -5,7 +5,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { LocalizedText, PilotConfig, PilotSource, TraceConfig } from './types.js';
+import type {
+  LocalizedText,
+  ParsedTraceConfig,
+  PilotConfig,
+  PilotSource,
+  TraceConfig,
+} from './types.js';
 
 export type PilotLoader = () => unknown;
 
@@ -48,6 +54,28 @@ function parseIntakeOpen(raw: string | undefined): boolean {
   if (raw === 'true') return true;
   if (raw === 'false') return false;
   throw new Error('TRACE_INTAKE_OPEN must be explicitly true or false');
+}
+
+function parseOptionalHttpUrl(raw: string | undefined, key: string): string | null {
+  if (raw === undefined || raw === '') return null;
+  if (raw.trim() !== raw || raw.length > 2_048 || hasControl(raw)) {
+    throw new Error(`${key} must be an absolute HTTP(S) URL without credentials`);
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`${key} must be an absolute HTTP(S) URL without credentials`);
+  }
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    !parsed.hostname ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new Error(`${key} must be an absolute HTTP(S) URL without credentials`);
+  }
+  return parsed.href;
 }
 
 function localized(value: unknown, field: string): LocalizedText {
@@ -128,12 +156,17 @@ export function validatePilotConfig(value: unknown): PilotConfig {
   if (!value || typeof value !== 'object') throw new Error('invalid pilot config');
   const root = value as Record<string, unknown>;
   const municipality = root.municipality as Record<string, unknown> | undefined;
+  const caseNumber = municipality?.caseNumber as Record<string, unknown> | undefined;
   const category = root.category as Record<string, unknown> | undefined;
   const office = root.office as Record<string, unknown> | undefined;
   if (
     root.id !== 'vrsar-orsera' ||
     root.testEnvironment !== true ||
     municipality?.id !== 'vrsar-orsera' ||
+    typeof caseNumber?.prefix !== 'string' ||
+    !/^[A-Z]{2,4}$/.test(caseNumber.prefix) ||
+    !Number.isInteger(caseNumber.start) ||
+    (caseNumber.start as number) <= 0 ||
     category?.id !== 'public-lighting' ||
     office?.id !== 'communal-system' ||
     typeof office.routingStatus !== 'string' ||
@@ -150,7 +183,11 @@ export function validatePilotConfig(value: unknown): PilotConfig {
   return {
     id: 'vrsar-orsera',
     testEnvironment: true,
-    municipality: { id: 'vrsar-orsera', name: localized(municipality.name, 'municipality.name') },
+    municipality: {
+      id: 'vrsar-orsera',
+      name: localized(municipality.name, 'municipality.name'),
+      caseNumber: { prefix: caseNumber.prefix, start: caseNumber.start as number },
+    },
     category: { id: 'public-lighting', name: localized(category.name, 'category.name') },
     office: {
       id: 'communal-system',
@@ -164,7 +201,7 @@ export function validatePilotConfig(value: unknown): PilotConfig {
 export function parseTraceConfig(
   env: NodeJS.ProcessEnv = process.env,
   pilotLoader: PilotLoader = loadPilotConfig,
-): TraceConfig {
+): ParsedTraceConfig {
   const internalApiToken = requiredSecret(env, 'INTERNAL_API_TOKEN');
   const databaseUrl = requiredSecret(env, 'DATABASE_URL');
   let database: URL;
@@ -183,17 +220,39 @@ export function parseTraceConfig(
   }
   const officialIds = parseActorIds(env.TRACE_OFFICIAL_CITIZEN_IDS, 'TRACE_OFFICIAL_CITIZEN_IDS');
   const reviewerIds = parseActorIds(env.TRACE_REVIEWER_CITIZEN_IDS, 'TRACE_REVIEWER_CITIZEN_IDS');
+  const gatewayIds = parseActorIds(env.TRACE_GATEWAY_ACTOR_IDS, 'TRACE_GATEWAY_ACTOR_IDS');
   for (const id of officialIds) {
-    if (reviewerIds.has(id))
-      throw new Error('trace official and reviewer mappings must be disjoint');
+    if (reviewerIds.has(id) || gatewayIds.has(id)) {
+      throw new Error('trace official, reviewer, and gateway mappings must be disjoint');
+    }
   }
+  for (const id of reviewerIds) {
+    if (gatewayIds.has(id)) {
+      throw new Error('trace official, reviewer, and gateway mappings must be disjoint');
+    }
+  }
+  const attentionPepper = requiredSecret(env, 'TRACE_ATTENTION_PEPPER');
+  if (attentionPepper.length < 32) {
+    throw new Error('TRACE_ATTENTION_PEPPER must contain at least 32 characters');
+  }
+  const pilot = validatePilotConfig(pilotLoader());
+  const pilotCaseNumber = pilot.municipality.caseNumber!;
+  const parsedPilot = {
+    ...pilot,
+    municipality: { ...pilot.municipality, caseNumber: pilotCaseNumber },
+  };
   return {
     internalApiToken,
     databaseUrl,
     intakeOpen: parseIntakeOpen(env.TRACE_INTAKE_OPEN),
     officialIds,
     reviewerIds,
-    pilot: validatePilotConfig(pilotLoader()),
+    gatewayIds,
+    attentionPepper,
+    aiIntakeUrl: parseOptionalHttpUrl(env.TRACE_AI_INTAKE_URL, 'TRACE_AI_INTAKE_URL'),
+    caseNumberPrefix: pilotCaseNumber.prefix,
+    caseNumberStart: pilotCaseNumber.start,
+    pilot: parsedPilot,
   };
 }
 

@@ -12,8 +12,15 @@ import {
   type EventHashMaterial,
   type StoredEvent,
 } from './canonical.js';
-import { transitionAllowed } from './domain.js';
-import type { PublicRecord, TraceStatus } from './types.js';
+import {
+  canCloseCase,
+  canReadPrivate,
+  parseCaseNumberTarget,
+  reopenKeyHash,
+  shellStateFor,
+  transitionAllowed,
+} from './domain.js';
+import type { Actor, PublicRecord, TraceStatus } from './types.js';
 
 const statuses: TraceStatus[] = [
   'open',
@@ -23,6 +30,7 @@ const statuses: TraceStatus[] = [
   'published',
   'resolution-pending-review',
   'resolved',
+  'closed',
 ];
 
 const expectedTransitions: Record<string, TraceStatus[]> = {
@@ -33,6 +41,7 @@ const expectedTransitions: Record<string, TraceStatus[]> = {
   resolution: ['published'],
   'resolution-review-accept': ['resolution-pending-review'],
   'resolution-review-return': ['resolution-pending-review'],
+  close: ['open', 'assigned', 'returned'],
 };
 
 test('transition matrix permits every exact source state and rejects every other state', () => {
@@ -45,6 +54,49 @@ test('transition matrix permits every exact source state and rejects every other
       );
     }
   }
+});
+
+test('private reads honor record scopes and gateway ownership before existing role access', () => {
+  const record = {
+    id: 'record-one',
+    owner_actor_id: 'resident-one',
+    gateway_actor_id: 'gateway-one',
+  };
+  const actor = (id: string, role: Actor['role'], recordScope?: string): Actor => ({
+    id,
+    email: null,
+    role,
+    ...(recordScope === undefined ? {} : { recordScope }),
+  });
+
+  assert.equal(canReadPrivate(actor('resident-one', 'resident'), record), true);
+  assert.equal(canReadPrivate(actor('resident-two', 'resident'), record), false);
+  assert.equal(canReadPrivate(actor('official-one', 'official'), record), true);
+  assert.equal(canReadPrivate(actor('reviewer-one', 'reviewer'), record), true);
+  assert.equal(canReadPrivate(actor('gateway-one', 'gateway'), record), true);
+  assert.equal(canReadPrivate(actor('gateway-two', 'gateway'), record), false);
+  assert.equal(canReadPrivate(actor('official-one', 'official', 'record-one'), record), true);
+  assert.equal(canReadPrivate(actor('official-one', 'official', 'record-two'), record), false);
+});
+
+test('close eligibility and shell state mapping cover every trace status', () => {
+  assert.deepEqual(statuses.filter(canCloseCase), ['open', 'assigned', 'returned']);
+  assert.deepEqual(
+    statuses.map((status) => shellStateFor(status, false)),
+    ['received', 'assigned', 'in-review', 'in-review', 'published', 'in-review', 'resolved', 'closed'],
+  );
+  assert.equal(shellStateFor('open', true), 'closed');
+});
+
+test('reopen keys hash deterministically and case targets must start the message', () => {
+  assert.equal(
+    reopenKeyHash('correct horse battery staple'),
+    'c4bbcb1fbec99d65bf59d85c8cb62ee2db963f0fe106f483d9afa73bd4e39a8a',
+  );
+  assert.equal(parseCaseNumberTarget('vrs-1842 please add this'), 'VRS-1842');
+  assert.equal(parseCaseNumberTarget('VRS-0001'), 'VRS-0001');
+  assert.equal(parseCaseNumberTarget('please update VRS-1842'), null);
+  assert.equal(parseCaseNumberTarget('VRS-18421'), null);
 });
 
 function event(overrides: Partial<EventHashMaterial> = {}): StoredEvent {

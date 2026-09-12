@@ -3,7 +3,7 @@
 
 import { createHash } from 'node:crypto';
 
-import type { PublicRecord, TraceRole, TraceStage, TraceStatus } from './types.js';
+import type { CaseShell, PublicRecord, TraceRole, TraceStage, TraceStatus } from './types.js';
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === 'boolean' || typeof value === 'string')
@@ -162,4 +162,49 @@ export function computeReceiptHash(
 
 export function verifyReceiptHash(record: PublicRecord): boolean {
   return computeReceiptHash(record) === record.receiptHash;
+}
+
+export const CASE_SHELL_HASH_FIELDS = [
+  'caseNumber',
+  'municipalityId',
+  'area',
+  'category',
+  'track',
+  'state',
+  'closedPublicReason',
+  'filedAt',
+  'clockDueAt',
+  'followerCount',
+  'alsoAffectedCount',
+  'testEnvironment',
+] as const;
+
+export type ShellHashField = (typeof CASE_SHELL_HASH_FIELDS)[number];
+export type ShellHashMaterial = Pick<CaseShell, ShellHashField>;
+
+export function buildShellHashMaterial(
+  shell: Omit<CaseShell, 'shellHash'> | CaseShell,
+): ShellHashMaterial {
+  return {
+    caseNumber: shell.caseNumber,
+    municipalityId: shell.municipalityId,
+    area: shell.area,
+    category: shell.category,
+    track: shell.track,
+    state: shell.state,
+    closedPublicReason: shell.closedPublicReason,
+    filedAt: shell.filedAt,
+    clockDueAt: shell.clockDueAt,
+    followerCount: shell.followerCount,
+    alsoAffectedCount: shell.alsoAffectedCount,
+    testEnvironment: shell.testEnvironment,
+  };
+}
+
+export function computeShellHash(shell: Omit<CaseShell, 'shellHash'> | CaseShell): string {
+  return sha256(canonicalJson(buildShellHashMaterial(shell)));
+}
+
+export function verifyShellHash(shell: CaseShell): boolean {
+  return computeShellHash(shell) === shell.shellHash;
 }

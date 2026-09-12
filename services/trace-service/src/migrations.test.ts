@@ -12,12 +12,15 @@ test('bundled trace migrations are ordered and content hashed', () => {
   const migrations = readMigrations();
   assert.deepEqual(
     migrations.map((migration) => migration.version),
-    ['0001'],
+    ['0001', '0002'],
   );
-  assert.match(migrations[0]!.hash, /^[a-f0-9]{64}$/);
+  for (const migration of migrations) {
+    assert.match(migration.hash, /^[a-f0-9]{64}$/);
+  }
   assert.match(migrations[0]!.sql, /CREATE TABLE trace_records/);
   assert.match(migrations[0]!.sql, /trace_events_reject_update/);
   assert.match(migrations[0]!.sql, /trace_events_reject_delete/);
+  assert.match(migrations[1]!.sql, /CREATE TABLE trace_case_shells/);
 });
 
 test('migration application serializes the ledger with a transaction-scoped advisory lock', () => {

@@ -1,15 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { Actor, RecordRow, TraceConfig, TraceRole, TraceStatus } from './types.js';
+import { createHash } from 'node:crypto';
+import type { Actor, RecordRow, ShellState, TraceConfig, TraceRole, TraceStatus } from './types.js';
 
 export function roleForActor(config: TraceConfig, actorId: string): TraceRole {
   if (config.officialIds.has(actorId)) return 'official';
   if (config.reviewerIds.has(actorId)) return 'reviewer';
+  if (config.gatewayIds?.has(actorId)) return 'gateway';
   return 'resident';
 }
 
-export function canReadPrivate(actor: Actor, record: Pick<RecordRow, 'owner_actor_id'>): boolean {
+export function canReadPrivate(
+  actor: Actor,
+  record: Pick<RecordRow, 'id' | 'owner_actor_id' | 'gateway_actor_id'>,
+): boolean {
+  if (actor.recordScope !== undefined) return actor.recordScope === record.id;
+  if (actor.role === 'gateway') return actor.id === record.gateway_actor_id;
   return actor.role !== 'resident' || actor.id === record.owner_actor_id;
 }
 
@@ -21,6 +28,10 @@ export function isCommitmentSourceState(status: TraceStatus): boolean {
   return status === 'assigned' || status === 'returned';
 }
 
+export function canCloseCase(status: TraceStatus): boolean {
+  return status === 'open' || status === 'assigned' || status === 'returned';
+}
+
 export function transitionAllowed(
   command:
     | 'assign'
@@ -29,7 +40,8 @@ export function transitionAllowed(
     | 'review-return'
     | 'resolution'
     | 'resolution-review-accept'
-    | 'resolution-review-return',
+    | 'resolution-review-return'
+    | 'close',
   status: TraceStatus,
 ): boolean {
   switch (command) {
@@ -45,7 +57,36 @@ export function transitionAllowed(
     case 'resolution-review-accept':
     case 'resolution-review-return':
       return status === 'resolution-pending-review';
+    case 'close':
+      return canCloseCase(status);
   }
+}
+
+export function shellStateFor(status: TraceStatus, closed = status === 'closed'): ShellState {
+  if (closed || status === 'closed') return 'closed';
+  switch (status) {
+    case 'open':
+      return 'received';
+    case 'assigned':
+      return 'assigned';
+    case 'commitment-pending-review':
+    case 'returned':
+    case 'resolution-pending-review':
+      return 'in-review';
+    case 'published':
+      return 'published';
+    case 'resolved':
+      return 'resolved';
+  }
+}
+
+export function reopenKeyHash(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
+}
+
+export function parseCaseNumberTarget(text: string): string | null {
+  const match = /^vrs-(\d{4})\b/i.exec(text);
+  return match ? `VRS-${match[1]}` : null;
 }
 
 export function assertExpectedVersion(expected: number, actual: number): void {
