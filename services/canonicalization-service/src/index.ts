@@ -35,7 +35,7 @@ export async function canonicalize(
   // v0: canonical == original for non-PDF inputs. Real PDF/A canonicalization
   // ships when a Paperless-ngx deploy normalizes uploads.
   const canonicalPdfHash = originalFileHash;
-  const ocrTextHash = await sha256Hex('stub-ocr:' + originalFileHash);
+  const ocrTextHash = await sha256Hex('polis-ocr-stub/1:' + originalFileHash);
   const metadataHash = await sha256Hex(JSON.stringify(metadata ?? {}));
   const manifestHash = await sha256Hex(
     [originalFileHash, canonicalPdfHash, ocrTextHash, metadataHash].join('|'),

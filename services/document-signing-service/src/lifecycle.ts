@@ -192,7 +192,7 @@ export class SigningLifecycle {
         visibility: 'restricted',
         storageMode: this.#store.mode,
         storageRef: unsignedStorageRef,
-        provenance: { renderer: 'polis-charter-pdf-v1', charterVersion: context.charter.version },
+        provenance: { renderer: 'polis-charter-pdf-v1.3', charterVersion: context.charter.version },
         createdByService: 'document-signing-service',
       });
       if (unsignedArtifact.sha256 !== unsignedHash)

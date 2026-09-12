@@ -39,7 +39,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div class="pilot-shell" data-pilot-shell data-page={page} data-lang={lang}>
       <header class="pilot-topbar">
         <a class="pilot-brand" href={pilotHref('/pilot/vrsar', lang)}>Polis</a>
-        <p class="pilot-context" data-pilot-context>{pilotCopy.appTitle[lang]}</p>
+        <p class="pilot-context" data-pilot-context-slot>{pilotCopy.appTitle[lang]}</p>
         <nav class="pilot-language" aria-label={pilotCopy.language[lang]}>
           <span class="pilot-language-label">{pilotCopy.language[lang]}</span>
           {(['hr', 'it', 'en'] as const).map((item) => (

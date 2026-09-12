@@ -57,7 +57,7 @@ test('the store seeds from the committed fixtures', () => {
   const state = getState();
   assert.equal(state.version, 1);
   assert.equal(state.lang, 'hr');
-  assert.equal(STORAGE_KEY, 'polis-demo-v1');
+  assert.equal(STORAGE_KEY, 'polis-demo-v1b');
   assert.deepEqual(
     state.records.map((record) => record.id),
     seedRecords.map((record) => record.id),

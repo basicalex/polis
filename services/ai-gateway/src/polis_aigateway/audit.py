@@ -18,7 +18,7 @@ from typing import Any
 
 _ACTOR: dict[str, str] = {"type": "service", "id": "ai-gateway"}
 
-_AUDIT_HTTP_TIMEOUT_SECONDS = 5
+_AUDIT_HTTP_TIMEOUT_SECONDS = 4.75
 
 
 def emit_audit(

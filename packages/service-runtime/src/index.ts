@@ -38,7 +38,7 @@ export type Route = {
 
 /** Branded result so handlers can set a non-200 status without colliding with a
  * normal body that happens to have {status, body} keys. Build with {@link result}. */
-const RESULT: unique symbol = Symbol('polis.httpResult');
+const RESULT: unique symbol = Symbol('polis.runtime.httpResult');
 export interface HttpResult {
   [RESULT]: true;
   status: number;
@@ -49,7 +49,7 @@ export const result = (status: number, body: unknown): HttpResult =>
 const isHttpResult = (value: unknown): value is HttpResult =>
   typeof value === 'object' && value !== null && RESULT in value && value[RESULT] === true;
 
-const BINARY_RESULT: unique symbol = Symbol('polis.binaryResult');
+const BINARY_RESULT: unique symbol = Symbol('polis.runtime.binaryResult');
 const SAFE_BINARY_HEADERS: Record<string, true> = {
   'cache-control': true,
   'content-disposition': true,

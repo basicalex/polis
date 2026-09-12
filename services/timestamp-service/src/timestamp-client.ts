@@ -55,10 +55,10 @@ export interface TimestampClient {
 }
 
 const STUB_TSA = 'polis-stub-tsa';
-const STUB_CLOCK = 'system-clock-stub';
+const STUB_CLOCK = 'host-clock-stub';
 
 /**
- * Deterministic stub. No network. The token is `base64('tsa-stub:<hash>:<tsa>')`
+ * Deterministic stub. No network. The token is `base64('tsa-stub-1c:<hash>:<tsa>')`
  * so `validate` recomputes from the hash and compares. `timestampedAt` is the
  * mint time (ISO); the token carries the TSA id, not the time, so validation
  * is independent of clock drift.
@@ -66,7 +66,7 @@ const STUB_CLOCK = 'system-clock-stub';
 export class StubTimestampClient implements TimestampClient {
   async requestTimestamp(input: TimestampInput): Promise<TimestampResult> {
     const timestampedAt = new Date().toISOString();
-    const timestampRef = Buffer.from(`tsa-stub:${input.hash}:${STUB_TSA}`).toString('base64');
+    const timestampRef = Buffer.from(`tsa-stub-1c:${input.hash}:${STUB_TSA}`).toString('base64');
     return {
       type: 'RFC3161',
       timestampRef,
@@ -80,7 +80,7 @@ export class StubTimestampClient implements TimestampClient {
 
   async validate(timestampRef: string, hash: string): Promise<'valid' | 'invalid'> {
     try {
-      const expected = Buffer.from(`tsa-stub:${hash}:${STUB_TSA}`).toString('base64');
+      const expected = Buffer.from(`tsa-stub-1c:${hash}:${STUB_TSA}`).toString('base64');
       return timestampRef === expected ? 'valid' : 'invalid';
     } catch {
       return 'invalid';

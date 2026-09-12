@@ -15,7 +15,7 @@
  * hardcoded Ed25519 test keypair labelled `test-key` / `test-signer-stub-ed25519`;
  * the real adapter produces a CMS SignedData e-seal with a committed dev P-256
  * cert whose CN carries the "NOT LEGALLY MEANINGFUL" label (standard `eIDAS-eSeal`,
- * signerRef `polis-dev-institutional-seal-v1`). Neither is a legally meaningful
+ * signerRef `polis-dev-institutional-seal-v1r`). Neither is a legally meaningful
  * signature; production swaps a real DSS/TSP behind the same seam.
  */
 import {
@@ -169,7 +169,7 @@ async function loadDevSeal(): Promise<DevSealMaterial> {
  * Produces a genuine detached-content `SignedData` (RFC 5652) over the manifest
  * hash with the committed dev P-256 cert. `signatureValueRef` is the base64 DER
  * of the wrapping `ContentInfo`; `standard='eIDAS-eSeal'` is the real-mode
- * discriminator (≠ stub `test-key`), and `signerRef='polis-dev-institutional-seal-v1'`
+ * discriminator (≠ stub `test-key`), and `signerRef='polis-dev-institutional-seal-v1r'`
  * + the cert CN carry the "NOT LEGALLY MEANINGFUL" label. `validate` parses the
  * stored token, verifies the CMS signature against the dev cert, and asserts the
  * embedded eContent equals `hash`. In-process — no backing service.
@@ -207,7 +207,7 @@ export class DssSignerClient implements SignerClient {
     return {
       type: 'institutional-seal',
       standard: 'eIDAS-eSeal',
-      signerRef: 'polis-dev-institutional-seal-v1',
+      signerRef: 'polis-dev-institutional-seal-v1r',
       certificateRef: certFingerprint,
       signatureValueRef,
       signedHash: input.hash,

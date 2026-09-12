@@ -4,7 +4,7 @@
 /**
  * Client-side demo store for the `/demo/*` role surfaces.
  *
- * All state lives in the visitor's browser: `localStorage` under `polis-demo-v1`, with an
+ * All state lives in the visitor's browser: `localStorage` under `polis-demo-v1b`, with an
  * in-memory fallback when storage is unavailable or refuses a write. No network write exists.
  * The module is safe to import in Node (tests): every `window` and `localStorage` access is
  * guarded, and without a browser the store simply keeps state in memory.
@@ -45,7 +45,7 @@ export { DEMO_CATEGORIES, DEMO_LANGS };
 export const DEFAULT_LANG = 'hr';
 
 /** localStorage key. Bumping the suffix retires older demo state. */
-export const STORAGE_KEY = 'polis-demo-v1';
+export const STORAGE_KEY = 'polis-demo-v1b';
 
 /** State shape version stored alongside the records. */
 export const DEMO_STATE_VERSION = 1;

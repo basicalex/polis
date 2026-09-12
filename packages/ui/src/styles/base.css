@@ -112,7 +112,7 @@ html[data-theme='light'] {
   /* ---- page column: one measure and one gutter for main, header, footer ---- */
   --page-measure: 72rem;
   --page-gutter: clamp(1.25rem, 6vw, 4rem);
-  --evidence-measure: 74rem;
+  --evidence-measure-max: 74rem;
 }
 
 /* The local demonstrator. Same components, same tokens, darker field. */
@@ -305,7 +305,7 @@ dl {
    added on top so the content column itself is 74rem, not 74rem minus padding.
    Reading pages keep 68ch prose inside the normal column instead. */
 .site-main--wide {
-  width: min(calc(var(--evidence-measure) + 2 * var(--page-gutter)), 100%);
+  width: min(calc(var(--evidence-measure-max) + 2 * var(--page-gutter)), 100%);
 }
 
 @media (min-width: 56.25rem) {

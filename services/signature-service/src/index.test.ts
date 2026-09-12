@@ -111,7 +111,7 @@ test('DssSignerClient produces a real eIDAS-eSeal CMS signature that validates',
   // Real-mode discriminators (≠ stub test-key / test-signer-stub-ed25519).
   assert.equal(signed.standard, 'eIDAS-eSeal');
   assert.notEqual(signed.signerRef, 'test-signer-stub-ed25519');
-  assert.equal(signed.signerRef, 'polis-dev-institutional-seal-v1');
+  assert.equal(signed.signerRef, 'polis-dev-institutional-seal-v1r');
   // Self-verify ran at sign time and must report valid.
   assert.equal(signed.validationStatus, 'valid');
   // A non-empty CMS token (base64 DER ContentInfo).

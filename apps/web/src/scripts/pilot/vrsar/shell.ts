@@ -268,7 +268,7 @@ export function initPilotShell(): void {
   if (shellStarted) return;
   shellStarted = true;
   const lang = currentPilotLang();
-  const context = document.querySelector<HTMLElement>('[data-pilot-context]');
+  const context = document.querySelector<HTMLElement>('[data-pilot-context-slot]');
 
   Promise.allSettled([getPilotConfig(), getSession()]).then(([configResult, sessionResult]) => {
     if (configResult.status === 'fulfilled' && context) {
