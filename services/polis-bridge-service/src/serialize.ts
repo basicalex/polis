@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Wire serializers for polis-bridge-service. DB rows are snake_case; these map
  * to the §13 camelCase wire types declared in @polis/domain (Issue,

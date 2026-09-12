@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { IncomingMessage } from 'node:http';
 import { schema, type DbClient } from '@polis/db';
 import { and, eq } from 'drizzle-orm';

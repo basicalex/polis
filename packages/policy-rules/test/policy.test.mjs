@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Real OPA policy evaluation tests. Shells out to the `opa` binary to evaluate
 // the committed Rego bundles against fixture inputs and asserts the decision —
 // no text-matching. Requires `opa` on PATH (installed in CI; locally via the

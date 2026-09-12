@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { checkDatabase, runMigrationsOnce } from '@polis/db';
 import {
   MAX_FETCH_TIMEOUT_MS,

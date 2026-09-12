@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { Actor, RecordRow, TraceConfig, TraceRole, TraceStatus } from './types.js';
 
 export function roleForActor(config: TraceConfig, actorId: string): TraceRole {

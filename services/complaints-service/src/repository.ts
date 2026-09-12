@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { randomUUID } from 'node:crypto';
 import { schema } from '@polis/db';
 import type { ComplaintStatus } from '@polis/domain';

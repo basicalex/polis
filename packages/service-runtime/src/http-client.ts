@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 export const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 export const MAX_FETCH_TIMEOUT_MS = 300_000;
 

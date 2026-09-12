@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 const SESSION_COOKIE = 'polis_pilot_session';
 const LOCAL_BACKEND = 'http://127.0.0.1:3000';
 const MAX_JSON_BYTES = 3 * 1024 * 1024;

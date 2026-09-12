@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Wire serializer for rewards-service. DB rows are snake_case; this maps to the
  * §20.4 camelCase wire contract so the public shape has one home. Mirrors

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """FastAPI app — grounded-RAG assistant routes (spec §6.3 / §17 / §30.6).
 
 All handlers are sync ``def`` so FastAPI runs them in a threadpool, making

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { databaseReadiness, graphRoutes } from './index.js';

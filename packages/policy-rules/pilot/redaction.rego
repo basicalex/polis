@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 # Pilot redaction governance — §30.10 criterion 3.
 # Partner cannot suppress results outside pre-agreed privacy/security redactions.
 # Redactions require: (1) non-empty reason, (2) project governance authority.

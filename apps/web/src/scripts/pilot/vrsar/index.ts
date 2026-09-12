@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { getPilotConfig, getPilotSession, PilotApiError } from '../../../lib/pilot/vrsar/api';
 import { entityName } from '../../../lib/pilot/vrsar/model';
 import { pilotCopy, pilotHref, pickLocalized, translatedRole } from '../../../content/pilot/vrsar';

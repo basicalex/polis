@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """OPA-backed publish gate (spec §17 / ADR-005 / §30.6).
 
 Shells out to ``opa eval`` at runtime — real policy-as-code, not a mirror.

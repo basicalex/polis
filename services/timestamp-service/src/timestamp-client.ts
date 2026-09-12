@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * @polis/timestamp-service — RFC 3161 timestamp seam (spec §9.14 + §15.6).
  *

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { listPrivateRecords } from '../../../lib/pilot/vrsar/api';
 import type { PrivateTraceRecord } from '../../../lib/pilot/vrsar/model';
 import { pilotCopy, pilotHref } from '../../../content/pilot/vrsar';

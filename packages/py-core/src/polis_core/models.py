@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Pydantic v2 models mirroring ``@polis/domain`` wire types.
 
 Enum value sets match the canonical contract exactly (see spec §12.2, §11).

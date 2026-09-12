@@ -1,4 +1,7 @@
 #!/usr/bin/env bun
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /*
  * UI audit: walks every public route at desktop and phone width and measures
  * what the playbook can be checked by machine — text contrast (rule D1),

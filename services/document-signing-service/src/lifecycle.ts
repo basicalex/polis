@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { createHash, randomUUID } from 'node:crypto';
 import { renderCharterPdf } from './charter-pdf.js';
 import { sha256Hex, type ArtifactStore } from './artifact-store.js';

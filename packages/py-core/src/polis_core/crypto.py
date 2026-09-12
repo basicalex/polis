@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Cryptographic primitives for Python services.
 
 Mirrors ``@polis/domain`` ``sha256Hex``. Returns a lowercase hex digest.

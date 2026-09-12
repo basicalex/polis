@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Best-effort audit emit — mirrors proof-service ``emitAudit`` (§26.3).
 
 Uses ``urllib.request`` (stdlib) so the gateway has no HTTP client dependency.

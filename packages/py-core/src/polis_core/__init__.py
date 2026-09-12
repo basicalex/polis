@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Polis Interface core domain models and primitives.
 
 Mirrors the TypeScript ``@polis/domain`` wire types so Python services and the

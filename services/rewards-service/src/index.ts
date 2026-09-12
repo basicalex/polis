@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * @polis/rewards-service — §20/§22/§30.8 rewards prototype (M7).
  *

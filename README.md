@@ -330,6 +330,8 @@ polis/
 
 Code is **AGPL-3.0-or-later**. See [NOTICE](NOTICE) for integration and content obligations tracked by this repository.
 
+Copyright (C) 2026 Intrface j.d.o.o. In practice, for a municipality or any other operator: you receive the full source, you may run and modify it, and you may hire anyone to maintain it. Anyone who offers a modified Polis to users over a network must publish their modified source under the same license. That is what keeps the system yours rather than a vendor's.
+
 <div align="center">
 <sub>Polis Interface · built to be checked, not trusted.</sub>
 </div>

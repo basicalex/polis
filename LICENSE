@@ -1,8 +1,9 @@
 SPDX-License-Identifier: AGPL-3.0-or-later
+Copyright (C) 2026 Intrface j.d.o.o.
 
-Polis Interface project-owned server software is licensed under the GNU Affero
-General Public License v3.0 or later (AGPL-3.0-or-later), where legally possible
-(ADR-008).
+Polis Interface is owned by Intrface j.d.o.o. (Croatia). Project-owned server
+software is licensed under the GNU Affero General Public License v3.0 or later
+(AGPL-3.0-or-later), where legally possible (ADR-008).
 
 Upstream integrations keep their own licenses: Polis-derived code remains
 AGPL-3.0-compatible, and Paperless-ngx-derived code remains GPL-3.0-compatible.

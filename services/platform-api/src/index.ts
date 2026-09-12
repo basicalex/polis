@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** @polis/platform-api — the single public BFF edge (spec §23). */
 import { startService } from '@polis/service-runtime';
 

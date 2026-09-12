@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Entrypoint: ``python -m polis_aigateway`` → uvicorn on PORT (default 8550)."""
 
 from __future__ import annotations

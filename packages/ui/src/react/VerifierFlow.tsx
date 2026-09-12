@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useCallback, useId, useRef, useState, type DragEvent } from 'react';
 import { composeVerificationVerdict, type DocumentProof } from '@polis/domain';
 import { t, type Locale } from '../messages/index.ts';

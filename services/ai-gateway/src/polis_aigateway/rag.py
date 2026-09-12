@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Retrieval over approved evidence-vault sources (spec §6.3 / §12).
 
 Keyword ``ILIKE`` retrieval — deterministic, no embeddings in M5. Only approved,

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Safety seam — prompt-injection detection.
 
 Re-exports ``polis_core.detect_prompt_injection`` so there is one place to

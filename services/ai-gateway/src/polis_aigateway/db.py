@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """psycopg3 connection pool backed by ``DATABASE_URL``.
 
 The pool is created lazily on first use so importing the module (e.g. in tests)

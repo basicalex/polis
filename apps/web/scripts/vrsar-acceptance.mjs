@@ -1,4 +1,7 @@
 #!/usr/bin/env bun
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 
 import { createHash, randomUUID } from 'node:crypto';
 import { access, chmod, mkdir, readFile, writeFile } from 'node:fs/promises';

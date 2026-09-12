@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 export type IdentityEnvironment = Readonly<Record<string, string | undefined>>;
 
 export const MIN_IDENTITY_HMAC_KEY_BYTES = 32;

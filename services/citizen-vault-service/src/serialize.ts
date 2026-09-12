@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Wire serializer for citizen-vault-service. DB rows are snake_case; this maps
  * to the §16 camelCase wire contract. Mirrors the per-service serializer

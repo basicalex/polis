@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { SigningFieldPlacement } from './signing-provider.js';
 
 // The PDF uses built-in Helvetica without font embedding. Latin text is
