@@ -20,7 +20,7 @@ No municipal agreement, staff account, real incident, response-time commitment, 
 | [Pravilnik o unutarnjem redu JUO (articles 4 and 5)](https://www.vrsar.hr/wp-content/uploads/2026/03/Pravilnik-o-unutarnjem-redu-JUO-12-25.pdf) | 2026-09-05 | Identifies the **Jedinstveni upravni odjel** and **Odsjek za komunalni sustav**; describes communal-infrastructure maintenance and supervision duties. | Croatian office label and basis for the inferred test routing. |
 | [Izmjene i dopune Pravilnika o unutarnjem redu](https://www.vrsar.hr/wp-content/uploads/2026/03/Izmjene-i-dopune-Pravilnika-o-unutarnjem-redu-2-26.pdf) | 2026-09-05 | Amendment to the internal-order rule used for the office context. | Keeps the cited office context tied to the available amended rule set. |
 | [Odluka o komunalnom redu (articles 3, 13, and 14)](https://www.vrsar.hr/wp-content/uploads/2026/07/Odluka-o-komunalnom-redu.pdf) | 2026-09-05 | Public-lighting regulatory context. | Limits the test category to public lighting. |
-| [Kontakt — Općina Vrsar-Orsera](https://www.vrsar.hr/kontakt/) | 2026-09-05 | Official contact page listing `opcina-vrsar@vrsar.hr`, `+385 52 441 339`, and Trg Degrassi 1 for general inquiries and submissions. | Official website and contact URL only; never an app delivery destination. |
+| [Kontakt — Općina Vrsar-Orsera](https://www.vrsar.hr/kontakt/) | 2026-09-05 | Official contact page for general inquiries and submissions; details are on the linked page and are not copied here. | Official website and contact URL only; never an app delivery destination. |
 
 ## Language notes
 

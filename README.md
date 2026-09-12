@@ -6,6 +6,8 @@
 
 A complaint, a promise, and a document all sit on the same public record. Every claim shows its source. Every promise is checked by reviewers against evidence, not by the person who made it. Every registered document can be verified by anyone holding a copy.
 
+**Status: local v1 prototype.** It runs on your machine against synthetic data and mock providers. It is not deployed anywhere, no municipality uses it, no pilot is running, and it holds no real resident or government data. Details in [Honest status](#honest-status).
+
 [![CI](https://img.shields.io/github/actions/workflow/status/basicalex/polis/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/basicalex/polis/actions/workflows/ci.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg?style=flat-square)](NOTICE)
 [![Status](https://img.shields.io/badge/status-local%20v1%20prototype-F5A623.svg?style=flat-square)](#honest-status)
@@ -26,8 +28,6 @@ Polis Interface works both directions:
 - **For institutions and campaigns** — a way to publish a programme and have each promise scored in public against documents, not in a press release.
 
 Both run on the same data, so it cuts both ways: the public can check the government, and the government can point to proof.
-
-**Status: this is a local v1 prototype.** It runs on your machine against synthetic data and mock providers. It is not deployed anywhere and holds no real resident or government data. Details in [Honest status](#honest-status).
 
 > **Naming note:** this project is not [pol.is](https://pol.is) (the Computational Democracy Project's deliberation tool) and is not affiliated with it. The repo contains a stub bridge (`polis-bridge-service`) intended to integrate with deliberation tools like it later.
 
@@ -130,6 +130,8 @@ Four rules, all of the time:
 
 This is a **local v1 prototype**, not a production deployment.
 
+Nobody uses it. There are no users, no partner, and no municipality has adopted, deployed, or been asked to run it.
+
 `.env.example` sets `MOCK_EXTERNALS=true` and the stack runs entirely against mock providers. The following are **not** live integrations here:
 
 - Paperless-ngx (upstream document intake)
@@ -141,6 +143,8 @@ This is a **local v1 prototype**, not a production deployment.
 - Any government systems
 
 The full dev stack runs one private complaint from filing to appeal, using fake identities and mock providers. The isolated pilot profile — a cut-down deployment that serves public reads only — does not run identity, complaints, AI, signing, or private-document services. No profile is approved for real resident data or government operations.
+
+The repo also holds a local test configuration for Općina Vrsar-Orsera, built only from documents the municipality has published. It uses synthetic reports and four test identities. Vrsar has not been asked, has not agreed, and is not connected to it. Sources are listed in [docs/pilot/vrsar-source-notes.md](docs/pilot/vrsar-source-notes.md).
 
 A project about verifiability has to be honest about what it verifies. Local v1 runs the main flows end to end on fake data; the remaining work is in [ROADMAP.md](ROADMAP.md).
 
@@ -278,7 +282,7 @@ flowchart TB
 | `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | Yes (12) |
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | Yes (15) |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | Yes (16) |
-| `trace-service` | Node 24 | 8980 | Runs the isolated Vrsar report, commitment, review, and resolution trace loop. | No (opt-in) |
+| `trace-service` | Node 24 | 8980 | Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration. | No (opt-in) |
 <!-- service-catalog:readme:end -->
 
 The "Dev launcher" number is the service's start order in `bun run dev:services`. PostgreSQL 16 with pgvector listens on `:5432` inside the local stack.

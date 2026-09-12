@@ -30,7 +30,7 @@ The broader local profile described below remains simulated. A separate [isolate
 
 ## Current implementation status
 
-### Live (real code, real data)
+### Implemented locally (real code, synthetic data)
 
 - Governance graph
 - Audit trail (append-only hash chain)

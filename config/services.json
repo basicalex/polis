@@ -277,7 +277,7 @@
       "workspace": "@polis/trace-service",
       "runtime": "node-24",
       "defaultPort": 8980,
-      "role": "Runs the isolated Vrsar report, commitment, review, and resolution trace loop.",
+      "role": "Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration.",
       "healthRoute": "/readyz",
       "dev": {
         "launch": false,

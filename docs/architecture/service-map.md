@@ -94,7 +94,7 @@ Node services using `packages/service-runtime` expose:
 | `vc-issuer-service` | Node 24 | 8950 | Provides the verifiable credential issuer service shell. | `GET /readyz` | 12 |
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | `GET /readyz` | 15 |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | `GET /readyz` | 16 |
-| `trace-service` | Node 24 | 8980 | Runs the isolated Vrsar report, commitment, review, and resolution trace loop. | `GET /readyz` | opt-in |
+| `trace-service` | Node 24 | 8980 | Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration. | `GET /readyz` | opt-in |
 <!-- service-catalog:service-map:end -->
 
 `document-signing-service` depends on Postgres, `proof-service`,
