@@ -436,8 +436,8 @@ export function normalizeOfficialMessage(value: unknown): Record<string, unknown
     kind: oneOf(body.kind, 'kind', ['answer', 'question', 'status-update'] as const),
     body: text(body.body, 'body', 4_000),
     channel:
-      body.channel === undefined
-        ? undefined
+      body.channel === undefined || body.channel === null
+        ? null
         : oneOf(body.channel, 'channel', ['web', 'sms', 'voice'] as const),
     inReplyTo: optionalUuid(body.inReplyTo, 'inReplyTo'),
   };

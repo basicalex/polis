@@ -412,6 +412,12 @@ test('filer and official messages enforce bodies, references, versions, and chan
       inReplyTo: null,
     },
   );
+  // An omitted channel normalizes to null, never undefined: the normalized body
+  // is canonical-JSON hashed for idempotency and canonical JSON rejects undefined.
+  assert.deepEqual(
+    normalizeOfficialMessage({ expectedVersion: 2, kind: 'question', body: 'Gdje točno?' }),
+    { expectedVersion: 2, kind: 'question', body: 'Gdje točno?', channel: null, inReplyTo: null },
+  );
   assert.equal(
     code(() => normalizeFilerMessage({ reopenKey: VALID_REOPEN_KEY, body: 'x'.repeat(4_001) })),
     'invalid_request',

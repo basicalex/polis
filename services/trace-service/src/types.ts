@@ -353,8 +353,8 @@ export interface FilerMessageInput {
 export interface OfficialMessageInput {
   kind: Extract<CaseMessageKind, 'answer' | 'question' | 'status-update'>;
   body: string;
-  channel: TraceOrigin;
-  inReplyTo?: string;
+  channel: TraceOrigin | null;
+  inReplyTo?: string | null;
 }
 
 export interface AiProposalInput {
