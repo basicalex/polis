@@ -27,8 +27,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from polis_core import (
     AssistantAnswer,
+    CaseIntakeProposal,
     Citation,
     ConfidenceState,
+    IntakeDraft,
+    IntakeKnownCase,
     ReviewState,
     detect_prompt_injection,
     is_low_confidence,
@@ -43,6 +46,19 @@ from starlette.responses import Response
 
 from polis_aigateway.audit import emit_audit
 from polis_aigateway.db import database_ready, get_conn
+from polis_aigateway.intake import (
+    INTAKE_PROMPT_TEMPLATE_ID,
+    INTAKE_PROMPT_TEMPLATE_VERSION,
+    INTAKE_WORKFLOW_TYPE,
+    MAX_INTAKE_TEXT_CHARS,
+    MAX_KNOWN_CASES,
+    UNCLASSIFIED,
+    build_intake_messages,
+    canonical_proposal_json,
+    parse_draft,
+    propose_from_rules,
+)
+from polis_aigateway.pilot import PilotCatalogue, load_catalogue
 from polis_aigateway.policy import publish_allowed
 from polis_aigateway.rag import APPROVED_SOURCE_TYPES, retrieve
 
@@ -155,6 +171,16 @@ class ModelProvider(Protocol):
     def answer(self, *, question: str, chunks: list[Any]) -> ModelResponse:
         """Synthesize an answer from already-retrieved approved chunks."""
 
+    def propose_intake(
+        self,
+        *,
+        text: str,
+        language: str,
+        catalogue: PilotCatalogue,
+        known_open_cases: list[IntakeKnownCase],
+    ) -> IntakeDraft:
+        """Propose unpublished fields constrained to the pilot catalogue."""
+
 
 class StubModelProvider:
     model_provider = _STUB_MODEL_PROVIDER
@@ -168,6 +194,16 @@ class StubModelProvider:
         else:
             answer_text = _NO_RESULTS
         return ModelResponse(answer=answer_text, params=None)
+
+    def propose_intake(
+        self,
+        *,
+        text: str,
+        language: str,
+        catalogue: PilotCatalogue,
+        known_open_cases: list[IntakeKnownCase],
+    ) -> IntakeDraft:
+        return propose_from_rules(text, language, catalogue, known_open_cases)
 
 
 class OpenAICompatibleModelProvider:
@@ -260,6 +296,45 @@ class OpenAICompatibleModelProvider:
             },
         )
 
+    def propose_intake(
+        self,
+        *,
+        text: str,
+        language: str,
+        catalogue: PilotCatalogue,
+        known_open_cases: list[IntakeKnownCase],
+    ) -> IntakeDraft:
+        response = _post_chat_completions(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            payload={
+                "model": self.model_name,
+                "messages": build_intake_messages(
+                    text, language, catalogue, known_open_cases
+                ),
+            },
+            timeout_seconds=self.timeout_seconds,
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        try:
+            raw_json = response["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(
+                "AI provider response missing choices[0].message.content"
+            ) from exc
+        if not isinstance(raw_json, str):
+            raise RuntimeError(
+                "AI provider response choices[0].message.content is not a string"
+            )
+        return parse_draft(
+            raw_json,
+            catalogue,
+            text=text,
+            language=language,
+            known_open_cases=known_open_cases,
+        )
+
 
 def _post_chat_completions(
     *,
@@ -267,7 +342,14 @@ def _post_chat_completions(
     api_key: str,
     payload: dict[str, Any],
     timeout_seconds: int,
+    temperature: float | None = None,
+    response_format: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    payload = dict(payload)
+    if temperature is not None:
+        payload["temperature"] = temperature
+    if response_format is not None:
+        payload["response_format"] = response_format
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{base_url}/chat/completions",
@@ -338,6 +420,18 @@ class AskRequest(BaseModel):
     user_id: str | None = Field(default=None, alias="userId")
 
 
+class IntakeRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    case_id: str | None = Field(default=None, alias="caseId")
+    text: str | None = None
+    municipality_id: str | None = Field(default=None, alias="municipalityId")
+    language: str = "hr"
+    known_open_cases: list[IntakeKnownCase] = Field(
+        default_factory=list, alias="knownOpenCases"
+    )
+
+
 class ReviewRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
@@ -364,6 +458,8 @@ def _persist_trace(
     risk_flags: list[str],
     model_provider: str,
     model_name: str,
+    prompt_template_id: str = _PROMPT_TEMPLATE_ID,
+    prompt_template_version: str = _PROMPT_TEMPLATE_VERSION,
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -378,7 +474,7 @@ def _persist_trace(
             (
                 trace_id, request_id, workflow_type, user_id, prompt_hash,
                 model_provider, model_name,
-                _PROMPT_TEMPLATE_ID, _PROMPT_TEMPLATE_VERSION,
+                prompt_template_id, prompt_template_version,
                 Json(source_ids), Json(claim_ids), Json(risk_flags),
             ),
         )
@@ -397,6 +493,7 @@ def _persist_output(
     output_hash: str,
     model: str,
     params: dict[str, Any] | None,
+    confidence: float | None = None,
 ) -> None:
     wire_citations = [c.model_dump(by_alias=True) for c in citations]
     with conn.cursor() as cur:
@@ -405,10 +502,10 @@ def _persist_output(
             INSERT INTO ai_outputs
               (id, trace_id, answer, citations, confidence,
                confidence_state, review_state, published, output_hash, model, params)
-            VALUES (%s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                output_id, trace_id, answer, Json(wire_citations),
+                output_id, trace_id, answer, Json(wire_citations), confidence,
                 confidence_state.value, review_state.value, published,
                 output_hash, model, Json(params) if params is not None else None,
             ),
@@ -530,6 +627,123 @@ def metrics() -> Response:
 @app.get("/version")
 def version() -> dict[str, str]:
     return {"service": "ai-gateway", "version": "0.1.0"}
+
+
+@app.post("/internal/ai/intake")
+def intake(req: IntakeRequest):
+    if os.getenv("AI_INTAKE_ENABLED", "false") != "true":
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+    if not req.text or not req.text.strip():
+        return JSONResponse(status_code=400, content={"error": "missing_text"})
+    if len(req.text) > MAX_INTAKE_TEXT_CHARS:
+        return JSONResponse(status_code=400, content={"error": "text_too_long"})
+    if not req.municipality_id:
+        return JSONResponse(status_code=400, content={"error": "missing_municipality"})
+    if len(req.known_open_cases) > MAX_KNOWN_CASES:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "too_many_known_cases"},
+        )
+
+    text = req.text
+    request_id = str(uuid.uuid4())
+    trace_id = str(uuid.uuid4())
+    output_id = str(uuid.uuid4())
+    prompt_hash = sha256_hex(text.encode())
+    provider = _MODEL_PROVIDER
+    catalogue = load_catalogue(req.municipality_id)
+    verdict = detect_prompt_injection(text)
+
+    if catalogue is None:
+        draft = IntakeDraft(
+            category=UNCLASSIFIED,
+            locationText="",
+            geo=None,
+            duplicateOf=None,
+            office="",
+            confidence=0.0,
+            riskFlags=["unknown-municipality"],
+        )
+        injection_blocked = False
+    elif verdict.detected:
+        draft = IntakeDraft(
+            category="",
+            locationText="",
+            geo=None,
+            duplicateOf=None,
+            office="",
+            confidence=0.0,
+            riskFlags=[*verdict.flags, "injection-blocked"],
+        )
+        injection_blocked = True
+    else:
+        draft = provider.propose_intake(
+            text=text,
+            language=req.language,
+            catalogue=catalogue,
+            known_open_cases=req.known_open_cases,
+        )
+        injection_blocked = False
+
+    answer_json = canonical_proposal_json(draft)
+    output_hash = sha256_hex(answer_json.encode())
+    try:
+        with get_conn() as conn:
+            _persist_trace(
+                conn,
+                trace_id=trace_id,
+                request_id=request_id,
+                workflow_type=INTAKE_WORKFLOW_TYPE,
+                user_id=None,
+                prompt_hash=prompt_hash,
+                source_ids=[],
+                claim_ids=[],
+                risk_flags=draft.risk_flags,
+                model_provider=provider.model_provider,
+                model_name=provider.model_name,
+                prompt_template_id=INTAKE_PROMPT_TEMPLATE_ID,
+                prompt_template_version=INTAKE_PROMPT_TEMPLATE_VERSION,
+            )
+            _persist_output(
+                conn,
+                output_id=output_id,
+                trace_id=trace_id,
+                answer=answer_json,
+                citations=[],
+                confidence_state=ConfidenceState.unsupported_draft,
+                review_state=ReviewState.draft,
+                published=False,
+                output_hash=output_hash,
+                model=provider.model_name,
+                params=None,
+                confidence=draft.confidence,
+            )
+            _persist_review_queue(conn, output_id=output_id, status="pending")
+    except Exception as exc:  # noqa: BLE001 — best-effort persistence
+        print(f"[ai-gateway] intake persistence failed: {exc}", file=sys.stderr)
+
+    emit_audit(
+        event_type="ai.intake.requested",
+        action="intake",
+        target={"type": "ai-trace", "id": trace_id},
+        data={
+            "case_id": req.case_id,
+            "text_hash": prompt_hash,
+            "category": draft.category,
+            "duplicate_of": draft.duplicate_of,
+            "confidence": draft.confidence,
+            "injection_blocked": injection_blocked,
+            "published": False,
+        },
+    )
+    return CaseIntakeProposal(
+        **draft.model_dump(),
+        traceId=trace_id,
+        outputId=output_id,
+        proposalStatus="proposed",
+        injectionBlocked=injection_blocked,
+        reviewState=ReviewState.draft,
+    )
 
 
 @app.post("/internal/ai/answer")

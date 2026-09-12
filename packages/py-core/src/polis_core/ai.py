@@ -12,6 +12,7 @@ Wire objects are camelCase (``model_dump(by_alias=True)``), mirroring
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -62,6 +63,49 @@ class AssistantAnswer(BaseModel):
     output_id: str = Field(alias="outputId")
     review_state: ReviewState = Field(alias="reviewState")
 
+
+class IntakeKnownCase(BaseModel):
+    """One open case supplied for deterministic duplicate detection."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    case_id: str = Field(alias="caseId")
+    category: str
+    location_text: str = Field(alias="locationText")
+    summary: str
+
+
+class IntakeGeo(BaseModel):
+    """Reserved coordinates for a future reviewed geocoding workflow."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    lat: float
+    lon: float
+
+
+class IntakeDraft(BaseModel):
+    """Unpublished case-intake fields proposed for official review."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    category: str
+    location_text: str = Field(alias="locationText")
+    geo: IntakeGeo | None
+    duplicate_of: str | None = Field(alias="duplicateOf")
+    office: str
+    confidence: float
+    risk_flags: list[str] = Field(alias="riskFlags")
+
+
+class CaseIntakeProposal(IntakeDraft):
+    """Wire response for a persisted, unpublished intake proposal."""
+
+    trace_id: str = Field(alias="traceId")
+    output_id: str = Field(alias="outputId")
+    proposal_status: Literal["proposed"] = Field(alias="proposalStatus")
+    injection_blocked: bool = Field(alias="injectionBlocked")
+    review_state: ReviewState = Field(alias="reviewState")
 
 class AITrace(BaseModel):
     """Internal trace row mirroring spec §17.5 — never returned to the public edge."""
@@ -188,8 +232,12 @@ def extract_keywords(question: str) -> list[str]:
 __all__ = [
     "AITrace",
     "AssistantAnswer",
+    "CaseIntakeProposal",
     "Citation",
     "InjectionVerdict",
+    "IntakeDraft",
+    "IntakeGeo",
+    "IntakeKnownCase",
     "RetrievalChunk",
     "detect_prompt_injection",
     "extract_keywords",

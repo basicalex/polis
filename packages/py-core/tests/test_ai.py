@@ -6,6 +6,7 @@ from __future__ import annotations
 from polis_core.ai import (
     AITrace,
     AssistantAnswer,
+    CaseIntakeProposal,
     Citation,
     RetrievalChunk,
     detect_prompt_injection,
@@ -118,6 +119,40 @@ def test_assistant_answer_wire_aliases():
     assert "injectionBlocked" in dumped
     assert "outputId" in dumped
     assert dumped["citations"][0]["claimId"] == "c1"
+
+
+def test_intake_proposal_wire_aliases():
+    proposal = CaseIntakeProposal(
+        category="public-lighting",
+        locationText="Vrsar-Orsera",
+        geo=None,
+        duplicateOf="case-1",
+        office="communal-system",
+        confidence=0.8,
+        riskFlags=["possible-duplicate"],
+        traceId="trace-1",
+        outputId="output-1",
+        proposalStatus="proposed",
+        injectionBlocked=False,
+        reviewState=ReviewState.draft,
+    )
+
+    dumped = proposal.model_dump(by_alias=True)
+    assert dumped == {
+        "category": "public-lighting",
+        "locationText": "Vrsar-Orsera",
+        "geo": None,
+        "duplicateOf": "case-1",
+        "office": "communal-system",
+        "confidence": 0.8,
+        "riskFlags": ["possible-duplicate"],
+        "traceId": "trace-1",
+        "outputId": "output-1",
+        "proposalStatus": "proposed",
+        "injectionBlocked": False,
+        "reviewState": "draft",
+    }
+    assert CaseIntakeProposal.model_validate(dumped) == proposal
 
 
 def test_ai_trace_wire_aliases():
