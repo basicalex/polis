@@ -181,9 +181,11 @@ The equivalent explicit form is:
 bun --no-env-file scripts/pilot/channel-smoke.mjs --runtime /private/tmp/polis-vrsar-prepartner-XXXXXX
 ```
 
-The helper prints the SMS case number and confirmation, the public shell state,
-the append check, and the voice case's readback and transcript checks. It
-rejects output that looks like a phone number.
+The helper prints the random six-digit SMS case number and confirmation, the
+public shell state, the append check, and the voice case's readback and
+transcript checks. It rejects output that looks like a phone number. Stub mode
+leaves the delivery stamp at `U DOSTAVI`. Only a real Infobip delivery report
+can change it to `DOSTAVLJENO` or record a failed delivery.
 
 For one direct injection, set `INTERNAL_API_TOKEN` from the runtime's private
 credentials without printing it, then use the helper:
@@ -206,7 +208,7 @@ Look up the narrative-free public shell by its returned case number:
 
 ```sh
 curl --fail --silent --show-error \
-  http://127.0.0.1:3000/api/trace/public/cases/VRS-1842
+  http://127.0.0.1:3000/api/trace/public/cases/VRS-184213
 ```
 
 This lookup returns the shell and any separately published public record. It

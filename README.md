@@ -283,7 +283,7 @@ flowchart TB
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | Yes (15) |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | Yes (16) |
 | `trace-service` | Node 24 | 8980 | Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration. | No (opt-in) |
-| `channel-gateway` | Node 24 | 8990 | Terminates Telnyx SMS and voice webhooks, holds the only phone data, relays case messages. | No (opt-in) |
+| `channel-gateway` | Node 24 | 8990 | Terminates Infobip SMS and voice webhooks, holds the only phone data, relays case messages. | No (opt-in) |
 <!-- service-catalog:readme:end -->
 
 The "Dev launcher" number is the service's start order in `bun run dev:services`. PostgreSQL 16 with pgvector listens on `:5432` inside the local stack.

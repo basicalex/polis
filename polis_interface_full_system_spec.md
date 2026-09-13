@@ -3961,14 +3961,29 @@ Reason: Prevent private capture of civic infrastructure.
 
 ### ADR-009: Channel intake and the phone boundary
 
-Decision: Keep phone numbers in `channel-gateway` only, separate legal identity
-from channel identity, and expose narrative-free case shells by sequential case
-number.
+Decision (amended 2026-09-13): Keep phone numbers in `channel-gateway` only,
+separate legal identity from channel identity, and expose narrative-free case
+shells by a case number made from `VRS-` and six random digits with no leading
+zero. Use Infobip for SMS and voice. Authenticate each Infobip webhook by
+checking `X-Hub-Signature` as HMAC-SHA256 over the raw body with a constant-time
+comparison. The signature has no timestamp, so `channel_events` deduplicates
+provider event identifiers through its TTL.
 
 Reason: Municipal staff can handle SMS and voice reports without receiving a
-phone number, while the public can track case state without access to the
-report narrative. Voice distortion reduces casual recognition but does not
-claim anonymity.
+phone number. The public can track case state without access to the report
+narrative. Random case numbers prevent enumeration and do not expose the public
+case count. Voice distortion reduces casual recognition but does not claim
+anonymity.
+
+Disclosure rule (2026-09-13): Polis needs the phone number to provide the
+channel, but the municipality never receives it. Intrface j.d.o.o., as the
+operator and vault key holder, may decrypt it only for a written police or court
+request under Croatian criminal procedure law in a criminal case. The
+decryption is audit-logged with the request reference, and the person is
+notified unless the law forbids notice. A person who names themselves in a call
+or message sends that name to the municipality as private case content. The
+public page still shows only the reviewer-approved summary, and after the vault
+TTL purge there is no number to disclose.
 
 ---
 
