@@ -7,13 +7,13 @@ import test from 'node:test';
 
 import { readMigrations } from './migrations.js';
 
-test('bundled channel migration is ordered, hashed, and complete', () => {
+test('bundled channel migrations are ordered, hashed, and complete', () => {
   const migrations = readMigrations();
   assert.deepEqual(
     migrations.map((migration) => migration.version),
-    ['0001'],
+    ['0001', '0002'],
   );
-  assert.match(migrations[0]!.hash, /^[a-f0-9]{64}$/);
+  for (const migration of migrations) assert.match(migration.hash, /^[a-f0-9]{64}$/);
   for (const table of [
     'channel_identities',
     'channel_links',
@@ -25,6 +25,8 @@ test('bundled channel migration is ordered, hashed, and complete', () => {
   ]) {
     assert.match(migrations[0]!.sql, new RegExp(`CREATE TABLE ${table}`));
   }
+  assert.match(migrations[1]!.sql, /CREATE TABLE channel_calls/);
+  assert.match(migrations[1]!.sql, /'answered', 'prompt', 'readback', 'recording', 'done'/);
 });
 
 test('migration ledger is serialized and hash verified', () => {

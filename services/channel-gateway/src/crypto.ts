@@ -5,9 +5,8 @@ import {
   createCipheriv,
   createDecipheriv,
   createHmac,
-  createPublicKey,
   randomBytes,
-  verify,
+  timingSafeEqual,
 } from 'node:crypto';
 
 export type VaultAad = 'phone' | 'sms-body' | 'reopen-key' | 'outbox-body';
@@ -18,13 +17,10 @@ export interface SealedString {
   tag: Buffer;
 }
 
-export interface TelnyxSignatureInput {
-  publicKey: string;
-  signature: string | undefined;
-  timestamp: string | undefined;
+export interface InfobipSignatureInput {
+  secret: string;
+  header: string | undefined;
   rawBody: Uint8Array;
-  toleranceSeconds: number;
-  now?: number | Date;
 }
 
 function strictBase64(value: string): Buffer | null {
@@ -83,38 +79,18 @@ export function phoneHash(e164: string, pepper: string, municipalityId: string):
   return createHmac('sha256', pepper).update(`${municipalityId}\0${e164}`, 'utf8').digest('hex');
 }
 
-export function verifyTelnyxSignature(input: TelnyxSignatureInput): boolean {
+export function verifyInfobipSignature(input: InfobipSignatureInput): boolean {
   try {
-    if (!input.signature || !input.timestamp || !/^-?\d+$/.test(input.timestamp)) return false;
-    if (!Number.isFinite(input.toleranceSeconds) || input.toleranceSeconds < 0) return false;
-    const timestamp = Number(input.timestamp);
-    if (!Number.isSafeInteger(timestamp)) return false;
-    const rawNow = input.now instanceof Date ? input.now.getTime() / 1_000 : input.now;
-    const nowSeconds =
-      rawNow === undefined ? Date.now() / 1_000 : rawNow > 1e12 ? rawNow / 1_000 : rawNow;
-    if (Math.abs(nowSeconds - timestamp) > input.toleranceSeconds) return false;
-
-    const signature = strictBase64(input.signature);
-    if (!signature || signature.byteLength !== 64) return false;
-    const publicKey = input.publicKey.trim();
-    const key = publicKey.startsWith('-----BEGIN')
-      ? createPublicKey(publicKey)
-      : (() => {
-          const raw = strictBase64(publicKey);
-          if (!raw || raw.byteLength !== 32) throw new Error('invalid Telnyx public key');
-          const prefix = Buffer.from('302a300506032b6570032100', 'hex');
-          return createPublicKey({
-            key: Buffer.concat([prefix, raw]),
-            format: 'der',
-            type: 'spki',
-          });
-        })();
-    const message = Buffer.concat([
-      Buffer.from(input.timestamp, 'utf8'),
-      Buffer.from('|', 'utf8'),
-      Buffer.from(input.rawBody),
-    ]);
-    return verify(null, message, key, signature);
+    if (!input.secret || !input.header) return false;
+    const expected = createHmac('sha256', input.secret).update(input.rawBody).digest();
+    const raw = input.header.startsWith('sha256=') ? input.header.slice(7) : input.header;
+    let actual: Buffer | null = null;
+    if (/^[a-fA-F0-9]{64}$/.test(raw)) {
+      actual = Buffer.from(raw, 'hex');
+    } else {
+      actual = strictBase64(raw);
+    }
+    return actual?.byteLength === expected.byteLength && timingSafeEqual(actual, expected);
   } catch {
     return false;
   }

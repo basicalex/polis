@@ -8,6 +8,7 @@ import test from 'node:test';
 import { MemoryChannelStore } from './memory-store.js';
 import { purgeExpired } from './retention.js';
 import type {
+  ChannelCall,
   ChannelIdentity,
   ChannelInbox,
   ChannelLink,
@@ -60,7 +61,18 @@ test('retention purges every expired class and preserves identities with live li
   await store.upsertIdentity(identity(linkedHash, expired));
   await store.upsertLink(link(removableHash, expired));
   await store.upsertLink(link(linkedHash, future));
-  await store.recordEvent('telnyx', 'expired-event', 'message.received', 'c'.repeat(64));
+  await store.recordEvent('infobip', 'expired-event', 'sms.received', 'c'.repeat(64));
+  const call: ChannelCall = {
+    callId: 'expired-call',
+    phoneHash: removableHash,
+    caseNumber: null,
+    recordId: null,
+    step: 'answered',
+    createdAt: old,
+    updatedAt: old,
+    expiresAt: expired,
+  };
+  await store.upsertCall(call);
 
   const inbox: ChannelInbox = {
     id: randomUUID(),
@@ -123,6 +135,7 @@ test('retention purges every expired class and preserves identities with live li
     inbox: 1,
     outbox: 1,
     recordings: 1,
+    calls: 1,
     links: 1,
     identities: 1,
   });
@@ -131,4 +144,5 @@ test('retention purges every expired class and preserves identities with live li
   assert.equal((await store.listOpenLinks(linkedHash)).length, 1);
   assert.equal(await store.findOutboxBySource('expired-outbox'), null);
   assert.equal(await store.getRecording(recording.id), null);
+  assert.equal(await store.getCall(call.callId), null);
 });

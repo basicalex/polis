@@ -28,7 +28,7 @@ function allowRequest(req: IncomingMessage): boolean {
   return bucket.count >= 0;
 }
 
-// Telnyx webhook ingress routes intentionally stay off this public-read allowlist.
+// Infobip webhook ingress routes intentionally stay off this public-read allowlist.
 /** Exact routes permitted by the isolated public-read pilot. Unknown routes fail closed. */
 const PUBLIC_EDGE_ALLOWED: Record<string, true> = {
   'GET /healthz': true,

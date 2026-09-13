@@ -3,6 +3,8 @@
 
 import type { ChannelStore } from './store.js';
 import type {
+  CallStep,
+  ChannelCall,
   ChannelEvent,
   ChannelIdentity,
   ChannelInbox,
@@ -46,6 +48,14 @@ function copyLink(value: ChannelLink): ChannelLink {
     expiresAt: new Date(value.expiresAt),
   };
 }
+function copyCall(value: ChannelCall): ChannelCall {
+  return {
+    ...value,
+    createdAt: new Date(value.createdAt),
+    updatedAt: new Date(value.updatedAt),
+    expiresAt: new Date(value.expiresAt),
+  };
+}
 
 function copyInbox(value: ChannelInbox): ChannelInbox {
   return {
@@ -84,6 +94,7 @@ function copyRecording(value: ChannelRecording): ChannelRecording {
 export class MemoryChannelStore implements ChannelStore {
   readonly #identities = new Map<string, ChannelIdentity>();
   readonly #links = new Map<string, ChannelLink>();
+  readonly #calls = new Map<string, ChannelCall>();
   readonly #events = new Map<string, ChannelEvent>();
   readonly #inbox = new Map<string, ChannelInbox>();
   readonly #outbox = new Map<string, ChannelOutbox>();
@@ -141,6 +152,25 @@ export class MemoryChannelStore implements ChannelStore {
   async closeLink(phoneHash: string, recordId: string): Promise<void> {
     const value = this.#links.get(`${phoneHash}\0${recordId}`);
     if (value) value.state = 'closed';
+  }
+  async upsertCall(value: ChannelCall): Promise<void> {
+    const existing = this.#calls.get(value.callId);
+    this.#calls.set(
+      value.callId,
+      copyCall(existing ? { ...value, createdAt: existing.createdAt } : value),
+    );
+  }
+
+  async getCall(callId: string): Promise<ChannelCall | null> {
+    const value = this.#calls.get(callId);
+    return value ? copyCall(value) : null;
+  }
+
+  async markCallStep(callId: string, step: CallStep, updatedAt: Date): Promise<void> {
+    const value = this.#calls.get(callId);
+    if (!value) return;
+    value.step = step;
+    value.updatedAt = new Date(updatedAt);
   }
 
   async recordEvent(
@@ -277,9 +307,12 @@ export class MemoryChannelStore implements ChannelStore {
   async markOutboxDelivery(
     providerMessageId: string,
     state: Extract<OutboxState, 'delivered' | 'failed'>,
+    failureCode?: string,
   ): Promise<void> {
     for (const value of this.#outbox.values()) {
-      if (value.providerMessageId === providerMessageId) value.state = state;
+      if (value.providerMessageId !== providerMessageId) continue;
+      value.state = state;
+      value.lastError = failureCode ?? null;
     }
   }
 
@@ -327,6 +360,7 @@ export class MemoryChannelStore implements ChannelStore {
       inbox: 0,
       outbox: 0,
       recordings: 0,
+      calls: 0,
       links: 0,
       identities: 0,
     };
@@ -355,6 +389,12 @@ export class MemoryChannelStore implements ChannelStore {
       if (value.expiresAt <= now) {
         this.#recordings.delete(key);
         counts.recordings += 1;
+      }
+    }
+    for (const [key, value] of this.#calls) {
+      if (value.expiresAt <= now) {
+        this.#calls.delete(key);
+        counts.calls += 1;
       }
     }
     for (const [key, value] of this.#links) {

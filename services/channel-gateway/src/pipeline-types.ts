@@ -9,17 +9,12 @@ import type { LogFields } from './log.js';
 import type { ChannelStore } from './store.js';
 import type { ChannelInbox, ChannelKind } from './types.js';
 
-/** Parsed Telnyx webhook envelope (`data` of the raw body). */
-export interface TelnyxEvent {
-  /** `data.id`; used as the dedupe key in channel_events. */
+/** Parsed provider webhook event; one source result maps to one dedupe record. */
+export interface ProviderEvent {
   id: string;
-  /** `data.event_type`, e.g. `message.received`, `call.answered`. */
   eventType: string;
-  /** `data.occurred_at` (ISO string) when present. */
   occurredAt: string | null;
-  /** `data.payload`, untyped. Handlers narrow what they need. */
   payload: Record<string, unknown>;
-  /** sha256 hex of the raw request body. */
   payloadSha256: string;
 }
 
@@ -33,39 +28,36 @@ export interface SendSmsInput {
 
 export interface SpeakInput {
   text: string;
-  voice: string;
   language: string;
-  clientState?: string;
+  voice?: string;
 }
 
 export interface RecordStartInput {
-  format: 'wav';
-  channels: 'single';
   maxLengthSeconds: number;
-  timeoutSeconds: number;
-  trim: 'trim-silence';
-  playBeep: boolean;
-  commandId: string;
-  clientState?: string;
+  transcription: boolean;
 }
 
 export interface ChannelProvider {
-  readonly name: 'stub' | 'telnyx';
+  readonly name: 'stub' | 'infobip';
   sendSms(input: SendSmsInput): Promise<{ providerMessageId: string }>;
-  answerCall(callControlId: string, clientState: string): Promise<void>;
-  speak(callControlId: string, input: SpeakInput): Promise<void>;
-  recordStart(callControlId: string, input: RecordStartInput): Promise<void>;
-  hangup(callControlId: string): Promise<void>;
-  fetchRecording(url: string, maxBytes: number, timeoutMs: number): Promise<Uint8Array>;
-  deleteRecording(recordingId: string): Promise<void>;
+  answerCall(callId: string): Promise<void>;
+  speak(callId: string, input: SpeakInput): Promise<void>;
+  recordStart(callId: string, input: RecordStartInput): Promise<void>;
+  hangup(callId: string): Promise<void>;
+  listRecordings(
+    callId: string,
+  ): Promise<Array<{ fileId: string; durationSeconds: number | null }>>;
+  fetchRecording(fileId: string, maxBytes: number, timeoutMs: number): Promise<Uint8Array>;
+  deleteRecording(fileId: string): Promise<void>;
 }
 
 export interface SttProvider {
-  readonly name: 'stub' | 'openai-compatible';
+  readonly name: 'stub' | 'openai-compatible' | 'infobip';
   transcribe(input: {
     audio: Uint8Array;
     mimeType: 'audio/wav';
     languageHint: 'hr';
+    providerFileId?: string;
   }): Promise<{ text: string; durationSeconds: number | null }>;
 }
 

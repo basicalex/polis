@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import type { ChannelConfig } from './config.js';
 import { createTraceClient, idempotencyUuid, TraceClientError } from './trace-client.js';
-import type { FetchImplementation } from './telnyx-client.js';
+import type { FetchImplementation } from './infobip-client.js';
 
 function config(): ChannelConfig {
   return {

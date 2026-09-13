@@ -82,6 +82,9 @@ function fixture(
       async speak() {},
       async recordStart() {},
       async hangup() {},
+      async listRecordings() {
+        return [];
+      },
       async fetchRecording() {
         return new Uint8Array();
       },

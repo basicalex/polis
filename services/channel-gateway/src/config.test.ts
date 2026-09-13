@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 
 import { parseChannelConfig } from './config.js';
@@ -82,53 +81,71 @@ test('pilot requires explicit providers and the processing agreement for either 
     parse({ DEPLOYMENT_PROFILE: 'pilot', CHANNEL_PROVIDER: 'stub', STT_PROVIDER: 'stub' }),
   );
   assert.throws(() => parse({ STT_PROVIDER: 'openai-compatible' }), /CHANNEL_PROCESSING_AGREEMENT/);
-  assert.throws(() => parse({ CHANNEL_PROVIDER: 'telnyx' }), /CHANNEL_PROCESSING_AGREEMENT/);
+  assert.throws(() => parse({ CHANNEL_PROVIDER: 'infobip' }), /CHANNEL_PROCESSING_AGREEMENT/);
 });
 
-test('Telnyx settings validate E.164, Ed25519 keys, voice, tolerance, and placeholders', () => {
-  const publicKey = generateKeyPairSync('ed25519')
-    .publicKey.export({ type: 'spki', format: 'pem' })
-    .toString();
-  const telnyx: NodeJS.ProcessEnv = {
-    CHANNEL_PROVIDER: 'telnyx',
+test('Infobip settings validate transport, secrets, sender, defaults, and placeholders', () => {
+  const infobip: NodeJS.ProcessEnv = {
+    CHANNEL_PROVIDER: 'infobip',
     CHANNEL_PROCESSING_AGREEMENT: 'true',
     CHANNEL_NUMBER_E164: '+385911234567',
-    TELNYX_API_KEY: 'real-telnyx-key',
-    TELNYX_PUBLIC_KEY: publicKey,
-    TELNYX_MESSAGING_PROFILE_ID: 'profile-1',
-    TELNYX_CONNECTION_ID: 'connection-1',
+    INFOBIP_BASE_URL: 'https://account.api.infobip.com',
+    INFOBIP_API_KEY: 'real-infobip-key',
+    INFOBIP_WEBHOOK_SECRET: 'a-real-webhook-secret-at-least-32-characters',
+    INFOBIP_CALLS_CONFIGURATION_ID: 'calls-config-1',
   };
-  const config = parse(telnyx);
-  assert.equal(config.telnyx?.ttsVoice, 'Azure.hr-HR-GabrijelaNeural');
-  assert.equal(config.telnyx?.signatureToleranceSeconds, 300);
+  const config = parse(infobip);
+  assert.equal(config.infobip?.baseUrl, 'https://account.api.infobip.com/');
+  assert.equal(config.infobip?.sender, '+385911234567');
+  assert.equal(config.infobip?.webhookSignatureHeader, 'x-hub-signature');
+  assert.equal(config.infobip?.ttsLanguage, 'hr');
+  assert.equal(config.infobip?.ttsVoice, undefined);
+  assert.doesNotThrow(() =>
+    parse({
+      ...infobip,
+      INFOBIP_BASE_URL: 'http://127.0.0.1:8080',
+      INFOBIP_SENDER: '+385981234567',
+      INFOBIP_WEBHOOK_SIGNATURE_HEADER: 'X-Infobip-Signature',
+      INFOBIP_TTS_LANGUAGE: 'hr-HR',
+      INFOBIP_TTS_VOICE: 'Ivana',
+    }),
+  );
   for (const [key, value] of [
-    ['CHANNEL_NUMBER_E164', '0911234567'],
-    ['TELNYX_PUBLIC_KEY', 'bad'],
-    ['TELNYX_TTS_VOICE', 'other.voice'],
-    ['TELNYX_SIGNATURE_TOLERANCE_S', '29'],
-    ['TELNYX_SIGNATURE_TOLERANCE_S', '901'],
+    ['INFOBIP_BASE_URL', 'http://api.infobip.test'],
+    ['INFOBIP_BASE_URL', 'https://user:pass@api.infobip.test'],
+    ['INFOBIP_API_KEY', ''],
+    ['INFOBIP_WEBHOOK_SECRET', 'too-short'],
+    ['INFOBIP_WEBHOOK_SIGNATURE_HEADER', 'bad header'],
+    ['INFOBIP_SENDER', '0911234567'],
+    ['INFOBIP_CALLS_CONFIGURATION_ID', ''],
+    ['INFOBIP_TTS_LANGUAGE', ''],
+    ['INFOBIP_TTS_VOICE', ''],
   ]) {
-    assert.throws(() => parse({ ...telnyx, [key]: value }), new RegExp(key));
+    assert.throws(() => parse({ ...infobip, [key]: value }), new RegExp(key));
   }
-  for (const placeholder of [
-    'change-me',
-    'stub',
-    'example.com',
-    'secret.example',
-    'secret.invalid',
-    'has-placeholder',
-  ]) {
+  for (const placeholder of ['change-me', 'stub', 'example.com', 'secret.invalid']) {
     assert.throws(
       () =>
         parse({
-          ...telnyx,
+          ...infobip,
           DEPLOYMENT_PROFILE: 'pilot',
           STT_PROVIDER: 'stub',
-          TELNYX_API_KEY: placeholder,
+          INFOBIP_API_KEY: placeholder,
         }),
-      /TELNYX_API_KEY/,
+      /INFOBIP_API_KEY/,
     );
   }
+});
+
+test('Infobip STT requires the Infobip channel provider', () => {
+  assert.throws(
+    () =>
+      parse({
+        STT_PROVIDER: 'infobip',
+        CHANNEL_PROCESSING_AGREEMENT: 'true',
+      }),
+    /STT_PROVIDER=infobip requires CHANNEL_PROVIDER=infobip/,
+  );
 });
 
 test('openai-compatible STT requires safe transport, credentials, model, and bounds', () => {
@@ -196,14 +213,14 @@ test('tunables reject unsafe enum, boolean, zero distortion, and out-of-range in
   assert.throws(
     () =>
       parse({
-        CHANNEL_PROVIDER: 'telnyx',
+        CHANNEL_PROVIDER: 'infobip',
         CHANNEL_PROCESSING_AGREEMENT: 'true',
         CHANNEL_ALLOW_STUB_INJECTION: 'true',
         CHANNEL_NUMBER_E164: '+385911234567',
-        TELNYX_API_KEY: 'real-telnyx-key',
-        TELNYX_PUBLIC_KEY: Buffer.alloc(32, 3).toString('base64'),
-        TELNYX_MESSAGING_PROFILE_ID: 'profile-1',
-        TELNYX_CONNECTION_ID: 'connection-1',
+        INFOBIP_BASE_URL: 'https://account.api.infobip.com',
+        INFOBIP_API_KEY: 'real-infobip-key',
+        INFOBIP_WEBHOOK_SECRET: 'a-real-webhook-secret-at-least-32-characters',
+        INFOBIP_CALLS_CONFIGURATION_ID: 'calls-config-1',
       }),
     /CHANNEL_ALLOW_STUB_INJECTION/,
   );

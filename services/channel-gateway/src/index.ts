@@ -33,7 +33,7 @@ export * from './retention.js';
 export * from './routes.js';
 export * from './store.js';
 export * from './stub-provider.js';
-export * from './telnyx-client.js';
+export * from './infobip-client.js';
 export * from './trace-client.js';
 export * from './types.js';
 

@@ -50,8 +50,6 @@ export class StubChannelProvider implements ChannelProvider {
   readonly sentMessages: StubSentMessage[] = [];
   readonly commands: string[] = [];
   #messageCounter = 0;
-  #recordingCounter = 0;
-
   async sendSms(input: SendSmsInput): Promise<{ providerMessageId: string }> {
     this.#messageCounter += 1;
     const providerMessageId = nextId('stub-msg', this.#messageCounter);
@@ -59,25 +57,29 @@ export class StubChannelProvider implements ChannelProvider {
     return { providerMessageId };
   }
 
-  async answerCall(callControlId: string, clientState: string): Promise<void> {
-    this.commands.push(`answer:${callControlId}:${clientState}`);
+  async answerCall(callId: string): Promise<void> {
+    this.commands.push(`answer:${callId}`);
   }
 
-  async speak(callControlId: string, input: SpeakInput): Promise<void> {
-    this.commands.push(`speak:${callControlId}:${input.language}:${input.voice}:${input.text}`);
+  async speak(callId: string, input: SpeakInput): Promise<void> {
+    this.commands.push(`speak:${callId}:${input.language}:${input.voice ?? ''}:${input.text}`);
   }
 
-  async recordStart(callControlId: string, input: RecordStartInput): Promise<void> {
-    this.#recordingCounter += 1;
+  async recordStart(callId: string, input: RecordStartInput): Promise<void> {
     this.commands.push(
-      `record_start:${callControlId}:${input.commandId}:${nextId('stub-rec', this.#recordingCounter)}`,
+      `record_start:${callId}:${input.maxLengthSeconds}:${String(input.transcription)}`,
     );
   }
 
-  async hangup(callControlId: string): Promise<void> {
-    this.commands.push(`hangup:${callControlId}`);
+  async hangup(callId: string): Promise<void> {
+    this.commands.push(`hangup:${callId}`);
   }
 
+  async listRecordings(
+    callId: string,
+  ): Promise<Array<{ fileId: string; durationSeconds: number | null }>> {
+    return [{ fileId: `stub-rec-${callId}`, durationSeconds: 1 }];
+  }
   async fetchRecording(): Promise<Uint8Array> {
     return wavTone();
   }

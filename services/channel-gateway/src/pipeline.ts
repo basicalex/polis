@@ -3,15 +3,16 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 
-import { openString, phoneHash, sealString, verifyTelnyxSignature } from './crypto.js';
+import { SMS_APPENDED, SMS_BLOCKED, SMS_CONFIRM } from './copy-hr.js';
+import { openString, phoneHash, sealString, verifyInfobipSignature } from './crypto.js';
+import { INFOBIP_EVENT_TYPES } from './infobip-api.js';
 import { phoneHashPrefix } from './log.js';
 import { normalizeE164 } from './phone.js';
+import type { InboxRow, PipelineDeps, ProviderEvent } from './pipeline-types.js';
 import type { ChannelLink, ChannelOutbox } from './types.js';
-import { SMS_APPENDED, SMS_BLOCKED, SMS_CONFIRM } from './copy-hr.js';
 import { handleRecordingSaved } from './voice.js';
 
-export type { TelnyxEvent, PipelineDeps, InboxRow } from './pipeline-types.js';
-import type { PipelineDeps, TelnyxEvent, InboxRow } from './pipeline-types.js';
+export type { InboxRow, PipelineDeps, ProviderEvent } from './pipeline-types.js';
 
 type HeaderBag = Record<string, string | string[] | undefined> | Headers;
 
@@ -37,6 +38,7 @@ function header(headers: HeaderBag, name: string): string | undefined {
   }
   return undefined;
 }
+
 function emitAudit(deps: PipelineDeps, event: Parameters<PipelineDeps['audit']['emit']>[0]): void {
   void deps.audit.emit(event).catch(() => undefined);
 }
@@ -64,57 +66,84 @@ function plus(ms: number, deps: PipelineDeps): Date {
   return new Date(deps.now().getTime() + ms);
 }
 
-function parseEvent(rawBody: Uint8Array): TelnyxEvent | null {
-  let parsed: unknown;
+function parseResults(rawBody: Uint8Array): Record<string, unknown>[] | null {
   try {
-    parsed = JSON.parse(Buffer.from(rawBody).toString('utf8'));
+    const parsed: unknown = JSON.parse(Buffer.from(rawBody).toString('utf8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const results = (parsed as Record<string, unknown>).results;
+    if (!Array.isArray(results)) return null;
+    const records: Record<string, unknown>[] = [];
+    for (const result of results) {
+      if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+      records.push(result as Record<string, unknown>);
+    }
+    return records;
   } catch {
     return null;
   }
-  if (!parsed || typeof parsed !== 'object') return null;
-  const data = (parsed as { data?: unknown }).data;
-  if (!data || typeof data !== 'object') return null;
-  const record = data as Record<string, unknown>;
-  const id = record.id;
-  const eventType = record.event_type;
-  if (typeof id !== 'string' || id.length === 0) return null;
-  if (typeof eventType !== 'string' || eventType.length === 0) return null;
-  const payload = record.payload;
-  return {
-    id,
-    eventType,
-    occurredAt: typeof record.occurred_at === 'string' ? record.occurred_at : null,
-    payload: payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {},
-    payloadSha256: sha256Hex(rawBody),
-  };
+}
+
+function parseMessagingEvents(rawBody: Uint8Array): ProviderEvent[] | null {
+  const results = parseResults(rawBody);
+  if (!results) return null;
+  const payloadSha256 = sha256Hex(rawBody);
+  const events: ProviderEvent[] = [];
+  for (const payload of results) {
+    const id = payload.messageId;
+    if (typeof id !== 'string' || id.length === 0) return null;
+    events.push({
+      id,
+      eventType: INFOBIP_EVENT_TYPES.smsReceived,
+      occurredAt: typeof payload.receivedAt === 'string' ? payload.receivedAt : null,
+      payload,
+      payloadSha256,
+    });
+  }
+  return events;
+}
+
+function parseDeliveryEvents(rawBody: Uint8Array): ProviderEvent[] | null {
+  const results = parseResults(rawBody);
+  if (!results) return null;
+  const payloadSha256 = sha256Hex(rawBody);
+  const events: ProviderEvent[] = [];
+  for (const payload of results) {
+    const messageId = payload.messageId;
+    const status =
+      payload.status && typeof payload.status === 'object' && !Array.isArray(payload.status)
+        ? (payload.status as Record<string, unknown>)
+        : null;
+    const groupName = status?.groupName;
+    if (
+      typeof messageId !== 'string' ||
+      messageId.length === 0 ||
+      typeof groupName !== 'string' ||
+      groupName.length === 0
+    ) {
+      return null;
+    }
+    events.push({
+      id: `${messageId}:${groupName}`,
+      eventType: INFOBIP_EVENT_TYPES.smsDelivery,
+      occurredAt:
+        typeof payload.doneAt === 'string'
+          ? payload.doneAt
+          : typeof payload.sentAt === 'string'
+            ? payload.sentAt
+            : null,
+      payload,
+      payloadSha256,
+    });
+  }
+  return events;
 }
 
 function payloadText(payload: Record<string, unknown>): string {
-  const text = payload.text;
-  return typeof text === 'string' ? text : '';
+  return typeof payload.text === 'string' ? payload.text : '';
 }
 
 function payloadFrom(payload: Record<string, unknown>): string | null {
-  const from = payload.from;
-  if (!from || typeof from !== 'object') return null;
-  const phone = (from as Record<string, unknown>).phone_number;
-  return typeof phone === 'string' ? phone : null;
-}
-function payloadMessageId(payload: Record<string, unknown>): string | null {
-  const value = payload.id;
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function deliveryState(event: TelnyxEvent): 'delivered' | 'failed' {
-  if (event.eventType === 'message.sent') return 'delivered';
-  const recipients = event.payload.to;
-  if (!Array.isArray(recipients)) return 'delivered';
-  const failed = recipients.some((recipient) => {
-    if (!recipient || typeof recipient !== 'object') return false;
-    const status = (recipient as Record<string, unknown>).status;
-    return typeof status === 'string' && /fail|reject|expire/i.test(status);
-  });
-  return failed ? 'failed' : 'delivered';
+  return typeof payload.from === 'string' ? payload.from : null;
 }
 
 function sealBody(
@@ -164,7 +193,7 @@ async function enqueueConfirmation(
 ): Promise<void> {
   const { version, sealed } = sealBody(deps, input.text, 'outbox-body');
   const now = deps.now();
-  const row: ChannelOutbox = {
+  await deps.store.enqueueOutbox({
     id: randomUUID(),
     sourceMessageId: input.sourceMessageId,
     recordId: input.recordId,
@@ -183,8 +212,7 @@ async function enqueueConfirmation(
     sentAt: null,
     createdAt: now,
     expiresAt: ttl(deps, deps.config.vaultTtlDays),
-  };
-  await deps.store.enqueueOutbox(row);
+  });
 }
 
 async function upsertIdentity(deps: PipelineDeps, e164: string, hash: string): Promise<void> {
@@ -205,54 +233,40 @@ async function upsertIdentity(deps: PipelineDeps, e164: string, hash: string): P
   });
 }
 
-export async function handleMessagingEvent(
+function signatureAccepted(
   rawBody: Uint8Array,
   headers: HeaderBag,
   deps: PipelineDeps,
-  options: MessagingOptions = {},
-): Promise<MessagingResult> {
-  if (!options.stubInjection) {
-    const telnyx = deps.config.telnyx;
-    if (
-      !telnyx ||
-      !verifyTelnyxSignature({
-        publicKey: telnyx.publicKey,
-        signature: header(headers, 'telnyx-signature-ed25519'),
-        timestamp: header(headers, 'telnyx-timestamp'),
-        rawBody,
-        toleranceSeconds: telnyx.signatureToleranceSeconds,
-        now: Math.floor(deps.now().getTime() / 1000),
-      })
-    ) {
-      return { status: 401, body: { error: 'invalid_signature' } };
-    }
-  } else if (deps.config.channelProvider !== 'stub') {
-    return { status: 401, body: { error: 'invalid_signature' } };
-  }
-
-  const event = parseEvent(rawBody);
-  if (!event) return { status: 400, body: { error: 'invalid_event' } };
-  const recorded = await deps.store.recordEvent(
-    deps.provider.name,
-    event.id,
-    event.eventType,
-    event.payloadSha256,
+  options: MessagingOptions,
+): boolean {
+  if (options.stubInjection) return deps.config.channelProvider === 'stub';
+  const infobip = deps.config.infobip;
+  return (
+    infobip !== undefined &&
+    verifyInfobipSignature({
+      secret: infobip.webhookSecret,
+      header: header(headers, infobip.webhookSignatureHeader),
+      rawBody,
+    })
   );
-  if (recorded.duplicate) return { status: 202, body: { accepted: true, duplicate: true } };
+}
 
+async function recordProviderEvent(
+  event: ProviderEvent,
+  deps: PipelineDeps,
+): Promise<{ duplicate: boolean }> {
+  // Infobip has no timestamp in its signature; channel_events dedupe plus EVENT_TTL is replay protection.
+  return deps.store.recordEvent(deps.provider.name, event.id, event.eventType, event.payloadSha256);
+}
+
+async function processMessagingEvent(
+  event: ProviderEvent,
+  deps: PipelineDeps,
+  options: MessagingOptions,
+): Promise<string | undefined> {
+  const recorded = await recordProviderEvent(event, deps);
+  if (recorded.duplicate) return 'duplicate';
   try {
-    if (event.eventType === 'message.sent' || event.eventType === 'message.finalized') {
-      const providerMessageId = payloadMessageId(event.payload);
-      if (providerMessageId) {
-        await deps.store.markOutboxDelivery(providerMessageId, deliveryState(event));
-      }
-      await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, duplicate: false } };
-    }
-    if (event.eventType !== 'message.received') {
-      await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, duplicate: false } };
-    }
     const from = payloadFrom(event.payload);
     let e164: string;
     try {
@@ -266,7 +280,7 @@ export async function handleMessagingEvent(
         eventId: event.id,
       });
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, code: 'sender_rejected' } };
+      return 'sender_rejected';
     }
     const hash = phoneHash(e164, deps.config.vaultPepper, deps.config.municipalityId);
     await upsertIdentity(deps, e164, hash);
@@ -290,16 +304,16 @@ export async function handleMessagingEvent(
         phoneHashPrefix: phoneHashPrefix(hash),
       });
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, duplicate: false } };
+      return undefined;
     }
     if (SMS_COMMAND_START.test(normalized)) {
       await deps.store.setBlocked(hash, false);
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, duplicate: false } };
+      return undefined;
     }
     if ((await deps.store.getIdentity(hash))?.blocked) {
       await deps.store.markEvent(deps.provider.name, event.id, 'processed');
-      return { status: 202, body: { accepted: true, duplicate: false } };
+      return undefined;
     }
 
     const { version, sealed } = sealBody(deps, text, 'sms-body');
@@ -346,7 +360,7 @@ export async function handleMessagingEvent(
         });
       });
     }
-    return { status: 202, body: { accepted: true, duplicate: false } };
+    return undefined;
   } catch (error) {
     await deps.store.markEvent(
       deps.provider.name,
@@ -356,6 +370,73 @@ export async function handleMessagingEvent(
     );
     throw error;
   }
+}
+
+export async function handleMessagingEvent(
+  rawBody: Uint8Array,
+  headers: HeaderBag,
+  deps: PipelineDeps,
+  options: MessagingOptions = {},
+): Promise<MessagingResult> {
+  if (!signatureAccepted(rawBody, headers, deps, options)) {
+    return { status: 401, body: { error: 'invalid_signature' } };
+  }
+  const events = parseMessagingEvents(rawBody);
+  if (!events || events.length === 0) return { status: 400, body: { error: 'invalid_event' } };
+  const results: Array<string | undefined> = [];
+  for (const event of events) results.push(await processMessagingEvent(event, deps, options));
+  const code = results.find((result) => result && result !== 'duplicate');
+  return {
+    status: 202,
+    body: {
+      accepted: true,
+      duplicate: results.every((result) => result === 'duplicate'),
+      ...(code ? { code } : {}),
+    },
+  };
+}
+
+export async function handleDeliveryEvent(
+  rawBody: Uint8Array,
+  headers: HeaderBag,
+  deps: PipelineDeps,
+  options: MessagingOptions = {},
+): Promise<MessagingResult> {
+  if (!signatureAccepted(rawBody, headers, deps, options)) {
+    return { status: 401, body: { error: 'invalid_signature' } };
+  }
+  const events = parseDeliveryEvents(rawBody);
+  if (!events || events.length === 0) return { status: 400, body: { error: 'invalid_event' } };
+  const duplicates: boolean[] = [];
+  for (const event of events) {
+    const recorded = await recordProviderEvent(event, deps);
+    duplicates.push(recorded.duplicate);
+    if (recorded.duplicate) continue;
+    try {
+      const status = event.payload.status as Record<string, unknown>;
+      const groupName = status.groupName as string;
+      const messageId = event.payload.messageId as string;
+      if (groupName === 'DELIVERED') {
+        await deps.store.markOutboxDelivery(messageId, 'delivered');
+      } else if (['UNDELIVERABLE', 'REJECTED', 'EXPIRED'].includes(groupName)) {
+        const failureCode = typeof status.name === 'string' ? status.name : groupName;
+        await deps.store.markOutboxDelivery(messageId, 'failed', failureCode);
+      }
+      await deps.store.markEvent(deps.provider.name, event.id, 'processed');
+    } catch (error) {
+      await deps.store.markEvent(
+        deps.provider.name,
+        event.id,
+        'failed',
+        error instanceof Error ? error.message : 'failed',
+      );
+      throw error;
+    }
+  }
+  return {
+    status: 202,
+    body: { accepted: true, duplicate: duplicates.every(Boolean) },
+  };
 }
 
 function selectedLink(links: ChannelLink[], text: string): ChannelLink | null {
@@ -524,4 +605,4 @@ export async function runInboxCycle(
   return { processed, failed };
 }
 
-export const __private = { parseEvent, sha256Hex, openBody };
+export const __private = { parseMessagingEvents, parseDeliveryEvents, sha256Hex, openBody };

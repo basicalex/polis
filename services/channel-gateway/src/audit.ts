@@ -5,7 +5,7 @@ import { fetchWithTimeout, internalHeaders } from '@polis/service-runtime';
 
 import type { ChannelConfig } from './config.js';
 import type { AuditClient } from './pipeline-types.js';
-import type { FetchImplementation } from './telnyx-client.js';
+import type { FetchImplementation } from './infobip-client.js';
 import type { ChannelKind } from './types.js';
 
 const AUDIT_TIMEOUT_MS = 5_000;

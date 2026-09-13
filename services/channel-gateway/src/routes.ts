@@ -5,11 +5,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { operationalRoutes, result, type HttpResult, type Route } from '@polis/service-runtime';
 
-import { verifyTelnyxSignature } from './crypto.js';
-import { phoneHash } from './crypto.js';
+import { phoneHash, verifyInfobipSignature } from './crypto.js';
+import { INFOBIP_EVENT_TYPES } from './infobip-api.js';
 import { normalizeE164 } from './phone.js';
-import { handleMessagingEvent, runInboxCycle } from './pipeline.js';
-import type { PipelineDeps, TelnyxEvent } from './pipeline-types.js';
+import { handleDeliveryEvent, handleMessagingEvent, runInboxCycle } from './pipeline.js';
+import type { PipelineDeps, ProviderEvent } from './pipeline-types.js';
 import { deliverOutbound, runRelayCycle } from './relay.js';
 import { purgeExpired } from './retention.js';
 import { handleVoiceEvent } from './voice.js';
@@ -29,26 +29,41 @@ function headerValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function parseEvent(rawBody: Uint8Array): TelnyxEvent | null {
-  let envelope: unknown;
+function parseVoiceEvent(rawBody: Uint8Array): ProviderEvent | null {
+  let parsed: unknown;
   try {
-    envelope = JSON.parse(Buffer.from(rawBody).toString('utf8'));
+    parsed = JSON.parse(Buffer.from(rawBody).toString('utf8'));
   } catch {
     return null;
   }
-  if (typeof envelope !== 'object' || envelope === null || !('data' in envelope)) return null;
-  const data = (envelope as { data?: unknown }).data;
-  if (typeof data !== 'object' || data === null) return null;
-  const record = data as Record<string, unknown>;
-  if (typeof record.id !== 'string' || record.id.length === 0) return null;
-  if (typeof record.event_type !== 'string' || record.event_type.length === 0) return null;
-  const payload = record.payload;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const payload = parsed as Record<string, unknown>;
+  const callId = payload.callId;
+  const eventType = payload.type;
+  const timestamp = payload.timestamp;
+  if (
+    typeof callId !== 'string' ||
+    callId.length === 0 ||
+    typeof eventType !== 'string' ||
+    eventType.length === 0 ||
+    typeof timestamp !== 'string' ||
+    timestamp.length === 0
+  ) {
+    return null;
+  }
+  const topLevelId =
+    typeof payload.id === 'string' && payload.id.length > 0
+      ? payload.id
+      : typeof payload.eventId === 'string' && payload.eventId.length > 0
+        ? payload.eventId
+        : null;
   return {
-    id: record.id,
-    eventType: record.event_type,
-    occurredAt: typeof record.occurred_at === 'string' ? record.occurred_at : null,
-    payload:
-      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {},
+    id:
+      topLevelId ??
+      createHash('sha256').update(`${callId}|${eventType}|${timestamp}`).digest('hex'),
+    eventType,
+    occurredAt: timestamp,
+    payload,
     payloadSha256: createHash('sha256').update(rawBody).digest('hex'),
   };
 }
@@ -58,28 +73,17 @@ function verifyWebhookRequest(
   headers: Record<string, string | string[] | undefined>,
   deps: PipelineDeps,
 ): boolean {
-  const telnyx = deps.config.telnyx;
-  if (!telnyx) return false;
-  return verifyTelnyxSignature({
-    publicKey: telnyx.publicKey,
-    signature: headerValue(headers['telnyx-signature-ed25519']),
-    timestamp: headerValue(headers['telnyx-timestamp']),
+  const infobip = deps.config.infobip;
+  if (!infobip) return false;
+  return verifyInfobipSignature({
+    secret: infobip.webhookSecret,
+    header: headerValue(headers[infobip.webhookSignatureHeader]),
     rawBody,
-    toleranceSeconds: telnyx.signatureToleranceSeconds,
-    now: deps.now(),
   });
-}
-
-function syntheticRaw(event: Record<string, unknown>): Uint8Array {
-  return Buffer.from(JSON.stringify({ data: event }), 'utf8');
 }
 
 function payloadString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function clientState(value: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
 }
 
 function providerState(provider: PipelineDeps['provider']): StubProviderState {
@@ -155,7 +159,7 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
     ...operational,
     {
       method: 'POST',
-      path: '/internal/channel/webhooks/telnyx/messaging',
+      path: '/internal/channel/webhooks/infobip/sms',
       bodyMode: 'raw',
       maxBodyBytes: MAX_WEBHOOK_BYTES,
       handler: async (req, body) =>
@@ -163,7 +167,15 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
     },
     {
       method: 'POST',
-      path: '/internal/channel/webhooks/telnyx/voice',
+      path: '/internal/channel/webhooks/infobip/sms-reports',
+      bodyMode: 'raw',
+      maxBodyBytes: MAX_WEBHOOK_BYTES,
+      handler: async (req, body) =>
+        routeResult(await handleDeliveryEvent(rawBytes(body), req.headers, fullDeps)),
+    },
+    {
+      method: 'POST',
+      path: '/internal/channel/webhooks/infobip/calls',
       bodyMode: 'raw',
       maxBodyBytes: MAX_WEBHOOK_BYTES,
       handler: async (req, body) => {
@@ -171,18 +183,33 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
         if (!verifyWebhookRequest(rawBody, req.headers, fullDeps)) {
           return result(401, { error: 'invalid_signature' });
         }
-        const event = parseEvent(rawBody);
+        const event = parseVoiceEvent(rawBody);
         if (!event) return result(400, { error: 'invalid_event' });
+        const recorded = await fullDeps.store.recordEvent(
+          fullDeps.provider.name,
+          event.id,
+          event.eventType,
+          event.payloadSha256,
+        );
+        if (recorded.duplicate) return result(202, { accepted: true, duplicate: true });
         queueMicrotask(() => {
-          void handleVoiceEvent(event, fullDeps).catch((error: unknown) => {
-            fullDeps.log({
-              service: 'channel-gateway',
-              stage: 'voice-webhook',
-              code: 'processing_failed',
-              eventId: event.id,
-              error: error instanceof Error ? error.message : 'voice_webhook_failed',
+          void handleVoiceEvent(event, fullDeps)
+            .then(() => fullDeps.store.markEvent(fullDeps.provider.name, event.id, 'processed'))
+            .catch(async (error: unknown) => {
+              await fullDeps.store.markEvent(
+                fullDeps.provider.name,
+                event.id,
+                'failed',
+                error instanceof Error ? error.message : 'voice_webhook_failed',
+              );
+              fullDeps.log({
+                service: 'channel-gateway',
+                stage: 'voice-webhook',
+                code: 'processing_failed',
+                eventId: event.id,
+                error: error instanceof Error ? error.message : 'voice_webhook_failed',
+              });
             });
-          });
         });
         return result(202, { accepted: true, duplicate: false });
       },
@@ -212,13 +239,21 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
         const sentStart = state.sentMessages?.length ?? 0;
         const commandStart = state.commands?.length ?? 0;
         const accepted = await handleMessagingEvent(
-          syntheticRaw({
-            id: `stub-message-${randomUUID()}`,
-            event_type: 'message.received',
-            occurred_at: fullDeps.now().toISOString(),
-            record_type: 'event',
-            payload: { from: { phone_number: from }, to: [], text },
-          }),
+          Buffer.from(
+            JSON.stringify({
+              results: [
+                {
+                  messageId: `stub-message-${randomUUID()}`,
+                  from,
+                  to: fullDeps.config.infobip?.sender ?? '+38500000000',
+                  text,
+                  receivedAt: fullDeps.now().toISOString(),
+                },
+              ],
+              messageCount: 1,
+              pendingMessageCount: 0,
+            }),
+          ),
           {},
           fullDeps,
           { stubInjection: true, scheduleProcessing: false },
@@ -244,52 +279,33 @@ export function channelRoutes(deps: Partial<PipelineDeps> = {}): Route[] {
         const state = providerState(fullDeps.provider);
         const sentStart = state.sentMessages?.length ?? 0;
         const commandStart = state.commands?.length ?? 0;
-        const callControlId = `stub-call-control-${randomUUID()}`;
-        const occurredAt = fullDeps.now().toISOString();
+        const id = `stub-call-${randomUUID()}`;
+        const timestamp = fullDeps.now().toISOString();
+        const call = { id, direction: 'INBOUND', from: e164, to: '+38500000000' };
         const voiceEvent = async (
           eventType: string,
-          payload: Record<string, unknown>,
+          properties: Record<string, unknown>,
         ): Promise<void> => {
-          const parsed = parseEvent(
-            syntheticRaw({
+          await handleVoiceEvent(
+            {
               id: `stub-voice-${randomUUID()}`,
-              event_type: eventType,
-              occurred_at: occurredAt,
-              record_type: 'event',
-              payload,
-            }),
+              eventType,
+              occurredAt: timestamp,
+              payload: { callId: id, type: eventType, timestamp, properties },
+              payloadSha256: createHash('sha256')
+                .update(`${id}|${eventType}|${timestamp}`)
+                .digest('hex'),
+            },
+            fullDeps,
           );
-          if (!parsed) throw new Error('invalid synthetic voice event');
-          await handleVoiceEvent(parsed, fullDeps);
         };
-        await voiceEvent('call.initiated', {
-          direction: 'incoming',
-          from: e164,
-          call_control_id: callControlId,
+        await voiceEvent(INFOBIP_EVENT_TYPES.callReceived, { call });
+        await voiceEvent(INFOBIP_EVENT_TYPES.callEstablished, { call });
+        await voiceEvent(INFOBIP_EVENT_TYPES.sayFinished, { call });
+        await voiceEvent(INFOBIP_EVENT_TYPES.callRecordingStopped, {
+          call,
+          recording: { files: [{ fileId: `stub-rec-${id}`, durationSeconds: 1 }] },
         });
-        await voiceEvent('call.answered', { from: e164, call_control_id: callControlId });
-        const hash = phoneHash(e164, fullDeps.config.vaultPepper, fullDeps.config.municipalityId);
-        const link = (await fullDeps.store.listOpenLinks(hash))[0];
-        if (link) {
-          await voiceEvent('call.speak.ended', {
-            call_control_id: callControlId,
-            client_state: clientState({
-              step: 'prompt',
-              caseNumber: link.caseNumber,
-              recordId: link.recordId,
-            }),
-          });
-          await voiceEvent('call.recording.saved', {
-            call_control_id: callControlId,
-            recording_id: `stub-rec-${callControlId}`,
-            recording_urls: { wav: `stub://recording/stub-rec-${callControlId}` },
-            client_state: clientState({
-              step: 'recording',
-              caseNumber: link.caseNumber,
-              recordId: link.recordId,
-            }),
-          });
-        }
         return stubResponse(fullDeps, from, sentStart, commandStart);
       },
     },

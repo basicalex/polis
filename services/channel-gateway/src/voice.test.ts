@@ -2,115 +2,104 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 
 import { generateTone } from './audio/wav.js';
-import { SMS_CONFIRM } from './copy-hr.js';
-import { openString, phoneHash } from './crypto.js';
+import { PROMPT_HR } from './copy-hr.js';
 import { MemoryChannelStore } from './memory-store.js';
 import type {
   ChannelProvider,
   PipelineDeps,
+  ProviderEvent,
   RecordStartInput,
   SendSmsInput,
   SpeakInput,
   SttProvider,
-  TelnyxEvent,
 } from './pipeline-types.js';
-import type { ChannelStore } from './store.js';
 import type { ChannelInbox } from './types.js';
 import { handleRecordingSaved, handleVoiceEvent } from './voice.js';
 
 const key = Buffer.from('0123456789abcdef0123456789abcdef');
 const now = new Date('2026-09-12T12:00:00.000Z');
+const phone = ['+385', '91', '111', '1111'].join('');
 
 class StubProvider implements ChannelProvider {
   readonly name = 'stub' as const;
-  readonly answers: Array<{ callControlId: string; clientState: string }> = [];
-  readonly speaks: Array<{ callControlId: string; input: SpeakInput }> = [];
-  readonly records: Array<{ callControlId: string; input: RecordStartInput }> = [];
+  readonly answers: string[] = [];
+  readonly speaks: Array<{ callId: string; input: SpeakInput }> = [];
+  readonly records: Array<{ callId: string; input: RecordStartInput }> = [];
   readonly hangups: string[] = [];
   readonly deletes: string[] = [];
-  recordingBytes: Uint8Array<ArrayBufferLike> = new Uint8Array();
-  lastFetch: { url: string; maxBytes: number; timeoutMs: number } | null = null;
+  readonly deleteAttempts: string[] = [];
+  deleteFailuresRemaining = 0;
+  files: Array<{ fileId: string; durationSeconds: number | null }> = [];
+  recordingBytes = generateTone(0.25, 440, 16_000);
 
   async sendSms(_input: SendSmsInput): Promise<{ providerMessageId: string }> {
     return { providerMessageId: 'unused' };
   }
 
-  async answerCall(callControlId: string, clientState: string): Promise<void> {
-    this.answers.push({ callControlId, clientState });
+  async answerCall(callId: string): Promise<void> {
+    this.answers.push(callId);
   }
 
-  async speak(callControlId: string, input: SpeakInput): Promise<void> {
-    this.speaks.push({ callControlId, input });
+  async speak(callId: string, input: SpeakInput): Promise<void> {
+    this.speaks.push({ callId, input });
   }
 
-  async recordStart(callControlId: string, input: RecordStartInput): Promise<void> {
-    this.records.push({ callControlId, input });
+  async recordStart(callId: string, input: RecordStartInput): Promise<void> {
+    this.records.push({ callId, input });
   }
 
-  async hangup(callControlId: string): Promise<void> {
-    this.hangups.push(callControlId);
+  async hangup(callId: string): Promise<void> {
+    this.hangups.push(callId);
   }
 
-  async fetchRecording(url: string, maxBytes: number, timeoutMs: number): Promise<Uint8Array> {
-    this.lastFetch = { url, maxBytes, timeoutMs };
+  async listRecordings(): Promise<Array<{ fileId: string; durationSeconds: number | null }>> {
+    return this.files;
+  }
+
+  async fetchRecording(): Promise<Uint8Array> {
     return this.recordingBytes;
   }
 
-  async deleteRecording(recordingId: string): Promise<void> {
-    this.deletes.push(recordingId);
+  async deleteRecording(fileId: string): Promise<void> {
+    this.deleteAttempts.push(fileId);
+    if (this.deleteFailuresRemaining > 0) {
+      this.deleteFailuresRemaining -= 1;
+      throw new Error('delete failed');
+    }
+    this.deletes.push(fileId);
   }
 }
 
 class StubStt implements SttProvider {
-  readonly name = 'stub' as const;
+  name: SttProvider['name'] = 'stub';
+  seenAudio: Uint8Array | null = null;
+  seenProviderFileId: string | undefined;
   fail = false;
+  calls = 0;
 
-  async transcribe(_input: {
+  async transcribe(input: {
     audio: Uint8Array;
     mimeType: 'audio/wav';
     languageHint: 'hr';
+    providerFileId?: string;
   }): Promise<{ text: string; durationSeconds: number | null }> {
+    this.calls += 1;
+    this.seenAudio = new Uint8Array(input.audio);
     if (this.fail) throw new Error('stt failed');
-    return { text: 'Ulična rasvjeta ne radi u ulici Primjer, već tri dana.', durationSeconds: 1 };
+    this.seenProviderFileId = input.providerFileId;
+    return { text: 'Ulična rasvjeta ne radi.', durationSeconds: 1 };
   }
 }
 
-interface Fixture {
-  deps: PipelineDeps;
-  store: ChannelStore;
-  provider: StubProvider;
-  stt: StubStt;
-  traceMessages: Array<{ kind: string; text: string | null }>;
-  traceCases: unknown[];
-  auditEvents: Array<{ eventType: string; code: string }>;
-  logs: Array<{ code: string }>;
-}
-
-function event(
-  eventType: string,
-  payload: Record<string, unknown>,
-  id = `${eventType}-id`,
-): TelnyxEvent {
-  return { id, eventType, occurredAt: now.toISOString(), payload, payloadSha256: `${id}-sha` };
-}
-
-function parseState(value: string | undefined): Record<string, unknown> {
-  assert.ok(value);
-  return JSON.parse(Buffer.from(value, 'base64').toString('utf8')) as Record<string, unknown>;
-}
-
-function fixture(): Fixture {
+function fixture() {
   const store = new MemoryChannelStore();
   const provider = new StubProvider();
   const stt = new StubStt();
   const traceMessages: Array<{ kind: string; text: string | null }> = [];
-  const traceCases: unknown[] = [];
-  const auditEvents: Array<{ eventType: string; code: string }> = [];
-  const logs: Array<{ code: string }> = [];
+  const logs: Array<{ code: string; eventId?: string }> = [];
   const deps: PipelineDeps = {
     config: {
       internalApiToken: 'token',
@@ -119,323 +108,263 @@ function fixture(): Fixture {
       traceGatewayActorId: 'gateway',
       municipalityId: 'vrsar-orsera',
       deploymentProfile: 'dev',
-      channelProvider: 'stub',
+      channelProvider: 'infobip',
       sttProvider: 'stub',
-      processingAgreement: false,
+      processingAgreement: true,
       vaultKeys: new Map([[1, key]]),
       activeVaultKeyVersion: 1,
-      vaultPepper: 'pepper',
+      vaultPepper: 'a-distinct-phone-vault-pepper-value',
       auditInternalUrl: 'http://127.0.0.1:8981',
-      stt: {
-        baseUrl: 'http://127.0.0.1:8000/v1',
-        apiKey: 'stt-key',
-        model: 'whisper',
-        timeoutMs: 1000,
-        maxBytes: 123_456,
+      infobip: {
+        baseUrl: 'https://account.api.infobip.com/',
+        apiKey: 'key',
+        webhookSecret: 'a-real-webhook-secret-at-least-32-characters',
+        webhookSignatureHeader: 'x-hub-signature',
+        sender: '+385981234567',
+        callsConfigurationId: 'calls-1',
+        ttsLanguage: 'hr',
+        ttsVoice: 'Ivana',
       },
       audioSink: 'gateway',
       distortSemitones: -4,
-      maxRecordingSeconds: 5,
-      maxInboundChars: 1000,
+      maxRecordingSeconds: 180,
+      maxInboundChars: 1600,
       vaultTtlDays: 30,
       eventTtlHours: 24,
-      audioTtlMinutes: 10,
+      audioTtlMinutes: 30,
       purgeIntervalMs: 60_000,
-      relayIntervalMs: 1000,
-      ackAppends: true,
+      relayIntervalMs: 15_000,
+      ackAppends: false,
       inboundPerHashPerHour: 20,
       newCasesPerHashPerDay: 5,
       outboundPerCasePerHour: 5,
       outboundPerHashPerDay: 20,
       outboundPerMinute: 30,
       outboundMaxAttempts: 3,
-      allowStubInjection: true,
-      telnyx: {
-        numberE164: '+385911111111',
-        apiKey: 'key',
-        publicKey: Buffer.alloc(32).toString('base64'),
-        messagingProfileId: 'profile',
-        connectionId: 'connection',
-        ttsVoice: 'Azure.hr-HR-GabrijelaNeural',
-        signatureToleranceSeconds: 300,
-      },
+      allowStubInjection: false,
     },
     store,
     provider,
     stt,
-    now: () => now,
-    log: (fields) => logs.push({ code: fields.code }),
-    audit: {
-      emit: async (input) => {
-        auditEvents.push({ eventType: input.eventType, code: input.code });
-      },
-    },
     trace: {
-      createChannelCase: async (input, _idempotencyKey) => {
-        traceCases.push(input);
+      async createChannelCase() {
         return {
           case: {
-            recordId: 'rec-voice-1',
-            caseNumber: 'CASE-123',
-            reopenKey: 'reopen-secret',
+            recordId: '11111111-1111-4111-8111-111111111111',
+            caseNumber: 'VRS-42',
+            reopenKey: 'reopen-key',
             state: 'open',
           },
         };
       },
-      appendChannelMessage: async (_caseNumber, input, _idempotencyKey) => {
+      async appendChannelMessage(_caseNumber, input) {
         traceMessages.push({ kind: input.kind, text: input.text });
-        return { message: { id: `msg-${traceMessages.length}` } };
+        return { message: { id: 'message-1' } };
       },
-      listOutbox: async () => ({ messages: [] }),
-      markDelivery: async () => {},
+      async listOutbox() {
+        return { messages: [] };
+      },
+      async markDelivery() {},
     },
+    audit: { async emit() {} },
+    log(fields) {
+      logs.push({ code: fields.code, ...(fields.eventId ? { eventId: fields.eventId } : {}) });
+    },
+    now: () => now,
   };
-  return { deps, store, provider, stt, traceMessages, traceCases, auditEvents, logs };
+  return { deps, store, provider, stt, traceMessages, logs };
 }
 
-async function runAnsweredSequence(deps: PipelineDeps, provider: StubProvider): Promise<void> {
-  await handleVoiceEvent(
-    event(
-      'call.initiated',
-      { direction: 'incoming', call_control_id: 'call-1', from: '+385911234567' },
-      'evt-init',
-    ),
-    deps,
-  );
-  await handleVoiceEvent(
-    event('call.answered', { call_control_id: 'call-1', from: '+385911234567' }, 'evt-answered'),
-    deps,
-  );
-  await handleVoiceEvent(
-    event(
-      'call.speak.ended',
-      { call_control_id: 'call-1', client_state: provider.speaks[0]!.input.clientState },
-      'evt-speak-ended',
-    ),
-    deps,
-  );
+function event(
+  eventType: string,
+  properties: Record<string, unknown>,
+  id = `${eventType}-id`,
+): ProviderEvent {
+  return {
+    id,
+    eventType,
+    occurredAt: now.toISOString(),
+    payload: { callId: 'call-1', type: eventType, timestamp: now.toISOString(), properties },
+    payloadSha256: 'a'.repeat(64),
+  };
 }
 
-test('voice call sequence creates identity, case, link, one prompt/readback speak, then recording', async () => {
-  const { deps, provider, traceCases } = fixture();
-  await runAnsweredSequence(deps, provider);
+async function establish(subject: { deps: PipelineDeps }): Promise<void> {
+  const call = { id: 'call-1', direction: 'INBOUND', from: phone, to: '+385981234567' };
+  await handleVoiceEvent(event('CALL_RECEIVED', { call }), subject.deps);
+  await handleVoiceEvent(event('CALL_ESTABLISHED', { call }), subject.deps);
+}
 
-  assert.equal(provider.answers.length, 1);
-  assert.equal(traceCases.length, 1);
-  assert.equal(provider.speaks.length, 1);
-  assert.match(provider.speaks[0]!.input.text, /automatska prijava/);
-  assert.match(provider.speaks[0]!.input.text, /CASE-123/);
-  assert.match(provider.speaks[0]!.input.text, /jedan, dva, tri/);
-  assert.equal(provider.records.length, 1);
-  assert.equal(provider.records[0]!.input.playBeep, true);
-  assert.deepEqual(parseState(provider.records[0]!.input.clientState), {
-    v: 1,
-    eventId: 'evt-speak-ended',
-    step: 'recording',
-    caseNumber: 'CASE-123',
-    recordId: 'rec-voice-1',
+test('Infobip call events persist state and drive answer, prompt, recording, and readback', async () => {
+  const subject = fixture();
+  await establish(subject);
+  assert.deepEqual(subject.provider.answers, ['call-1']);
+  assert.equal((await subject.store.getCall('call-1'))?.step, 'prompt');
+  assert.deepEqual(subject.provider.speaks[0], {
+    callId: 'call-1',
+    input: { text: PROMPT_HR, language: 'hr', voice: 'Ivana' },
   });
-});
 
-test('voice handler does not own event dedupe or markEvent state', async () => {
-  const { deps, provider } = fixture();
-  const initiated = event(
-    'call.initiated',
-    { direction: 'incoming', call_control_id: 'call-1' },
-    'evt-init',
-  );
-  await handleVoiceEvent(initiated, deps);
-  await handleVoiceEvent(initiated, deps);
-  assert.equal(provider.answers.length, 2);
-});
-
-test('recording.saved transcribes distorted audio, deletes provider recording id, zeros original, and confirms', async () => {
-  const { deps, store, provider, traceMessages } = fixture();
-  await runAnsweredSequence(deps, provider);
-  const original = generateTone(0.25, 440, 16_000);
-  provider.recordingBytes = original;
-
-  await handleVoiceEvent(
-    event(
-      'call.recording.saved',
-      {
-        call_control_id: 'call-1',
-        recording_id: 'recording-1',
-        recording_urls: { wav: 'https://api.telnyx.test/download/not-the-id' },
-        client_state: provider.records[0]!.input.clientState,
-      },
-      'evt-recording',
-    ),
-    deps,
-  );
-  const [row] = (await store.claimInbox(now, 10)) as ChannelInbox[];
-  assert.equal(row!.kind, 'voice_recording');
-  await handleRecordingSaved(row!, deps);
-
-  assert.equal(provider.lastFetch?.maxBytes, 123_456);
-  assert.equal(provider.lastFetch?.timeoutMs, 30_000);
-  assert.deepEqual(provider.deletes, ['recording-1']);
-  assert.ok(original.every((byte) => byte === 0));
-  assert.deepEqual(traceMessages, [
-    { kind: 'transcript', text: 'Ulična rasvjeta ne radi u ulici Primjer, već tri dana.' },
+  await handleVoiceEvent(event('SAY_FINISHED', {}), subject.deps);
+  assert.deepEqual(subject.provider.records, [
+    { callId: 'call-1', input: { maxLengthSeconds: 180, transcription: false } },
   ]);
-  const recording = await store.getRecording(row!.id);
+  assert.match(subject.provider.speaks[1]!.input.text, /VRS-42/);
+  assert.equal((await subject.store.getCall('call-1'))?.step, 'readback');
+  await handleVoiceEvent(event('SAY_FINISHED', {}, 'say-finished-2'), subject.deps);
+  assert.equal((await subject.store.getCall('call-1'))?.step, 'recording');
+});
+
+test('recording-stopped and terminal events enqueue direct and listed files', async () => {
+  const subject = fixture();
+  await establish(subject);
+  await handleVoiceEvent(
+    event('CALL_RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-direct', durationSeconds: 2 }] },
+    }),
+    subject.deps,
+  );
+  assert.equal((await subject.store.claimInbox(now, 10))[0]?.providerRef, 'file-direct');
+  subject.provider.files = [{ fileId: 'file-direct', durationSeconds: 2 }];
+  await handleVoiceEvent(event('CALL_FINISHED', {}, 'finished-after-direct'), subject.deps);
+  assert.deepEqual(await subject.store.claimInbox(now, 10), []);
+
+  const terminal = fixture();
+  await establish(terminal);
+  terminal.provider.files = [{ fileId: 'file-listed', durationSeconds: null }];
+  await handleVoiceEvent(event('CALL_FINISHED', {}), terminal.deps);
+  assert.equal((await terminal.store.getCall('call-1'))?.step, 'done');
+  assert.equal((await terminal.store.claimInbox(now, 10))[0]?.providerRef, 'file-listed');
+});
+
+test('unknown call events log ignored_event without exposing a number', async () => {
+  const subject = fixture();
+  await handleVoiceEvent(event('UNSUPPORTED_EVENT', {}), subject.deps);
+  assert.deepEqual(subject.logs, [{ code: 'ignored_event', eventId: 'UNSUPPORTED_EVENT-id' }]);
+  assert.equal(
+    subject.logs.some((entry) => /\\+?\\d{8,}/.test(JSON.stringify(entry))),
+    false,
+  );
+});
+
+test('recording custody transcribes original bytes, distorts, zeroes, stores, and deletes', async () => {
+  const subject = fixture();
+  await establish(subject);
+  const original = subject.provider.recordingBytes;
+  await handleVoiceEvent(
+    event('CALL_RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-1', durationSeconds: 1 }] },
+    }),
+    subject.deps,
+  );
+  const [row] = (await subject.store.claimInbox(now, 10)) as ChannelInbox[];
+  assert.ok(row);
+  await handleRecordingSaved(row, subject.deps);
+  assert.ok(subject.stt.seenAudio);
+  assert.notEqual(
+    subject.stt.seenAudio!.every((byte) => byte === 0),
+    true,
+  );
+  assert.equal(
+    original.every((byte) => byte === 0),
+    true,
+  );
+  assert.equal(subject.stt.seenProviderFileId, 'file-1');
+  assert.deepEqual(subject.provider.deletes, ['file-1']);
+  const recording = await subject.store.getRecording(row.id);
   assert.equal(recording?.state, 'transcribed');
-  assert.ok(recording?.distortedSha256);
-  assert.ok(recording?.bytes && recording.bytes.byteLength > 0);
-  const outbox = await store.claimOutbox(now, 10);
-  assert.equal(outbox.length, 1);
-  assert.equal(
-    openString(
-      key,
-      {
-        ciphertext: Buffer.from(outbox[0]!.bodyCiphertext),
-        nonce: Buffer.from(outbox[0]!.bodyNonce),
-        tag: Buffer.from(outbox[0]!.bodyTag),
-      },
-      'outbox-body',
-    ),
-    SMS_CONFIRM('CASE-123'),
-  );
-});
-
-test('distorted hash is deterministic for same provider recording id seed', async () => {
-  const hashes: string[] = [];
-  for (let index = 0; index < 2; index += 1) {
-    const { deps, store, provider } = fixture();
-    await runAnsweredSequence(deps, provider);
-    provider.recordingBytes = generateTone(0.25, 440, 16_000);
-    await handleVoiceEvent(
-      event(
-        'call.recording.saved',
-        {
-          call_control_id: 'call-1',
-          recording_id: 'recording-1',
-          recording_urls: { wav: 'https://api.telnyx.test/download/a' },
-          client_state: provider.records[0]!.input.clientState,
-        },
-        'evt-recording',
-      ),
-      deps,
-    );
-    const [row] = (await store.claimInbox(now, 10)) as ChannelInbox[];
-    await handleRecordingSaved(row!, deps);
-    hashes.push((await store.getRecording(row!.id))!.distortedSha256!);
-  }
-  assert.equal(hashes[0], hashes[1]);
-});
-
-test('blocked identity hangs up without creating a case', async () => {
-  const { deps, store, provider, traceCases } = fixture();
-  const hash = phoneHash('+385911234567', deps.config.vaultPepper, deps.config.municipalityId);
-  await store.upsertIdentity({
-    phoneHash: hash,
-    phoneCiphertext: randomBytes(8),
-    phoneNonce: randomBytes(12),
-    phoneTag: randomBytes(16),
-    keyVersion: 1,
-    municipalityId: deps.config.municipalityId,
-    firstSeenAt: now,
-    lastSeenAt: now,
-    expiresAt: now,
-    blocked: true,
-  });
-
-  await handleVoiceEvent(
-    event('call.answered', { call_control_id: 'call-1', from: '+385911234567' }, 'evt-blocked'),
-    deps,
-  );
-
-  assert.deepEqual(provider.hangups, ['call-1']);
-  assert.equal(traceCases.length, 0);
-  assert.equal(provider.speaks.length, 0);
-});
-
-test('recording.error fails deterministic voice_call row, audits, and hangs up', async () => {
-  const { deps, store, provider, traceMessages, auditEvents } = fixture();
-  await runAnsweredSequence(deps, provider);
-
-  await handleVoiceEvent(
-    event(
-      'call.recording.error',
-      { call_control_id: 'call-1', client_state: provider.records[0]!.input.clientState },
-      'evt-recording-error',
-    ),
-    deps,
-  );
-
-  const [failedCall] = (await store.claimInbox(now, 10)) as ChannelInbox[];
-  assert.match(failedCall!.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.equal(failedCall!.callControlId, 'call-1');
-  assert.equal(failedCall!.state, 'processing');
-  assert.equal(failedCall!.attempts, 1);
-  assert.deepEqual(provider.hangups, ['call-1']);
-  assert.deepEqual(traceMessages, []);
-  assert.deepEqual(auditEvents, [
-    { eventType: 'channel.voice.recording_error', code: 'recording_error' },
+  assert.match(recording?.distortedSha256 ?? '', /^[a-f0-9]{64}$/);
+  assert.ok(recording?.bytes);
+  assert.deepEqual(subject.traceMessages, [
+    { kind: 'transcript', text: 'Ulična rasvjeta ne radi.' },
   ]);
 });
 
-test('STT failure appends transcript-failed text, fails inbox, discards audio, and still deletes recording', async () => {
-  const { deps, store, provider, stt, traceMessages } = fixture();
-  stt.fail = true;
-  await runAnsweredSequence(deps, provider);
-  const original = generateTone(0.25, 440, 16_000);
-  provider.recordingBytes = original;
+test('a transient provider deletion failure preserves the valid transcript', async () => {
+  const subject = fixture();
+  subject.provider.deleteFailuresRemaining = 1;
+  await establish(subject);
   await handleVoiceEvent(
-    event(
-      'call.recording.saved',
-      {
-        call_control_id: 'call-1',
-        recording_id: 'recording-1',
-        recording_urls: { wav: 'https://api.telnyx.test/download/a' },
-        client_state: provider.records[0]!.input.clientState,
-      },
-      'evt-recording',
-    ),
-    deps,
+    event('CALL_RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-delete-retry', durationSeconds: 1 }] },
+    }),
+    subject.deps,
   );
-  const [row] = (await store.claimInbox(now, 10)) as ChannelInbox[];
-  await handleRecordingSaved(row!, deps);
-
-  assert.deepEqual(provider.deletes, ['recording-1']);
-  assert.ok(original.every((byte) => byte === 0));
-  assert.deepEqual(traceMessages, [
-    { kind: 'transcript-failed', text: 'Transkripcija glasovne prijave nije uspjela.' },
+  const [row] = (await subject.store.claimInbox(now, 10)) as ChannelInbox[];
+  await handleRecordingSaved(row!, subject.deps);
+  assert.deepEqual(subject.provider.deleteAttempts, ['file-delete-retry', 'file-delete-retry']);
+  assert.deepEqual(subject.provider.deletes, ['file-delete-retry']);
+  assert.equal((await subject.store.getRecording(row!.id))?.state, 'transcribed');
+  assert.deepEqual(subject.traceMessages, [
+    { kind: 'transcript', text: 'Ulična rasvjeta ne radi.' },
   ]);
-  assert.equal((await store.getRecording(row!.id))?.state, 'failed');
-  assert.equal(
-    (await store.claimInbox(new Date(now.getTime() + 6 * 60 * 1000), 10))[0]?.state,
-    'processing',
-  );
 });
-test('discard and trace audio sinks do not retain distorted bytes; trace logs unsupported sink', async () => {
-  for (const sink of ['discard', 'trace'] as const) {
-    const { deps, store, provider, logs } = fixture();
-    deps.config.audioSink = sink;
-    await runAnsweredSequence(deps, provider);
-    provider.recordingBytes = generateTone(0.25, 440, 16_000);
-    await handleVoiceEvent(
-      event(
-        'call.recording.saved',
-        {
-          call_control_id: 'call-1',
-          recording_id: `recording-${sink}`,
-          recording_urls: { wav: 'https://api.telnyx.test/download/a' },
-          client_state: provider.records[0]!.input.clientState,
-        },
-        `evt-recording-${sink}`,
-      ),
-      deps,
-    );
-    const [row] = (await store.claimInbox(now, 10)) as ChannelInbox[];
-    await handleRecordingSaved(row!, deps);
-    const recording = await store.getRecording(row!.id);
-    assert.equal(recording?.state, 'discarded');
-    assert.equal(recording?.bytes, null);
-    assert.equal(
-      logs.some((entry) => entry.code === 'sink_unsupported'),
-      sink === 'trace',
-    );
-  }
+
+test('persistent deletion failure reschedules deletion without retranscribing', async () => {
+  const subject = fixture();
+  subject.provider.deleteFailuresRemaining = 2;
+  await establish(subject);
+  await handleVoiceEvent(
+    event('CALL_RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-delete-later', durationSeconds: 1 }] },
+    }),
+    subject.deps,
+  );
+  const [row] = (await subject.store.claimInbox(now, 10)) as ChannelInbox[];
+  await handleRecordingSaved(row!, subject.deps);
+  assert.equal(subject.stt.calls, 1);
+  assert.deepEqual(subject.traceMessages, [
+    { kind: 'transcript', text: 'Ulična rasvjeta ne radi.' },
+  ]);
+  assert.deepEqual(subject.provider.deletes, []);
+
+  const retryAt = new Date(now.getTime() + 5 * 60_000);
+  const [retry] = (await subject.store.claimInbox(retryAt, 10)) as ChannelInbox[];
+  await handleRecordingSaved(retry!, subject.deps);
+  assert.equal(subject.stt.calls, 1);
+  assert.deepEqual(subject.traceMessages, [
+    { kind: 'transcript', text: 'Ulična rasvjeta ne radi.' },
+  ]);
+  assert.deepEqual(subject.provider.deletes, ['file-delete-later']);
+  assert.deepEqual(await subject.store.claimInbox(new Date(retryAt.getTime() + 1), 10), []);
+});
+
+test('STT failure deletes the source and completes the unretryable inbox item', async () => {
+  const subject = fixture();
+  subject.stt.fail = true;
+  await establish(subject);
+  await handleVoiceEvent(
+    event('CALL_RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-failed', durationSeconds: 1 }] },
+    }),
+    subject.deps,
+  );
+  const [row] = (await subject.store.claimInbox(now, 10)) as ChannelInbox[];
+  await handleRecordingSaved(row!, subject.deps);
+  assert.deepEqual(subject.provider.deletes, ['file-failed']);
+  assert.equal((await subject.store.getRecording(row!.id))?.state, 'failed');
+  assert.deepEqual(await subject.store.claimInbox(new Date(now.getTime() + 10 * 60_000), 10), []);
+  assert.deepEqual(subject.traceMessages, [
+    {
+      kind: 'transcript-failed',
+      text: 'Transkripcija glasovne prijave nije uspjela.',
+    },
+  ]);
+});
+
+test('Infobip STT requests provider transcription before deleting its recording', async () => {
+  const subject = fixture();
+  subject.deps.config.sttProvider = 'infobip';
+  subject.stt.name = 'infobip';
+  await establish(subject);
+  await handleVoiceEvent(
+    event('RECORDING_STOPPED', {
+      recording: { files: [{ fileId: 'file-infobip', durationSeconds: null }] },
+    }),
+    subject.deps,
+  );
+  const [row] = (await subject.store.claimInbox(now, 10)) as ChannelInbox[];
+  await handleRecordingSaved(row!, subject.deps);
+  assert.equal(subject.stt.seenProviderFileId, 'file-infobip');
+  assert.deepEqual(subject.provider.deletes, ['file-infobip']);
 });

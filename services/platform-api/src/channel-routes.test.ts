@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { IncomingMessage } from 'node:http';
+import test from 'node:test';
 import { FetchTimeoutError, type Route } from '@polis/service-runtime';
 
 import { channelRoutes } from './channel-routes.js';
-import { platformRoutes } from './routes.js';
 import { withPublicEdge } from './public-edge.js';
+import { platformRoutes } from './routes.js';
 
 type VisibleResult = {
   status: number;
@@ -18,7 +18,7 @@ type VisibleResult = {
 };
 
 function request(headers: IncomingMessage['headers'] = {}): IncomingMessage {
-  return { method: 'POST', url: '/webhooks/telnyx/voice', headers } as IncomingMessage;
+  return { method: 'POST', url: '/webhooks/infobip/calls', headers } as IncomingMessage;
 }
 
 function route(routes: Route[], method: string, path: string): Route {
@@ -58,18 +58,17 @@ function fetchHeader(headers: HeadersInit | undefined, name: string): string | n
   return new Headers(headers).get(name);
 }
 
-test('channelRoutes are disabled by default and expose only the enabled Telnyx ingress contract', async () => {
+test('channelRoutes are disabled by default and expose the three enabled Infobip routes', async () => {
   await withEnvironment(
     { CHANNEL_ENABLED: undefined, CHANNEL_INTERNAL_URL: 'http://channel.internal' },
     () => {
       assert.deepEqual(channelRoutes(), []);
       assert.equal(
-        platformRoutes().some((candidate) => candidate.path.startsWith('/webhooks/telnyx/')),
+        platformRoutes().some((candidate) => candidate.path.startsWith('/webhooks/infobip/')),
         false,
       );
     },
   );
-
   await withEnvironment({ CHANNEL_ENABLED: 'true' }, () => {
     assert.deepEqual(
       channelRoutes().map(
@@ -77,22 +76,21 @@ test('channelRoutes are disabled by default and expose only the enabled Telnyx i
           `${method} ${path} bodyMode=${bodyMode} maxBodyBytes=${maxBodyBytes}`,
       ),
       [
-        'POST /webhooks/telnyx/messaging bodyMode=raw maxBodyBytes=65536',
-        'POST /webhooks/telnyx/voice bodyMode=raw maxBodyBytes=65536',
+        'POST /webhooks/infobip/sms bodyMode=raw maxBodyBytes=65536',
+        'POST /webhooks/infobip/sms-reports bodyMode=raw maxBodyBytes=65536',
+        'POST /webhooks/infobip/calls bodyMode=raw maxBodyBytes=65536',
       ],
     );
-    const paths = platformRoutes().map(({ method, path }) => `${method} ${path}`);
-    assert.ok(paths.includes('POST /webhooks/telnyx/messaging'));
-    assert.ok(paths.includes('POST /webhooks/telnyx/voice'));
   });
 });
 
-test('channel Telnyx webhooks pass raw bytes, strict signature headers, and relay upstream bytes', async () => {
+test('Infobip webhooks forward raw bytes and only the configured signature client header', async () => {
   await withEnvironment(
     {
       CHANNEL_ENABLED: 'true',
       CHANNEL_INTERNAL_URL: 'http://channel.internal/',
       INTERNAL_API_TOKEN: 'platform-token',
+      INFOBIP_WEBHOOK_SIGNATURE_HEADER: 'x-hub-signature',
     },
     async () => {
       const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -104,13 +102,11 @@ test('channel Telnyx webhooks pass raw bytes, strict signature headers, and rela
           headers: { 'content-type': 'application/octet-stream' },
         });
       }) as typeof globalThis.fetch;
-
       const body = new Uint8Array([1, 2, 3, 4]);
       const response = visible(
-        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+        await route(channelRoutes(), 'POST', '/webhooks/infobip/calls').handler(
           request({
-            'telnyx-signature-ed25519': 'sig',
-            'telnyx-timestamp': '1700000000',
+            'x-hub-signature': 'sha256=abc',
             'x-polis-citizen': 'spoofed',
             'x-polis-internal-token': 'spoofed-token',
           }),
@@ -118,15 +114,24 @@ test('channel Telnyx webhooks pass raw bytes, strict signature headers, and rela
           {},
         ),
       );
-
-      assert.equal(calls.length, 1);
-      assert.equal(calls[0].url, 'http://channel.internal/internal/channel/webhooks/telnyx/voice');
-      assert.equal(calls[0].init?.method, 'POST');
-      assert.deepEqual(new Uint8Array(await new Response(calls[0].init?.body).arrayBuffer()), body);
-      assert.equal(fetchHeader(calls[0].init?.headers, 'x-polis-internal-token'), 'platform-token');
-      assert.equal(fetchHeader(calls[0].init?.headers, 'telnyx-signature-ed25519'), 'sig');
-      assert.equal(fetchHeader(calls[0].init?.headers, 'telnyx-timestamp'), '1700000000');
-      assert.equal(fetchHeader(calls[0].init?.headers, 'x-polis-citizen'), null);
+      assert.equal(
+        calls[0]?.url,
+        'http://channel.internal/internal/channel/webhooks/infobip/calls',
+      );
+      assert.deepEqual(
+        new Uint8Array(await new Response(calls[0]?.init?.body).arrayBuffer()),
+        body,
+      );
+      assert.equal(fetchHeader(calls[0]?.init?.headers, 'x-hub-signature'), 'sha256=abc');
+      assert.equal(
+        fetchHeader(calls[0]?.init?.headers, 'x-polis-internal-token'),
+        'platform-token',
+      );
+      assert.notEqual(
+        fetchHeader(calls[0]?.init?.headers, 'x-polis-internal-token'),
+        'spoofed-token',
+      );
+      assert.equal(fetchHeader(calls[0]?.init?.headers, 'x-polis-citizen'), null);
       assert.equal(response.status, 202);
       assert.equal(response.contentType, 'application/octet-stream');
       assert.deepEqual(response.bytes, upstreamBytes);
@@ -134,7 +139,7 @@ test('channel Telnyx webhooks pass raw bytes, strict signature headers, and rela
   );
 });
 
-test('channel Telnyx webhook timeouts use per-route limits and transport failures are upstream failures', async () => {
+test('all Infobip webhook routes use 1500 ms and map transport failures', async () => {
   await withEnvironment(
     { CHANNEL_ENABLED: 'true', INTERNAL_API_TOKEN: 'platform-token' },
     async () => {
@@ -147,26 +152,18 @@ test('channel Telnyx webhook timeouts use per-route limits and transport failure
       try {
         globalThis.fetch = (async () =>
           new Response(new Uint8Array(), { status: 204 })) as typeof globalThis.fetch;
-        await route(channelRoutes(), 'POST', '/webhooks/telnyx/messaging').handler(
-          request(),
-          new Uint8Array(),
-          {},
-        );
-        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
-          request(),
-          new Uint8Array(),
-          {},
-        );
-        assert.deepEqual(timeouts, [1500, 5000]);
+        for (const candidate of channelRoutes()) {
+          await candidate.handler(request(), new Uint8Array(), {});
+        }
+        assert.deepEqual(timeouts, [1500, 1500, 1500]);
       } finally {
         AbortSignal.timeout = originalTimeout;
       }
-
       globalThis.fetch = (async () => {
-        throw new FetchTimeoutError(5_000);
+        throw new FetchTimeoutError(1500);
       }) as typeof globalThis.fetch;
       let response = visible(
-        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+        await route(channelRoutes(), 'POST', '/webhooks/infobip/calls').handler(
           request(),
           new Uint8Array(),
           {},
@@ -174,12 +171,11 @@ test('channel Telnyx webhook timeouts use per-route limits and transport failure
       );
       assert.equal(response.status, 504);
       assert.deepEqual(response.body, { error: 'upstream_timeout' });
-
       globalThis.fetch = (async () => {
         throw new Error('connection refused');
       }) as typeof globalThis.fetch;
       response = visible(
-        await route(channelRoutes(), 'POST', '/webhooks/telnyx/voice').handler(
+        await route(channelRoutes(), 'POST', '/webhooks/infobip/calls').handler(
           request(),
           new Uint8Array(),
           {},
@@ -191,7 +187,7 @@ test('channel Telnyx webhook timeouts use per-route limits and transport failure
   );
 });
 
-test('public-edge blocks channel Telnyx webhook routes', async () => {
+test('public-edge blocks channel Infobip webhook routes', async () => {
   await withEnvironment({ CHANNEL_ENABLED: 'true', PUBLIC_EDGE: 'true' }, async () => {
     for (const candidate of withPublicEdge(channelRoutes())) {
       const response = visible(await candidate.handler(request(), new Uint8Array(), {}));

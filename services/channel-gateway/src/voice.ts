@@ -6,13 +6,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { distortRecording } from './audio/distort.js';
 import { PROMPT_HR, SMS_CONFIRM, spellCaseNumberHr } from './copy-hr.js';
 import { openString, phoneHash, sealString } from './crypto.js';
+import { INFOBIP_EVENT_TYPES } from './infobip-api.js';
 import { phoneHashPrefix } from './log.js';
 import { normalizeE164 } from './phone.js';
-import type { InboxRow, PipelineDeps, TelnyxEvent } from './pipeline-types.js';
-import type { ChannelInbox } from './types.js';
+import type { InboxRow, PipelineDeps, ProviderEvent } from './pipeline-types.js';
+import type { ChannelCall, ChannelInbox } from './types.js';
 
-const TELNYX_VOICE_LANGUAGE = 'hr-HR';
-const DEFAULT_TELNYX_TTS_VOICE = 'Azure.hr-HR-GabrijelaNeural';
 const RECORDING_DOWNLOAD_TIMEOUT_MS = 30_000;
 const RECORDING_MAX_BYTES_PER_SECOND = 32_000;
 const TRANSCRIPT_FAILED_TEXT = 'Transkripcija glasovne prijave nije uspjela.';
@@ -29,36 +28,28 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
-function jsonState(value: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
-}
-
-function parseJsonState(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'string' || value.length === 0) return {};
-  try {
-    const parsed = JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
 function stringField(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-function payloadString(payload: Record<string, unknown>, key: string): string | null {
-  return stringField(payload[key]);
+function callId(event: ProviderEvent): string | null {
+  return stringField(event.payload.callId);
 }
 
-function callControlId(event: TelnyxEvent): string | null {
-  return payloadString(event.payload, 'call_control_id');
-}
-
-function eventTime(event: TelnyxEvent, deps: PipelineDeps): string {
+function eventTime(event: ProviderEvent, deps: PipelineDeps): string {
   return event.occurredAt ?? deps.now().toISOString();
+}
+
+function objectField(value: Record<string, unknown>, key: string): Record<string, unknown> | null {
+  const field = value[key];
+  return field && typeof field === 'object' && !Array.isArray(field)
+    ? (field as Record<string, unknown>)
+    : null;
+}
+
+function callProperties(event: ProviderEvent): Record<string, unknown> | null {
+  const properties = objectField(event.payload, 'properties');
+  return properties ? objectField(properties, 'call') : null;
 }
 
 function activeVaultKey(deps: PipelineDeps): Uint8Array {
@@ -71,34 +62,17 @@ function ttl(deps: PipelineDeps): Date {
   return addDays(deps.now(), deps.config.vaultTtlDays);
 }
 
-function phoneIdentityHash(e164: string, deps: PipelineDeps): string {
-  return phoneHash(e164, deps.config.vaultPepper, deps.config.municipalityId);
-}
-
 function seal(deps: PipelineDeps, plaintext: string, aad: 'phone' | 'reopen-key' | 'outbox-body') {
   return sealString(activeVaultKey(deps), plaintext, aad);
 }
 
-function speakInput(text: string, clientState: Record<string, unknown>, deps: PipelineDeps) {
-  return {
-    text,
-    voice: deps.config.telnyx?.ttsVoice ?? DEFAULT_TELNYX_TTS_VOICE,
-    language: TELNYX_VOICE_LANGUAGE,
-    clientState: jsonState(clientState),
-  };
-}
-
-function voiceCallInboxId(callControlId: string): string {
-  // channel_inbox.id is a uuid; derive a stable one from the call so replays hit the same row.
-  const hex = createHash('sha256').update(`voice-call:${callControlId}`).digest('hex');
+function voiceCallInboxId(id: string): string {
+  const hex = createHash('sha256').update(`voice-call:${id}`).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
-
-function recordingUrl(payload: Record<string, unknown>): string | null {
-  const urls = payload.recording_urls;
-  if (urls && typeof urls === 'object' && !Array.isArray(urls))
-    return stringField((urls as Record<string, unknown>).wav);
-  return payloadString(payload, 'recording_url');
+function recordingInboxId(fileId: string): string {
+  const hex = createHash('sha256').update(`voice-recording:${fileId}`).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 function makeInbox(input: {
@@ -107,7 +81,7 @@ function makeInbox(input: {
   kind: ChannelInbox['kind'];
   phoneHash: string;
   providerRef: string | null;
-  callControlId: string | null;
+  callId: string | null;
   recordId: string | null;
   caseNumber: string | null;
   state?: ChannelInbox['state'];
@@ -124,7 +98,7 @@ function makeInbox(input: {
     bodyTag: null,
     keyVersion: null,
     providerRef: input.providerRef,
-    callControlId: input.callControlId,
+    callControlId: input.callId,
     state: input.state ?? 'pending',
     attempts: 0,
     nextAttemptAt: now,
@@ -136,20 +110,26 @@ function makeInbox(input: {
   };
 }
 
-async function handleAnswered(event: TelnyxEvent, deps: PipelineDeps): Promise<void> {
-  const id = callControlId(event);
-  const rawFrom = payloadString(event.payload, 'from');
-  if (!id || !rawFrom) return;
-
-  const e164 = normalizeE164(rawFrom);
-  const hash = phoneIdentityHash(e164, deps);
+async function handleCallReceived(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  const id = callId(event);
+  const call = callProperties(event);
+  const rawFrom = stringField(call?.from);
+  if (!id || !call || call.direction !== 'INBOUND' || !rawFrom) return;
+  if (await deps.store.getCall(id)) return;
+  let e164: string;
+  try {
+    e164 = normalizeE164(rawFrom);
+  } catch {
+    await deps.provider.hangup(id);
+    return;
+  }
+  const hash = phoneHash(e164, deps.config.vaultPepper, deps.config.municipalityId);
   const now = deps.now();
   const existing = await deps.store.getIdentity(hash);
   if (existing?.blocked) {
     await deps.provider.hangup(id);
     return;
   }
-
   const phone = seal(deps, e164, 'phone');
   await deps.store.upsertIdentity({
     phoneHash: hash,
@@ -163,14 +143,32 @@ async function handleAnswered(event: TelnyxEvent, deps: PipelineDeps): Promise<v
     expiresAt: ttl(deps),
     blocked: false,
   });
+  await deps.store.upsertCall({
+    callId: id,
+    phoneHash: hash,
+    caseNumber: null,
+    recordId: null,
+    step: 'answered',
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: addHours(now, deps.config.eventTtlHours),
+  });
+  await deps.provider.answerCall(id);
+}
 
+async function handleCallEstablished(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  const id = callId(event);
+  if (!id) return;
+  const state = await deps.store.getCall(id);
+  if (!state || state.caseNumber || state.recordId) return;
   const created = await deps.trace.createChannelCase(
     { channel: 'voice', text: null, source: 'system', occurredAt: eventTime(event, deps) },
     id,
   );
+  const now = deps.now();
   const reopen = seal(deps, created.case.reopenKey, 'reopen-key');
   await deps.store.upsertLink({
-    phoneHash: hash,
+    phoneHash: state.phoneHash,
     recordId: created.case.recordId,
     caseNumber: created.case.caseNumber,
     reopenKeyCiphertext: reopen.ciphertext,
@@ -187,101 +185,94 @@ async function handleAnswered(event: TelnyxEvent, deps: PipelineDeps): Promise<v
       id: voiceCallInboxId(id),
       eventId: event.id,
       kind: 'voice_call',
-      phoneHash: hash,
+      phoneHash: state.phoneHash,
       providerRef: id,
-      callControlId: id,
+      callId: id,
       recordId: created.case.recordId,
       caseNumber: created.case.caseNumber,
       state: 'done',
       deps,
     }),
   );
-  const readback = `Broj predmeta: ${created.case.caseNumber}. Slovkano: ${spellCaseNumberHr(created.case.caseNumber)}.`;
-  await deps.provider.speak(
-    id,
-    speakInput(
-      `${PROMPT_HR}\n\n${readback}`,
-      {
-        v: 1,
-        eventId: event.id,
-        step: 'prompt',
-        caseNumber: created.case.caseNumber,
-        recordId: created.case.recordId,
-      },
-      deps,
-    ),
-  );
-}
-
-async function handleSpeakEnded(event: TelnyxEvent, deps: PipelineDeps): Promise<void> {
-  const id = callControlId(event);
-  if (!id) return;
-  const state = parseJsonState(event.payload.client_state);
-  if (
-    state.step !== 'prompt' ||
-    typeof state.caseNumber !== 'string' ||
-    typeof state.recordId !== 'string'
-  )
-    return;
-  const caseNumber = state.caseNumber;
-  const recordId = state.recordId;
-  // The prompt already includes the readback; after Telnyx reports it ended, start recording.
-  await deps.provider.recordStart(id, {
-    format: 'wav',
-    channels: 'single',
-    maxLengthSeconds: deps.config.maxRecordingSeconds,
-    timeoutSeconds: 5,
-    trim: 'trim-silence',
-    playBeep: true,
-    commandId: `voice-record-${caseNumber}`,
-    clientState: jsonState({ v: 1, eventId: event.id, step: 'recording', caseNumber, recordId }),
+  await deps.store.upsertCall({
+    ...state,
+    caseNumber: created.case.caseNumber,
+    recordId: created.case.recordId,
+    step: 'prompt',
+    updatedAt: now,
+  });
+  const infobip = deps.config.infobip;
+  await deps.provider.speak(id, {
+    text: PROMPT_HR,
+    language: infobip?.ttsLanguage ?? 'hr',
+    ...(infobip?.ttsVoice ? { voice: infobip.ttsVoice } : {}),
   });
 }
 
-async function handleRecordingEvent(event: TelnyxEvent, deps: PipelineDeps): Promise<void> {
-  const id = callControlId(event);
+async function handleSayFinished(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  const id = callId(event);
   if (!id) return;
-  if (event.eventType === 'call.recording.error') {
-    const state = parseJsonState(event.payload.client_state);
-    if (typeof state.caseNumber === 'string' && typeof state.recordId === 'string') {
-      await deps.store.failInbox(voiceCallInboxId(id), 'recording error', deps.now());
-      await deps.audit.emit({
-        eventType: 'channel.voice.recording_error',
-        code: 'recording_error',
-        channel: 'voice',
-        eventId: event.id,
-        caseNumber: state.caseNumber,
-        recordId: state.recordId,
-      });
-    }
-    await deps.provider.hangup(id);
-    return;
+  const state = await deps.store.getCall(id);
+  if (!state || !state.caseNumber || !state.recordId) return;
+  if (state.step === 'prompt') {
+    await deps.provider.recordStart(id, {
+      maxLengthSeconds: deps.config.maxRecordingSeconds,
+      transcription: deps.config.sttProvider === 'infobip',
+    });
+    await deps.store.markCallStep(id, 'readback', deps.now());
+    const infobip = deps.config.infobip;
+    await deps.provider.speak(id, {
+      text: `Broj predmeta: ${state.caseNumber}. Slovkano: ${spellCaseNumberHr(state.caseNumber)}.`,
+      language: infobip?.ttsLanguage ?? 'hr',
+      ...(infobip?.ttsVoice ? { voice: infobip.ttsVoice } : {}),
+    });
+  } else if (state.step === 'readback') {
+    await deps.store.markCallStep(id, 'recording', deps.now());
   }
-  const url = recordingUrl(event.payload);
-  const providerRecordingId = payloadString(event.payload, 'recording_id');
-  const state = parseJsonState(event.payload.client_state);
-  const caseNumber = typeof state.caseNumber === 'string' ? state.caseNumber : null;
-  const recordId = typeof state.recordId === 'string' ? state.recordId : null;
-  if (!url || !caseNumber || !recordId) {
-    await deps.provider.hangup(id);
-    return;
+}
+
+function recordingFiles(
+  event: ProviderEvent,
+): Array<{ fileId: string; durationSeconds: number | null }> {
+  const properties = objectField(event.payload, 'properties');
+  const recording = properties ? objectField(properties, 'recording') : null;
+  if (!recording || !Array.isArray(recording.files)) return [];
+  const files: Array<{ fileId: string; durationSeconds: number | null }> = [];
+  for (const entry of recording.files) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const file = entry as Record<string, unknown>;
+    const fileId = stringField(file.fileId);
+    if (!fileId) continue;
+    const durationSeconds =
+      typeof file.durationSeconds === 'number' && Number.isFinite(file.durationSeconds)
+        ? file.durationSeconds
+        : null;
+    files.push({ fileId, durationSeconds });
   }
-  const link = await deps.store.findLinkByRecord(recordId);
-  const phoneHash = link?.phoneHash ?? '0'.repeat(64);
+  return files;
+}
+
+async function enqueueRecording(
+  state: ChannelCall,
+  file: { fileId: string; durationSeconds: number | null },
+  deps: PipelineDeps,
+): Promise<void> {
+  if (!state.caseNumber || !state.recordId) return;
   const inbox = makeInbox({
-    eventId: event.id,
+    id: recordingInboxId(file.fileId),
+    eventId: `voice-recording:${file.fileId}`,
     kind: 'voice_recording',
-    phoneHash,
-    providerRef: url,
-    callControlId: id,
-    recordId,
-    caseNumber,
+    phoneHash: state.phoneHash,
+    providerRef: file.fileId,
+    callId: state.callId,
+    recordId: state.recordId,
+    caseNumber: state.caseNumber,
     deps,
   });
   await deps.store.enqueueInbox(inbox);
   await deps.store.putRecording({
     id: inbox.id,
-    providerRecordingId,
+    providerRecordingId: file.fileId,
     inboxId: inbox.id,
     state: 'fetched',
     distortedSha256: null,
@@ -289,24 +280,51 @@ async function handleRecordingEvent(event: TelnyxEvent, deps: PipelineDeps): Pro
     createdAt: deps.now(),
     expiresAt: addMinutes(deps.now(), deps.config.audioTtlMinutes),
   });
-  await deps.provider.hangup(id);
 }
 
-export async function handleVoiceEvent(event: TelnyxEvent, deps: PipelineDeps): Promise<void> {
-  if (event.eventType === 'call.initiated' && event.payload.direction === 'incoming') {
-    const id = callControlId(event);
-    if (id) await deps.provider.answerCall(id, jsonState({ v: 1, eventId: event.id }));
-  } else if (event.eventType === 'call.answered') {
-    await handleAnswered(event, deps);
-  } else if (event.eventType === 'call.speak.ended') {
-    await handleSpeakEnded(event, deps);
+async function finishCall(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  const id = callId(event);
+  if (!id) return;
+  const state = await deps.store.getCall(id);
+  if (!state || state.step === 'done') return;
+  for (const file of await deps.provider.listRecordings(id)) {
+    await enqueueRecording(state, file, deps);
+  }
+  await deps.store.markCallStep(id, 'done', deps.now());
+}
+
+async function recordingStopped(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  const id = callId(event);
+  if (!id) return;
+  const state = await deps.store.getCall(id);
+  if (!state) return;
+  for (const file of recordingFiles(event)) await enqueueRecording(state, file, deps);
+}
+
+export async function handleVoiceEvent(event: ProviderEvent, deps: PipelineDeps): Promise<void> {
+  if (event.eventType === INFOBIP_EVENT_TYPES.callReceived) {
+    await handleCallReceived(event, deps);
+  } else if (event.eventType === INFOBIP_EVENT_TYPES.callEstablished) {
+    await handleCallEstablished(event, deps);
+  } else if (event.eventType === INFOBIP_EVENT_TYPES.sayFinished) {
+    await handleSayFinished(event, deps);
   } else if (
-    event.eventType === 'call.recording.saved' ||
-    event.eventType === 'call.recording.error'
+    event.eventType === INFOBIP_EVENT_TYPES.callFinished ||
+    event.eventType === INFOBIP_EVENT_TYPES.callFailed
   ) {
-    await handleRecordingEvent(event, deps);
-  } else if (event.eventType === 'call.hangup') {
-    // Telnyx hangup is terminal state notification; no command needed.
+    await finishCall(event, deps);
+  } else if (
+    event.eventType === INFOBIP_EVENT_TYPES.callRecordingStopped ||
+    event.eventType === INFOBIP_EVENT_TYPES.recordingStopped
+  ) {
+    await recordingStopped(event, deps);
+  } else {
+    deps.log({
+      service: 'channel-gateway',
+      stage: 'voice-webhook',
+      code: 'ignored_event',
+      eventId: event.id,
+    });
   }
 }
 
@@ -326,6 +344,48 @@ async function reopenKeyForRecord(recordId: string, deps: PipelineDeps): Promise
   );
 }
 
+async function deleteProviderRecording(deps: PipelineDeps, fileId: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await deps.provider.deleteRecording(fileId);
+      return true;
+    } catch {
+      // Retry once because deletion is custody cleanup, not a transcription outcome.
+    }
+  }
+  return false;
+}
+
+async function completeRecordingCustody(
+  row: InboxRow,
+  deps: PipelineDeps,
+  fileId: string,
+): Promise<void> {
+  if (await deleteProviderRecording(deps, fileId)) {
+    await deps.store.completeInbox(row.id, {
+      recordId: row.recordId,
+      caseNumber: row.caseNumber,
+    });
+    return;
+  }
+  await deps.store.failInbox(
+    row.id,
+    'provider recording deletion failed',
+    addMinutes(deps.now(), 5),
+  );
+  deps.log({
+    service: 'channel-gateway',
+    stage: 'voice',
+    code: 'provider_recording_delete_failed',
+    recordId: row.recordId ?? undefined,
+    caseNumber: row.caseNumber ?? undefined,
+    error: 'recording_delete_failed',
+  });
+}
+
+// Privacy ordering: non-Infobip STT sees original bytes only in memory, then distortion runs,
+// the original is zeroed, and only distorted bytes may persist. The original never persists and
+// never leaves the gateway except to the STT endpoint chosen under the processing agreement.
 export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): Promise<void> {
   if (
     row.kind !== 'voice_recording' ||
@@ -341,20 +401,29 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
     Math.max(1024, deps.config.maxRecordingSeconds * RECORDING_MAX_BYTES_PER_SECOND);
   const recording = await deps.store.getRecording(row.id);
   const recordingId = recording?.providerRecordingId;
+  const providerFileId = recording?.providerRecordingId ?? row.providerRef;
+  if (recording && (recording.state === 'transcribed' || recording.state === 'discarded')) {
+    await completeRecordingCustody(row, deps, providerFileId);
+    return;
+  }
+  let providerDeleted = false;
   let original: Uint8Array | null = null;
   let reopenKey = '';
   try {
-    try {
-      original = await deps.provider.fetchRecording(
-        row.providerRef,
-        maxBytes,
-        RECORDING_DOWNLOAD_TIMEOUT_MS,
-      );
-    } finally {
-      if (recordingId) await deps.provider.deleteRecording(recordingId);
-    }
+    original = await deps.provider.fetchRecording(
+      row.providerRef,
+      maxBytes,
+      RECORDING_DOWNLOAD_TIMEOUT_MS,
+    );
     reopenKey = await reopenKeyForRecord(row.recordId, deps);
     if (!original) throw new Error('recording download returned no bytes');
+    const transcript = await deps.stt?.transcribe({
+      audio: original,
+      mimeType: 'audio/wav',
+      languageHint: 'hr',
+      ...(recordingId ? { providerFileId: recordingId } : {}),
+    });
+    if (!transcript) throw new Error('STT provider is not configured');
     const seed = recordingId ?? row.id;
     const distorted = distortRecording(original, { semitones: deps.config.distortSemitones, seed });
     original.fill(0);
@@ -364,13 +433,6 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       bytes: deps.config.audioSink === 'gateway' ? distorted.bytes : null,
       expiresAt: addMinutes(deps.now(), deps.config.audioTtlMinutes),
     });
-
-    const transcript = await deps.stt?.transcribe({
-      audio: distorted.bytes,
-      mimeType: 'audio/wav',
-      languageHint: 'hr',
-    });
-    if (!transcript) throw new Error('STT provider is not configured');
     await deps.trace.appendChannelMessage(
       row.caseNumber,
       {
@@ -398,7 +460,6 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
         caseNumber: row.caseNumber,
       });
     }
-    await deps.store.completeInbox(row.id, { recordId: row.recordId, caseNumber: row.caseNumber });
 
     const confirmation = seal(deps, SMS_CONFIRM(row.caseNumber), 'outbox-body');
     await deps.store.enqueueOutbox({
@@ -431,6 +492,17 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
     });
   } catch (cause) {
     if (original) original.fill(0);
+    providerDeleted = await deleteProviderRecording(deps, providerFileId);
+    if (!providerDeleted) {
+      deps.log({
+        service: 'channel-gateway',
+        stage: 'voice',
+        code: 'provider_recording_delete_failed',
+        recordId: row.recordId,
+        caseNumber: row.caseNumber,
+        error: 'recording_delete_failed',
+      });
+    }
     const message = cause instanceof Error ? cause.message : String(cause);
     if (!reopenKey) {
       try {
@@ -440,21 +512,39 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       }
     }
     if (reopenKey) {
-      await deps.trace.appendChannelMessage(
-        row.caseNumber,
-        {
-          reopenKey,
-          channel: 'voice',
-          kind: 'transcript-failed',
-          text: TRANSCRIPT_FAILED_TEXT,
-          source: 'system',
-          occurredAt: deps.now().toISOString(),
-        },
-        `${row.id}:failed`,
-      );
+      try {
+        await deps.trace.appendChannelMessage(
+          row.caseNumber,
+          {
+            reopenKey,
+            channel: 'voice',
+            kind: 'transcript-failed',
+            text: TRANSCRIPT_FAILED_TEXT,
+            source: 'system',
+            occurredAt: deps.now().toISOString(),
+          },
+          `${row.id}:failed`,
+        );
+      } catch (error) {
+        deps.log({
+          service: 'channel-gateway',
+          stage: 'voice',
+          code: 'transcript_failure_notification_failed',
+          recordId: row.recordId,
+          caseNumber: row.caseNumber,
+          error: error instanceof Error ? error.message : 'trace_notification_failed',
+        });
+      }
     }
     await deps.store.updateRecording(row.id, { state: 'failed', bytes: null });
-    await deps.store.failInbox(row.id, message, addMinutes(deps.now(), 5));
+    if (providerDeleted) {
+      await deps.store.completeInbox(row.id, {
+        recordId: row.recordId,
+        caseNumber: row.caseNumber,
+      });
+    } else {
+      await deps.store.failInbox(row.id, message, addMinutes(deps.now(), 5));
+    }
     deps.log({
       service: 'channel-gateway',
       stage: 'voice',
@@ -464,5 +554,7 @@ export async function handleRecordingSaved(row: InboxRow, deps: PipelineDeps): P
       caseNumber: row.caseNumber,
       error: message,
     });
+    return;
   }
+  await completeRecordingCustody(row, deps, providerFileId);
 }

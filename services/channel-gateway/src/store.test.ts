@@ -11,6 +11,7 @@ import { runChannelMigrations } from './migrations.js';
 import { PostgresChannelStore } from './repository.js';
 import type { ChannelStore } from './store.js';
 import type {
+  ChannelCall,
   ChannelIdentity,
   ChannelInbox,
   ChannelLink,
@@ -25,6 +26,7 @@ interface FixtureState {
   phoneHash: string;
   identity: ChannelIdentity;
   link: ChannelLink;
+  call: ChannelCall;
   inbox: ChannelInbox;
   outbox: ChannelOutbox;
   recording: ChannelRecording;
@@ -61,6 +63,16 @@ function fixtures(): FixtureState {
     channel: 'sms',
     state: 'open',
     lastMessageAt: now,
+    expiresAt: future,
+  };
+  const call: ChannelCall = {
+    callId: `call-${randomUUID()}`,
+    phoneHash,
+    caseNumber: link.caseNumber,
+    recordId: link.recordId,
+    step: 'prompt',
+    createdAt: now,
+    updatedAt: now,
     expiresAt: future,
   };
   const inbox: ChannelInbox = {
@@ -113,7 +125,7 @@ function fixtures(): FixtureState {
     createdAt: now,
     expiresAt: future,
   };
-  return { now, phoneHash, identity, link, inbox, outbox, recording };
+  return { now, phoneHash, identity, link, call, inbox, outbox, recording };
 }
 
 async function assertConformance(store: ChannelStore): Promise<ConformanceState> {
@@ -130,16 +142,25 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
   await store.closeLink(value.phoneHash, value.link.recordId);
   assert.deepEqual(await store.listOpenLinks(value.phoneHash), []);
   await store.upsertLink(value.link);
+  await store.upsertCall(value.call);
+  assert.equal((await store.getCall(value.call.callId))?.step, 'prompt');
+  const callUpdatedAt = new Date(value.now.getTime() + 500);
+  await store.markCallStep(value.call.callId, 'recording', callUpdatedAt);
+  assert.equal((await store.getCall(value.call.callId))?.step, 'recording');
+  assert.equal(
+    (await store.getCall(value.call.callId))?.updatedAt.getTime(),
+    callUpdatedAt.getTime(),
+  );
 
   const eventId = `event-${randomUUID()}`;
   const eventHash = 'a'.repeat(64);
-  assert.deepEqual(await store.recordEvent('telnyx', eventId, 'message.received', eventHash), {
+  assert.deepEqual(await store.recordEvent('infobip', eventId, 'sms.received', eventHash), {
     duplicate: false,
   });
-  assert.deepEqual(await store.recordEvent('telnyx', eventId, 'message.received', eventHash), {
+  assert.deepEqual(await store.recordEvent('infobip', eventId, 'sms.received', eventHash), {
     duplicate: true,
   });
-  await store.markEvent('telnyx', eventId, 'processed');
+  await store.markEvent('infobip', eventId, 'processed');
 
   await store.enqueueInbox(value.inbox);
   await store.enqueueInbox({ ...value.inbox, id: randomUUID() });
@@ -208,9 +229,10 @@ if (postgresDatabaseUrl) {
           await sql`DELETE FROM channel_recordings WHERE id = ${value.recording.id}`;
           await sql`DELETE FROM channel_inbox WHERE id = ${value.inbox.id}`;
           await sql`DELETE FROM channel_outbox WHERE id = ${value.outbox.id}`;
+          await sql`DELETE FROM channel_calls WHERE call_id = ${value.call.callId}`;
           await sql`DELETE FROM channel_links WHERE phone_hash = ${value.phoneHash}`;
           await sql`DELETE FROM channel_identities WHERE phone_hash = ${value.phoneHash}`;
-          await sql`DELETE FROM channel_events WHERE provider = 'telnyx' AND event_id = ${value.eventId}`;
+          await sql`DELETE FROM channel_events WHERE provider = 'infobip' AND event_id = ${value.eventId}`;
           await sql`DELETE FROM channel_rate_windows WHERE scope = 'inbound-hour' AND key = ${value.phoneHash}`;
         }
         await repository.close();

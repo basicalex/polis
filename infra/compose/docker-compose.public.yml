@@ -14,7 +14,7 @@
 #
 # - Documenso webhook ingress terminates at the platform-api BFF only. Never
 #   publish document-signing-service or route webhooks to it directly.
-# - Telnyx webhook ingress terminates at the platform-api BFF only. Never
+# - Infobip webhook ingress terminates at the platform-api BFF only. Never
 #   publish channel-gateway or route webhooks to it directly.
 #
 # Base docker-compose.yml keeps dev identity tokens enabled; this override

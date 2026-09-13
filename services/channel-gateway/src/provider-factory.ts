@@ -4,34 +4,31 @@
 import { ChannelProviderError, type ChannelProvider } from './channel-provider.js';
 import type { ChannelConfig } from './config.js';
 import { StubChannelProvider } from './stub-provider.js';
-import { TelnyxClient, type FetchImplementation } from './telnyx-client.js';
+import { InfobipClient, type FetchImplementation } from './infobip-client.js';
 
 export function createChannelProvider(
   config: ChannelConfig,
   fetchImpl?: FetchImplementation,
 ): ChannelProvider {
   if (config.channelProvider === 'stub') return new StubChannelProvider();
-  if (!config.telnyx) {
-    throw new ChannelProviderError('Telnyx configuration is incomplete', {
+  if (!config.infobip) {
+    throw new ChannelProviderError('Infobip configuration is incomplete', {
       code: 'invalid_config',
     });
   }
   const values = [
-    config.telnyx.numberE164,
-    config.telnyx.apiKey,
-    config.telnyx.publicKey,
-    config.telnyx.messagingProfileId,
-    config.telnyx.connectionId,
-    config.telnyx.ttsVoice,
+    config.infobip.baseUrl,
+    config.infobip.apiKey,
+    config.infobip.webhookSecret,
+    config.infobip.webhookSignatureHeader,
+    config.infobip.sender,
+    config.infobip.callsConfigurationId,
+    config.infobip.ttsLanguage,
   ];
-  if (
-    values.some((value) => value.trim() === '') ||
-    !Number.isSafeInteger(config.telnyx.signatureToleranceSeconds) ||
-    config.telnyx.signatureToleranceSeconds < 0
-  ) {
-    throw new ChannelProviderError('Telnyx configuration is incomplete', {
+  if (values.some((value) => value.trim() === '')) {
+    throw new ChannelProviderError('Infobip configuration is incomplete', {
       code: 'invalid_config',
     });
   }
-  return new TelnyxClient({ config: config.telnyx, fetch: fetchImpl });
+  return new InfobipClient({ config: config.infobip, fetch: fetchImpl });
 }

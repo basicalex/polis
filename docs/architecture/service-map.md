@@ -57,8 +57,9 @@ Node services using `packages/service-runtime` expose:
 | GET | `/api/v1/mandate-holders/:id/charter-signing-status` | Requires a citizen session; returns the latest signing request for the mandate-holder. |
 | POST | `/api/v1/signing-requests/:id/stub-complete` | Requires the signer citizen's session; completes and reconciles a stub request. |
 | POST | `/webhooks/documenso` | Forwards the raw body and `X-Documenso-Secret` to the signing service. |
-| POST | `/webhooks/telnyx/messaging` | Forwards the raw body plus `telnyx-signature-ed25519` and `telnyx-timestamp` to `channel-gateway`. |
-| POST | `/webhooks/telnyx/voice` | Forwards the raw body plus `telnyx-signature-ed25519` and `telnyx-timestamp` to `channel-gateway`. |
+| POST | `/webhooks/infobip/sms` | Forwards the raw body plus `X-Hub-Signature` to `channel-gateway`. |
+| POST | `/webhooks/infobip/sms-reports` | Forwards the raw body plus `X-Hub-Signature` to `channel-gateway`. |
+| POST | `/webhooks/infobip/calls` | Forwards the raw body plus `X-Hub-Signature` to `channel-gateway`. |
 | POST | `/api/v1/complaints` | Requires a citizen session; creates a resident-owned complaint case. |
 | GET | `/api/v1/complaints/mine` | Requires a citizen session; lists the caller's complaint summaries. |
 | GET | `/api/v1/complaints/queue` | Requires a staff session and authorized complaints right; lists the intake queue. |
@@ -97,7 +98,7 @@ Node services using `packages/service-runtime` expose:
 | `document-signing-service` | Node 24 | 8960 | Renders charter PDFs and coordinates signing, storage, proof registration, and acceptance. | `GET /readyz` | 15 |
 | `complaints-service` | Node 24 | 8970 | Manages private resident complaint cases, staff decisions, and appeals. | `GET /readyz` | 16 |
 | `trace-service` | Node 24 | 8980 | Runs an isolated, synthetic report, commitment, review, and resolution trace loop against an example municipality configuration. | `GET /readyz` | opt-in |
-| `channel-gateway` | Node 24 | 8990 | Terminates Telnyx SMS and voice webhooks, holds the only phone data, relays case messages. | `GET /readyz` | opt-in |
+| `channel-gateway` | Node 24 | 8990 | Terminates Infobip SMS and voice webhooks, holds the only phone data, relays case messages. | `GET /readyz` | opt-in |
 <!-- service-catalog:service-map:end -->
 
 `document-signing-service` depends on Postgres, `proof-service`,
@@ -113,8 +114,8 @@ The isolated public-read pilot Compose deliberately omits `complaints-service`, 
 Every `/internal/*` route requires `X-Polis-Internal-Token`. The shared runtime
 returns `401 internal_auth_required` when `INTERNAL_API_TOKEN` is missing or the
 header does not match. The public BFF injects this header for service calls.
-Documenso webhooks also require `X-Documenso-Secret`; Telnyx webhooks require
-`telnyx-signature-ed25519` and `telnyx-timestamp`.
+Documenso webhooks also require `X-Documenso-Secret`; Infobip webhooks require
+`X-Hub-Signature` with HMAC-SHA256 over the raw request body.
 
 | Service | Port | Method | Path | Current behavior |
 | --- | ---: | --- | --- | --- |
@@ -160,8 +161,9 @@ Documenso webhooks also require `X-Documenso-Secret`; Telnyx webhooks require
 | `document-signing-service` | 8960 | POST | `/internal/signing/requests/:id/stub-complete` | In stub mode, completes the signing recipient's test envelope and reconciles it. |
 | `document-signing-service` | 8960 | GET | `/internal/signing/artifacts/:id/content` | Downloads restricted artifact bytes with private, no-store caching. |
 | `document-signing-service` | 8960 | POST | `/internal/signing/webhooks/documenso` | Deduplicates a secret-authenticated wake-up event and schedules reconciliation. |
-| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/telnyx/messaging` | Verifies and deduplicates Telnyx SMS webhooks, seals private phone/message data, and relays case messages. |
-| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/telnyx/voice` | Verifies and deduplicates Telnyx voice webhooks, drives Call Control handling, and processes recording callbacks. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/infobip/sms` | Verifies and deduplicates Infobip SMS webhooks, seals private phone/message data, and relays case messages. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/infobip/sms-reports` | Verifies and deduplicates Infobip delivery reports and updates outbox delivery state. |
+| `channel-gateway` | 8990 | POST | `/internal/channel/webhooks/infobip/calls` | Verifies and deduplicates Infobip Calls API events, drives call handling, and processes recording files. |
 | `channel-gateway` | 8990 | POST | `/internal/channel/stub/inbound` | Stub-only inbound SMS/voice injection for hermetic local and pilot runs when enabled. |
 | `channel-gateway` | 8990 | POST | `/internal/channel/relay/outbox` | Claims pending trace outbox messages and sends them through the configured channel provider. |
 

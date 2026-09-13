@@ -8,6 +8,7 @@ export type InboxState = 'pending' | 'processing' | 'done' | 'failed';
 export type OutboxOrigin = 'relay' | 'confirmation' | 'system';
 export type OutboxState = 'pending' | 'sent' | 'delivered' | 'failed';
 export type RecordingState = 'fetched' | 'distorted' | 'transcribed' | 'discarded' | 'failed';
+export type CallStep = 'answered' | 'prompt' | 'readback' | 'recording' | 'done';
 
 export interface ChannelIdentity {
   phoneHash: string;
@@ -45,6 +46,17 @@ export interface ChannelEvent {
   attempts: number;
   lastError: string | null;
   receivedAt: Date;
+  expiresAt: Date;
+}
+
+export interface ChannelCall {
+  callId: string;
+  phoneHash: string;
+  caseNumber: string | null;
+  recordId: string | null;
+  step: CallStep;
+  createdAt: Date;
+  updatedAt: Date;
   expiresAt: Date;
 }
 
@@ -118,6 +130,7 @@ export interface PurgeCounts {
   inbox: number;
   outbox: number;
   recordings: number;
+  calls: number;
   links: number;
   identities: number;
 }

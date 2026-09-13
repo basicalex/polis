@@ -5,6 +5,8 @@ import postgres from 'postgres';
 
 import type { ChannelStore } from './store.js';
 import type {
+  CallStep,
+  ChannelCall,
   ChannelIdentity,
   ChannelInbox,
   ChannelLink,
@@ -43,6 +45,17 @@ interface LinkRow {
   channel: ChannelLink['channel'];
   state: ChannelLink['state'];
   last_message_at: DateValue;
+  expires_at: DateValue;
+}
+
+interface CallRow {
+  call_id: string;
+  phone_hash: string;
+  case_number: string | null;
+  record_id: string | null;
+  step: ChannelCall['step'];
+  created_at: DateValue;
+  updated_at: DateValue;
   expires_at: DateValue;
 }
 
@@ -138,6 +151,19 @@ function link(row: LinkRow): ChannelLink {
     channel: row.channel,
     state: row.state,
     lastMessageAt: date(row.last_message_at),
+    expiresAt: date(row.expires_at),
+  };
+}
+
+function call(row: CallRow): ChannelCall {
+  return {
+    callId: row.call_id,
+    phoneHash: row.phone_hash.trim(),
+    caseNumber: row.case_number,
+    recordId: row.record_id,
+    step: row.step,
+    createdAt: date(row.created_at),
+    updatedAt: date(row.updated_at),
     expiresAt: date(row.expires_at),
   };
 }
@@ -300,6 +326,40 @@ export class PostgresChannelStore implements ChannelStore {
       WHERE phone_hash = ${phoneHash} AND record_id = ${recordId}
     `;
   }
+  async upsertCall(value: ChannelCall): Promise<void> {
+    await this.#sql`
+      INSERT INTO channel_calls (
+        call_id, phone_hash, case_number, record_id, step, created_at, updated_at, expires_at
+      ) VALUES (
+        ${value.callId}, ${value.phoneHash}, ${value.caseNumber}, ${value.recordId}, ${value.step},
+        ${value.createdAt}, ${value.updatedAt}, ${value.expiresAt}
+      )
+      ON CONFLICT (call_id) DO UPDATE SET
+        phone_hash = EXCLUDED.phone_hash,
+        case_number = EXCLUDED.case_number,
+        record_id = EXCLUDED.record_id,
+        step = EXCLUDED.step,
+        updated_at = EXCLUDED.updated_at,
+        expires_at = EXCLUDED.expires_at
+    `;
+  }
+
+  async getCall(callId: string): Promise<ChannelCall | null> {
+    const rows = await this.#sql<CallRow[]>`
+      SELECT call_id, phone_hash, case_number, record_id, step, created_at, updated_at, expires_at
+      FROM channel_calls
+      WHERE call_id = ${callId}
+      LIMIT 1
+    `;
+    return rows[0] ? call(rows[0]) : null;
+  }
+
+  async markCallStep(callId: string, step: CallStep, updatedAt: Date): Promise<void> {
+    await this.#sql`
+      UPDATE channel_calls SET step = ${step}, updated_at = ${updatedAt}
+      WHERE call_id = ${callId}
+    `;
+  }
 
   async recordEvent(
     provider: string,
@@ -447,9 +507,10 @@ export class PostgresChannelStore implements ChannelStore {
   async markOutboxDelivery(
     providerMessageId: string,
     state: Extract<OutboxState, 'delivered' | 'failed'>,
+    failureCode?: string,
   ): Promise<void> {
     await this.#sql`
-      UPDATE channel_outbox SET state = ${state}
+      UPDATE channel_outbox SET state = ${state}, last_error = ${failureCode ?? null}
       WHERE provider_message_id = ${providerMessageId}
     `;
   }
@@ -515,6 +576,7 @@ export class PostgresChannelStore implements ChannelStore {
       const inboxRows = await tx`DELETE FROM channel_inbox WHERE expires_at <= ${now}`;
       const outboxRows = await tx`DELETE FROM channel_outbox WHERE expires_at <= ${now}`;
       const recordings = await tx`DELETE FROM channel_recordings WHERE expires_at <= ${now}`;
+      const calls = await tx`DELETE FROM channel_calls WHERE expires_at <= ${now}`;
       const links = await tx`DELETE FROM channel_links WHERE expires_at <= ${now}`;
       const identities = await tx`
         DELETE FROM channel_identities AS identity
@@ -528,6 +590,7 @@ export class PostgresChannelStore implements ChannelStore {
         inbox: inboxRows.count,
         outbox: outboxRows.count,
         recordings: recordings.count,
+        calls: calls.count,
         links: links.count,
         identities: identities.count,
       };

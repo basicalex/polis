@@ -1,22 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { createPublicKey } from 'node:crypto';
-
 import { parseVaultKeys } from './crypto.js';
+import { INFOBIP_DEFAULT_WEBHOOK_SIGNATURE_HEADER } from './infobip-api.js';
 
-export type ChannelProvider = 'stub' | 'telnyx';
-export type SttProvider = 'stub' | 'openai-compatible';
+export type ChannelProvider = 'stub' | 'infobip';
+export type SttProvider = 'stub' | 'openai-compatible' | 'infobip';
 export type ChannelAudioSink = 'discard' | 'trace' | 'gateway';
 
-export interface TelnyxConfig {
-  numberE164: string;
+export interface InfobipConfig {
+  baseUrl: string;
   apiKey: string;
-  publicKey: string;
-  messagingProfileId: string;
-  connectionId: string;
-  ttsVoice: string;
-  signatureToleranceSeconds: number;
+  webhookSecret: string;
+  webhookSignatureHeader: string;
+  sender: string;
+  callsConfigurationId: string;
+  ttsLanguage: string;
+  ttsVoice?: string;
 }
 
 export interface SttConfig {
@@ -41,7 +41,7 @@ export interface ChannelConfig {
   activeVaultKeyVersion: number;
   vaultPepper: string;
   auditInternalUrl: string;
-  telnyx?: TelnyxConfig;
+  infobip?: InfobipConfig;
   stt?: SttConfig;
   audioSink: ChannelAudioSink;
   distortSemitones: number;
@@ -196,23 +196,6 @@ function booleanValue(raw: string | undefined, key: string, fallback: boolean): 
   throw new Error(`${key} must be exactly true or false`);
 }
 
-function parseTelnyxPublicKey(env: NodeJS.ProcessEnv): string {
-  const raw = env.TELNYX_PUBLIC_KEY;
-  if (!raw || raw.length > 8_192) throw new Error('TELNYX_PUBLIC_KEY is required and bounded');
-  try {
-    if (raw.trim().startsWith('-----BEGIN')) {
-      createPublicKey(raw.trim());
-      return raw.trim();
-    }
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(raw) || raw.length % 4 !== 0) throw new Error();
-    const decoded = Buffer.from(raw, 'base64');
-    if (decoded.byteLength !== 32 || decoded.toString('base64') !== raw) throw new Error();
-    return raw;
-  } catch {
-    throw new Error('TELNYX_PUBLIC_KEY must be a base64 32-byte Ed25519 key or PEM');
-  }
-}
-
 function parseDistortSemitones(raw: string | undefined): number {
   const value = raw === undefined ? -4 : Number(raw);
   if (!Number.isFinite(value) || value === 0 || Math.abs(value) > 12) {
@@ -244,14 +227,14 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
   const channelProvider = providerValue(
     env,
     'CHANNEL_PROVIDER',
-    ['stub', 'telnyx'] as const,
+    ['stub', 'infobip'] as const,
     deploymentProfile,
     'stub',
   );
   const sttProvider = providerValue(
     env,
     'STT_PROVIDER',
-    ['stub', 'openai-compatible'] as const,
+    ['stub', 'openai-compatible', 'infobip'] as const,
     deploymentProfile,
     'stub',
   );
@@ -262,6 +245,9 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
   );
   if ((channelProvider !== 'stub' || sttProvider !== 'stub') && !processingAgreement) {
     throw new Error('CHANNEL_PROCESSING_AGREEMENT must be exactly true for non-stub providers');
+  }
+  if (sttProvider === 'infobip' && channelProvider !== 'infobip') {
+    throw new Error('STT_PROVIDER=infobip requires CHANNEL_PROVIDER=infobip');
   }
 
   const rawVaultKeys = requiredSecret(env, 'PHONE_VAULT_KEY');
@@ -279,42 +265,63 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
     throw new Error('PHONE_VAULT_PEPPER must differ from every PHONE_VAULT_KEY');
   }
 
-  let telnyx: TelnyxConfig | undefined;
-  if (channelProvider === 'telnyx') {
-    const numberE164 = requiredValue(env, 'CHANNEL_NUMBER_E164', 16);
-    if (!/^\+[1-9]\d{7,14}$/.test(numberE164)) {
-      throw new Error('CHANNEL_NUMBER_E164 must be valid E.164');
+  let infobip: InfobipConfig | undefined;
+  if (channelProvider === 'infobip') {
+    const baseUrl = parseHttpUrl(requiredValue(env, 'INFOBIP_BASE_URL'), 'INFOBIP_BASE_URL');
+    if (new URL(baseUrl).protocol !== 'https:' && !isLoopback(baseUrl)) {
+      throw new Error('INFOBIP_BASE_URL must use HTTPS unless it is loopback');
     }
-    const apiKey = requiredSecret(env, 'TELNYX_API_KEY');
-    const publicKey = parseTelnyxPublicKey(env);
-    const messagingProfileId = requiredValue(env, 'TELNYX_MESSAGING_PROFILE_ID');
-    const connectionId = requiredValue(env, 'TELNYX_CONNECTION_ID');
-    const ttsVoice = env.TELNYX_TTS_VOICE ?? 'Azure.hr-HR-GabrijelaNeural';
-    if (!/^(Azure\.hr-HR-|ElevenLabs\.)/.test(ttsVoice)) {
-      throw new Error('TELNYX_TTS_VOICE must start with Azure.hr-HR- or ElevenLabs.');
+    const apiKey = requiredSecret(env, 'INFOBIP_API_KEY');
+    const webhookSecret = requiredSecret(env, 'INFOBIP_WEBHOOK_SECRET');
+    if (webhookSecret.length < 32) {
+      throw new Error('INFOBIP_WEBHOOK_SECRET must be at least 32 characters');
+    }
+    const webhookSignatureHeader =
+      env.INFOBIP_WEBHOOK_SIGNATURE_HEADER ?? INFOBIP_DEFAULT_WEBHOOK_SIGNATURE_HEADER;
+    if (
+      webhookSignatureHeader.trim() !== webhookSignatureHeader ||
+      !/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(webhookSignatureHeader)
+    ) {
+      throw new Error('INFOBIP_WEBHOOK_SIGNATURE_HEADER must be a valid HTTP header name');
+    }
+    const sender = env.INFOBIP_SENDER ?? requiredValue(env, 'CHANNEL_NUMBER_E164', 16);
+    if (!/^\+[1-9]\d{7,14}$/.test(sender)) {
+      throw new Error('INFOBIP_SENDER must be valid E.164');
+    }
+    const callsConfigurationId = requiredValue(env, 'INFOBIP_CALLS_CONFIGURATION_ID');
+    const ttsLanguage = env.INFOBIP_TTS_LANGUAGE ?? 'hr';
+    if (
+      !ttsLanguage ||
+      ttsLanguage.trim() !== ttsLanguage ||
+      ttsLanguage.length > 32 ||
+      hasControl(ttsLanguage)
+    ) {
+      throw new Error('INFOBIP_TTS_LANGUAGE must be a safe bounded value');
+    }
+    const ttsVoice = env.INFOBIP_TTS_VOICE;
+    if (
+      ttsVoice !== undefined &&
+      (!ttsVoice || ttsVoice.trim() !== ttsVoice || ttsVoice.length > 128 || hasControl(ttsVoice))
+    ) {
+      throw new Error('INFOBIP_TTS_VOICE must be a safe bounded value when provided');
     }
     for (const [key, value] of [
-      ['TELNYX_API_KEY', apiKey],
-      ['TELNYX_PUBLIC_KEY', publicKey],
-      ['TELNYX_MESSAGING_PROFILE_ID', messagingProfileId],
-      ['TELNYX_CONNECTION_ID', connectionId],
+      ['INFOBIP_BASE_URL', baseUrl],
+      ['INFOBIP_API_KEY', apiKey],
+      ['INFOBIP_WEBHOOK_SECRET', webhookSecret],
+      ['INFOBIP_CALLS_CONFIGURATION_ID', callsConfigurationId],
     ] as const) {
       rejectPlaceholder(deploymentProfile, key, value);
     }
-    telnyx = {
-      numberE164,
+    infobip = {
+      baseUrl,
       apiKey,
-      publicKey,
-      messagingProfileId,
-      connectionId,
-      ttsVoice,
-      signatureToleranceSeconds: integerValue(
-        env.TELNYX_SIGNATURE_TOLERANCE_S,
-        'TELNYX_SIGNATURE_TOLERANCE_S',
-        300,
-        30,
-        900,
-      ),
+      webhookSecret,
+      webhookSignatureHeader: webhookSignatureHeader.toLowerCase(),
+      sender,
+      callsConfigurationId,
+      ttsLanguage,
+      ...(ttsVoice ? { ttsVoice } : {}),
     };
   }
 
@@ -364,7 +371,7 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
       env.AUDIT_INTERNAL_URL ?? 'http://localhost:8600',
       'AUDIT_INTERNAL_URL',
     ),
-    ...(telnyx ? { telnyx } : {}),
+    ...(infobip ? { infobip } : {}),
     ...(stt ? { stt } : {}),
     audioSink: enumValue(
       env.CHANNEL_AUDIO_SINK,

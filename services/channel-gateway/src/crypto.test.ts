@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -10,7 +10,7 @@ import {
   parseVaultKeys,
   phoneHash,
   sealString,
-  verifyTelnyxSignature,
+  verifyInfobipSignature,
 } from './crypto.js';
 
 test('AES-256-GCM round trips each AAD context and rejects mismatches', () => {
@@ -53,29 +53,24 @@ test('phone hashes are municipality-bound HMAC-SHA256 values', () => {
   assert.notEqual(first, phoneHash('+385911234567', 'pepper-value', 'other'));
 });
 
-test('Telnyx Ed25519 signatures verify in PEM and raw-base64 forms without throwing', () => {
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  const rawBody = Buffer.from('{"data":{"event_type":"message.received"}}');
-  const timestamp = '1789230000';
-  const message = Buffer.concat([Buffer.from(timestamp), Buffer.from('|'), rawBody]);
-  const signature = sign(null, message, privateKey).toString('base64');
-  const pem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
-  const der = publicKey.export({ type: 'spki', format: 'der' });
-  const raw = der.subarray(der.length - 32).toString('base64');
-  const valid = {
-    publicKey: pem,
-    signature,
-    timestamp,
-    rawBody,
-    toleranceSeconds: 300,
-    now: Number(timestamp),
-  };
-  assert.equal(verifyTelnyxSignature(valid), true);
-  assert.equal(verifyTelnyxSignature({ ...valid, publicKey: raw }), true);
-  assert.equal(verifyTelnyxSignature({ ...valid, rawBody: Buffer.from('wrong') }), false);
-  assert.equal(verifyTelnyxSignature({ ...valid, now: Number(timestamp) + 301 }), false);
-  assert.equal(verifyTelnyxSignature({ ...valid, now: Number(timestamp) - 301 }), false);
-  assert.equal(verifyTelnyxSignature({ ...valid, signature: undefined }), false);
-  assert.equal(verifyTelnyxSignature({ ...valid, timestamp: undefined }), false);
-  assert.equal(verifyTelnyxSignature({ ...valid, publicKey: 'not-a-key' }), false);
+test('Infobip HMAC signatures accept documented encodings and never throw', () => {
+  const secret = 'a-real-webhook-secret-at-least-32-characters';
+  const rawBody = Buffer.from('{"results":[{"messageId":"message-1"}]}');
+  const digest = createHmac('sha256', secret).update(rawBody).digest();
+  for (const header of [
+    `sha256=${digest.toString('hex')}`,
+    digest.toString('hex'),
+    digest.toString('base64'),
+  ]) {
+    assert.equal(verifyInfobipSignature({ secret, header, rawBody }), true);
+  }
+  assert.equal(
+    verifyInfobipSignature({ secret: `${secret}-wrong`, header: digest.toString('hex'), rawBody }),
+    false,
+  );
+  assert.equal(verifyInfobipSignature({ secret, header: undefined, rawBody }), false);
+  for (const header of ['sha256=not-hex', '%%%', '00', '']) {
+    assert.doesNotThrow(() => verifyInfobipSignature({ secret, header, rawBody }));
+    assert.equal(verifyInfobipSignature({ secret, header, rawBody }), false);
+  }
 });

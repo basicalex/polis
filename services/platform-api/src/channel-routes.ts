@@ -16,22 +16,25 @@ const DEFAULT_CHANNEL_INTERNAL_URL = 'http://localhost:8990';
 const BODY_LIMIT_BYTES = 65_536;
 
 type ChannelWebhookSpec = {
-  path: '/webhooks/telnyx/messaging' | '/webhooks/telnyx/voice';
+  path: '/webhooks/infobip/sms' | '/webhooks/infobip/sms-reports' | '/webhooks/infobip/calls';
   upstreamPath:
-    '/internal/channel/webhooks/telnyx/messaging' | '/internal/channel/webhooks/telnyx/voice';
-  timeoutMs: 1500 | 5000;
+    | '/internal/channel/webhooks/infobip/sms'
+    | '/internal/channel/webhooks/infobip/sms-reports'
+    | '/internal/channel/webhooks/infobip/calls';
 };
 
 const CHANNEL_WEBHOOKS: readonly ChannelWebhookSpec[] = [
   {
-    path: '/webhooks/telnyx/messaging',
-    upstreamPath: '/internal/channel/webhooks/telnyx/messaging',
-    timeoutMs: 1500,
+    path: '/webhooks/infobip/sms',
+    upstreamPath: '/internal/channel/webhooks/infobip/sms',
   },
   {
-    path: '/webhooks/telnyx/voice',
-    upstreamPath: '/internal/channel/webhooks/telnyx/voice',
-    timeoutMs: 5000,
+    path: '/webhooks/infobip/sms-reports',
+    upstreamPath: '/internal/channel/webhooks/infobip/sms-reports',
+  },
+  {
+    path: '/webhooks/infobip/calls',
+    upstreamPath: '/internal/channel/webhooks/infobip/calls',
   },
 ];
 
@@ -39,13 +42,15 @@ function configuredChannelBase(): string {
   return (process.env.CHANNEL_INTERNAL_URL ?? DEFAULT_CHANNEL_INTERNAL_URL).replace(/\/+$/, '');
 }
 
-function telnyxHeaders(req: IncomingMessage): Record<string, string> {
-  const headers: Record<string, string> = {};
-  for (const name of ['telnyx-signature-ed25519', 'telnyx-timestamp'] as const) {
-    const value = req.headers[name];
-    if (typeof value === 'string') headers[name] = value;
+function infobipHeaders(req: IncomingMessage): Record<string, string> {
+  const signatureHeader = (
+    process.env.INFOBIP_WEBHOOK_SIGNATURE_HEADER ?? 'x-hub-signature'
+  ).toLowerCase();
+  if (!/^[a-z0-9!#$%&'*+.^_`|~-]+$/.test(signatureHeader)) {
+    throw new Error('INFOBIP_WEBHOOK_SIGNATURE_HEADER must be a valid HTTP header name');
   }
-  return internalHeaders(headers);
+  const value = req.headers[signatureHeader];
+  return internalHeaders(typeof value === 'string' ? { [signatureHeader]: value } : {});
 }
 
 async function proxyChannelWebhook(
@@ -58,10 +63,10 @@ async function proxyChannelWebhook(
       configuredChannelBase() + spec.upstreamPath,
       {
         method: 'POST',
-        headers: telnyxHeaders(req),
+        headers: infobipHeaders(req),
         body: Buffer.from(body instanceof Uint8Array ? body : new Uint8Array()),
       },
-      spec.timeoutMs,
+      1500,
     );
     const bytes = new Uint8Array(await upstream.arrayBuffer());
     return binaryResult(
@@ -74,7 +79,7 @@ async function proxyChannelWebhook(
   }
 }
 
-/** Feature-gated raw Telnyx webhook ingress routes for channel-gateway. */
+/** Feature-gated raw Infobip webhook ingress routes for channel-gateway. */
 export function channelRoutes(): Route[] {
   if (process.env.CHANNEL_ENABLED !== 'true') return [];
 

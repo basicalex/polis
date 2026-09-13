@@ -4,7 +4,7 @@
 // Bound to docs/communication/hr-terminology-glossary.md: prijava, zaprimljeno, predmet; formal Vi.
 
 export const PROMPT_HR =
-  'Dobar dan. Ovo je automatska prijava komunalnog problema. Opišite problem nakon zvučnog signala. Ako ne navedete svoje ime, prijava će se voditi anonimno. Kada završite, poklopite.';
+  'Dobar dan. Ovo je automatska prijava komunalnog problema. Polis ne traži vaš identitet. Vaš broj neće biti javno povezan s prijavom. Ako ne navedete ime, prijava se vodi bez imena. Opišite problem nakon zvučnog signala. Kada završite, poklopite.';
 
 export const SMS_BLOCKED = 'Poruke su zaustavljene. Pošaljite POČNI za nastavak.';
 

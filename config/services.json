@@ -292,7 +292,7 @@
       "workspace": "@polis/channel-gateway",
       "runtime": "node-24",
       "defaultPort": 8990,
-      "role": "Terminates Telnyx SMS and voice webhooks, holds the only phone data, relays case messages.",
+      "role": "Terminates Infobip SMS and voice webhooks, holds the only phone data, relays case messages.",
       "healthRoute": "/readyz",
       "dev": {
         "launch": false,

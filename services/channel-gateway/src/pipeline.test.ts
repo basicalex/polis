@@ -7,10 +7,10 @@ import test from 'node:test';
 import type { ChannelConfig } from './config.js';
 import { openString, phoneHash, sealString } from './crypto.js';
 import { MemoryChannelStore } from './memory-store.js';
-import { handleMessagingEvent, runInboxCycle } from './pipeline.js';
+import { handleDeliveryEvent, handleMessagingEvent, runInboxCycle } from './pipeline.js';
 import type { PipelineDeps, TraceClient } from './pipeline-types.js';
 import { deliverOutbound } from './relay.js';
-import type { ChannelLink } from './types.js';
+import type { ChannelLink, ChannelOutbox } from './types.js';
 
 const key = Buffer.alloc(32, 9);
 const now = new Date('2026-09-12T12:00:00.000Z');
@@ -52,17 +52,24 @@ function config(overrides: Partial<ChannelConfig> = {}): ChannelConfig {
   };
 }
 
-function event(id: string, from: string, text: string): Uint8Array {
+function events(entries: Array<{ id: string; from: string; text: string }>): Uint8Array {
   return Buffer.from(
     JSON.stringify({
-      data: {
-        id,
-        event_type: 'message.received',
-        occurred_at: now.toISOString(),
-        payload: { from: { phone_number: from }, text },
-      },
+      results: entries.map(({ id, from, text }) => ({
+        messageId: id,
+        from,
+        to: '+385981234567',
+        text,
+        receivedAt: now.toISOString(),
+      })),
+      messageCount: entries.length,
+      pendingMessageCount: 0,
     }),
   );
+}
+
+function event(id: string, from: string, text: string): Uint8Array {
+  return events([{ id, from, text }]);
 }
 
 interface Fixture {
@@ -94,6 +101,9 @@ function fixture(
       async speak() {},
       async recordStart() {},
       async hangup() {},
+      async listRecordings() {
+        return [];
+      },
       async fetchRecording() {
         return new Uint8Array();
       },
@@ -134,22 +144,22 @@ async function accept(subject: PipelineDeps, id: string, text: string): Promise<
 }
 
 test('handleMessagingEvent verifies signatures and dedupes accepted event ids', async () => {
-  const telnyx = fixture(
+  const infobip = fixture(
     {},
     {
-      channelProvider: 'telnyx',
-      telnyx: {
-        numberE164: phone,
-        apiKey: 'k',
-        publicKey: 'bad',
-        messagingProfileId: 'm',
-        connectionId: 'c',
-        ttsVoice: 'v',
-        signatureToleranceSeconds: 300,
+      channelProvider: 'infobip',
+      infobip: {
+        baseUrl: 'https://account.api.infobip.com/',
+        apiKey: 'key',
+        webhookSecret: 'a-real-webhook-secret-at-least-32-characters',
+        webhookSignatureHeader: 'x-hub-signature',
+        sender: phone,
+        callsConfigurationId: 'calls-1',
+        ttsLanguage: 'hr',
       },
     },
   ).deps;
-  assert.deepEqual(await handleMessagingEvent(event('evt-unauth', phone, 'Kvar'), {}, telnyx), {
+  assert.deepEqual(await handleMessagingEvent(event('evt-unauth', phone, 'Kvar'), {}, infobip), {
     status: 401,
     body: { error: 'invalid_signature' },
   });
@@ -163,6 +173,89 @@ test('handleMessagingEvent verifies signatures and dedupes accepted event ids', 
     }),
     { status: 202, body: { accepted: true, duplicate: true } },
   );
+});
+
+test('multi-result SMS bodies enqueue and dedupe each result independently', async () => {
+  const subject = fixture().deps;
+  const raw = events([
+    { id: 'evt-many-1', from: phone, text: 'Prva' },
+    { id: 'evt-many-2', from: phone, text: 'Druga' },
+  ]);
+  assert.deepEqual(
+    await handleMessagingEvent(raw, {}, subject, {
+      stubInjection: true,
+      scheduleProcessing: false,
+    }),
+    { status: 202, body: { accepted: true, duplicate: false } },
+  );
+  assert.equal((await subject.store.claimInbox(now, 10)).length, 2);
+  assert.deepEqual(
+    await handleMessagingEvent(raw, {}, subject, {
+      stubInjection: true,
+      scheduleProcessing: false,
+    }),
+    { status: 202, body: { accepted: true, duplicate: true } },
+  );
+});
+
+test('delivery reports map delivered, failed, and pending groups', async () => {
+  for (const [groupName, expected, name] of [
+    ['DELIVERED', 'delivered', 'DELIVERED_TO_HANDSET'],
+    ['REJECTED', 'failed', 'REJECTED_NETWORK'],
+    ['PENDING', 'sent', 'PENDING_ENROUTE'],
+  ] as const) {
+    const subject = fixture();
+    const sealed = sealString(key, 'Poruka', 'outbox-body');
+    const sourceMessageId = `delivery-${groupName}`;
+    const outbox: ChannelOutbox = {
+      id: `11111111-1111-4111-8111-11111111111${groupName.length}`,
+      sourceMessageId,
+      recordId: '22222222-2222-4222-8222-222222222222',
+      caseNumber: 'VRS-1',
+      phoneHash: 'a'.repeat(64),
+      bodyCiphertext: sealed.ciphertext,
+      bodyNonce: sealed.nonce,
+      bodyTag: sealed.tag,
+      keyVersion: 1,
+      origin: 'confirmation',
+      state: 'pending',
+      providerMessageId: null,
+      attempts: 0,
+      nextAttemptAt: now,
+      lastError: null,
+      sentAt: null,
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + 60_000),
+    };
+    await subject.deps.store.enqueueOutbox(outbox);
+    await subject.deps.store.markOutboxSent(outbox.id, 'provider-message-1', now);
+    const raw = Buffer.from(
+      JSON.stringify({
+        results: [
+          {
+            messageId: 'provider-message-1',
+            to: phone,
+            sentAt: now.toISOString(),
+            doneAt: now.toISOString(),
+            status: { groupId: 1, groupName, id: 1, name },
+            error: {},
+          },
+        ],
+      }),
+    );
+    assert.equal(
+      (
+        await handleDeliveryEvent(raw, {}, subject.deps, {
+          stubInjection: true,
+          scheduleProcessing: false,
+        })
+      ).status,
+      202,
+    );
+    const stored = await subject.deps.store.findOutboxBySource(sourceMessageId);
+    assert.equal(stored?.state, expected);
+    assert.equal(stored?.lastError, groupName === 'REJECTED' ? name : null);
+  }
 });
 
 test('runInboxCycle creates a case and confirms only after Trace returns it', async () => {

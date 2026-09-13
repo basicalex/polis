@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type {
+  ChannelCall,
   ChannelEvent,
   ChannelIdentity,
   ChannelInbox,
   ChannelLink,
   ChannelOutbox,
   ChannelRecording,
+  CallStep,
   EventState,
   InboxCompletion,
   OutboxState,
@@ -23,6 +25,9 @@ export interface ChannelStore {
   findLinkByRecord(recordId: string): Promise<ChannelLink | null>;
   upsertLink(link: ChannelLink): Promise<void>;
   closeLink(phoneHash: string, recordId: string): Promise<void>;
+  upsertCall(call: ChannelCall): Promise<void>;
+  getCall(callId: string): Promise<ChannelCall | null>;
+  markCallStep(callId: string, step: CallStep, updatedAt: Date): Promise<void>;
   recordEvent(
     provider: string,
     eventId: string,
@@ -47,6 +52,7 @@ export interface ChannelStore {
   markOutboxDelivery(
     providerMessageId: string,
     state: Extract<OutboxState, 'delivered' | 'failed'>,
+    failureCode?: string,
   ): Promise<void>;
   findOutboxBySource(sourceMessageId: string): Promise<ChannelOutbox | null>;
   putRecording(recording: ChannelRecording): Promise<void>;
