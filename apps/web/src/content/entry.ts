@@ -90,6 +90,27 @@ export const entryStrings = {
     hr: 'npr. Stup 14, kod pekare',
     en: 'e.g. Lamp post 14, by the bakery',
   },
+  reportPhotoAdd: { hr: 'Dodaj fotografiju', en: 'Add a photo' },
+  reportPhotoRemove: { hr: 'Ukloni', en: 'Remove' },
+  reportPhotoWorking: { hr: 'Obrađujem fotografiju…', en: 'Preparing photo…' },
+  reportPhotoAlt: { hr: 'Odabrana fotografija', en: 'The selected photo' },
+  reportPhotoTooLarge: {
+    hr: 'Fotografija je prevelika. Pokušajte s manjom.',
+    en: 'The photo is too large. Try a smaller one.',
+  },
+  reportPhotoUnreadable: {
+    hr: 'Fotografiju nije moguće pripremiti. Pošaljite prijavu bez nje.',
+    en: 'The photo could not be prepared. Send the report without it.',
+  },
+  /*
+   * Says the two things a person needs before they attach a photo: it is not
+   * published, and the phone's location and device data are dropped because the
+   * browser re-encodes the picture before it leaves the phone.
+   */
+  reportPhotoNote: {
+    hr: 'Jedna fotografija, neobavezno. Vidi je samo ured. Ne objavljuje se, a lokacija i podaci fotoaparata brišu se prije slanja.',
+    en: 'One photo, optional. Only the office sees it. It is never published, and the location and camera data are stripped before it is sent.',
+  },
   reportSubmit: { hr: 'Pošalji prijavu', en: 'Send report' },
   reportSending: { hr: 'Šaljem…', en: 'Sending…' },
   reportPrivacyNote: {
@@ -124,6 +145,15 @@ export const entryStrings = {
   },
   privacy: { hr: 'Privatnost', en: 'Privacy' },
   source: { hr: 'Izvorni kod', en: 'Source' },
+  /*
+   * The band a hosted test build carries on every entry page. It names the
+   * instance, the data and the fact that the municipality does not answer here,
+   * so nobody mistakes a test link for the real channel.
+   */
+  testInstance: {
+    hr: 'Testna instanca. Podaci su sintetički. Ovo nije službeni kanal Općine Vrsar.',
+    en: 'Test instance. Data is synthetic. This is not an official channel of Općina Vrsar.',
+  },
 } satisfies Record<string, LocalizedText>;
 
 /** Page titles and meta descriptions, one line each, no marketing. */

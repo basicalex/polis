@@ -12,14 +12,27 @@ const releasePolicy = untypedReleasePolicy as {
 const { classifyReleasePath, isReleaseAssetPath, normalizeReleasePath } = releasePolicy;
 
 declare const __POLIS_PUBLIC_RELEASE__: boolean;
+declare const __POLIS_TEST_INSTANCE__: boolean;
 const releaseMode =
   typeof __POLIS_PUBLIC_RELEASE__ !== 'undefined' && __POLIS_PUBLIC_RELEASE__;
+/*
+ * A hosted test instance is a release build with a backend behind it: the
+ * boundary still blocks not-live routes, but backend-dependent and restricted
+ * routes (and their POSTs) are served. Set by the build, never by a request.
+ */
+const testInstanceMode =
+  typeof __POLIS_TEST_INSTANCE__ !== 'undefined' && __POLIS_TEST_INSTANCE__;
+const testInstanceKinds: Readonly<Record<string, true>> = Object.freeze({
+  safe: true,
+  'backend-dependent': true,
+  restricted: true,
+});
 const boundaryPath = '/release-boundary';
 const allowedMethods: Readonly<Record<string, true>> = Object.freeze({ GET: true, HEAD: true });
 
 const releaseSecurityHeaders = Object.freeze({
   'Content-Security-Policy':
-    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; media-src 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; worker-src 'self'; upgrade-insecure-requests",
+    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; media-src 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; worker-src 'self'; upgrade-insecure-requests",
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Permissions-Policy': 'camera=(), geolocation=(self), microphone=()',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -40,7 +53,10 @@ function withReleaseHeaders(response: Response, blocked: boolean): Response {
   });
 }
 
-export function createReleaseMiddleware(enabled: boolean): MiddlewareHandler {
+export function createReleaseMiddleware(
+  enabled: boolean,
+  testInstance: boolean = false,
+): MiddlewareHandler {
   return async (context, next) => {
     if (!enabled) return next();
 
@@ -57,7 +73,9 @@ export function createReleaseMiddleware(enabled: boolean): MiddlewareHandler {
     const classification = pathname
       ? classifyReleasePath(pathname)
       : { id: 'invalid-path', kind: 'not-live' };
-    const allowed = classification.kind === 'safe' && allowedMethods[context.request.method] === true;
+    const allowed = testInstance
+      ? testInstanceKinds[classification.kind] === true
+      : classification.kind === 'safe' && allowedMethods[context.request.method] === true;
     if (allowed) return withReleaseHeaders(await next(), false);
 
     const kind = allowedMethods[context.request.method] ? classification.kind : 'restricted';
@@ -76,4 +94,4 @@ export function createReleaseMiddleware(enabled: boolean): MiddlewareHandler {
   };
 }
 
-export const onRequest = createReleaseMiddleware(releaseMode);
+export const onRequest = createReleaseMiddleware(releaseMode, testInstanceMode);

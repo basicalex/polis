@@ -307,9 +307,21 @@ export async function getPublicRecord(id: string, signal?: AbortSignal): Promise
   });
 }
 
+/**
+ * The photo is a restricted attachment: the office and the reopen-key holder
+ * see it, the ledger and the public case never do. It travels inside the filing
+ * request, so a filed case either carries its photo or was never filed.
+ */
+export interface AnonymousCasePhoto {
+  contentType: 'image/jpeg' | 'image/png';
+  /** Standard base64, no `data:` prefix. At most 2 MiB once decoded. */
+  base64: string;
+}
+
 export async function fileAnonymousCase(input: {
   text: string;
   location?: string;
+  photo?: AnonymousCasePhoto;
 }): Promise<{ caseNumber: string; reopenKey: string; state: string }> {
   return requestJson('/public/cases', {
     method: 'POST',

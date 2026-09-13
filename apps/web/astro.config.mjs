@@ -55,7 +55,10 @@ export default defineConfig({
   adapter: cloudflare({ imageService: 'compile' }),
   server: { host: '0.0.0.0', port: 4321 },
   vite: {
-    define: { __POLIS_PUBLIC_RELEASE__: JSON.stringify(releaseMode) },
+    define: {
+      __POLIS_PUBLIC_RELEASE__: JSON.stringify(releaseMode),
+      __POLIS_TEST_INSTANCE__: JSON.stringify(process.env.PUBLIC_TEST_INSTANCE === '1'),
+    },
     plugins: [tailwindcss()],
     resolve: releaseMode
       ? {

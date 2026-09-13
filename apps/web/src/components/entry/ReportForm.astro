@@ -5,11 +5,16 @@
 /*
  * S4 · filing.
  *
- * A pin, a text and one optional line about where exactly. No name, no e-mail,
- * no phone, no category, no upload: the form asks for no identity at all
- * (entry-flow R9), and the same record comes out of it as out of an SMS or a
- * call. The map has no street tiles, so the pin is coarse by construction and
+ * A pin, a text, one optional line about where exactly and one optional photo.
+ * No name, no e-mail, no phone, no category: the form asks for no identity at
+ * all (entry-flow R9), and the same record comes out of it as out of an SMS or
+ * a call. The map has no street tiles, so the pin is coarse by construction and
  * the free-text line carries the detail.
+ *
+ * The photo is re-encoded in the browser before it is sent and is a restricted
+ * attachment on the other side: the office and the reopen-key holder see it,
+ * the ledger and the public case do not. Nothing on a public surface says a
+ * case has one.
  */
 
 import '../../styles/entry.css';
@@ -47,6 +52,10 @@ const strings = {
   sending: label('reportSending'),
   submit: label('reportSubmit'),
   charsLeft: label('reportCharsLeft'),
+  photoWorking: label('reportPhotoWorking'),
+  photoTooLarge: label('reportPhotoTooLarge'),
+  photoUnreadable: label('reportPhotoUnreadable'),
+  photoAlt: label('reportPhotoAlt'),
 };
 ---
 
@@ -103,6 +112,48 @@ const strings = {
         placeholder={label('reportWherePlaceholder')}
         data-where
       />
+    </div>
+
+    {/*
+      One photo, replaced rather than added to. The input carries the button, so
+      the picker opens on a tap and on Enter from the keyboard without a script;
+      everything after the pick needs one, and without scripting the form files
+      text only.
+    */}
+    <div class="report-photo" data-photo>
+      <label class="report-photo-add btn" data-variant="secondary">
+        <input
+          class="report-photo-input"
+          type="file"
+          name="photo"
+          accept="image/jpeg,image/png"
+          capture="environment"
+          data-photo-input
+        />
+        <svg class="report-photo-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M4 8.5h3.2l1.4-2.2h6.8l1.4 2.2H20a1 1 0 0 1 1 1v8.3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <circle cx="12" cy="13.5" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+        <span>{label('reportPhotoAdd')}</span>
+      </label>
+
+      <div class="report-photo-picked" data-photo-picked hidden>
+        <img class="report-photo-thumb" alt={label('reportPhotoAlt')} data-photo-thumb />
+        <span class="report-photo-size" data-photo-size></span>
+        <button class="btn" data-variant="tertiary" type="button" data-photo-remove>
+          {label('reportPhotoRemove')}
+        </button>
+      </div>
+
+      <p class="field-hint" role="status" aria-live="polite" data-photo-status></p>
+      <p class="field-error" role="alert" data-photo-error></p>
+      <p class="report-photo-note">{label('reportPhotoNote')}</p>
     </div>
 
     <button class="btn report-submit" data-variant="primary" type="submit" data-submit>

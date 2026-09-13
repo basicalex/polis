@@ -515,6 +515,49 @@ test('anonymous web filing proxy requires origin and idempotency without a sessi
   assert.equal(calls.length, 1);
 });
 
+test('the filing proxy forwards a full-size photo and refuses an unknown photo field', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({
+      case: { caseNumber: 'VRS-118820', reopenKey: 'private-reopen-key', state: 'received' },
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
+  };
+  const options = { publicRelease: false, backendBase: 'https://trace.internal', fetchImpl };
+
+  // The backend takes 2 MiB decoded, which is about 2.8 MB of base64 on the wire.
+  const base64 = 'A'.repeat(Math.ceil((2 * 1024 * 1024) / 3) * 4);
+  const accepted = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    idempotencyKey: key,
+    body: {
+      text: 'Rupa na kolniku.',
+      location: '45.15000,13.60000',
+      photo: { contentType: 'image/jpeg', base64 },
+    },
+  }), options);
+  assert.equal(accepted.status, 201);
+  assert.equal(calls.length, 1);
+  const forwarded = JSON.parse(calls[0].init.body);
+  assert.equal(forwarded.photo.contentType, 'image/jpeg');
+  assert.equal(forwarded.photo.base64.length, base64.length);
+
+  const unknownPhotoField = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    idempotencyKey: key,
+    body: { text: 'Prijava', photo: { contentType: 'image/jpeg', base64: 'AAAA', filename: 'a.jpg' } },
+  }), options);
+  assert.equal(unknownPhotoField.status, 400);
+
+  const photoNotAnObject = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    idempotencyKey: key,
+    body: { text: 'Prijava', photo: 'AAAA' },
+  }), options);
+  assert.equal(photoNotAnObject.status, 400);
+  assert.equal(calls.length, 1);
+});
+
 test('public and unauthenticated identity routes never forward a session cookie as Authorization', async () => {
   const calls = [];
   const fetchImpl = async (url, init) => {

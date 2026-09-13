@@ -64,6 +64,24 @@
   margin-top: var(--space-2);
 }
 
+/* ---- test instance ------------------------------------------------------- */
+
+/*
+ * A hosted test build says so on every entry page, in one line, with nothing to
+ * dismiss. It is the first thing in the shell so it cannot be scrolled past
+ * before the map or the form.
+ */
+.entry-test-band {
+  margin: 0;
+  padding: var(--space-2) var(--page-gutter);
+  border-bottom: 1px solid var(--polis-border);
+  background: var(--polis-surface-2);
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.35;
+  text-align: center;
+}
+
 /* ---- S1 ----------------------------------------------------------------- */
 
 .entry {
@@ -627,6 +645,76 @@
   margin: 0;
   color: var(--polis-muted);
   font-size: var(--type-data);
+}
+
+/*
+ * The photo row. The file input lies over its own label at zero opacity, so the
+ * control reads and behaves as one secondary button and the picker still opens
+ * with no script running. Rings follow the input's focus.
+ */
+.report-photo {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.report-photo-add {
+  position: relative;
+  overflow: hidden;
+}
+
+.report-photo-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.report-photo-add:has(.report-photo-input:focus-visible) {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: 0.125rem;
+}
+
+.report-photo-glyph {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+
+.report-photo-picked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface-2);
+}
+
+.report-photo-thumb {
+  width: 3.5rem;
+  height: 3.5rem;
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--polis-surface);
+  object-fit: cover;
+}
+
+.report-photo-size {
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+}
+
+.report-photo-note {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
 }
 
 .report-submit {

@@ -483,8 +483,9 @@ test('filing asks for no identity and sends the pin as coordinates', async () =>
     readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
   ]);
 
-  // No name, no contact, no category, no upload in this wave (entry-flow R9).
-  assert.doesNotMatch(component, /type="email"|type="tel"|type="file"|name="name"/);
+  // No name, no contact, no category (entry-flow R9). The one photo is the
+  // only thing a person may attach, and it asks for no identity either.
+  assert.doesNotMatch(component, /type="email"|type="tel"|name="name"/);
   assert.match(component, /<textarea/);
   assert.match(component, /maxlength=\{MAX_TEXT\}/);
   assert.match(component, /<noscript>/);
@@ -497,6 +498,41 @@ test('filing asks for no identity and sends the pin as coordinates', async () =>
   // The key leaves in a fragment, never a query (R10).
   assert.match(script, /#k=\$\{encodeURIComponent\(filed\.reopenKey\)\}/);
   assert.doesNotMatch(script, /\?k=/);
+});
+
+test('the filing photo is re-encoded in the browser and never shown publicly', async () => {
+  const [component, script, api, proxy, ledger, publicCase] = await Promise.all([
+    readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/lib/pilot/vrsar/api.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/lib/pilot/vrsar/proxy.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/entry/PlaceLedger.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/entry/PlaceCase.astro', import.meta.url), 'utf8'),
+  ]);
+
+  // One photo, from the camera or the gallery, and only the two accepted types.
+  assert.match(component, /type="file"/);
+  assert.match(component, /accept="image\/jpeg,image\/png"/);
+  assert.match(component, /capture="environment"/);
+  assert.doesNotMatch(component, /multiple/);
+
+  // Re-encoding through a canvas is what drops the EXIF block, GPS included.
+  assert.match(script, /imageOrientation: 'from-image'/);
+  assert.match(script, /createElement\('canvas'\)/);
+  assert.match(script, /'image\/jpeg',\n\s*PHOTO_QUALITY/);
+  assert.match(script, /PHOTO_LONG_EDGE = 1600/);
+  assert.match(script, /MAX_PHOTO_BYTES = 2 \* 1024 \* 1024/);
+  // One halved retry, then the person is told rather than guessed at.
+  assert.match(script, /\[PHOTO_LONG_EDGE, PHOTO_LONG_EDGE \/ 2\]/);
+  // The photo rides inside the filing request, under the backend's own key.
+  assert.match(script, /filing\.photo = photo/);
+  assert.match(api, /photo\?: AnonymousCasePhoto/);
+  assert.match(proxy, /bodyKeys: \['text', 'location', 'photo'\]/);
+  assert.match(proxy, /objectKeys: \{ photo: \['contentType', 'base64'\] \}/);
+
+  // Restricted attachment: no public surface mentions it.
+  assert.doesNotMatch(ledger, /photo|fotograf/i);
+  assert.doesNotMatch(publicCase, /photo|fotograf/i);
 });
 
 test('the reopen key never reaches a path, a query, or a request', async () => {

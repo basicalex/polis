@@ -20,7 +20,7 @@ The build stage uses Bun 1.3.14, installs pinned OPA 1.17.1 for the required `@p
 
 ## Runtime posture
 
-Use `NODE_ENV=production` and `DEPLOYMENT_PROFILE=pilot` on all three services. `pilot` keeps the runtime validation active: `INTERNAL_API_TOKEN` is required, must not be a known development value, and must be at least 32 bytes; `CORS_ALLOWED_ORIGINS` must be an explicit allowlist; and platform additionally requires `PUBLIC_EDGE=true`. `NODE_ENV=production` disables the identity dev-token route even if it were accidentally requested and rejects loopback HTTP identity URLs.
+Use `NODE_ENV=production` on all three services. `DEPLOYMENT_PROFILE=pilot` on trace and identity keeps the runtime validation active: `INTERNAL_API_TOKEN` is required, must not be a known development value, and must be at least 32 bytes, and `CORS_ALLOWED_ORIGINS` must be an explicit allowlist. platform-api runs `DEPLOYMENT_PROFILE=dev` with `PUBLIC_EDGE` unset, the same as the local pilot launcher: `PUBLIC_EDGE=true` installs the older public-read allowlist, which answers every `/api/trace/*` route with 405 (verified on the first hosted deploy, 2026-09-13). The trace routes stay safe to expose because platform-api rejects trusted identity headers from clients and verifies sessions against the identity service itself; the Cloudflare proxy adds a second layer. `NODE_ENV=production` disables the identity dev-token route even if it were accidentally requested and rejects loopback HTTP identity URLs.
 
 Set `SERVICE_HOST=::`. Node reports `isIP('::') === 6`, so the runtime accepts it. `server.listen(port, '::')` was locally exercised on Node and accepted an IPv4 connection too; Linux's default IPv6 socket is dual-stack because the code does not request `ipv6Only`. Do not leave `SERVICE_HOST` unset: that would use Node's unspecified-host behavior rather than making the Railway IPv6 bind explicit.
 
@@ -33,9 +33,9 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | Variable | Services | Hosted value | Secret / rationale |
 | --- | --- | --- | --- |
 | `RAILWAY_DOCKERFILE_PATH` | each | Service-specific path from the image table | No |
-| `PORT` | all | Railway-managed value | No; do not replace it |
+| `PORT` | all | Pinned: trace `8980`, identity `8650`, platform `8080` | No; pinned so the `.railway.internal` URLs are stable |
 | `NODE_ENV` | all | `production` | No |
-| `DEPLOYMENT_PROFILE` | all | `pilot` | No |
+| `DEPLOYMENT_PROFILE` | trace, identity | `pilot` | No; platform-api uses `dev` (see Runtime posture) |
 | `SERVICE_HOST` | all | `::` | No; Railway private-network IPv6 bind |
 | `DATABASE_URL` | all | `postgresql://postgres.<SUPABASE_REF>:<PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require` | **Secret**; pooler user is `postgres.<ref>` |
 | `POSTGRES_SSL` | all | `true` | No; compatibility/operator signal only; URL controls the driver |
@@ -50,8 +50,8 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | `PUBLIC_SITE_URL` | identity, platform | `<PREVIEW_ORIGIN>` | No; launcher parity/public origin |
 | `IDENTITY_ALLOW_HTTP_LOCALHOST` | identity | `false` | No; hosted URLs must use HTTPS |
 | `OIDC_REDIRECT_URIS` | identity | `<PREVIEW_ORIGIN>/pilot/vrsar/login` | No; inactive while `IDENTITY_MODE=stub` |
-| `IDENTITY_INTERNAL_URL` | platform | `http://citizen-identity-service.railway.internal:<IDENTITY_PORT>` | No; replace the port with that service's Railway `PORT` |
-| `TRACE_INTERNAL_URL` | platform | `http://trace-service.railway.internal:<TRACE_PORT>` | No; replace the port with that service's Railway `PORT` |
+| `IDENTITY_INTERNAL_URL` | platform | `http://citizen-identity-service.railway.internal:8650` | No; replace the port with that service's Railway `PORT` |
+| `TRACE_INTERNAL_URL` | platform | `http://trace-service.railway.internal:8980` | No; replace the port with that service's Railway `PORT` |
 | `TRACE_ENABLED` | platform | `true` | No |
 | `TRACE_WEB_GATEWAY_ACTOR_ID` | platform | `pilot-web` | No; must be present in trace's gateway allowlist |
 | `TRACE_OFFICIAL_CITIZEN_IDS` | trace | `trace-official-test` | No |
@@ -61,7 +61,7 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | `TRACE_INTAKE_OPEN` | trace | `true` | No; set `false` to fail closed without redeploying code |
 | `PILOT_CONFIG_PATH` | trace | `/app/config/pilots/vrsar-orsera.json` | No; launcher parity |
 | `TRACE_PILOT_CONFIG_PATH` | trace | `/app/config/pilots/vrsar-orsera.json` | No; launcher parity |
-| `PUBLIC_EDGE` | platform | `true` | No; required by `DEPLOYMENT_PROFILE=pilot` |
+| `PUBLIC_EDGE` | platform | unset | No; `true` blocks every trace route (see Runtime posture) |
 | `PUBLIC_EDGE_RATE_LIMIT_PER_MIN` | platform | `60` | No |
 | `INTERNAL_FETCH_TIMEOUT_MS` | platform | `5000` | No |
 | `CHANNEL_ENABLED` | platform | `false` | No; channel-gateway is not deployed |
@@ -118,7 +118,7 @@ Run from the repository root after linking the Railway project. Keep the three s
 ```sh
 railway variable set --service trace-service \
   RAILWAY_DOCKERFILE_PATH=deploy/railway/trace-service.Dockerfile \
-  NODE_ENV=production DEPLOYMENT_PROFILE=pilot SERVICE_HOST=:: \
+  NODE_ENV=production DEPLOYMENT_PROFILE=pilot SERVICE_HOST=:: PORT=8980 \
   DATABASE_URL="$DATABASE_URL" POSTGRES_SSL=true \
   INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" \
   CORS_ALLOWED_ORIGINS='<PREVIEW_ORIGIN>' CORS_ORIGINS='<PREVIEW_ORIGIN>' \
@@ -131,7 +131,7 @@ railway variable set --service trace-service \
 
 railway variable set --service citizen-identity-service \
   RAILWAY_DOCKERFILE_PATH=deploy/railway/citizen-identity-service.Dockerfile \
-  NODE_ENV=production DEPLOYMENT_PROFILE=pilot SERVICE_HOST=:: \
+  NODE_ENV=production DEPLOYMENT_PROFILE=pilot SERVICE_HOST=:: PORT=8650 \
   DATABASE_URL="$DATABASE_URL" POSTGRES_SSL=true \
   INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" \
   CORS_ALLOWED_ORIGINS='<PREVIEW_ORIGIN>' CORS_ORIGINS='<PREVIEW_ORIGIN>' \
@@ -143,13 +143,13 @@ railway variable set --service citizen-identity-service \
 
 railway variable set --service platform-api \
   RAILWAY_DOCKERFILE_PATH=deploy/railway/platform-api.Dockerfile \
-  NODE_ENV=production DEPLOYMENT_PROFILE=pilot SERVICE_HOST=:: \
+  NODE_ENV=production DEPLOYMENT_PROFILE=dev SERVICE_HOST=:: PORT=8080 \
   DATABASE_URL="$DATABASE_URL" POSTGRES_SSL=true \
   INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" \
   CORS_ALLOWED_ORIGINS='<PREVIEW_ORIGIN>' CORS_ORIGINS='<PREVIEW_ORIGIN>' \
-  PUBLIC_SITE_URL='<PREVIEW_ORIGIN>' PUBLIC_EDGE=true \
-  IDENTITY_INTERNAL_URL='http://citizen-identity-service.railway.internal:<IDENTITY_PORT>' \
-  TRACE_INTERNAL_URL='http://trace-service.railway.internal:<TRACE_PORT>' \
+  PUBLIC_SITE_URL='<PREVIEW_ORIGIN>' \
+  IDENTITY_INTERNAL_URL='http://citizen-identity-service.railway.internal:8650' \
+  TRACE_INTERNAL_URL='http://trace-service.railway.internal:8980' \
   TRACE_ENABLED=true TRACE_WEB_GATEWAY_ACTOR_ID=pilot-web \
   CHANNEL_ENABLED=false INTERNAL_FETCH_TIMEOUT_MS=5000 \
   PUBLIC_EDGE_RATE_LIMIT_PER_MIN=60
@@ -168,7 +168,7 @@ All three services expose `GET /healthz` and `GET /readyz`.
 
 - `trace-service`: both query PostgreSQL; expect HTTP 200 after trace migrations.
 - `citizen-identity-service`: both are runtime operational endpoints; expect HTTP 200 after startup.
-- `platform-api`: `/healthz` should return HTTP 200. In current source, `DEPLOYMENT_PROFILE=pilot` plus `PUBLIC_EDGE=true` makes `/readyz` check governance-graph, audit, proof, and Polis upstreams. Those services are intentionally absent, so `/readyz` returns HTTP 503 even though this three-service image is running. Configure Railway's platform health check to `/healthz`; do not misreport `/readyz` as healthy until those dependencies are deployed or the platform contract changes.
+- `platform-api`: `/healthz` should return HTTP 200. In current source `/readyz` checks governance-graph, audit, proof, and Polis upstreams. Those services are intentionally absent, so `/readyz` returns HTTP 503 even though this three-service image is running. Configure Railway's platform health check to `/healthz`; do not misreport `/readyz` as healthy until those dependencies are deployed or the platform contract changes.
 
 From outside Railway, smoke only the platform public domain:
 

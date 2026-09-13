@@ -3,6 +3,13 @@
 
 const SESSION_COOKIE = 'polis_pilot_session';
 const LOCAL_BACKEND = 'http://127.0.0.1:3000';
+/*
+ * One cap for every proxied JSON body. The largest one this proxy carries is a
+ * filing with a photo: the backend takes at most 2 MiB of decoded image, which
+ * is about 2.8 MB once base64 has expanded it and the text and the location
+ * have been added, so 3 MiB admits it with room to spare and still stops a body
+ * nothing here has any use for. No route needs a larger one.
+ */
 const MAX_JSON_BYTES = 3 * 1024 * 1024;
 const ID_SEGMENT = '[A-Za-z0-9_-]{1,128}';
 /** Case numbers are the public identifier: an office prefix and a counter. */
@@ -27,6 +34,12 @@ interface RouteMatch {
   idempotency: boolean;
   responseKind: 'json' | 'attachment' | 'identity-session' | 'identity-authorize' | 'logout';
   bodyKeys?: readonly string[];
+  /**
+   * Allowed keys inside a nested object body key, by the same exact-key rule as
+   * `bodyKeys`. Only the shape is checked here; the values are the backend's to
+   * validate.
+   */
+  objectKeys?: Readonly<Record<string, readonly string[]>>;
   upstreamBody?: Record<string, unknown>;
   /** Only `limit` is forwarded, and only for routes that page a list. */
   listQuery?: boolean;
@@ -109,7 +122,11 @@ function exactBodyKeys(body: Record<string, unknown>, allowed: readonly string[]
   return Object.keys(body).every((key) => allowed.includes(key));
 }
 
-async function readJsonBody(request: Request, allowed: readonly string[]): Promise<Record<string, unknown> | Response> {
+async function readJsonBody(
+  request: Request,
+  allowed: readonly string[],
+  nested: Readonly<Record<string, readonly string[]>> = {},
+): Promise<Record<string, unknown> | Response> {
   const contentType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
   if (contentType !== 'application/json') {
     return jsonError(415, 'invalid_request', 'This endpoint accepts JSON only.');
@@ -139,6 +156,16 @@ async function readJsonBody(request: Request, allowed: readonly string[]): Promi
   const body = parsed as Record<string, unknown>;
   if (!exactBodyKeys(body, allowed)) {
     return jsonError(400, 'invalid_request', 'The request contains unsupported fields.');
+  }
+  for (const [key, keys] of Object.entries(nested)) {
+    const value = body[key];
+    if (value === undefined) continue;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return jsonError(400, 'invalid_request', 'The request contains unsupported fields.');
+    }
+    if (!exactBodyKeys(value as Record<string, unknown>, keys)) {
+      return jsonError(400, 'invalid_request', 'The request contains unsupported fields.');
+    }
   }
   return body;
 }
@@ -188,7 +215,8 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       needsSession: false,
       idempotency: true,
       responseKind: 'json',
-      bodyKeys: ['text', 'location'],
+      bodyKeys: ['text', 'location', 'photo'],
+      objectKeys: { photo: ['contentType', 'base64'] },
     },
     'POST identity/magic-link': {
       upstreamPath: '/api/v1/identity/magic-link',
@@ -383,7 +411,9 @@ export async function handlePilotProxy(
   const publicRelease =
     overrides.publicRelease ??
     (typeof import.meta.env !== 'undefined' && import.meta.env.PUBLIC_RELEASE === '1');
-  if (publicRelease) {
+  const testInstance =
+    typeof import.meta.env !== 'undefined' && import.meta.env.PUBLIC_TEST_INSTANCE === '1';
+  if (publicRelease && !testInstance) {
     return jsonError(404, 'pilot_not_available', 'This test workflow is not available.');
   }
 
@@ -425,7 +455,7 @@ export async function handlePilotProxy(
     if (emptyBodyAllowed && !hasJsonBody) {
       body = route.upstreamBody ? { ...route.upstreamBody } : {};
     } else {
-      const parsed = await readJsonBody(context.request, route.bodyKeys ?? []);
+      const parsed = await readJsonBody(context.request, route.bodyKeys ?? [], route.objectKeys);
       if (parsed instanceof Response) return parsed;
       body = route.upstreamBody ? { ...parsed, ...route.upstreamBody } : parsed;
     }

@@ -64,6 +64,12 @@ const {
 const demoChrome = chrome === 'demo';
 const entryChrome = chrome === 'entry';
 const publicRelease = import.meta.env.PUBLIC_RELEASE === '1';
+/*
+ * A hosted test build of the entry flow. The band it turns on is the only thing
+ * that separates a test link from the real one for the person holding the
+ * phone, so it is set by the build and cannot be dismissed.
+ */
+const testInstance = import.meta.env.PUBLIC_TEST_INSTANCE === '1';
 const presenter = Astro.url.searchParams.get('present') === '1';
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 const otherLang: Lang = lang === 'hr' ? 'en' : 'hr';
@@ -131,8 +137,12 @@ const isCurrentPath = (href: string) =>
         { 'site-shell--presenter': publicRelease && presenter, 'site-shell--entry': entryChrome },
       ]}
     >
+      {entryChrome && testInstance && (
+        <p class="entry-test-band">{text(entryStrings.testInstance, lang)}</p>
+      )}
+
       {
-        demoChrome ? null : publicRelease ? (
+        demoChrome || (entryChrome && testInstance) ? null : publicRelease ? (
           <aside
             class="release-boundary-banner release-banner--chrome"
             aria-label={text(releaseNav.boundary, lang)}
