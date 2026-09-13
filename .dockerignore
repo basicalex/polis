@@ -8,15 +8,22 @@
 .github
 
 # Build outputs & caches
+node_modules
 **/node_modules
 **/dist
 **/.astro
+apps/web/.astro
+apps/web/.wrangler
 **/.vite
 **/__pycache__
 **/*.pyc
 .venv
 
 # Large/local-only
+design-lab
+docs
 The Iceberg Index
 *.log
 .env
+*.md
+**/*.md
