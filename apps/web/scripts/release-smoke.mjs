@@ -139,23 +139,75 @@ async function assertStages(page, language) {
   }
 }
 
-async function assertLanding(page, language) {
-  const required = [
-    '/demo/citizen',
-    '/demo/official',
-    '/demo/review',
-    '/demo/record',
-    '/demo/embed',
-    language === 'en' ? '/en/presentation' : '/presentation',
-  ];
-  const hrefs = await page
-    .locator('.landing a[href]')
-    .evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
-  for (const href of required) {
-    assert(hrefs.includes(href), `${page.url()} is missing a landing link to ${href}`);
-  }
+const entryCopy = {
+  hr: { question: 'Gdje ste?', record: 'Javni zapis', report: 'Prijavite problem', place: 'Općina Vrsar' },
+  en: {
+    question: 'Where are you?',
+    record: 'Public record',
+    report: 'Report a problem',
+    place: 'Vrsar Municipality',
+  },
+};
+
+/** S1: the root asks one thing and shows the map, nothing else (entry-flow R1). */
+async function assertEntryMap(page, language) {
   const heading = (await page.locator('h1').first().innerText()).trim();
-  assert(heading.length > 0, `${page.url()} renders no landing headline`);
+  assert(heading === entryCopy[language].question, `${page.url()} asks "${heading}" instead of the one question`);
+  assert(await page.$('[data-entry-map] svg[data-map]'), `${page.url()} renders no map`);
+
+  const countyControls = await page.locator('[data-layer="counties"] a[data-county]').count();
+  assert(countyControls === 21, `${page.url()} renders ${countyControls} county controls instead of 21`);
+
+  const regionOptions = await page.locator('select[data-region] option').count();
+  assert(regionOptions === 22, `${page.url()} region select has ${regionOptions} options instead of 22`);
+
+  const demoLinks = await page
+    .locator('a[href^="/demo/"]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
+  assert(demoLinks.length === 0, `${page.url()} still opens the demo from the front door: ${demoLinks.join(', ')}`);
+}
+
+/** The region carries in the URL, so a chosen county server-renders its places. */
+async function assertCountyView(page, language) {
+  const base = language === 'en' ? '/en/' : '/';
+  await page.goto(`${baseUrl}${base}?zupanija=istarska`, { waitUntil: 'domcontentloaded' });
+  const hrefs = await page
+    .locator('[data-county-list] a[href]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
+  assert(
+    hrefs.includes(`${base}vrsar`),
+    `${page.url()} does not list the live place: ${hrefs.slice(0, 5).join(', ')}`,
+  );
+
+  // With scripting on, the same county draws on the map from its own data file.
+  await page.waitForSelector('[data-layer="places"] [data-place="vrsar"]', { timeout: 10_000 });
+  const status = await page.getAttribute('[data-layer="places"] [data-place="vrsar"]', 'data-status');
+  assert(status === 'live', `the live place draws as ${status}`);
+  const drawn = await page.locator('[data-layer="places"] [data-place]').count();
+  assert(drawn > 20, `${page.url()} drew ${drawn} municipalities for Istria`);
+}
+
+/** S2: two buttons, record then filing, each a whole tappable surface (R7). */
+async function assertIntent(page, language) {
+  const base = language === 'en' ? '/en/' : '/';
+  await page.goto(`${baseUrl}${base}vrsar`, { waitUntil: 'load' });
+  const name = (await page.locator('h1').first().innerText()).trim();
+  assert(name === entryCopy[language].place, `${page.url()} names the place "${name}"`);
+
+  const buttons = await page.locator('.intent-choices a.btn').evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { href: element.getAttribute('href'), text: element.textContent?.trim(), height: box.height };
+    }),
+  );
+  assert(buttons.length === 2, `${page.url()} renders ${buttons.length} intent buttons instead of 2`);
+  assert(buttons[0].href === `${base}vrsar/zapis`, `first button is ${buttons[0].href}`);
+  assert(buttons[1].href === `${base}vrsar/prijava`, `second button is ${buttons[1].href}`);
+  assert(buttons[0].text === entryCopy[language].record, `first button says ${buttons[0].text}`);
+  assert(buttons[1].text === entryCopy[language].report, `second button says ${buttons[1].text}`);
+  for (const button of buttons) {
+    assert(button.height >= 96, `${button.href} is ${button.height}px tall, under 96px`);
+  }
 }
 
 async function assertGeometry(page, label) {
@@ -365,14 +417,24 @@ try {
   trackRequests(desktop, forbiddenRequests);
   const desktopPage = await desktop.newPage();
   await desktopPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(desktopPage, 'hr');
-  await assertGeometry(desktopPage, 'landing desktop');
+  await assertEntryMap(desktopPage, 'hr');
+  await assertGeometry(desktopPage, 'map desktop');
   await assertKeyboardFocus(desktopPage);
-  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'landing-1440x900.png'), fullPage: true });
+  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'map-1440x900.png'), fullPage: true });
+
+  await assertCountyView(desktopPage, 'hr');
+  await assertGeometry(desktopPage, 'county desktop');
+  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'county-1440x900.png'), fullPage: true });
+
+  await assertIntent(desktopPage, 'hr');
+  await assertGeometry(desktopPage, 'intent desktop');
+  await assertKeyboardFocus(desktopPage);
+  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'intent-1440x900.png'), fullPage: true });
 
   await desktopPage.goto(`${baseUrl}/en/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(desktopPage, 'en');
-  await assertGeometry(desktopPage, 'English landing desktop');
+  await assertEntryMap(desktopPage, 'en');
+  await assertGeometry(desktopPage, 'English map desktop');
+  await assertIntent(desktopPage, 'en');
 
   await desktopPage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
   await assertStages(desktopPage, 'hr');
@@ -456,16 +518,30 @@ try {
   trackRequests(mobile, forbiddenRequests);
   const mobilePage = await mobile.newPage();
   await mobilePage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(mobilePage, 'hr');
-  await assertGeometry(mobilePage, 'landing mobile');
+  await assertEntryMap(mobilePage, 'hr');
+  await assertGeometry(mobilePage, 'map mobile');
   await mobilePage.screenshot({
-    path: path.join(screenshotsDir, 'landing-mobile-390x844.png'),
+    path: path.join(screenshotsDir, 'map-mobile-390x844.png'),
+    fullPage: true,
+  });
+
+  await assertCountyView(mobilePage, 'hr');
+  await assertGeometry(mobilePage, 'county mobile');
+  await mobilePage.screenshot({
+    path: path.join(screenshotsDir, 'county-mobile-390x844.png'),
+    fullPage: true,
+  });
+
+  await assertIntent(mobilePage, 'hr');
+  await assertGeometry(mobilePage, 'intent mobile');
+  await mobilePage.screenshot({
+    path: path.join(screenshotsDir, 'intent-mobile-390x844.png'),
     fullPage: true,
   });
 
   await mobilePage.goto(`${baseUrl}/en/`, { waitUntil: 'domcontentloaded' });
-  await assertLanding(mobilePage, 'en');
-  await assertGeometry(mobilePage, 'English landing mobile');
+  await assertEntryMap(mobilePage, 'en');
+  await assertGeometry(mobilePage, 'English map mobile');
 
   await mobilePage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
   await assertStages(mobilePage, 'hr');

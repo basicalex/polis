@@ -1,0 +1,56 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S2 · intent.
+ *
+ * A live place gets the place name and two buttons in the order the spec fixes:
+ * the public record on the left, filing a problem on the right as the primary
+ * (entry-flow R7). A place without a signed municipality gets its name, one
+ * line, and the way back to the map (R4). Nothing else on either page.
+ */
+
+import '../../styles/entry.css';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import type { Lang } from '../../content/public-release';
+import type { Place } from '../../content/places';
+
+interface Props {
+  lang: Lang;
+  place: Place;
+}
+
+const { lang, place } = Astro.props as Props;
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
+// The back link keeps the region selected, so the map opens where it was left.
+const backHref = `${base}?zupanija=${place.county}`;
+---
+
+<div class="intent">
+  <a class="intent-back" href={backHref}>{label('backToMap')}</a>
+  <h1 class="intent-name">{place.name[lang]}</h1>
+
+  {
+    place.status === 'live' ? (
+      <div class="intent-choices">
+        <div class="intent-choice">
+          <a class="btn" data-variant="secondary" href={`${base}${place.slug}/zapis`}>
+            {label('record')}
+          </a>
+          <p>{label('recordNote')}</p>
+        </div>
+        <div class="intent-choice">
+          <a class="btn" data-variant="primary" href={`${base}${place.slug}/prijava`}>
+            {label('report')}
+          </a>
+          <p>{label('reportNote')}</p>
+        </div>
+      </div>
+    ) : (
+      <p class="intent-line">{label('notHereYet')}</p>
+    )
+  }
+</div>

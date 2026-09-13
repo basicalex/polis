@@ -1,0 +1,414 @@
+/* SPDX-FileCopyrightText: 2026 Intrface j.d.o.o. */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/*
+ * The front door: S1, the place map, and S2, the intent screen.
+ *
+ * One question on the root and nothing else (entry-flow R1), so this file only
+ * paints the map, the three ways into it — region, location, typed search — and
+ * the two buttons on the place page. Tokens come from @polis/ui; nothing here
+ * defines a colour, a step of the spacing ladder, or a type size of its own.
+ */
+
+/* ---- shell -------------------------------------------------------------- */
+
+.site-shell--entry .site-main {
+  width: min(72rem, 100%);
+  padding-block: var(--space-5) var(--space-8);
+}
+
+.entry-bar {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  width: min(72rem, 100%);
+  margin-inline: auto;
+  padding: var(--space-3) var(--page-gutter);
+}
+
+.entry-wordmark {
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.entry-language {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--space-2);
+  color: var(--polis-trace);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.entry-footer {
+  width: min(72rem, 100%);
+  margin-inline: auto;
+  padding: var(--space-4) var(--page-gutter) var(--space-6);
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.entry-footer p {
+  margin: 0;
+}
+
+.entry-attribution {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.4;
+}
+
+.entry-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+/* ---- S1 ----------------------------------------------------------------- */
+
+.entry {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.entry-question {
+  margin: 0;
+  font-size: var(--type-heading-md);
+  line-height: 1.1;
+}
+
+.entry-layout {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .entry-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 1fr);
+    gap: var(--space-8);
+  }
+}
+
+.entry-map {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+  overflow: hidden;
+}
+
+.entry-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: manipulation;
+}
+
+/* Counties: the national layer. */
+.county-shape {
+  fill: var(--polis-surface-2);
+  stroke: var(--polis-border-strong);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.entry-map a:hover .county-shape,
+.entry-map a:focus-visible .county-shape {
+  fill: color-mix(in srgb, var(--polis-trace) 14%, var(--polis-surface));
+  stroke: var(--polis-trace);
+}
+
+.entry-map a:focus-visible {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: 0.125rem;
+}
+
+.county-shape[data-selected='true'] {
+  fill: var(--polis-surface);
+  stroke: var(--polis-border-strong);
+}
+
+/* Once a county is open, its municipalities take the taps. */
+.entry-map[data-zoom='county'] [data-layer='counties'] a {
+  pointer-events: none;
+}
+
+.entry-map[data-zoom='county'] [data-layer='counties'] .county-shape {
+  fill: var(--polis-surface-2);
+  opacity: 0.55;
+}
+
+/* Municipalities: the county layer. */
+.place-shape {
+  fill: var(--polis-surface);
+  stroke: var(--polis-border);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.place-shape[data-status='live'] {
+  fill: color-mix(in srgb, var(--polis-trace) 26%, var(--polis-surface));
+  stroke: var(--polis-trace);
+  stroke-width: 1.5;
+}
+
+.place-shape[data-status='filler'] {
+  fill: var(--polis-surface-2);
+  stroke: var(--polis-border);
+  pointer-events: none;
+}
+
+.entry-map [data-layer='places'] a:hover .place-shape,
+.entry-map [data-layer='places'] a:focus-visible .place-shape {
+  fill: color-mix(in srgb, var(--polis-trace) 40%, var(--polis-surface));
+  stroke: var(--polis-trace);
+}
+
+.place-label {
+  fill: var(--polis-text);
+  font-family: var(--body);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--polis-surface);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+.entry-map-actions {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-end: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.entry-map-hover {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-end: 0;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--polis-surface) 88%, transparent);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.entry-map-hover:empty {
+  display: none;
+}
+
+.entry-map-attribution {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--polis-surface) 88%, transparent);
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.3;
+}
+
+/* ---- the three ways in --------------------------------------------------- */
+
+.entry-controls {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.entry-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.entry-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.entry-form-row select,
+.entry-form-row input[type='search'] {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.entry-note {
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.1875rem solid var(--polis-border-strong);
+  background: var(--polis-surface-2);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+}
+
+.entry-note:empty {
+  display: none;
+}
+
+.entry-results {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-result {
+  width: 100%;
+  min-height: var(--tap-target);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--polis-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--polis-text);
+  font-size: var(--type-body);
+  text-align: start;
+  text-decoration: none;
+}
+
+.entry-result:hover {
+  background: var(--polis-surface-2);
+}
+
+.entry-result-county {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.entry-county-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-county-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-heading-sm);
+}
+
+.entry-result-empty {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-data);
+}
+
+.entry-county-list a {
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-text);
+}
+
+.entry-county-list a[data-status='live'] {
+  color: var(--polis-trace);
+  font-weight: 600;
+}
+
+/* ---- S2 ----------------------------------------------------------------- */
+
+.intent {
+  display: grid;
+  gap: var(--space-6);
+  width: min(48rem, 100%);
+  margin-inline: auto;
+}
+
+.intent-back {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  color: var(--polis-trace);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
+.intent-name {
+  margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-lg);
+  line-height: 1.05;
+}
+
+.intent-choices {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 45rem) {
+  .intent-choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.intent-choice {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.intent-choice .btn {
+  min-height: 6rem;
+  width: 100%;
+  padding: var(--space-5);
+  font-size: var(--type-body-lg);
+}
+
+.intent-choice p {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.intent-line {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+}
+
+/* ---- motion -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-map svg {
+    transition: none;
+  }
+}
+
+/*
+ * `.btn` and the map actions set their own `display`, which beats the UA rule
+ * for the `hidden` attribute. Keep hiding a control by hiding it.
+ */
+.entry [hidden] {
+  display: none !important;
+}

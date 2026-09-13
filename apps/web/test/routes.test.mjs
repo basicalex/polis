@@ -181,32 +181,75 @@ test('public release uses one bilingual five-stage semantic Trace composition', 
   assert.doesNotMatch(component, /<form\b/);
 });
 
-test('the landing opens every role demo and keeps old presenter links working', async () => {
-  const [index, english, hub] = await Promise.all([
+test('the root is the place map and the demo entries moved to the hub', async () => {
+  const [index, english, hub, place, englishPlace] = await Promise.all([
     readFile(new URL('index.astro', root), 'utf8'),
     readFile(new URL('en/index.astro', root), 'utf8'),
     readFile(new URL(join('demo', 'index.astro'), root), 'utf8'),
+    readFile(new URL(join('[place]', 'index.astro'), root), 'utf8'),
+    readFile(new URL(join('en', '[place]', 'index.astro'), root), 'utf8'),
   ]);
 
+  // S1: the map and nothing else on the root (entry-flow R1).
   for (const page of [index, english]) {
-    for (const href of [
-      '/demo/citizen',
-      '/demo/official',
-      '/demo/review',
-      '/demo/record',
-      '/demo/embed',
-    ]) {
-      assert.match(page, new RegExp(`'${href}'`), href);
-    }
-    assert.match(page, /PublicLanding/);
-    assert.doesNotMatch(page, /PublicReleaseHome/);
+    assert.match(page, /PlaceMap/);
+    assert.match(page, /chrome="entry"/);
+    assert.match(page, /zupanija/);
+    assert.doesNotMatch(page, /PublicLanding|PublicReleaseHome/);
+    assert.doesNotMatch(page, /\/demo\//);
   }
 
-  assert.match(index, /'\/presentation'/);
+  // The five role surfaces are listed on the hub, not on the front door.
+  for (const href of [
+    '/demo/citizen',
+    '/demo/official',
+    '/demo/review',
+    '/demo/record',
+    '/demo/embed',
+  ]) {
+    assert.match(hub, new RegExp(`'${href}'`), href);
+  }
+  assert.doesNotMatch(hub, /Astro\.redirect\('\/', 302\)/);
+
+  // Old presenter links keep working.
   assert.match(index, /Astro\.redirect\('\/presentation\?present=1', 302\)/);
-  assert.match(english, /'\/en\/presentation'/);
   assert.match(english, /Astro\.redirect\('\/en\/presentation\?present=1', 302\)/);
-  assert.match(hub, /Astro\.redirect\('\/', 302\)/);
+
+  // S2: unknown slug is a 404, known-but-not-live answers 200 (R4).
+  for (const page of [place, englishPlace]) {
+    assert.match(page, /findPlace\(Astro\.params\.place \?\? ''\)/);
+    assert.match(page, /new Response\(null, \{ status: 404 \}\)/);
+    assert.match(page, /IntentScreen/);
+  }
+});
+
+test('the intent screen shows two buttons in the fixed order', async () => {
+  const screen = await readFile(
+    new URL('../src/components/entry/IntentScreen.astro', import.meta.url),
+    'utf8',
+  );
+  const record = screen.indexOf("data-variant=\"secondary\"");
+  const report = screen.indexOf("data-variant=\"primary\"");
+  assert.ok(record > 0 && report > record, 'the public record must come before filing (R7)');
+  assert.match(screen, /\$\{base\}\$\{place\.slug\}\/zapis/);
+  assert.match(screen, /\$\{base\}\$\{place\.slug\}\/prijava/);
+  assert.match(screen, /backHref = `\$\{base\}\?zupanija=\$\{place\.county\}`/);
+});
+
+test('the place map ships our own SVG and no map provider', async () => {
+  const [map, script] = await Promise.all([
+    readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/map.ts', import.meta.url), 'utf8'),
+  ]);
+  // Boundary attribution rides with the map (ODbL and CC BY-SA are share-alike).
+  assert.match(map, /attribution/);
+  // Every request the script makes is same-origin data we generated.
+  const fetches = script.match(/fetch\((['"`])[^'"`]+\1/g) ?? [];
+  assert.ok(fetches.length > 0);
+  for (const call of fetches) assert.match(call, /fetch\((['"`])\/geo\//, call);
+  // Location is asked for on a tap, never on load (R5).
+  assert.match(script, /locate\?\.addEventListener\('click'/);
+  assert.equal((script.match(/getCurrentPosition/g) ?? []).length, 1);
 });
 
 test('public release presenter preserves keyboard, fullscreen recovery, and default-visible content', async () => {

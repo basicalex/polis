@@ -23,8 +23,13 @@ const OUT = process.env.SHOT_OUT_DIR ?? '/tmp/polis-ui-audit';
 const JSON_OUT = process.env.UI_AUDIT_JSON ?? '';
 
 const ROUTES = [
+  // The entry flow: the map, a chosen region, and the intent screen.
   '/',
-  '/en',
+  '/?zupanija=istarska',
+  '/vrsar',
+  '/porec',
+  '/en/',
+  '/en/vrsar',
   '/presentation',
   '/en/presentation',
   '/transparency',
@@ -82,7 +87,7 @@ async function systemChrome() {
 }
 
 function slug(route) {
-  const cleaned = route.replace(/^\/+|\/+$/g, '');
+  const cleaned = route.replace(/^\/+|\/+$/g, '').replace(/[?=&]+/g, '-');
   return cleaned === '' ? 'home' : cleaned.replace(/\//g, '-');
 }
 

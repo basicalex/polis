@@ -1,0 +1,37 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import IntentScreen from '../../components/entry/IntentScreen.astro';
+import Base from '../../layouts/Base.astro';
+import { entryMeta, entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import { findPlace } from '../../content/places';
+
+/*
+ * S2 · intent. A place slug is the real front door: a QR code, the vrsar.hr
+ * widget and the SMS number all arrive here with the place already known
+ * (entry-flow R2). An unknown slug is a 404; a known place without a signed
+ * municipality answers 200 and says so (R4).
+ */
+const lang = 'hr' as const;
+const place = findPlace(Astro.params.place ?? '');
+if (!place) return new Response(null, { status: 404 });
+
+const name = place.name[lang];
+const title = `Polis — ${name}`;
+const description =
+  place.status === 'live'
+    ? text(entryMeta.placeDescription, lang)
+    : `${name} — ${text(entryStrings.notHereYet, lang)}`;
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{ hr: `/${place.slug}`, en: `/en/${place.slug}` }}
+  title={title}
+  description={description}
+>
+  <IntentScreen lang={lang} place={place} />
+</Base>

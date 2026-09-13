@@ -1,0 +1,134 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S1 · the place map.
+ *
+ * The root asks one thing: where. The 21 counties render from the bundled ADM1
+ * file, the region select and every county link work as plain GET navigations
+ * to `/?zupanija=<slug>`, and the script upgrades the same markup to an inline
+ * zoom (entry-flow R1, R3, R6).
+ */
+
+import '../../styles/entry.css';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import type { Lang } from '../../content/public-release';
+import { counties, findCounty, viewBoxFor, COUNTRY_VIEW_BOX } from '../../lib/geo/counties';
+import { isLive, liveSlugs, placesInCounty } from '../../content/places';
+
+interface Props {
+  lang: Lang;
+  /** The county the visitor already chose, from `?zupanija=`. */
+  county?: string | null;
+}
+
+const { lang, county: requested = null } = Astro.props as Props;
+const county = findCounty(requested);
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
+const viewBox = county ? viewBoxFor(county.bbox) : COUNTRY_VIEW_BOX;
+const countyPlaces = county ? placesInCounty(county.slug) : [];
+const strings = {
+  notHereYet: label('notHereYet'),
+  pickOnMap: label('pickOnMap'),
+  locating: label('locating'),
+  searchNoResults: label('searchNoResults'),
+};
+---
+
+<div class="entry">
+  <h1 class="entry-question">{label('question')}</h1>
+
+  <div class="entry-layout">
+    <div
+      class="entry-map"
+      data-entry-map
+      data-base={base}
+      data-zoom={county ? 'county' : 'country'}
+      data-county={county?.slug}
+      data-live={liveSlugs.join(',')}
+    >
+      <svg data-map viewBox={viewBox} role="group" aria-label={label('mapLabel')}>
+        <g data-layer="counties">
+          {
+            counties.map((item) => (
+              <a href={`${base}?zupanija=${item.slug}`} data-county={item.slug} aria-label={item.name}>
+                <path class="county-shape" d={item.d} data-selected={item.slug === county?.slug ? 'true' : undefined} />
+                <title>{item.name}</title>
+              </a>
+            ))
+          }
+        </g>
+        <g data-layer="places"></g>
+      </svg>
+
+      <div class="entry-map-actions">
+        <button class="btn" type="button" data-locate>{label('locate')}</button>
+        <button class="btn" type="button" data-reset hidden>{label('wholeCountry')}</button>
+      </div>
+      <p class="entry-map-hover" data-hover aria-hidden="true"></p>
+      <p class="entry-map-attribution">{label('attribution')}</p>
+    </div>
+
+    <div class="entry-controls">
+      <form class="entry-form" method="get" action={base} data-region-form>
+        <label for="zupanija">{label('regionLabel')}</label>
+        <div class="entry-form-row">
+          <select id="zupanija" name="zupanija" data-region>
+            <option value="">{label('regionPlaceholder')}</option>
+            {
+              counties.map((item) => (
+                <option value={item.slug} selected={item.slug === county?.slug}>
+                  {item.name}
+                </option>
+              ))
+            }
+          </select>
+          <button class="btn" type="submit">{label('regionSubmit')}</button>
+        </div>
+      </form>
+
+      <p class="entry-note" data-note role="status" aria-live="polite"></p>
+
+      <form class="entry-form" role="search" data-search-form>
+        <label for="place-search">{label('searchLabel')}</label>
+        <div class="entry-form-row">
+          <input
+            type="search"
+            id="place-search"
+            name="mjesto"
+            autocomplete="off"
+            placeholder={label('searchPlaceholder')}
+            data-search
+          />
+        </div>
+        <ul class="entry-results" data-results hidden></ul>
+      </form>
+
+      {
+        county && (
+          <section data-county-list>
+            <h2 class="entry-county-title">{county.name}</h2>
+            <ul class="entry-county-list">
+              {countyPlaces.map((place) => (
+                <li>
+                  <a href={`${base}${place.slug}`} data-status={isLive(place.slug) ? 'live' : 'not-yet'}>
+                    {place.name[lang]}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+    </div>
+  </div>
+
+  <script is:inline type="application/json" id="entry-strings" set:html={JSON.stringify(strings)} />
+</div>
+
+<script>
+  import '../../scripts/entry/map';
+</script>

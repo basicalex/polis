@@ -1,0 +1,90 @@
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * Which place slugs Polis answers for.
+ *
+ * A place is live when a municipality has signed and the pilot backend can take
+ * a case for it. Everything else in the boundary set is a known place: it has a
+ * name and a spot on the map, and it says "još nije ovdje" (entry-flow R4).
+ * Anything that is neither is a 404.
+ */
+
+import knownPlaces from '../data/geo/hr-places.json';
+import type { LocalizedText } from './public-release';
+
+export type PlaceStatus = 'live' | 'not-yet';
+
+export interface LivePlace {
+  slug: string;
+  /** The ADM2 slug in the boundary data; the same string today, kept separate. */
+  geoSlug: string;
+  county: string;
+  pilotId: string;
+  caseNumberPrefix: string;
+  name: LocalizedText;
+  status: 'live';
+}
+
+export interface KnownPlace {
+  slug: string;
+  geoSlug: string;
+  county: string;
+  name: LocalizedText;
+  kind: 'grad' | 'opcina';
+  status: 'not-yet';
+}
+
+export type Place = LivePlace | KnownPlace;
+
+/** Names come from config/pilots/vrsar-orsera.json; the short form is the label. */
+export const livePlaces: LivePlace[] = [
+  {
+    slug: 'vrsar',
+    geoSlug: 'vrsar',
+    county: 'istarska',
+    pilotId: 'vrsar-orsera',
+    caseNumberPrefix: 'VRS',
+    name: { hr: 'Općina Vrsar', en: 'Vrsar Municipality' },
+    status: 'live',
+  },
+];
+
+const liveBySlug = new Map(livePlaces.map((place) => [place.slug, place]));
+const knownBySlug = new Map(knownPlaces.map((place) => [place.slug, place]));
+
+/** The Croatian name carries the legal form; English says it in words. */
+function nameOf(name: string, kind: 'grad' | 'opcina'): LocalizedText {
+  return kind === 'grad'
+    ? { hr: `Grad ${name}`, en: `City of ${name}` }
+    : { hr: `Općina ${name}`, en: `${name} Municipality` };
+}
+
+export function findPlace(slug: string): Place | undefined {
+  const live = liveBySlug.get(slug);
+  if (live) return live;
+  const known = knownBySlug.get(slug);
+  if (!known) return undefined;
+  return {
+    slug: known.slug,
+    geoSlug: known.slug,
+    county: known.parent,
+    name: nameOf(known.name, known.kind as 'grad' | 'opcina'),
+    kind: known.kind as 'grad' | 'opcina',
+    status: 'not-yet',
+  };
+}
+
+export function isLive(slug: string): boolean {
+  return liveBySlug.has(slug);
+}
+
+/** Every city and municipality of one county, in Croatian alphabetical order. */
+export function placesInCounty(county: string): Place[] {
+  return knownPlaces
+    .filter((place) => place.parent === county)
+    .map((place) => findPlace(place.slug))
+    .filter((place): place is Place => Boolean(place));
+}
+
+export const liveSlugs: readonly string[] = livePlaces.map((place) => place.slug);

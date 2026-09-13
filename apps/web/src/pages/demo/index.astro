@@ -2,6 +2,51 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The demo hub has no page of its own: the landing lists every role surface.
-return Astro.redirect('/', 302);
+/*
+ * The demo hub. The root is the place map now (entry-flow R1), so the five role
+ * surfaces are listed here and reached from the institution side and the
+ * footer, never from the front door.
+ */
+
+import '../../styles/public.css';
+import Base from '../../layouts/Base.astro';
+import { landing, landingEntryIds, type LandingEntryId } from '../../content/public-release';
+
+const lang = 'hr' as const;
+const copy = landing[lang];
+const hrefs: Record<LandingEntryId, string> = {
+  citizen: '/demo/citizen',
+  official: '/demo/official',
+  review: '/demo/review',
+  record: '/demo/record',
+  embed: '/demo/embed',
+  presentation: '/presentation',
+};
 ---
+
+<Base lang={lang} title={`Polis — ${copy.entriesTitle}`} description={copy.entriesLede}>
+  <article class="stack">
+    <header class="page-header">
+      <h1>{copy.entriesTitle}</h1>
+      <p class="page-header-lede">{copy.entriesLede}</p>
+    </header>
+
+    <ul class="landing-entries">
+      {
+        landingEntryIds.map((id) => (
+          <li>
+            <a href={hrefs[id]}>
+              <span class="landing-entry-label">{copy.entries[id].label}</span>
+              <span class="landing-entry-note">{copy.entries[id].note}</span>
+              <span class="landing-entry-arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="landing-note">{copy.demoNote}</p>
+  </article>
+</Base>

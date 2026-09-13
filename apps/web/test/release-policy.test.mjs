@@ -12,6 +12,8 @@ import {
   matchReleasePattern,
   matchingReleasePolicies,
   normalizeReleasePath,
+  pickMostSpecific,
+  releasePatternSpecificity,
 } from '../src/lib/release-route-policy.mjs';
 import { createReleaseMiddleware } from '../src/middleware.ts';
 
@@ -21,7 +23,9 @@ const pageExtensions = /\.(astro|md|mdx|ts)$/;
 const expectedCurrentByKind = {
   safe: [
     '/',
+    '/:place',
     '/en',
+    '/en/:place',
     '/presentation',
     '/hr/presentation',
     '/en/presentation',
@@ -125,10 +129,60 @@ test('release policy gives every current Astro page exactly one disposition', as
   const requiredCurrent = sorted(Object.values(expectedCurrentByKind).flat());
 
   for (const route of requiredCurrent) assert.ok(discovered.includes(route), `missing page ${route}`);
+  // `/:place` matches every one-segment path, so a page route can match several
+  // patterns; exactly one of them must win, and it must be the page's own.
   for (const route of discovered) {
-    const matches = matchingReleasePolicies(route);
-    assert.equal(matches.length, 1, `${route}: ${matches.map((entry) => entry.id).join(', ')}`);
+    assert.equal(classifyReleasePath(route).pattern, route, route);
   }
+});
+
+test('every policy pattern still classifies to its own entry', () => {
+  // Walks the whole list: the literal routes that existed before `/:place` was
+  // added must keep the disposition they had.
+  for (const entry of RELEASE_ROUTE_POLICY) {
+    const sample = entry.pattern
+      .split('/')
+      .map((segment) => {
+        if (segment.startsWith(':')) return `sample-${segment.slice(1)}`;
+        if (segment.startsWith('*')) return `sample/${segment.slice(1)}`;
+        return segment;
+      })
+      .join('/');
+    const classified = classifyReleasePath(sample || '/');
+    assert.equal(classified.id, entry.id, `${entry.pattern} → ${sample}`);
+    assert.equal(classified.kind, entry.kind, entry.pattern);
+  }
+});
+
+test('the most literal pattern wins and only a real tie throws', () => {
+  assert.equal(releasePatternSpecificity('/').count, 0);
+  assert.equal(releasePatternSpecificity('/:place').count, 0);
+  assert.equal(releasePatternSpecificity('/en/:place').count, 1);
+  assert.equal(releasePatternSpecificity('/en/presentation').count, 2);
+
+  // Literal beats param at the same depth.
+  assert.equal(classifyReleasePath('/docs').id, 'docs');
+  assert.equal(classifyReleasePath('/en').id, 'home-en');
+  assert.equal(classifyReleasePath('/hr').id, 'home-hr');
+  assert.equal(classifyReleasePath('/demo').id, 'demo-hub');
+  assert.equal(classifyReleasePath('/privacy').id, 'privacy');
+  assert.equal(classifyReleasePath('/presentation').id, 'presentation');
+  assert.equal(classifyReleasePath('/en/presentation').id, 'presentation-en');
+  // The place routes take what is left.
+  assert.equal(classifyReleasePath('/vrsar').id, 'place');
+  assert.equal(classifyReleasePath('/en/vrsar').id, 'place-en');
+  assert.equal(classifyReleasePath('/vrsar/zapis').id, 'place-record');
+  assert.equal(classifyReleasePath('/vrsar/prijava/VRS-878993').id, 'place-report-case');
+  // Equal literal counts: the pattern whose literal sits further left wins, so
+  // `/en/zapis` is the English place page and not a Croatian record route.
+  assert.equal(classifyReleasePath('/en/zapis').id, 'place-en');
+
+  const tie = [
+    { id: 'left', pattern: '/:a/x/:b', kind: 'safe', inventory: 'planned' },
+    { id: 'right', pattern: '/:c/x/:d', kind: 'not-live', inventory: 'planned' },
+  ];
+  assert.equal(pickMostSpecific([tie[0]], '/one/x/two').id, 'left');
+  assert.throws(() => pickMostSpecific(tie, '/one/x/two'), /policy overlap/);
 });
 
 test('release policy fixes the exact current route disposition by category', () => {
@@ -159,6 +213,10 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/demo', 'safe'],
     ['/demo/citizen', 'safe'],
     ['/demo/unknown-surface', 'not-live'],
+    ['/vrsar', 'safe'],
+    ['/en/vrsar', 'safe'],
+    ['/vrsar/zapis', 'backend-dependent'],
+    ['/vrsar/prijava', 'backend-dependent'],
     ['/release-boundary', 'safe'],
     ['/governance/jur-croatia-local', 'backend-dependent'],
     ['/governance/jur-croatia-local/institutions/inst-complaints-office', 'backend-dependent'],
@@ -172,12 +230,14 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/pilot/vrsar/receipts/receipt-public', 'backend-dependent'],
     ['/contributors/person-private', 'restricted'],
     ['/contribute/review', 'not-live'],
-    ['/unknown-release-route', 'not-live'],
+    // One segment is now the place route; an unknown slug is the page's 404.
+    ['/unknown-release-route', 'safe'],
+    ['/unknown/release/route', 'not-live'],
   ];
 
   for (const [path, kind] of cases) {
     assert.equal(classifyReleasePath(path).kind, kind, path);
-    assert.ok(matchingReleasePolicies(path).length <= 1, path);
+    assert.ok(matchingReleasePolicies(path).length >= 1 || kind === 'not-live', path);
   }
 });
 
@@ -193,6 +253,8 @@ test('normalization, matching, and asset bypass reject ambiguous paths', () => {
   assert.equal(isReleaseAssetPath('/_astro/app.hash.js'), true);
   assert.equal(isReleaseAssetPath('/fonts/BarlowCondensed-Bold.ttf'), true);
   assert.equal(isReleaseAssetPath('/robots.txt'), true);
+  assert.equal(isReleaseAssetPath('/geo/hr/istarska.json'), true);
+  assert.equal(isReleaseAssetPath('/geo/hr-places.json'), true);
   assert.equal(isReleaseAssetPath('/login'), false);
 });
 

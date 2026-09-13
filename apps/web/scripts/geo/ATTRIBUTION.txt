@@ -1,0 +1,42 @@
+Croatia boundary dataset — source, licence, attribution
+=======================================================
+
+Source
+------
+geoBoundaries, gbOpen release, country HRV, commit 9469f09.
+API records fetched 2026-09-13 from
+  https://www.geoboundaries.org/api/current/gbOpen/HRV/ADM1/
+  https://www.geoboundaries.org/api/current/gbOpen/HRV/ADM2/
+
+Downloads used (simplifiedGeometryGeoJSON):
+  ADM1  https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/HRV/ADM1/geoBoundaries-HRV-ADM1_simplified.geojson
+  ADM2  https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/HRV/ADM2/geoBoundaries-HRV-ADM2_simplified.geojson
+
+Licences (as declared by the geoBoundaries API — NOT CC BY 4.0)
+--------------------------------------------------------------
+ADM1  boundaryID HRV-ADM1-27960609, year 2017
+      "Open Data Commons Open Database License 1.0"  (ODbL 1.0)
+      licence source: www.openstreetmap.org/copyright
+      boundary source: OpenStreetMap, Wambacher (wambachers-osm.website/boundaries/)
+
+ADM2  boundaryID HRV-ADM2-41942358, year 2021
+      "Creative Commons Attribution-ShareAlike 2.0"  (CC BY-SA 2.0)
+      licence source: www.openstreetmap.org/copyright
+      boundary source: OpenStreetMap, geoBoundaries (osm-boundaries.com/)
+
+Both layers are OpenStreetMap-derived, so OSM's attribution and share-alike
+terms apply. ODbL share-alike reaches any database derived from ADM1; publish
+this dataset (or anything derived from it) under the same terms.
+
+Attribution line to ship with the map
+------------------------------------
+Boundaries: geoBoundaries (Runfola et al. 2020), derived from OpenStreetMap.
+© OpenStreetMap contributors, ODbL. ADM2 released under CC BY-SA 2.0.
+
+Short form for a map corner:
+© OpenStreetMap contributors (ODbL) · geoBoundaries
+
+Citation for geoBoundaries
+-------------------------
+Runfola, D. et al. (2020) geoBoundaries: A global database of political
+administrative boundaries. PLoS ONE 15(4): e0231866.
