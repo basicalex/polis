@@ -29,6 +29,10 @@ const LIST_QUERY_PARAMETERS: Readonly<Record<string, true>> = { limit: true };
 const IDEMPOTENCY_KEY_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ATTACHMENT_UPLOAD_MAX_BODY_BYTES = 2_900_000;
+const MAX_WEB_PHOTO_BYTES = 2 * 1024 * 1024;
+const MAX_WEB_PHOTO_BASE64_BYTES = Math.ceil(MAX_WEB_PHOTO_BYTES / 3) * 4;
+const STANDARD_BASE64 =
+  /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const AUTHORITY_FIELDS = [
   'actorId',
   'citizenId',
@@ -108,6 +112,7 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
     gatewayPrincipalEnv: 'TRACE_WEB_GATEWAY_ACTOR_ID',
     shapeBody: shapeWebCaseBody,
     write: true,
+    maxBodyBytes: ATTACHMENT_UPLOAD_MAX_BODY_BYTES,
   },
   { method: 'GET', path: '/public/cases/:caseNumber', access: 'public' },
   {
@@ -184,9 +189,9 @@ function shapeWebCaseBody(value: unknown): TraceBodyShapeResult {
     return { error: traceError(400, 'invalid_request') };
   }
   const input = value as Record<string, unknown>;
-  if (!Object.keys(input).every((key) => key === 'text' || key === 'location')) {
+  if (!Object.keys(input).every((key) => key === 'text' || key === 'location' || key === 'photo')) {
     return {
-      error: traceError(400, 'invalid_request', 'Only text and location are accepted.'),
+      error: traceError(400, 'invalid_request', 'Only text, location, and photo are accepted.'),
     };
   }
   if (typeof input.text !== 'string') {
@@ -195,6 +200,37 @@ function shapeWebCaseBody(value: unknown): TraceBodyShapeResult {
   if ('location' in input && typeof input.location !== 'string') {
     return { error: traceError(400, 'invalid_request', 'location must be a string.') };
   }
+
+  let attachment: Record<string, string> | null = null;
+  if (input.photo !== undefined && input.photo !== null) {
+    if (typeof input.photo !== 'object' || Array.isArray(input.photo)) {
+      return { error: traceError(400, 'invalid_request', 'photo must be an object or null.') };
+    }
+    const photo = input.photo as Record<string, unknown>;
+    const keys = Object.keys(photo);
+    if (
+      keys.length !== 2 ||
+      !keys.every((key) => key === 'contentType' || key === 'base64') ||
+      (photo.contentType !== 'image/jpeg' && photo.contentType !== 'image/png') ||
+      typeof photo.base64 !== 'string' ||
+      photo.base64.length === 0 ||
+      photo.base64.length > MAX_WEB_PHOTO_BASE64_BYTES ||
+      !STANDARD_BASE64.test(photo.base64)
+    ) {
+      return { error: traceError(400, 'invalid_request', 'photo is invalid.') };
+    }
+    const padding = photo.base64.endsWith('==') ? 2 : photo.base64.endsWith('=') ? 1 : 0;
+    const decodedSize = (photo.base64.length / 4) * 3 - padding;
+    if (decodedSize > MAX_WEB_PHOTO_BYTES) {
+      return { error: traceError(400, 'invalid_request', 'photo is invalid.') };
+    }
+    attachment = {
+      filename: photo.contentType === 'image/jpeg' ? 'photo.jpg' : 'photo.png',
+      contentType: photo.contentType,
+      base64: photo.base64,
+    };
+  }
+
   return {
     body: {
       channel: 'web',
@@ -202,6 +238,7 @@ function shapeWebCaseBody(value: unknown): TraceBodyShapeResult {
       ...('location' in input ? { location: input.location } : {}),
       source: 'typed',
       occurredAt: new Date().toISOString(),
+      ...(attachment ? { attachment } : {}),
     },
   };
 }

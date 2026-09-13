@@ -162,6 +162,7 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     clockDueAt: null,
     createdAt: shell.filedAt,
     updatedAt: shell.updatedAt,
+    attachments: [],
     messages: [message],
     events: [],
     shell,
@@ -287,6 +288,10 @@ test('route table exposes every exact internal trace path', () => {
   ]) {
     assert.ok(paths.includes(expected), expected);
   }
+  const channelCreate = traceRoutes(fakeStore(), config()).find(
+    (route) => route.method === 'POST' && route.path === '/internal/trace/channel/cases',
+  );
+  assert.equal(channelCreate?.maxBodyBytes, 2_920_000);
 });
 
 test('internal token and trusted actor are required; mapped role ignores browser identity level', async () => {

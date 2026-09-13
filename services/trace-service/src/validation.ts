@@ -382,19 +382,46 @@ function optionalBoundedText(value: unknown, name: string, maximum: number): str
   return optionalText(value, name, maximum);
 }
 
+function normalizeGatewayAttachment(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['filename', 'contentType', 'base64']);
+  const { expectedVersion: _expectedVersion, ...attachment } = normalizeAttachment({
+    ...body,
+    expectedVersion: 0,
+  });
+  if (attachment.contentType !== 'image/jpeg' && attachment.contentType !== 'image/png') {
+    throw new InputError(
+      'unsupported_attachment_type',
+      'Channel case attachments must be JPEG or PNG images.',
+    );
+  }
+  return attachment;
+}
+
 export function normalizeGatewayCreate(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['channel', 'text', 'location', 'source', 'occurredAt']);
+  const body = exactBody(value, [
+    'channel',
+    'text',
+    'location',
+    'source',
+    'occurredAt',
+    'attachment',
+  ]);
   const channel = oneOf(body.channel, 'channel', ['web', 'sms', 'voice'] as const);
   const narrative = body.text === null ? null : text(body.text, 'text', 4_000);
   if (narrative === null && channel !== 'voice') {
     throw new InputError('invalid_request', 'text may be null only for voice intake.');
   }
+  const attachment =
+    body.attachment === undefined || body.attachment === null
+      ? null
+      : normalizeGatewayAttachment(body.attachment);
   return {
     channel,
     text: narrative,
     location: optionalBoundedText(body.location, 'location', 1_000),
     source: oneOf(body.source, 'source', ['typed', 'transcript', 'system'] as const),
     occurredAt: occurredAt(body.occurredAt),
+    ...(attachment ? { attachment } : {}),
   };
 }
 

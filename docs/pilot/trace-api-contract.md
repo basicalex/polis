@@ -53,13 +53,13 @@ Paths in the first table start with `/api/trace`; the second table gives exact i
 | GET | `/records/:id/attachments/:attachmentId` | authorized private record reader | Download only, attachment disposition, nosniff, no-store. |
 | GET | `/public/records` | public | Reviewed public projections only, no pagination-free unbounded database dump. |
 | GET | `/public/records/:id` | public | Approved summary, office, approved commitment/due date, approved evidence when resolved, public status, sanitized public events, public receipt hash. Unpublished records return 404. |
-| POST | `/public/cases` | public | `{ text, location? }`; the server fixes channel, source, and occurrence time. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
+| POST | `/public/cases` | public | `{ text, location?, photo?: null \| { contentType: "image/jpeg" \| "image/png", base64 } }`; `photo.base64` is standard base64 without a data-URL prefix and may decode to at most 2 MiB. The server fixes channel, source, and occurrence time. A supplied photo is stored as one restricted attachment visible in authorized private and reopen-key views; no attachment metadata, count, or bytes appears in the public shell, ledger, or public case projection. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
 
 Channel gateway routes use `x-polis-trace-gateway` with a configured gateway id; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Staff routes use the configured `official` and `reviewer` roles. Public case routes are anonymous behind the internal service boundary.
 
 | Method | Internal path | Principal | Request / result |
 | --- | --- | --- | --- |
-| POST | `/internal/trace/channel/cases` | gateway | `{ channel, text: string \| null, location?, source, occurredAt }`; returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
+| POST | `/internal/trace/channel/cases` | gateway | `{ channel, text: string \| null, location?, source, occurredAt, attachment?: { filename: "photo.jpg" \| "photo.png", contentType: "image/jpeg" \| "image/png", base64 } }`; the optional attachment is validated and stored atomically with the case. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
 | POST | `/internal/trace/channel/cases/:caseNumber/messages` | gateway | `{ reopenKey, channel, kind, text: string \| null, source, occurredAt }`; returns 201 `{ message }`. |
 | GET | `/internal/trace/channel/outbox?limit=` | gateway | Returns `{ messages }`. |
 | POST | `/internal/trace/channel/outbox/:messageId/delivery` | gateway | `{ state, failureCode? }`; returns `{ message }`. |

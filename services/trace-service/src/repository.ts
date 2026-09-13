@@ -507,9 +507,10 @@ export class TraceRepository implements TraceStore {
         role: 'resident',
         recordScope: recordId,
       };
+      let current = record;
       await this.#appendEvent(
         tx,
-        record,
+        current,
         filer,
         'voice',
         'report-filed',
@@ -517,7 +518,43 @@ export class TraceRepository implements TraceStore {
         { origin: input.channel, source: input.source, occurredAt: input.occurredAt },
         now,
       );
-      const shell = await this.#writeShell(tx, record);
+      if (input.attachment) {
+        const bytes = Buffer.from(input.attachment.base64, 'base64');
+        const attachment: AttachmentMetadata = {
+          id: randomUUID(),
+          filename: input.attachment.filename,
+          contentType: input.attachment.contentType,
+          byteCount: bytes.byteLength,
+          sha256: sha256(bytes),
+          createdAt: now,
+        };
+        current = await this.#updateStatus(tx, current, current.status, now);
+        await tx`
+          INSERT INTO trace_attachments (
+            id, record_id, filename, content_type, content, byte_count, sha256, created_by, created_at
+          ) VALUES (
+            ${attachment.id}, ${recordId}, ${attachment.filename}, ${attachment.contentType}, ${bytes},
+            ${attachment.byteCount}, ${attachment.sha256}, ${ctx.actor.id}, ${now}
+          )
+        `;
+        await this.#appendEvent(
+          tx,
+          current,
+          ctx.actor,
+          'voice',
+          'attachment-added',
+          null,
+          {
+            attachmentId: attachment.id,
+            filename: attachment.filename,
+            contentType: attachment.contentType,
+            byteCount: attachment.byteCount,
+            sha256: attachment.sha256,
+          },
+          now,
+        );
+      }
+      const shell = await this.#writeShell(tx, current);
       const value = {
         case: { recordId, caseNumber, reopenKey: issued.key, state: shell.state },
         shell,
@@ -1180,6 +1217,7 @@ export class TraceRepository implements TraceStore {
       updatedAt: iso(record.updated_at),
       messages: await this.#loadMessages(tx, record.id),
       events: privateRecord.events.map(({ note: _note, ...event }) => event),
+      attachments: privateRecord.attachments,
       shell: caseShell(shell),
     };
   }

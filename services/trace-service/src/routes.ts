@@ -374,7 +374,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     {
       method: 'POST',
       path: '/internal/trace/channel/cases',
-      maxBodyBytes: 20_000,
+      maxBodyBytes: 2_920_000,
       handler: safe(async (request, body) => {
         const actor = gatewayActorFromRequest(request, config);
         const normalized = normalizeGatewayCreate(body);

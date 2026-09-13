@@ -415,6 +415,75 @@ test('gateway create, gateway message, and reopen inputs preserve bounded channe
   );
 });
 
+test('gateway web photos accept JPEG and PNG while enforcing the attachment contract', () => {
+  const input = {
+    channel: 'web',
+    text: 'Ulična rasvjeta ne radi.',
+    source: 'typed',
+    occurredAt: VALID_TIME,
+  };
+  assert.deepEqual(
+    normalizeGatewayCreate({
+      ...input,
+      attachment: {
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        base64: VALID_JPEG.toString('base64'),
+      },
+    }).attachment,
+    {
+      filename: 'photo.jpg',
+      contentType: 'image/jpeg',
+      base64: VALID_JPEG.toString('base64'),
+    },
+  );
+  assert.doesNotThrow(() =>
+    normalizeGatewayCreate({
+      ...input,
+      attachment: {
+        filename: 'photo.png',
+        contentType: 'image/png',
+        base64: VALID_PNG.toString('base64'),
+      },
+    }),
+  );
+  assert.equal(normalizeGatewayCreate({ ...input, attachment: null }).attachment, undefined);
+
+  for (const [attachment, expectedCode] of [
+    [
+      {
+        filename: 'document.pdf',
+        contentType: 'application/pdf',
+        base64: VALID_PDF.toString('base64'),
+      },
+      'unsupported_attachment_type',
+    ],
+    [{ filename: 'photo.jpg', contentType: 'image/jpeg', base64: 'not-base64' }, 'invalid_base64'],
+    [
+      {
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        base64: Buffer.alloc(MAX_ATTACHMENT_BYTES + 1).toString('base64'),
+      },
+      'invalid_attachment',
+    ],
+    [
+      {
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        base64: VALID_JPEG.toString('base64'),
+        extra: true,
+      },
+      'unknown_field',
+    ],
+  ] as const) {
+    assert.equal(
+      code(() => normalizeGatewayCreate({ ...input, attachment })),
+      expectedCode,
+    );
+  }
+});
+
 test('filer and official messages enforce bodies, references, versions, and channel enums', () => {
   assert.deepEqual(
     normalizeFilerMessage({

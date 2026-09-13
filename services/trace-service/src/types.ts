@@ -276,6 +276,7 @@ export interface FilerCaseView {
   updatedAt: string;
   messages: CaseMessage[];
   events: Array<Omit<PrivateEvent, 'note'>>;
+  attachments: AttachmentMetadata[];
   shell: CaseShell;
 }
 
@@ -328,6 +329,11 @@ export interface GatewayCreateInput {
   location?: string;
   source: CaseMessageSource;
   occurredAt: string;
+  attachment?: {
+    filename: string;
+    contentType: 'image/jpeg' | 'image/png';
+    base64: string;
+  };
 }
 
 export interface GatewayMessageInput {

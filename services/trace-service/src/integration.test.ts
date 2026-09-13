@@ -16,12 +16,19 @@ import { parseTraceConfig } from './config.js';
 import { DomainError, reopenKeyHash } from './domain.js';
 import { readMigrations, runTraceMigrations, verifyTraceMigrations } from './migrations.js';
 import { TraceRepository } from './repository.js';
-import type { Actor, CommandContext, PrivateRecord, TraceRole } from './types.js';
+import type {
+  Actor,
+  CommandContext,
+  GatewayCreateInput,
+  PrivateRecord,
+  TraceRole,
+} from './types.js';
 import {
   normalizeAssign,
   normalizeAttachment,
   normalizeCommitment,
   normalizeCreate,
+  normalizeGatewayCreate,
   normalizeResolution,
   normalizeReview,
 } from './validation.js';
@@ -32,6 +39,7 @@ const RESIDENT = 'trace-resident-test';
 const OTHER_RESIDENT = 'trace-resident-other-test';
 const GATEWAY = 'trace-gateway-test';
 const ATTENTION_PEPPER = 'trace-integration-attention-pepper-value';
+const WEB_PHOTO_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x00, 0xff, 0xd9]);
 
 function actor(id: string, role: TraceRole): Actor {
   return { id, role, email: null };
@@ -961,6 +969,116 @@ test(
       );
       assert.match(second.case.caseNumber, /^VRS-[1-9][0-9]{5}$/);
       assert.notEqual(second.case.caseNumber, first.case.caseNumber);
+
+      const photoBody = normalizeGatewayCreate({
+        channel: 'web',
+        text: 'Prijava s fotografijom',
+        location: 'Fotografirana privatna lokacija',
+        source: 'typed',
+        occurredAt: '2026-09-12T12:01:30.000Z',
+        attachment: {
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+          base64: WEB_PHOTO_BYTES.toString('base64'),
+        },
+      });
+      const photo = await repository.createChannelCase(
+        ctx(gateway, '/internal/trace/channel/cases', photoBody),
+        photoBody as unknown as GatewayCreateInput,
+      );
+      const storedPhoto = (
+        await sql<
+          {
+            filename: string;
+            content_type: string;
+            content: Buffer;
+            byte_count: number;
+            sha256: string;
+            created_by: string;
+          }[]
+        >`
+          SELECT filename, content_type, content, byte_count, sha256, created_by
+          FROM trace_attachments WHERE record_id = ${photo.case.recordId}
+        `
+      )[0]!;
+      assert.equal(storedPhoto.filename, 'photo.jpg');
+      assert.equal(storedPhoto.content_type, 'image/jpeg');
+      assert.deepEqual(storedPhoto.content, WEB_PHOTO_BYTES);
+      assert.equal(storedPhoto.byte_count, WEB_PHOTO_BYTES.byteLength);
+      assert.match(storedPhoto.sha256.trim(), /^[0-9a-f]{64}$/);
+      assert.equal(storedPhoto.created_by, gateway.id);
+
+      const photoRecord = (
+        await sql<{ version: number }[]>`
+          SELECT version FROM trace_records WHERE id = ${photo.case.recordId}
+        `
+      )[0]!;
+      assert.equal(photoRecord.version, 1);
+      const photoEvents = await sql<
+        { action: string; actor_id: string; resulting_version: number }[]
+      >`
+        SELECT action, actor_id, resulting_version
+        FROM trace_events WHERE record_id = ${photo.case.recordId} ORDER BY sequence
+      `;
+      assert.deepEqual(photoEvents, [
+        {
+          action: 'report-filed',
+          actor_id: `anon:${photo.case.recordId}`,
+          resulting_version: 0,
+        },
+        { action: 'attachment-added', actor_id: gateway.id, resulting_version: 1 },
+      ]);
+
+      const officialPhoto = await repository.getPrivate(official, photo.case.recordId);
+      const reviewerPhoto = await repository.getPrivate(reviewer, photo.case.recordId);
+      assert.ok(officialPhoto);
+      assert.ok(reviewerPhoto);
+      assert.deepEqual(officialPhoto.attachments, reviewerPhoto.attachments);
+      assert.deepEqual(officialPhoto.attachments, [
+        {
+          id: officialPhoto.attachments[0]!.id,
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+          byteCount: WEB_PHOTO_BYTES.byteLength,
+          sha256: storedPhoto.sha256.trim(),
+          createdAt: officialPhoto.attachments[0]!.createdAt,
+        },
+      ]);
+      const reopenedPhoto = await repository.readFilerCase(
+        photo.case.caseNumber,
+        photo.case.reopenKey,
+      );
+      assert.deepEqual(reopenedPhoto.case.attachments, officialPhoto.attachments);
+
+      const textPublicCase = await repository.getPublicCase(second.case.caseNumber);
+      const photoPublicCase = await repository.getPublicCase(photo.case.caseNumber);
+      assert.ok(textPublicCase);
+      assert.ok(photoPublicCase);
+      const normalizedTextPublicCase = {
+        ...textPublicCase,
+        case: {
+          ...textPublicCase.case,
+          caseNumber: '<case-number>',
+          filedAt: '<timestamp>',
+          shellHash: '<shell-hash>',
+          updatedAt: '<timestamp>',
+        },
+      };
+      const normalizedPhotoPublicCase = {
+        ...photoPublicCase,
+        case: {
+          ...photoPublicCase.case,
+          caseNumber: '<case-number>',
+          filedAt: '<timestamp>',
+          shellHash: '<shell-hash>',
+          updatedAt: '<timestamp>',
+        },
+      };
+      assert.equal(
+        JSON.stringify(normalizedPhotoPublicCase),
+        JSON.stringify(normalizedTextPublicCase),
+      );
+      assert.equal(JSON.stringify(photoPublicCase).includes('attachment'), false);
 
       const transcriptInput = {
         channel: 'voice' as const,

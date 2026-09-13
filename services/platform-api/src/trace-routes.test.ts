@@ -126,6 +126,10 @@ test('trace routes are disabled by default and expose only the exact enabled con
       route(traceRoutes(), 'POST', '/api/trace/records/:id/attachments').maxBodyBytes,
       2_900_000,
     );
+    assert.equal(
+      route(traceRoutes(), 'POST', '/api/trace/public/cases').maxBodyBytes,
+      2_900_000,
+    );
     const paths = platformRoutes().map(({ path }) => path);
     assert.equal(
       paths.some((path) => path.startsWith('/api/v1/trace')),
@@ -338,6 +342,74 @@ test('anonymous web case creation injects its gateway principal and shapes the u
       assert.equal(rejected.status, 400, field);
     }
     assert.equal(calls.length, 1);
+  });
+});
+
+test('anonymous web case creation maps bounded photos and rejects invalid photo input', async () => {
+  await withEnvironment(enabledEnvironment, async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(input), init });
+      return new Response(JSON.stringify({ accepted: true }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof globalThis.fetch;
+    const create = route(traceRoutes(), 'POST', '/api/trace/public/cases');
+    const photos = [
+      {
+        contentType: 'image/jpeg',
+        base64: Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64'),
+        filename: 'photo.jpg',
+      },
+      {
+        contentType: 'image/png',
+        base64: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64'),
+        filename: 'photo.png',
+      },
+    ] as const;
+    for (const photo of photos) {
+      const response = result(
+        await create.handler(
+          request('POST', '/api/trace/public/cases', {
+            'idempotency-key': VALID_IDEMPOTENCY_KEY,
+          }),
+          { text: 'Prijava', photo: { contentType: photo.contentType, base64: photo.base64 } },
+          {},
+        ),
+      );
+      assert.equal(response.status, 201);
+      const shaped = JSON.parse(String(calls.at(-1)?.init?.body)) as Record<string, unknown>;
+      assert.deepEqual(shaped.attachment, {
+        filename: photo.filename,
+        contentType: photo.contentType,
+        base64: photo.base64,
+      });
+    }
+
+    const oversized = Buffer.alloc(2 * 1024 * 1024 + 1).toString('base64');
+    for (const photo of [
+      { contentType: 'image/jpeg', base64: photos[0].base64, extra: true },
+      { contentType: 'image/gif', base64: 'R0lGODlh' },
+      { contentType: 'image/jpeg', base64: oversized },
+      { contentType: 'image/jpeg', base64: 'not-base64' },
+    ]) {
+      const response = result(
+        await create.handler(
+          request('POST', '/api/trace/public/cases', {
+            'idempotency-key': VALID_IDEMPOTENCY_KEY,
+          }),
+          { text: 'Prijava', photo },
+          {},
+        ),
+      );
+      assert.equal(response.status, 400);
+      assert.deepEqual(response.body, {
+        error: 'invalid_request',
+        message: 'photo is invalid.',
+      });
+    }
+    assert.equal(calls.length, photos.length);
   });
 });
 
