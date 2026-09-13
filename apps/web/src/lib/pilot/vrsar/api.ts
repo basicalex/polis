@@ -11,6 +11,7 @@ import type {
   PublicTraceRecord,
 } from './model.ts';
 import {
+  anonymousCaseFromEnvelope,
   attentionCountsFromEnvelope,
   closeResultFromEnvelope,
   messageResultFromEnvelope,
@@ -303,6 +304,18 @@ export async function getPublicRecord(id: string, signal?: AbortSignal): Promise
   return requestJson<PublicTraceRecord>(`/public/records/${encodeURIComponent(id)}`, {
     signal,
     parse: publicRecordFromEnvelope,
+  });
+}
+
+export async function fileAnonymousCase(input: {
+  text: string;
+  location?: string;
+}): Promise<{ caseNumber: string; reopenKey: string; state: string }> {
+  return requestJson('/public/cases', {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: anonymousCaseFromEnvelope,
   });
 }
 

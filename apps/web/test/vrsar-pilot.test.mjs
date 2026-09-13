@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { actionLabels, errorMessages, statusLabels, translatedAction } from '../src/content/pilot/vrsar.ts';
-import { createPrivateRecord, PilotApiError } from '../src/lib/pilot/vrsar/api.ts';
+import { createPrivateRecord, fileAnonymousCase, PilotApiError } from '../src/lib/pilot/vrsar/api.ts';
 import { latestTraceEvent } from '../src/lib/pilot/vrsar/model.ts';
 import {
   clearSessionCookie,
@@ -92,6 +92,50 @@ test('browser pilot code keeps bearer sessions out of Web Storage and uses only 
     assert.doesNotMatch(source, /api\/v1\/trace-records|window\.__API_URL/, browserFiles[index]);
   }
   assert.match(sources[0], /const API_ROOT = '\/pilot\/vrsar\/api'/);
+});
+
+test('anonymous filing helper sends an idempotent command and parses the one-time key', async () => {
+  const originalFetch = globalThis.fetch;
+  let call;
+  globalThis.fetch = async (url, init) => {
+    call = { url: String(url), init };
+    return new Response(JSON.stringify({
+      case: {
+        recordId: 'record-web-1',
+        caseNumber: 'VRS-482113',
+        reopenKey: 'private-reopen-key',
+        state: 'received',
+      },
+      shell: { caseNumber: 'VRS-482113', state: 'received' },
+    }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  try {
+    const created = await fileAnonymousCase({
+      text: 'Ulična rasvjeta ne radi.',
+      location: 'Vrsar',
+    });
+    assert.deepEqual(created, {
+      caseNumber: 'VRS-482113',
+      reopenKey: 'private-reopen-key',
+      state: 'received',
+    });
+    assert.equal(call.url, '/pilot/vrsar/api/public/cases');
+    const headers = new Headers(call.init.headers);
+    assert.match(
+      headers.get('idempotency-key') ?? '',
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    assert.equal(headers.has('authorization'), false);
+    assert.deepEqual(JSON.parse(String(call.init.body)), {
+      text: 'Ulična rasvjeta ne radi.',
+      location: 'Vrsar',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('unresolved exact commands reuse one in-memory idempotency key after a lost response', async () => {
@@ -415,6 +459,60 @@ test('pilot proxy rejects public release, missing origins, unknown endpoints, an
   }), { publicRelease: false, backendBase: 'https://trace.internal', fetchImpl });
   assert.equal(authorityField.status, 400);
   assert.equal(called, false);
+});
+
+test('anonymous web filing proxy requires origin and idempotency without a session', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({
+      case: {
+        caseNumber: 'VRS-482113',
+        reopenKey: 'private-reopen-key',
+        state: 'received',
+      },
+    }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const options = { publicRelease: false, backendBase: 'https://trace.internal', fetchImpl };
+  const accepted = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    idempotencyKey: key,
+    body: { text: 'Ulična rasvjeta ne radi.', location: 'Vrsar' },
+  }), options);
+  assert.equal(accepted.status, 201);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://trace.internal/api/trace/public/cases');
+  assert.equal(calls[0].init.headers.get('authorization'), null);
+  assert.equal(calls[0].init.headers.get('idempotency-key'), key);
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    text: 'Ulična rasvjeta ne radi.',
+    location: 'Vrsar',
+  });
+
+  const missingOrigin = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    requestOrigin: null,
+    idempotencyKey: key,
+    body: { text: 'Prijava' },
+  }), options);
+  assert.equal(missingOrigin.status, 403);
+
+  const extraField = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    idempotencyKey: key,
+    body: { text: 'Prijava', channel: 'web' },
+  }), options);
+  assert.equal(extraField.status, 400);
+
+  const missingKey = await handlePilotProxy(proxyContext('public/cases', {
+    method: 'POST',
+    body: { text: 'Prijava' },
+  }), options);
+  assert.equal(missingKey.status, 400);
+  assert.equal(calls.length, 1);
 });
 
 test('public and unauthenticated identity routes never forward a session cookie as Authorization', async () => {

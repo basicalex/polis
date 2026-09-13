@@ -53,6 +53,7 @@ Paths in the first table start with `/api/trace`; the second table gives exact i
 | GET | `/records/:id/attachments/:attachmentId` | authorized private record reader | Download only, attachment disposition, nosniff, no-store. |
 | GET | `/public/records` | public | Reviewed public projections only, no pagination-free unbounded database dump. |
 | GET | `/public/records/:id` | public | Approved summary, office, approved commitment/due date, approved evidence when resolved, public status, sanitized public events, public receipt hash. Unpublished records return 404. |
+| POST | `/public/cases` | public | `{ text, location? }`; the server fixes channel, source, and occurrence time. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
 
 Channel gateway routes use `x-polis-trace-gateway` with a configured gateway id; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Staff routes use the configured `official` and `reviewer` roles. Public case routes are anonymous behind the internal service boundary.
 
@@ -73,7 +74,7 @@ Channel gateway routes use `x-polis-trace-gateway` with a configured gateway id;
 | GET | `/internal/trace/public/cases/:caseNumber` | anonymous | Returns `{ case, record }`; an unknown case is 404 `case_not_found`. |
 | POST | `/internal/trace/public/cases/:caseNumber/attention` | anonymous | `{ followerKey, kind, action }`; returns `{ counts }`. |
 
-The BFF exposes the public case routes, the two reopen routes, staff message routes, AI proposal decisions, and close under `/api/trace`. It does not expose `/channel/*`.
+The BFF exposes public case routes, including server-shaped web filing at `/api/trace/public/cases`, plus the two reopen routes, staff message routes, AI proposal decisions, and close. It does not expose the internal `/channel/*` namespace.
 
 ## Response shape
 
@@ -91,7 +92,7 @@ The public case shell exists from creation. It carries `caseNumber`, `municipali
 
 Case numbers use the configured prefix and a random six-digit suffix (for example, `VRS-482113`). They are not sequential, so they do not expose a publicly enumerable case count, while remaining easy to dictate by phone. The existing `trace_case_counters` table is retained for migration compatibility but is unused.
 
-The reopen key appears only in a JSON body, never in a path or query. Only the channel case creation response echoes it. An unknown case number and a wrong key return indistinguishable 404 responses.
+The reopen key appears only in a JSON body, never in a path or query. Only a channel case creation response echoes it. The web filing route uses that creation path and returns the key once in its JSON response. An unknown case number and a wrong key return indistinguishable 404 responses.
 
 Attention is a count, never a vote and never queue order. `follow` and `also-affected` counts do not change staff priority or represent a decision.
 

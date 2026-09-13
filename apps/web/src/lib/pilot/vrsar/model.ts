@@ -345,6 +345,37 @@ export function publicCaseFromEnvelope(value: unknown): {
   };
 }
 
+export function anonymousCaseFromEnvelope(value: unknown): {
+  caseNumber: string;
+  reopenKey: string;
+  state: string;
+} {
+  const created = envelopeMember(value, 'case', 'invalid_anonymous_case_response');
+  if (!created || typeof created !== 'object') {
+    throw new Error('invalid_anonymous_case_response');
+  }
+  const shape = created as {
+    caseNumber?: unknown;
+    reopenKey?: unknown;
+    state?: unknown;
+  };
+  if (
+    typeof shape.caseNumber !== 'string' ||
+    !shape.caseNumber ||
+    typeof shape.reopenKey !== 'string' ||
+    !shape.reopenKey ||
+    typeof shape.state !== 'string' ||
+    !shape.state
+  ) {
+    throw new Error('invalid_anonymous_case_response');
+  }
+  return {
+    caseNumber: shape.caseNumber,
+    reopenKey: shape.reopenKey,
+    state: shape.state,
+  };
+}
+
 export function attentionCountsFromEnvelope(value: unknown): {
   followerCount: number;
   alsoAffectedCount: number;

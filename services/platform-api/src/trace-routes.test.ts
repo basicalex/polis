@@ -65,6 +65,7 @@ const enabledEnvironment = {
   TRACE_ENABLED: 'true',
   TRACE_INTERNAL_URL: 'http://trace.internal',
   INTERNAL_API_TOKEN: 'platform-token',
+  TRACE_WEB_GATEWAY_ACTOR_ID: 'pilot-web',
   IDENTITY_INTERNAL_URL: undefined,
   PUBLIC_EDGE: undefined,
 } as const;
@@ -110,6 +111,7 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'GET /api/trace/public/records',
         'GET /api/trace/public/records/:id',
         'GET /api/trace/public/cases',
+        'POST /api/trace/public/cases',
         'GET /api/trace/public/cases/:caseNumber',
         'POST /api/trace/public/cases/:caseNumber/attention',
         'POST /api/trace/cases/:caseNumber/private',
@@ -264,6 +266,108 @@ test('anonymous trace reads carry only internal auth and preserve bounded list q
     assert.equal(result(publicList).status, 200);
     assert.deepEqual(result(publicList).body, { records: [] });
   });
+});
+
+test('anonymous web case creation injects its gateway principal and shapes the upstream body', async () => {
+  await withEnvironment(enabledEnvironment, async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const upstreamBody = {
+      case: {
+        recordId: 'record-web-1',
+        caseNumber: 'VRS-482113',
+        reopenKey: 'private-reopen-key',
+        state: 'received',
+      },
+      shell: { caseNumber: 'VRS-482113', state: 'received' },
+    };
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(input), init });
+      return new Response(JSON.stringify(upstreamBody), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof globalThis.fetch;
+
+    const create = route(traceRoutes(), 'POST', '/api/trace/public/cases');
+    const before = Date.now();
+    const created = result(
+      await create.handler(
+        request('POST', '/api/trace/public/cases', {
+          'idempotency-key': VALID_IDEMPOTENCY_KEY,
+        }),
+        { text: 'Ulična rasvjeta ne radi.', location: 'Vrsar' },
+        {},
+      ),
+    );
+    const after = Date.now();
+
+    assert.equal(created.status, 201);
+    assert.deepEqual(created.body, upstreamBody);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.url, 'http://trace.internal/internal/trace/channel/cases');
+    const headers = new Headers(calls[0]?.init?.headers);
+    assert.equal(headers.get('x-polis-internal-token'), 'platform-token');
+    assert.equal(headers.get('x-polis-trace-gateway'), 'pilot-web');
+    assert.equal(headers.get('idempotency-key'), VALID_IDEMPOTENCY_KEY);
+    assert.equal(headers.has('x-polis-citizen'), false);
+    assert.equal(headers.has('authorization'), false);
+    const shaped = JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>;
+    assert.deepEqual(
+      { ...shaped, occurredAt: '<server-time>' },
+      {
+        channel: 'web',
+        text: 'Ulična rasvjeta ne radi.',
+        location: 'Vrsar',
+        source: 'typed',
+        occurredAt: '<server-time>',
+      },
+    );
+    const occurredAt = Date.parse(String(shaped.occurredAt));
+    assert.ok(occurredAt >= before && occurredAt <= after);
+
+    for (const field of ['category', 'office', 'municipality', 'channel', 'source', 'occurredAt']) {
+      const rejected = result(
+        await create.handler(
+          request('POST', '/api/trace/public/cases', {
+            'idempotency-key': VALID_IDEMPOTENCY_KEY,
+          }),
+          { text: 'Prijava', [field]: 'browser-controlled' },
+          {},
+        ),
+      );
+      assert.equal(rejected.status, 400, field);
+    }
+    assert.equal(calls.length, 1);
+  });
+});
+
+test('anonymous web case creation fails closed without its gateway principal', async () => {
+  await withEnvironment(
+    { ...enabledEnvironment, TRACE_WEB_GATEWAY_ACTOR_ID: undefined },
+    async () => {
+      let fetchCalls = 0;
+      globalThis.fetch = (async () => {
+        fetchCalls += 1;
+        return new Response('{}');
+      }) as typeof globalThis.fetch;
+      const create = route(traceRoutes(), 'POST', '/api/trace/public/cases');
+      const response = result(
+        await create.handler(
+          request('POST', '/api/trace/public/cases', {
+            'idempotency-key': VALID_IDEMPOTENCY_KEY,
+          }),
+          { text: 'Prijava' },
+          {},
+        ),
+      );
+      assert.equal(response.status, 503);
+      assert.deepEqual(response.body, {
+        error: 'trace_unavailable',
+        message: 'Trace service is unavailable.',
+      });
+      assert.equal(fetchCalls, 0);
+    },
+  );
 });
 
 test('reopen and public case routes proxy without browser actor headers', async () => {

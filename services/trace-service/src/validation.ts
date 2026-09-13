@@ -384,7 +384,7 @@ function optionalBoundedText(value: unknown, name: string, maximum: number): str
 
 export function normalizeGatewayCreate(value: unknown): Record<string, unknown> {
   const body = exactBody(value, ['channel', 'text', 'location', 'source', 'occurredAt']);
-  const channel = oneOf(body.channel, 'channel', ['sms', 'voice'] as const);
+  const channel = oneOf(body.channel, 'channel', ['web', 'sms', 'voice'] as const);
   const narrative = body.text === null ? null : text(body.text, 'text', 4_000);
   if (narrative === null && channel !== 'voice') {
     throw new InputError('invalid_request', 'text may be null only for voice intake.');

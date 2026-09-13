@@ -53,10 +53,17 @@ const AUTHORITY_FIELDS = [
   'internalToken',
 ] as const;
 
+type TraceBodyShapeResult =
+  | { body: Record<string, unknown>; error?: never }
+  | { body?: never; error: HttpResult };
+
 type TraceRouteSpec = {
   method: 'GET' | 'POST';
   path: string;
   access: 'public' | 'private';
+  internalPath?: string;
+  gatewayPrincipalEnv?: 'TRACE_WEB_GATEWAY_ACTOR_ID';
+  shapeBody?: (body: unknown) => TraceBodyShapeResult;
   listQuery?: true;
   write?: true;
   maxBodyBytes?: number;
@@ -93,6 +100,15 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
   { method: 'GET', path: '/public/records', access: 'public', listQuery: true },
   { method: 'GET', path: '/public/records/:id', access: 'public' },
   { method: 'GET', path: '/public/cases', access: 'public', listQuery: true },
+  {
+    method: 'POST',
+    path: '/public/cases',
+    internalPath: '/channel/cases',
+    access: 'public',
+    gatewayPrincipalEnv: 'TRACE_WEB_GATEWAY_ACTOR_ID',
+    shapeBody: shapeWebCaseBody,
+    write: true,
+  },
   { method: 'GET', path: '/public/cases/:caseNumber', access: 'public' },
   {
     method: 'POST',
@@ -147,6 +163,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   bad_gateway: 'Trace service is unavailable.',
   identity_unavailable: 'Identity verification is unavailable.',
   idempotency_key_required: 'Idempotency-Key is required.',
+  invalid_request: 'The request body is invalid.',
   invalid_idempotency_key: 'Idempotency-Key must be a UUID.',
   trace_unavailable: 'Trace service is unavailable.',
   trusted_headers_forbidden: 'Trusted identity headers are not accepted from clients.',
@@ -160,6 +177,33 @@ function traceError(status: number, error: string, message?: string): HttpResult
     error,
     message: message ?? ERROR_MESSAGES[error] ?? 'Trace request failed.',
   });
+}
+
+function shapeWebCaseBody(value: unknown): TraceBodyShapeResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { error: traceError(400, 'invalid_request') };
+  }
+  const input = value as Record<string, unknown>;
+  if (!Object.keys(input).every((key) => key === 'text' || key === 'location')) {
+    return {
+      error: traceError(400, 'invalid_request', 'Only text and location are accepted.'),
+    };
+  }
+  if (typeof input.text !== 'string') {
+    return { error: traceError(400, 'invalid_request', 'text must be a string.') };
+  }
+  if ('location' in input && typeof input.location !== 'string') {
+    return { error: traceError(400, 'invalid_request', 'location must be a string.') };
+  }
+  return {
+    body: {
+      channel: 'web',
+      text: input.text,
+      ...('location' in input ? { location: input.location } : {}),
+      source: 'typed',
+      occurredAt: new Date().toISOString(),
+    },
+  };
 }
 
 function normalizeAuthError(value: HttpResult): HttpResult {
@@ -216,12 +260,14 @@ async function proxyTrace(
   actor: AuthenticatedActor | null,
   body: unknown,
   idempotencyKey: string | null,
+  gatewayPrincipal: string | null,
 ): Promise<unknown> {
-  const extraHeaders: Record<string, string> = idempotencyKey
-    ? { 'idempotency-key': idempotencyKey }
-    : {};
+  const extraHeaders: Record<string, string> = {};
+  if (idempotencyKey) extraHeaders['idempotency-key'] = idempotencyKey;
+  if (gatewayPrincipal) extraHeaders['x-polis-trace-gateway'] = gatewayPrincipal;
   const headers = actor ? trustedActorHeaders(actor, extraHeaders) : internalHeaders(extraHeaders);
-  const path = internalPath(spec.path, params) + (spec.listQuery ? listSearch(req) : '');
+  const path =
+    internalPath(spec.internalPath ?? spec.path, params) + (spec.listQuery ? listSearch(req) : '');
   try {
     const upstream = await fetchWithTimeout(
       base + path,
@@ -281,6 +327,19 @@ export function traceRoutes(): Route[] {
         return traceError(400, 'authority_fields_forbidden');
       }
 
+      let proxyBody = body;
+      if (spec.shapeBody) {
+        const shaped = spec.shapeBody(body);
+        if (shaped.error) return shaped.error;
+        proxyBody = shaped.body;
+      }
+
+      let gatewayPrincipal: string | null = null;
+      if (spec.gatewayPrincipalEnv) {
+        gatewayPrincipal = process.env[spec.gatewayPrincipalEnv]?.trim() || null;
+        if (!gatewayPrincipal) return traceError(503, 'trace_unavailable');
+      }
+
       let idempotencyKey: string | null = null;
       if (spec.write) {
         const parsed = readIdempotencyKey(req);
@@ -290,7 +349,16 @@ export function traceRoutes(): Route[] {
 
       const base = configuredTraceBase();
       if (!base) return traceError(503, 'trace_unavailable');
-      return proxyTrace(base, spec, req, params, actor, body, idempotencyKey);
+      return proxyTrace(
+        base,
+        spec,
+        req,
+        params,
+        actor,
+        proxyBody,
+        idempotencyKey,
+        gatewayPrincipal,
+      );
     },
   }));
 }

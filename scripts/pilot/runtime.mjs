@@ -97,10 +97,11 @@ function defaultLaunchConfiguration() {
       'build',
     ],
     channelExtraEnv: {},
-    traceExtraEnv: { TRACE_GATEWAY_ACTOR_IDS: 'pilot-gateway' },
+    traceExtraEnv: { TRACE_GATEWAY_ACTOR_IDS: 'pilot-gateway,pilot-web' },
     platformExtraEnv: {
       CHANNEL_ENABLED: 'true',
       CHANNEL_INTERNAL_URL: 'http://127.0.0.1:8990',
+      TRACE_WEB_GATEWAY_ACTOR_ID: 'pilot-web',
     },
     intakeClosedCheckCommand: [
       'bun',

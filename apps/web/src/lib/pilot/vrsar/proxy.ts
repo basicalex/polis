@@ -183,6 +183,13 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       responseKind: 'json',
       listQuery: true,
     },
+    'POST public/cases': {
+      upstreamPath: '/api/trace/public/cases',
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['text', 'location'],
+    },
     'POST identity/magic-link': {
       upstreamPath: '/api/v1/identity/magic-link',
       needsSession: false,

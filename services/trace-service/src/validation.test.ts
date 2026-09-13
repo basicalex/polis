@@ -327,6 +327,22 @@ test('gateway create, gateway message, and reopen inputs preserve bounded channe
     },
   );
   assert.deepEqual(
+    normalizeGatewayCreate({
+      channel: 'web',
+      text: 'Ulična rasvjeta ne radi.',
+      location: 'Vrsar',
+      source: 'typed',
+      occurredAt: VALID_TIME,
+    }),
+    {
+      channel: 'web',
+      text: 'Ulična rasvjeta ne radi.',
+      location: 'Vrsar',
+      source: 'typed',
+      occurredAt: VALID_TIME,
+    },
+  );
+  assert.deepEqual(
     normalizeGatewayMessage({
       reopenKey: VALID_REOPEN_KEY,
       channel: 'sms',
@@ -351,6 +367,17 @@ test('gateway create, gateway message, and reopen inputs preserve bounded channe
     code(() =>
       normalizeGatewayCreate({
         channel: 'sms',
+        text: null,
+        source: 'typed',
+        occurredAt: VALID_TIME,
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeGatewayCreate({
+        channel: 'web',
         text: null,
         source: 'typed',
         occurredAt: VALID_TIME,
