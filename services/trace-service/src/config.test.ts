@@ -12,7 +12,7 @@ const pilot = {
   municipality: {
     id: 'vrsar-orsera',
     name: { hr: 'Vrsar', it: 'Orsera', en: 'Vrsar' },
-    caseNumber: { prefix: 'VRS', start: 1000 },
+    caseNumber: { prefix: 'VRS' },
   },
   category: { id: 'public-lighting', name: { hr: 'Rasvjeta', it: 'Luci', en: 'Lighting' } },
   office: {
@@ -50,7 +50,6 @@ test('trace config maps disjoint roles and public facts from the injected pilot 
   assert.equal(config.attentionPepper, env.TRACE_ATTENTION_PEPPER);
   assert.equal(config.aiIntakeUrl, 'https://ai.test/intake');
   assert.equal(config.caseNumberPrefix, 'VRS');
-  assert.equal(config.caseNumberStart, 1000);
   assert.equal(
     parseTraceConfig({ ...env, TRACE_AI_INTAKE_URL: undefined }, () => pilot).aiIntakeUrl,
     null,
@@ -108,12 +107,7 @@ test('pilot configuration must match the fixed authority and contain valid cited
       sources: [{ ...pilot.sources[0], retrievedAt: '2026-02-29' }],
     })),
   );
-  for (const caseNumber of [
-    { prefix: 'vrs', start: 1000 },
-    { prefix: 'VRSAR', start: 1000 },
-    { prefix: 'VRS', start: 0 },
-    { prefix: 'VRS', start: 1.5 },
-  ]) {
+  for (const caseNumber of [{ prefix: 'vrs' }, { prefix: 'VRSAR' }]) {
     assert.throws(() =>
       parseTraceConfig(env, () => ({
         ...pilot,

@@ -104,8 +104,10 @@ test('reopen keys hash deterministically and case targets must start the message
   );
   assert.equal(parseCaseNumberTarget('vrs-1842 please add this'), 'VRS-1842');
   assert.equal(parseCaseNumberTarget('VRS-0001'), 'VRS-0001');
+  assert.equal(parseCaseNumberTarget('VRS-482113 by phone'), 'VRS-482113');
+  assert.equal(parseCaseNumberTarget('VRS-18421'), 'VRS-18421');
   assert.equal(parseCaseNumberTarget('please update VRS-1842'), null);
-  assert.equal(parseCaseNumberTarget('VRS-18421'), null);
+  assert.equal(parseCaseNumberTarget('VRS-123456789'), null);
 });
 
 function event(overrides: Partial<EventHashMaterial> = {}): StoredEvent {

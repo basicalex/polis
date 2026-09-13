@@ -165,8 +165,6 @@ export function validatePilotConfig(value: unknown): PilotConfig {
     municipality?.id !== 'vrsar-orsera' ||
     typeof caseNumber?.prefix !== 'string' ||
     !/^[A-Z]{2,4}$/.test(caseNumber.prefix) ||
-    !Number.isInteger(caseNumber.start) ||
-    (caseNumber.start as number) <= 0 ||
     category?.id !== 'public-lighting' ||
     office?.id !== 'communal-system' ||
     typeof office.routingStatus !== 'string' ||
@@ -186,7 +184,7 @@ export function validatePilotConfig(value: unknown): PilotConfig {
     municipality: {
       id: 'vrsar-orsera',
       name: localized(municipality.name, 'municipality.name'),
-      caseNumber: { prefix: caseNumber.prefix, start: caseNumber.start as number },
+      caseNumber: { prefix: caseNumber.prefix },
     },
     category: { id: 'public-lighting', name: localized(category.name, 'category.name') },
     office: {
@@ -251,7 +249,6 @@ export function parseTraceConfig(
     attentionPepper,
     aiIntakeUrl: parseOptionalHttpUrl(env.TRACE_AI_INTAKE_URL, 'TRACE_AI_INTAKE_URL'),
     caseNumberPrefix: pilotCaseNumber.prefix,
-    caseNumberStart: pilotCaseNumber.start,
     pilot: parsedPilot,
   };
 }

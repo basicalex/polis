@@ -85,7 +85,7 @@ export function reopenKeyHash(key: string): string {
 }
 
 export function parseCaseNumberTarget(text: string): string | null {
-  const match = /^vrs-(\d{4})\b/i.exec(text);
+  const match = /^vrs-(\d{1,8})\b/i.exec(text);
   return match ? `VRS-${match[1]}` : null;
 }
 

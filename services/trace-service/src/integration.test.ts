@@ -927,7 +927,7 @@ test(
         ctx(gateway, '/internal/trace/channel/cases', firstInput),
         firstInput,
       );
-      assert.match(first.case.caseNumber, /^VRS-[0-9]{1,8}$/);
+      assert.match(first.case.caseNumber, /^VRS-[1-9][0-9]{5}$/);
       assert.equal(first.case.state, 'received');
       assert.equal(first.shell.state, 'received');
       assert.equal(verifyShellHash(first.shell), true);
@@ -959,9 +959,8 @@ test(
         ctx(gateway, '/internal/trace/channel/cases', secondInput),
         secondInput,
       );
-      const firstNumber = Number(first.case.caseNumber.split('-')[1]);
-      const secondNumber = Number(second.case.caseNumber.split('-')[1]);
-      assert.equal(secondNumber, firstNumber + 1);
+      assert.match(second.case.caseNumber, /^VRS-[1-9][0-9]{5}$/);
+      assert.notEqual(second.case.caseNumber, first.case.caseNumber);
 
       const transcriptInput = {
         channel: 'voice' as const,

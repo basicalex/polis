@@ -89,6 +89,8 @@ Bound and validate every string, list and upload. Reject unknown authority field
 
 The public case shell exists from creation. It carries `caseNumber`, `municipalityId`, `area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`, `clockDueAt`, `followerCount`, `alsoAffectedCount`, `shellHash`, `updatedAt`, and `testEnvironment`. `shellHash` covers exactly `[caseNumber, municipalityId, area, category, track, state, closedPublicReason, filedAt, clockDueAt, followerCount, alsoAffectedCount, testEnvironment]`. It is not a public receipt; `receiptHash` material is unchanged.
 
+Case numbers use the configured prefix and a random six-digit suffix (for example, `VRS-482113`). They are not sequential, so they do not expose a publicly enumerable case count, while remaining easy to dictate by phone. The existing `trace_case_counters` table is retained for migration compatibility but is unused.
+
 The reopen key appears only in a JSON body, never in a path or query. Only the channel case creation response echoes it. An unknown case number and a wrong key return indistinguishable 404 responses.
 
 Attention is a count, never a vote and never queue order. `follow` and `also-affected` counts do not change staff priority or represent a decision.

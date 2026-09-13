@@ -55,7 +55,7 @@ export interface PilotConfig {
   municipality: {
     id: 'vrsar-orsera';
     name: LocalizedText;
-    caseNumber?: { prefix: string; start: number };
+    caseNumber?: { prefix: string };
   };
   category: { id: 'public-lighting'; name: LocalizedText };
   office: { id: 'communal-system'; name: LocalizedText; routingStatus: string };
@@ -72,7 +72,6 @@ export interface TraceConfig {
   attentionPepper?: string;
   aiIntakeUrl?: string | null;
   caseNumberPrefix?: string;
-  caseNumberStart?: number;
   pilot: PilotConfig;
 }
 
@@ -81,10 +80,9 @@ export interface ParsedTraceConfig extends TraceConfig {
   attentionPepper: string;
   aiIntakeUrl: string | null;
   caseNumberPrefix: string;
-  caseNumberStart: number;
   pilot: PilotConfig & {
     municipality: PilotConfig['municipality'] & {
-      caseNumber: { prefix: string; start: number };
+      caseNumber: { prefix: string };
     };
   };
 }

@@ -11,8 +11,7 @@
     "officialWebsite": "https://www.vrsar.hr",
     "officialContactUrl": "https://www.vrsar.hr/kontakt/",
     "caseNumber": {
-      "prefix": "VRS",
-      "start": 1000
+      "prefix": "VRS"
     }
   },
   "category": {

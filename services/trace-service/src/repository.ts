@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import postgres from 'postgres';
 
 import {
@@ -193,6 +193,22 @@ type CommandResult = { status: number; body: unknown };
 
 const MAX_ATTACHMENTS_PER_RECORD = 20;
 const MAX_EVENTS_PER_RECORD = 500;
+const CASE_NUMBER_ATTEMPTS = 8;
+
+export async function generateRandomCaseNumber(
+  tx: QuerySql,
+  prefix: string,
+  randomInteger: (min: number, max: number) => number = randomInt,
+): Promise<string> {
+  for (let attempt = 0; attempt < CASE_NUMBER_ATTEMPTS; attempt += 1) {
+    const candidate = `${prefix}-${randomInteger(100_000, 1_000_000)}`;
+    const rows = await tx<{ case_number: string }[]>`
+      SELECT case_number FROM trace_records WHERE case_number = ${candidate} LIMIT 1
+    `;
+    if (!rows[0]) return candidate;
+  }
+  throw new DomainError(503, 'case_number_exhausted', 'Unable to allocate a case number.');
+}
 
 export interface TraceRepositoryOptions {
   afterPrivateRecordsSelected?: () => Promise<void>;
@@ -1077,27 +1093,9 @@ export class TraceRepository implements TraceStore {
   }
 
   async #nextCaseNumber(tx: QuerySql): Promise<string> {
-    const municipalityId = this.config.pilot.municipality.id;
-    const start =
-      this.config.caseNumberStart ?? this.config.pilot.municipality.caseNumber?.start ?? 1;
     const prefix =
       this.config.caseNumberPrefix ?? this.config.pilot.municipality.caseNumber?.prefix ?? 'VRS';
-    await tx`
-      INSERT INTO trace_case_counters (municipality_id, next_value, updated_at)
-      VALUES (${municipalityId}, ${start}, NOW())
-      ON CONFLICT (municipality_id) DO NOTHING
-    `;
-    const rows = await tx<{ next_value: string | number }[]>`
-      SELECT next_value FROM trace_case_counters
-      WHERE municipality_id = ${municipalityId}
-      FOR UPDATE
-    `;
-    const next = Number(rows[0]!.next_value);
-    await tx`
-      UPDATE trace_case_counters SET next_value = next_value + 1, updated_at = NOW()
-      WHERE municipality_id = ${municipalityId}
-    `;
-    return `${prefix}-${next}`;
+    return generateRandomCaseNumber(tx, prefix);
   }
 
   #issueReopenKey(): { key: string; hash: string } {
