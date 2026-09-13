@@ -18,6 +18,7 @@ import { text } from '../../content/chrome';
 import type { Lang } from '../../content/public-release';
 import type { LivePlace } from '../../content/places';
 import { CASE_NUMBER_PATTERN } from '../../content/pilot/vrsar-public-case';
+import { LEDGER_STAGE_PARAM, type LedgerFilter } from '../../lib/entry/ledger-stages';
 
 interface Props {
   lang: Lang;
@@ -30,19 +31,40 @@ const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
 const strings = {
   open: label('ledgerOpen'),
   overdue: label('ledgerOverdue'),
-  closed: label('ledgerClosed'),
   capped: label('ledgerCapped'),
   searchInvalid: label('ledgerSearchInvalid'),
   filed: label('ledgerFiled'),
   due: label('ledgerDue'),
   followers: label('ledgerFollowers'),
   alsoAffected: label('ledgerAlsoAffected'),
+  hintPublished: label('ledgerHintPublished'),
+  hintResolved: label('ledgerHintResolved'),
+  hintOverdue: label('ledgerHintOverdue'),
 };
+/* Two clock facts the chips cannot say: how many are still with the office, and
+   how many of those have run out of time. */
 const summary = [
   { key: 'open', label: strings.open },
   { key: 'overdue', label: strings.overdue },
-  { key: 'closed', label: strings.closed },
 ] as const;
+
+/*
+ * One chip per public stage, plus "Sve". The chip carries its own address, so a
+ * reader can copy a link to the stage they are looking at; the script only
+ * intercepts the click to avoid a refetch.
+ */
+const ledgerHref = `${base}${place.slug}/zapis`;
+const stageHref = (key: LedgerFilter) =>
+  key === 'all' ? ledgerHref : `${ledgerHref}?${LEDGER_STAGE_PARAM}=${key}`;
+const stages = [
+  { key: 'all', label: label('ledgerStageAll') },
+  { key: 'received', label: label('ledgerStageReceived') },
+  { key: 'assigned', label: label('ledgerStageAssigned') },
+  { key: 'in-review', label: label('ledgerStageInReview') },
+  { key: 'published', label: label('ledgerStagePublished') },
+  { key: 'resolved', label: label('ledgerStageResolved') },
+  { key: 'closed', label: label('ledgerStageClosed') },
+] as const satisfies readonly { key: LedgerFilter; label: string }[];
 ---
 
 <div
@@ -90,6 +112,22 @@ const summary = [
     <p class="field-error" role="alert" data-search-error></p>
   </form>
 
+  <nav class="ledger-stages" data-stages aria-label={label('ledgerStageLegend')}>
+    {
+      stages.map((stage) => (
+        <a
+          class="ledger-stage"
+          href={stageHref(stage.key)}
+          data-stage-chip={stage.key}
+          aria-current={stage.key === 'all' ? 'true' : undefined}
+        >
+          <span class="ledger-stage-label">{stage.label}</span>
+          <span class="ledger-stage-count" data-stage-count>—</span>
+        </a>
+      ))
+    }
+  </nav>
+
   <ul class="ledger-list" data-list aria-busy="true" aria-label={label('ledgerTitle')}>
     {
       [0, 1, 2, 3].map(() => (
@@ -102,6 +140,11 @@ const summary = [
     }
   </ul>
   <p class="ledger-loading" data-loading>{label('ledgerLoading')}</p>
+
+  <div class="ledger-stage-empty" data-stage-empty hidden>
+    <p class="ledger-stage-empty-line">{label('ledgerStageEmpty')}</p>
+    <a class="btn" data-variant="secondary" href={ledgerHref} data-stage-clear>{label('ledgerStageEmptyAll')}</a>
+  </div>
 
   <div class="ledger-empty" data-empty hidden>
     <EmptyState

@@ -157,6 +157,29 @@ export const pilotCopy = Object.freeze({
       'Il ruolo proviene dall’assegnazione del server. Non è possibile scegliere o impersonare un ruolo qui.',
       'Your role comes from the server assignment. You cannot choose or impersonate a role here.',
     ),
+    demoHeading: localized('Demo prijava', 'Accesso demo', 'Demo sign-in'),
+    demoNote: localized(
+      'Testna instanca sa sintetičkim podacima. Nema stvarnih računa ni stvarnih predmeta.',
+      'Istanza di test con dati sintetici. Nessun account reale e nessun caso reale.',
+      'Test instance with synthetic data. No real accounts and no real cases.',
+    ),
+    demoOfficial: localized('Uđi kao službenik', 'Entra come funzionario', 'Enter as the official'),
+    demoOfficialHelp: localized(
+      'Službenik preuzima predmet, dodjeljuje ga odsjeku i upisuje javnu obvezu s rokom.',
+      "Il funzionario prende in carico il caso, lo assegna all'ufficio e scrive l'impegno pubblico con una scadenza.",
+      'The official takes the case, assigns it to an office, and writes the public commitment with a due date.',
+    ),
+    demoReviewer: localized(
+      'Uđi kao neovisni recenzent',
+      'Entra come revisore indipendente',
+      'Enter as the independent reviewer',
+    ),
+    demoReviewerHelp: localized(
+      'Recenzent je neovisan o službeniku i odobrava obvezu prije nego išta postane javno.',
+      "Il revisore è indipendente dal funzionario e approva l'impegno prima che qualcosa diventi pubblico.",
+      'The reviewer is independent of the official and approves the commitment before anything becomes public.',
+    ),
+    demoOtherHeading: localized('Ostali načini prijave', 'Altri modi per accedere', 'Other ways to sign in'),
     emailHeading: localized('Prijava poveznicom e-pošte', 'Accesso con link e-mail', 'Sign in with an email link'),
     email: localized('Testna adresa e-pošte', 'Indirizzo e-mail di test', 'Test email address'),
     emailHint: localized(

@@ -468,6 +468,75 @@
   font-size: var(--type-meta);
 }
 
+/* ---- stage chips --------------------------------------------------------- */
+
+/*
+ * The whole path is always on screen, so a reader sees the stages a case can be
+ * in before they pick one. A stage with no cases stays in place and greys out
+ * rather than disappearing.
+ */
+.ledger-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.ledger-stage {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: 999rem;
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.ledger-stage:hover {
+  background: var(--polis-surface-2);
+}
+
+.ledger-stage-count {
+  color: var(--polis-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.ledger-stage[data-empty='true'] {
+  border-color: var(--polis-border);
+  color: var(--polis-muted);
+}
+
+/* The selected chip is the one the list is showing; the fill says so. */
+.ledger-stage[aria-current='true'] {
+  border-color: var(--polis-trace);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+.ledger-stage[aria-current='true'] .ledger-stage-count {
+  color: var(--polis-on-primary);
+}
+
+.ledger-stage-empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding-block: var(--space-4);
+}
+
+.ledger-stage-empty-line {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+}
+
 .ledger-search input[type='text'] {
   flex: 1 1 12rem;
   min-width: 0;
@@ -519,6 +588,27 @@
 .ledger-row-meta {
   color: var(--polis-text);
   font-size: var(--type-data);
+}
+
+/*
+ * The one line a case with an answer earns on the list: the office's promise
+ * with its date, or the day the work was accepted as done.
+ */
+.ledger-row-hint {
+  font-size: var(--type-data);
+  font-weight: 650;
+}
+
+.ledger-row-hint[data-tone='valid'] {
+  color: var(--polis-valid, var(--polis-text));
+}
+
+.ledger-row-hint[data-tone='warning'] {
+  color: var(--polis-warning, var(--polis-text));
+}
+
+.ledger-row-hint[data-tone='trace'] {
+  color: var(--polis-text);
 }
 
 .ledger-row-attention,

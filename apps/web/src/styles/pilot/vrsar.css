@@ -337,6 +337,93 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
 
 /* Buttons use `.btn[data-variant]` from @polis/ui/styles/base.css. */
 
+/*
+ * Test instance only. The two office roles are the first thing on the sign-in
+ * page, one tap each, with the sentence that says what that person decides.
+ * The real sign-in paths stay below, quieter but never hidden.
+ */
+.pilot-demo-note {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.pilot-demo-choices {
+  display: grid;
+  gap: var(--space-sm);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 44rem) {
+  .pilot-demo-choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pilot-demo-choice {
+  min-height: var(--tap-target);
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-4);
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font-family: var(--body);
+  text-align: start;
+  cursor: pointer;
+}
+
+.pilot-demo-choice-label {
+  font-size: var(--type-body-lg);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.pilot-demo-choice-help {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}
+
+.pilot-demo-choice:hover:not(:disabled) {
+  border-color: var(--polis-trace);
+}
+
+.pilot-demo-choice:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The remaining sign-in paths keep the page's rhythm and drop the emphasis. */
+.pilot-login-other {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.pilot-login-other[data-secondary] {
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--polis-border);
+}
+
+.pilot-login-other-title {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pilot-login-other[data-secondary] .panel > h2 {
+  font-size: var(--type-body);
+}
+
 .pilot-state {
   max-width: 68ch;
   margin: 0;
@@ -640,9 +727,58 @@ a.pilot-ledger-row:hover,
   border-bottom: 1px solid var(--polis-border-strong);
 }
 
-.pilot-receipt-header h1 {
+.pilot-receipt-header h1,
+.pilot-receipt-header h2 {
   max-width: 32ch;
   margin: 0;
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/*
+ * The municipality's answer, read before the path and the verification block:
+ * the approved summary and the promise side by side, then the dates, then what
+ * was done. A reader who only reads this much has the answer.
+ */
+.pilot-answer {
+  gap: var(--space-md);
+}
+
+.pilot-answer-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.pilot-answer h3,
+.pilot-answer-subhead {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-data);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Why no text exists yet, in the words of the stage the case stands in. */
+.pilot-pending {
+  border-left: 0.1875rem solid var(--polis-warning);
+}
+
+.pilot-pending-line {
+  max-width: 68ch;
+  margin: 0;
+}
+
+.pilot-disclosure-line {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
 }
 
 .pilot-receipt-grid {

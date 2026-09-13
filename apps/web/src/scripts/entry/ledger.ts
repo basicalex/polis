@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /*
- * S3 behaviour: read the place's public cases, count them, and draw one row per
- * case in the order the API returns (newest activity first, entry-flow R8).
+ * S3 behaviour: read the place's public cases, count them by stage, and draw one
+ * row per case in the order the API returns (newest activity first, entry-flow
+ * R8). The stage chips filter the hundred shells already in the browser, so
+ * switching stage costs no request.
  *
  * The shells are public by design, so nothing here needs a session. The search
  * field only navigates: a case number is a route, not a query.
@@ -18,6 +20,17 @@ import {
 } from '../../content/pilot/vrsar-public-case';
 import type { PilotLang } from '../../content/pilot/vrsar';
 import { createTextElement, formatPilotDate } from '../pilot/vrsar/shell';
+import {
+  countLedgerStages,
+  countOpenCases,
+  countOverdueCases,
+  filterLedgerCases,
+  isOverdue,
+  ledgerFilterFromLocation,
+  ledgerFilterHref,
+  normalizeLedgerFilter,
+  type LedgerFilter,
+} from '../../lib/entry/ledger-stages';
 
 const LIST_LIMIT = 100;
 
@@ -39,8 +52,15 @@ function start(ledger: HTMLElement): void {
   const searchError = ledger.querySelector<HTMLElement>('[data-search-error]');
   if (!list) return;
 
+  const stageChips = ledger.querySelectorAll<HTMLAnchorElement>('[data-stage-chip]');
+  const stageEmpty = ledger.querySelector<HTMLElement>('[data-stage-empty]');
+  const stageClear = ledger.querySelector<HTMLAnchorElement>('[data-stage-clear]');
+
   const strings = readStrings();
   const lang = documentLang();
+  let loaded: PublicCaseShell[] = [];
+  let pilot: PilotConfig | null = null;
+  let stage: LedgerFilter = ledgerFilterFromLocation(location.search);
   const base = ledger.dataset.base === '/en/' ? '/en/' : '/';
   const place = ledger.dataset.place ?? '';
   const caseHref = (caseNumber: string) => `${base}${place}/zapis/${encodeURIComponent(caseNumber)}`;
@@ -93,12 +113,15 @@ function start(ledger: HTMLElement): void {
     stamp.dataset.tone = caseStateTone(shell.state);
     head.append(stamp);
 
+    // The clock moves down into the answer line once there is one, so a row
+    // never prints the same date twice.
+    const hint = answerHint(shell);
     const meta = document.createElement('span');
     meta.className = 'ledger-row-meta';
     const parts = [
       categoryLabel(shell, config),
       `${strings.filed ?? ''} ${formatPilotDate(shell.filedAt, lang, true)}`.trim(),
-      shell.clockDueAt ? `${strings.due ?? ''} ${formatPilotDate(shell.clockDueAt, lang, true)}`.trim() : '',
+      shell.clockDueAt && !hint ? `${strings.due ?? ''} ${formatPilotDate(shell.clockDueAt, lang, true)}`.trim() : '',
     ].filter(Boolean);
     meta.textContent = parts.join(' · ');
 
@@ -110,7 +133,15 @@ function start(ledger: HTMLElement): void {
       'ledger-row-attention',
     );
 
-    link.append(head, meta, attention);
+    link.append(head, meta);
+
+    if (hint) {
+      const line = createTextElement('span', hint, 'ledger-row-hint');
+      line.dataset.tone = shell.state === 'resolved' ? 'valid' : isOverdue(shell) ? 'warning' : 'trace';
+      link.append(line);
+    }
+
+    link.append(attention);
 
     const reason = typeof shell.closedPublicReason === 'string' ? shell.closedPublicReason.trim() : '';
     if (reason) link.append(createTextElement('span', reason, 'ledger-row-reason'));
@@ -119,36 +150,100 @@ function start(ledger: HTMLElement): void {
     return item;
   }
 
-  // ---- counts -------------------------------------------------------------
+  /*
+   * The one line a reader wants on a case that has reached an answer: when the
+   * office promised it, or when it was done. The shell carries no resolution
+   * date of its own, so a resolved case is dated by its last public change.
+   */
+  function answerHint(shell: PublicCaseShell): string {
+    if (shell.state === 'resolved') {
+      return `${strings.hintResolved ?? ''} ${formatPilotDate(shell.updatedAt, lang, true)}`.trim();
+    }
+    if (shell.state !== 'published') return '';
+    const due = typeof shell.clockDueAt === 'string' ? shell.clockDueAt : '';
+    if (!due) return strings.hintPublished ?? '';
+    const clock = isOverdue(shell)
+      ? `${strings.hintOverdue ?? ''} ${formatPilotDate(due, lang, true)}`
+      : `${strings.due ?? ''} ${formatPilotDate(due, lang, true)}`;
+    return `${strings.hintPublished ?? ''} ${clock.trim()}`.trim();
+  }
+
+  // ---- counts and chips ---------------------------------------------------
 
   function countAndShow(shells: PublicCaseShell[]): void {
-    const now = Date.now();
-    let open = 0;
-    let overdue = 0;
-    let closed = 0;
-    for (const shell of shells) {
-      const state = String(shell.state ?? '');
-      const done = state === 'closed' || state === 'resolved';
-      if (done) {
-        closed += 1;
-        continue;
-      }
-      open += 1;
-      const due = typeof shell.clockDueAt === 'string' ? Date.parse(shell.clockDueAt) : Number.NaN;
-      if (Number.isFinite(due) && due < now) overdue += 1;
-    }
-    const counts: Record<string, number> = { open, overdue, closed };
+    const counts: Record<string, number> = {
+      open: countOpenCases(shells),
+      overdue: countOverdueCases(shells),
+    };
     for (const element of summary?.querySelectorAll<HTMLElement>('[data-count]') ?? []) {
       element.textContent = String(counts[element.dataset.count ?? ''] ?? 0);
     }
+
+    // A stage nobody is in keeps its chip: the reader should see the whole path,
+    // not only the parts of it this place happens to be standing in today.
+    const byStage = countLedgerStages(shells);
+    stageChips.forEach((chip) => {
+      const key = normalizeLedgerFilter(chip.dataset.stageChip);
+      const count = byStage[key] ?? 0;
+      const value = chip.querySelector<HTMLElement>('[data-stage-count]');
+      if (value) value.textContent = String(count);
+      chip.dataset.empty = count === 0 && key !== 'all' ? 'true' : 'false';
+    });
     if (capped) capped.hidden = shells.length < LIST_LIMIT;
   }
+
+  function markSelected(): void {
+    stageChips.forEach((chip) => {
+      const selected = normalizeLedgerFilter(chip.dataset.stageChip) === stage;
+      if (selected) chip.setAttribute('aria-current', 'true');
+      else chip.removeAttribute('aria-current');
+    });
+  }
+
+  /** Redraw the rows for the selected stage. Nothing is refetched. */
+  function draw(): void {
+    const shown = filterLedgerCases(loaded, stage);
+    list!.replaceChildren(...shown.map((shell) => row(shell, pilot)));
+    list!.hidden = shown.length === 0;
+    if (empty) empty.hidden = loaded.length > 0;
+    if (stageEmpty) stageEmpty.hidden = shown.length > 0 || loaded.length === 0;
+    markSelected();
+  }
+
+  function select(next: LedgerFilter, push: boolean): void {
+    stage = next;
+    if (push) {
+      const href = ledgerFilterHref(`${location.pathname}${location.search}`, next, location.origin);
+      history.pushState({ stage: next }, '', href);
+    }
+    draw();
+  }
+
+  stageChips.forEach((chip) => {
+    chip.addEventListener('click', (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      select(normalizeLedgerFilter(chip.dataset.stageChip), true);
+    });
+  });
+
+  stageClear?.addEventListener('click', (event) => {
+    event.preventDefault();
+    select('all', true);
+  });
+
+  // Back and forward move between stages, because each stage has its own address.
+  window.addEventListener('popstate', () => {
+    stage = ledgerFilterFromLocation(location.search);
+    draw();
+  });
 
   // ---- load ---------------------------------------------------------------
 
   async function load(): Promise<void> {
     if (failure) failure.hidden = true;
     if (empty) empty.hidden = true;
+    if (stageEmpty) stageEmpty.hidden = true;
     if (loading) loading.hidden = false;
     list!.setAttribute('aria-busy', 'true');
     try {
@@ -156,14 +251,16 @@ function start(ledger: HTMLElement): void {
         listPublicCases(LIST_LIMIT),
         getPilotConfig().catch(() => null),
       ]);
+      loaded = shells;
+      pilot = config;
       countAndShow(shells);
-      list!.replaceChildren(...shells.map((shell) => row(shell, config)));
-      list!.hidden = shells.length === 0;
-      if (empty) empty.hidden = shells.length > 0;
+      draw();
     } catch {
+      loaded = [];
       list!.replaceChildren();
       list!.hidden = true;
       if (summary) summary.hidden = true;
+      if (stageEmpty) stageEmpty.hidden = true;
       if (failure) failure.hidden = false;
     } finally {
       list!.removeAttribute('aria-busy');

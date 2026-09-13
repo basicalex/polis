@@ -7,12 +7,23 @@ import { handlePilotProxy } from '../../../../lib/pilot/vrsar/proxy';
 
 export const prerender = false;
 
+/** Worker bindings and secrets are runtime values, so each one is read here. */
+function binding(name: string): string | undefined {
+  const value = (env as Record<string, unknown>)[name];
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
 const handler: APIRoute = async (context) => {
-  const binding = (env as Record<string, unknown>).PILOT_API_BASE;
-  return handlePilotProxy(
-    context,
-    typeof binding === 'string' && binding.trim() ? { backendBase: binding } : {},
-  );
+  const backendBase = binding('PILOT_API_BASE');
+  const demoPasscode = binding('PILOT_DEMO_STAFF_PASSCODE');
+  const demoOfficialEmail = binding('PILOT_DEMO_OFFICIAL_EMAIL');
+  const demoReviewerEmail = binding('PILOT_DEMO_REVIEWER_EMAIL');
+  return handlePilotProxy(context, {
+    ...(backendBase ? { backendBase } : {}),
+    ...(demoPasscode ? { demoPasscode } : {}),
+    ...(demoOfficialEmail ? { demoOfficialEmail } : {}),
+    ...(demoReviewerEmail ? { demoReviewerEmail } : {}),
+  });
 };
 
 export const GET = handler;

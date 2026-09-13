@@ -372,6 +372,15 @@ export async function exchangeMagicLink(email: string, token: string): Promise<v
   await requestJson('/identity/exchange', { method: 'POST', body: { email, token } });
 }
 
+/**
+ * Hosted test instance only: the server holds the passcode of the synthetic
+ * staff accounts, so the browser names a role and nothing else. The route is
+ * absent on any other build.
+ */
+export async function demoStaffLogin(role: 'official' | 'reviewer'): Promise<void> {
+  await requestJson('/identity/demo-login', { method: 'POST', body: { role } });
+}
+
 export async function getOidcAuthorization(): Promise<string> {
   const payload = await requestJson<Record<string, unknown>>('/identity/authorize');
   const url = payload.authorizationUrl;

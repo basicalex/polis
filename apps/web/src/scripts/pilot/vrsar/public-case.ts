@@ -9,7 +9,7 @@ import {
   type PublicCaseShell,
   type PublicTraceRecord,
 } from '../../../lib/pilot/vrsar/model';
-import { pilotCopy, statusTone, translatedStatus, type PilotLang } from '../../../content/pilot/vrsar';
+import { pilotCopy, stageLabels, statusTone, translatedStatus, type PilotLang } from '../../../content/pilot/vrsar';
 import {
   caseStateTone,
   isCaseNumber,
@@ -87,6 +87,24 @@ const ACTIVE_STAGE: Readonly<Record<string, string>> = Object.freeze({
   published: 'receipt',
   resolved: 'receipt',
   closed: 'voice',
+});
+
+/** What already happened at a stage the case has walked. */
+const STAGE_DONE: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
+  voice: publicCaseCopy.stageStory.voiceDone,
+  responsibility: publicCaseCopy.stageStory.responsibilityDone,
+  response: publicCaseCopy.stageStory.responseDone,
+  check: publicCaseCopy.stageStory.checkDone,
+  receipt: publicCaseCopy.stageStory.receiptDone,
+});
+
+/** What still has to happen at a stage the case has not reached. */
+const STAGE_NEXT: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
+  voice: publicCaseCopy.stageStory.voiceNext,
+  responsibility: publicCaseCopy.stageStory.responsibilityNext,
+  response: publicCaseCopy.stageStory.responseNext,
+  check: publicCaseCopy.stageStory.checkNext,
+  receipt: publicCaseCopy.stageStory.receiptNext,
 });
 
 /** A Croatian reader reads a date as DD.MM.GGGG.; the other two keep DD/MM/YYYY. */
@@ -186,6 +204,8 @@ export function initVrsarPublicCase(): void {
   const shellRoot = document.querySelector<HTMLElement>('[data-public-case]');
   const retry = document.querySelector<HTMLButtonElement>('[data-retry]');
   const receipt = document.querySelector<HTMLElement>('[data-public-receipt]');
+  const verification = document.querySelector<HTMLElement>('[data-public-verification]');
+  const pending = document.querySelector<HTMLElement>('[data-case-pending]');
   const pendingText = document.querySelector<HTMLElement>('[data-case-pending-text]');
   const attention = document.querySelector<HTMLElement>('[data-attention]');
   const attentionError = document.querySelector<HTMLElement>('[data-attention-error]');
@@ -196,18 +216,48 @@ export function initVrsarPublicCase(): void {
     if (element) element.textContent = value;
   }
 
+  /**
+   * The five public stages, each carrying one plain sentence about this case:
+   * what already happened, what is happening now, and what is waited for. The
+   * stage right after the current one says so, because that is the only thing a
+   * reader can do anything with.
+   */
+  function stageSentence(stage: string, index: number, activeIndex: number, state_: string): string {
+    const story = publicCaseCopy.stageStory;
+    // A closed case says once that it stopped here, not once per remaining stage.
+    if (state_ === 'closed' && index > activeIndex) {
+      return index === activeIndex + 1 ? story.closedAhead[lang] : '';
+    }
+    if (index === activeIndex && state_ === 'in-review' && stage === 'check') return story.checkNow[lang];
+    if (index <= activeIndex) {
+      if (stage === 'receipt' && state_ === 'resolved') return story.receiptResolved[lang];
+      return STAGE_DONE[stage]?.[lang] ?? '';
+    }
+    const ahead = STAGE_NEXT[stage]?.[lang] ?? '';
+    if (!ahead) return '';
+    if (index === activeIndex + 1) return `${story.nextPrefix[lang]}: ${ahead}`;
+    return ahead.charAt(0).toLocaleUpperCase(lang) + ahead.slice(1);
+  }
+
   function renderShellTrace(state_: string): void {
     if (!shellRoot) return;
     const active = ACTIVE_STAGE[state_] ?? 'voice';
     const activeIndex = TRACE_STAGES.indexOf(active as (typeof TRACE_STAGES)[number]);
     shellRoot.querySelectorAll<HTMLElement>('[data-case-trace] [data-stage]').forEach((stage) => {
-      const index = TRACE_STAGES.indexOf((stage.dataset.stage ?? '') as (typeof TRACE_STAGES)[number]);
+      const name = stage.dataset.stage ?? '';
+      const index = TRACE_STAGES.indexOf(name as (typeof TRACE_STAGES)[number]);
       const reached = state_ === 'resolved' ? index <= activeIndex : index < activeIndex;
       stage.hidden = false;
       stage.dataset.state = reached ? 'appended' : index === activeIndex ? 'active' : 'ahead';
-      stage.dataset.proposed = state_ === 'in-review' && stage.dataset.stage === 'check' ? 'true' : 'false';
+      stage.dataset.proposed = state_ === 'in-review' && name === 'check' ? 'true' : 'false';
+      const title = stage.querySelector<HTMLElement>('[data-trace-title]');
+      if (title) {
+        // The stamp belongs on the stage the case is standing in, not on all five.
+        const mark = index === activeIndex ? ` · ${translatedCaseState(state_, lang)}` : '';
+        title.textContent = `${stageLabels[name]?.[lang] ?? name}${mark}`;
+      }
       const note = stage.querySelector<HTMLElement>('[data-trace-note]');
-      if (note) note.textContent = index === activeIndex ? translatedCaseState(state_, lang) : '';
+      if (note) note.textContent = stageSentence(name, index, activeIndex, state_);
     });
   }
 
@@ -216,7 +266,11 @@ export function initVrsarPublicCase(): void {
     const category = config && config.category && entityName(config.category, lang)
       ? entityName(config.category, lang)
       : String(shell.category ?? '');
-    setText('[data-case-area]', String(shell.area ?? '') || pilotCopy.common.notAvailable[lang]);
+    const area =
+      config && config.municipality && shell.area === config.municipality.id
+        ? entityName(config.municipality, lang)
+        : String(shell.area ?? '');
+    setText('[data-case-area]', area || pilotCopy.common.notAvailable[lang]);
     setText('[data-case-category]', category || pilotCopy.common.notAvailable[lang]);
 
     const days = daysSince(shell.filedAt);
@@ -246,7 +300,11 @@ export function initVrsarPublicCase(): void {
    * A shell is not a receipt. The approved public text exists only after a
    * reviewer cleared it, so anything short of that renders the waiting note.
    */
-  function renderReceipt(record: PublicTraceRecord | null, config: PilotConfig | null): void {
+  function renderReceipt(
+    shell: PublicCaseShell,
+    record: PublicTraceRecord | null,
+    config: PilotConfig | null,
+  ): void {
     const approved =
       record !== null &&
       record.testEnvironment === true &&
@@ -255,18 +313,14 @@ export function initVrsarPublicCase(): void {
 
     if (!approved || !receipt) {
       if (receipt) receipt.hidden = true;
-      if (pendingText) {
-        pendingText.textContent = publicCaseCopy.shell.pendingPublicText[lang];
-        pendingText.hidden = false;
-      }
+      if (verification) verification.hidden = true;
+      showPending(String(shell.state ?? ''));
       return;
     }
-    if (pendingText) {
-      pendingText.textContent = '';
-      pendingText.hidden = true;
-    }
+    if (pending) pending.hidden = true;
+    if (pendingText) pendingText.textContent = '';
 
-    setText('[data-receipt-id]', record.id, receipt);
+    setText('[data-receipt-id]', record.id, verification ?? receipt);
     const status = receipt.querySelector<HTMLElement>('.pilot-receipt-header .status-label');
     if (status) {
       status.dataset.status = record.status;
@@ -282,7 +336,6 @@ export function initVrsarPublicCase(): void {
     setText('[data-public-category]', entityName(config ? config.category : record.category, lang), receipt);
     setText('[data-public-due-date]', formatPilotDate(record.dueDate, lang, true), receipt);
     setText('[data-public-published-at]', formatPilotDate(record.publishedAt, lang), receipt);
-    setText('[data-public-hash]', record.receiptHash, receipt);
     setText('[data-public-summary]', record.publicSummary, receipt);
     setText('[data-public-commitment]', record.commitment, receipt);
 
@@ -319,19 +372,43 @@ export function initVrsarPublicCase(): void {
       evidence.hidden = true;
     }
 
-    renderReceiptTrace(receipt, record);
     receipt.hidden = false;
+
+    if (verification) {
+      setText('[data-public-hash]', record.receiptHash, verification);
+      renderReceiptTrace(verification, record);
+      verification.hidden = false;
+    }
   }
 
+  /**
+   * Before approval the page says which stage the case is standing in and why no
+   * public text exists yet, rather than only that it does not.
+   */
+  function showPending(state_: string): void {
+    if (!pendingText) return;
+    const copy = publicCaseCopy.pending;
+    const line = (copy as Record<string, Record<string, string>>)[state_]?.[lang] ?? copy.fallback[lang];
+    pendingText.textContent = line;
+    if (pending) pending.hidden = false;
+  }
+
+  /** The milestones as written, each dated: this block is for checking, not reading. */
   function renderReceiptTrace(root: ParentNode, record: PublicTraceRecord): void {
     const events = Array.isArray(record.events) ? record.events : [];
-    const appended = new Set(events.map((event) => String(event?.stage ?? '')));
+    const written = new Map<string, string>();
+    for (const event of events) {
+      const stage = String(event?.stage ?? '');
+      if (stage) written.set(stage, String(event?.createdAt ?? ''));
+    }
     root.querySelectorAll<HTMLElement>('[data-trace] [data-stage]').forEach((stage) => {
       const name = stage.dataset.stage ?? '';
-      const seen = appended.has(name);
+      const seen = written.has(name);
       stage.hidden = !seen;
       stage.dataset.state = seen ? 'appended' : 'ahead';
       stage.dataset.proposed = 'false';
+      const note = stage.querySelector<HTMLElement>('[data-trace-note]');
+      if (note) note.textContent = seen ? formatPilotDate(written.get(name), lang) : '';
     });
   }
 
@@ -436,7 +513,7 @@ export function initVrsarPublicCase(): void {
       renderShell(shell, config);
       renderAttention(shell);
       bindAttention(shell);
-      renderReceipt(result.record, config);
+      renderReceipt(shell, result.record, config);
       if (shellRoot) shellRoot.hidden = false;
       clearState(state);
       document.title = `${shell.caseNumber} — ${publicCaseCopy.page.heading[lang]} — Polis`;

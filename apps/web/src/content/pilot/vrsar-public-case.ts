@@ -76,6 +76,136 @@ export const publicCaseCopy = Object.freeze({
     ),
   },
 
+  /*
+   * Why there is no published text yet, said in the words of the stage the case
+   * actually stands in. A reader should never have to guess whether the silence
+   * means nobody looked or somebody is looking.
+   */
+  pending: {
+    heading: localized('Zašto javnog teksta još nema', 'Perché il testo pubblico non c’è ancora', 'Why there is no public text yet'),
+    received: localized(
+      'Prijava je zaprimljena i dobila je broj. Javni tekst nastaje tek kad nadležni ured predloži obvezu i kad je provjeritelj neovisan o tom uredu odobri.',
+      'La segnalazione è stata ricevuta e ha un numero. Il testo pubblico nasce solo quando l’ufficio responsabile propone un impegno e un revisore indipendente da quell’ufficio lo approva.',
+      'The report is received and has a number. Public text appears only once the responsible office proposes a commitment and a reviewer independent of that office approves it.',
+    ),
+    assigned: localized(
+      'Predmet ima nadležni ured. Njegov odgovor još nije napisan ni poslan na neovisnu provjeru, pa javnog teksta još nema.',
+      'Il caso ha un ufficio responsabile. La sua risposta non è ancora scritta né inviata alla revisione indipendente, quindi il testo pubblico non c’è.',
+      'The case has a responsible office. Its answer is not written or sent for independent review yet, so there is no public text.',
+    ),
+    'in-review': localized(
+      'Ured je predložio obvezu. Sada o njoj odlučuje provjeritelj neovisan o tom uredu; tekst se objavljuje tek ako je prihvati.',
+      'L’ufficio ha proposto un impegno. Ora decide un revisore indipendente da quell’ufficio; il testo si pubblica solo se lo accetta.',
+      'The office proposed a commitment. A reviewer independent of that office now decides on it; the text publishes only if it is accepted.',
+    ),
+    closed: localized(
+      'Predmet je zatvoren bez javne obveze. Razlog zatvaranja stoji uz stanje predmeta.',
+      'Il caso è stato chiuso senza un impegno pubblico. La motivazione è indicata accanto allo stato del caso.',
+      'The case was closed without a public commitment. The stated reason stands next to the case state.',
+    ),
+    fallback: localized(
+      'Javni sadržaj još nije odobren. Objavljuje se tek nakon neovisne provjere.',
+      'Il contenuto pubblico non è ancora approvato. Viene pubblicato solo dopo la revisione indipendente.',
+      'The public text is not approved yet. It publishes only after independent review.',
+    ),
+  },
+
+  /*
+   * The five public stages, said as sentences rather than labels. Each stage has
+   * a past form for the part of the path the case already walked and a future
+   * form for the part it has not; the stage right after the current one carries
+   * the "next step" prefix so a reader knows what to wait for.
+   */
+  stageStory: {
+    nextPrefix: localized('Sljedeći korak', 'Prossimo passo', 'Next step'),
+    closedAhead: localized(
+      'Predmet je zatvoren prije ovog koraka.',
+      'Il caso è stato chiuso prima di questo passo.',
+      'The case was closed before this step.',
+    ),
+    voiceDone: localized(
+      'Ured je prijavu zaprimio i dodijelio joj broj predmeta.',
+      'L’ufficio ha ricevuto la segnalazione e le ha assegnato un numero.',
+      'The office received the report and gave it a case number.',
+    ),
+    voiceNext: localized(
+      'prijava se zaprima i dobiva broj predmeta.',
+      'la segnalazione viene ricevuta e riceve un numero.',
+      'the report is received and gets a case number.',
+    ),
+    responsibilityDone: localized(
+      'Predmet je dodijeljen nadležnom uredu.',
+      'Il caso è stato assegnato all’ufficio responsabile.',
+      'The case was assigned to the responsible office.',
+    ),
+    responsibilityNext: localized(
+      'predmet se dodjeljuje nadležnom uredu.',
+      'il caso viene assegnato all’ufficio responsabile.',
+      'the case is assigned to the responsible office.',
+    ),
+    responseDone: localized(
+      'Ured je predložio javnu obvezu s rokom.',
+      'L’ufficio ha proposto un impegno pubblico con un termine.',
+      'The office proposed a public commitment with a due date.',
+    ),
+    responseNext: localized(
+      'ured predlaže javnu obvezu s rokom.',
+      'l’ufficio propone un impegno pubblico con un termine.',
+      'the office proposes a public commitment with a due date.',
+    ),
+    checkDone: localized(
+      'Provjeritelj neovisan o zaduženom uredu prihvatio je obvezu.',
+      'Un revisore indipendente dall’ufficio incaricato ha accettato l’impegno.',
+      'A reviewer independent of the assigned office accepted the commitment.',
+    ),
+    checkNow: localized(
+      'Obveza je kod provjeritelja neovisnog o zaduženom uredu. Odluka se čeka.',
+      'L’impegno è presso un revisore indipendente dall’ufficio incaricato. La decisione è attesa.',
+      'The commitment is with a reviewer independent of the assigned office. The decision is pending.',
+    ),
+    checkNext: localized(
+      'provjeritelj neovisan o zaduženom uredu odlučuje smije li se obveza objaviti.',
+      'un revisore indipendente dall’ufficio incaricato decide se l’impegno può essere pubblicato.',
+      'a reviewer independent of the assigned office decides whether the commitment may publish.',
+    ),
+    receiptDone: localized(
+      'Obveza i rok su javni.',
+      'L’impegno e il termine sono pubblici.',
+      'The commitment and the due date are public.',
+    ),
+    receiptResolved: localized(
+      'Ured je prijavio dovršetak, a zasebna neovisna provjera ga je prihvatila.',
+      'L’ufficio ha dichiarato il completamento e una revisione indipendente separata lo ha accettato.',
+      'The office reported completion and a separate independent review accepted it.',
+    ),
+    receiptNext: localized(
+      'obveza, rok i dokazi o dovršetku postaju javni.',
+      'impegno, termine e prove del completamento diventano pubblici.',
+      'the commitment, the due date and the completion evidence become public.',
+    ),
+  },
+
+  /* The approved answer, and the block that lets anyone check it. */
+  answer: {
+    heading: localized('Odgovor općine', 'La risposta del comune', 'The municipality’s answer'),
+    note: localized(
+      'Ovaj je tekst prošao neovisnu provjeru prije objave. Ured ga više ne može tiho promijeniti.',
+      'Questo testo ha superato una revisione indipendente prima della pubblicazione. L’ufficio non può più modificarlo in silenzio.',
+      'This text passed independent review before it published. The office can no longer change it quietly.',
+    ),
+    doneHeading: localized('Što je učinjeno', 'Che cosa è stato fatto', 'What was done'),
+  },
+
+  verification: {
+    heading: localized('Provjera', 'Verifica', 'Verification'),
+    note: localized(
+      'Pet zapisa ispod nastaju redom i svaki nosi otisak prethodnoga. Otisak potvrde vrijedi za cijeli lanac.',
+      'I cinque record qui sotto nascono in ordine e ognuno porta l’impronta del precedente. L’impronta della ricevuta vale per tutta la catena.',
+      'The five records below are written in order and each carries the fingerprint of the one before it. The receipt hash covers the whole chain.',
+    ),
+    events: localized('Zapisi predmeta', 'Record del caso', 'Case records'),
+  },
+
   /**
    * Reviewed stamps for the public case shell. They are meaning labels, not
    * descriptions: never paraphrase them, change them only here.

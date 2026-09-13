@@ -4,15 +4,24 @@
 
 /**
  * The public case shell: what everyone may read about a case from the moment it
- * is received. It is not a receipt. The approved public text below only appears
- * once independent review has cleared it, and until then the note says so
- * rather than leaving an empty space (rule S1).
+ * is received.
+ *
+ * The order on the page is the order a reader needs it in. First who and what:
+ * the number, the state, the area. Then the municipality's answer, if there is
+ * one — the approved summary, the promise, the date it is due, and for a
+ * finished case what was done. Only then the path the case walked, the two
+ * attention counts, and last the verification block, which is for the reader who
+ * wants to check the chain rather than read the answer.
+ *
+ * A shell is not a receipt. The approved text below appears only once an
+ * independent review cleared it, and until then the page says which stage the
+ * case is standing in and what has to happen before any text exists (rule S1).
  */
 
-import type { PilotLang } from '../../../content/pilot/vrsar';
+import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
 import VrsarAttentionControl from './VrsarAttentionControl.astro';
-import VrsarReceipt from './VrsarReceipt.astro';
+import VrsarStatusLabel from './VrsarStatusLabel.astro';
 import VrsarTraceSummary from './VrsarTraceSummary.astro';
 
 interface Props {
@@ -21,6 +30,10 @@ interface Props {
 
 const { lang } = Astro.props as Props;
 const copy = publicCaseCopy.shell;
+const answer = publicCaseCopy.answer;
+const pending = publicCaseCopy.pending;
+const verification = publicCaseCopy.verification;
+const receipts = pilotCopy.receipts;
 ---
 
 <div class="pilot-page" data-public-case hidden>
@@ -52,16 +65,97 @@ const copy = publicCaseCopy.shell;
     <p class="pilot-state" data-case-closed-reason hidden></p>
   </section>
 
-  <section class="pilot-section" aria-labelledby="public-case-trace-title" data-case-trace>
+  <!--
+    The municipality's answer. Hidden until a reviewer independent of the
+    assigned office cleared it, and filled only from the public record.
+  -->
+  <article class="pilot-receipt pilot-answer panel" data-public-receipt hidden>
+    <header class="pilot-receipt-header">
+      <h2>{answer.heading[lang]}</h2>
+      <VrsarStatusLabel status="unknown" lang={lang} />
+      <p class="pilot-state" data-public-status-note></p>
+    </header>
+
+    <div class="pilot-answer-body">
+      <section class="pilot-section">
+        <h3>{receipts.publicSummary[lang]}</h3>
+        <p class="pilot-public-copy" data-public-summary></p>
+      </section>
+      <section class="pilot-section">
+        <h3>{receipts.commitment[lang]}</h3>
+        <p class="pilot-public-copy" data-public-commitment></p>
+      </section>
+    </div>
+
+    <dl class="pilot-meta">
+      <div>
+        <dt>{pilotCopy.common.office[lang]}</dt>
+        <dd data-public-office></dd>
+      </div>
+      <div>
+        <dt>{pilotCopy.common.category[lang]}</dt>
+        <dd data-public-category></dd>
+      </div>
+      <div>
+        <dt>{receipts.dueDate[lang]}</dt>
+        <dd data-public-due-date></dd>
+      </div>
+      <div>
+        <dt>{receipts.publishedAt[lang]}</dt>
+        <dd data-public-published-at></dd>
+      </div>
+      <div data-public-resolved-at-row hidden>
+        <dt>{receipts.resolvedAt[lang]}</dt>
+        <dd data-public-resolved-at></dd>
+      </div>
+    </dl>
+
+    <section class="pilot-section" data-public-evidence-section hidden>
+      <h3>{answer.doneHeading[lang]}</h3>
+      <p class="pilot-public-copy" data-public-evidence-note></p>
+      <h4 class="pilot-answer-subhead">{receipts.sourceLinks[lang]}</h4>
+      <ul class="pilot-evidence-links" data-public-evidence-links></ul>
+    </section>
+
+    <p class="field-hint">{answer.note[lang]}</p>
+  </article>
+
+  <!-- Before approval: which stage the case stands in, and why no text exists. -->
+  <section class="pilot-section panel pilot-pending" data-case-pending hidden aria-labelledby="public-case-pending-title">
+    <h2 id="public-case-pending-title">{pending.heading[lang]}</h2>
+    <p class="pilot-pending-line" data-case-pending-text></p>
+  </section>
+
+  <section class="pilot-section panel" aria-labelledby="public-case-trace-title" data-case-trace>
     <h2 id="public-case-trace-title">{copy.trace[lang]}</h2>
     <VrsarTraceSummary lang={lang} />
   </section>
 
   <VrsarAttentionControl lang={lang} />
 
-  <p class="pilot-state" data-case-pending-text hidden></p>
+  <section
+    class="pilot-section panel"
+    data-public-verification
+    hidden
+    aria-labelledby="public-case-verification-title"
+  >
+    <h2 id="public-case-verification-title">{verification.heading[lang]}</h2>
+    <p class="field-hint">{verification.note[lang]}</p>
 
-  <VrsarReceipt lang={lang} />
+    <h3 class="pilot-answer-subhead">{verification.events[lang]}</h3>
+    <VrsarTraceSummary lang={lang} />
+
+    <div class="pilot-receipt-hash">
+      <strong>{pilotCopy.common.recordId[lang]}</strong>
+      <span class="pilot-ledger-id" data-receipt-id></span>
+    </div>
+
+    <div class="pilot-receipt-hash">
+      <strong>{receipts.receiptHash[lang]}</strong>
+      <span class="pilot-hash" data-public-hash></span>
+    </div>
+    <p class="pilot-disclosure-line">{receipts.receiptHashNote[lang]}</p>
+  </section>
 </div>
 
 <style>

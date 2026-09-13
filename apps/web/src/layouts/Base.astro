@@ -138,7 +138,12 @@ const isCurrentPath = (href: string) =>
       ]}
     >
       {entryChrome && testInstance && (
-        <p class="entry-test-band">{text(entryStrings.testInstance, lang)}</p>
+        <p class="entry-test-band">
+          {text(entryStrings.testInstance, lang)}{' '}
+          <a href={lang === 'en' ? '/pilot/vrsar/login?lang=en' : '/pilot/vrsar/login?lang=hr'}>
+            {text(entryStrings.testInstanceStaff, lang)}
+          </a>
+        </p>
       )}
 
       {

@@ -45,6 +45,27 @@ export const entryStrings = {
   ledgerOverdue: { hr: 'Rok prekoračen', en: 'Past due' },
   ledgerClosed: { hr: 'Zatvoreno', en: 'Closed' },
   ledgerCapped: { hr: 'posljednjih 100', en: 'the latest 100' },
+
+  /*
+   * The stage chips. The labels are the same reviewed words the status stamp on
+   * a row carries, in lower case, so a chip and a stamp never read as two
+   * different things.
+   */
+  ledgerStageLegend: { hr: 'Faza postupka', en: 'Stage of the process' },
+  ledgerStageAll: { hr: 'Sve', en: 'All' },
+  ledgerStageReceived: { hr: 'Zaprimljeno', en: 'Received' },
+  ledgerStageAssigned: { hr: 'Dodijeljeno', en: 'Assigned' },
+  ledgerStageInReview: { hr: 'U provjeri', en: 'In review' },
+  ledgerStagePublished: { hr: 'Objavljeno', en: 'Published' },
+  ledgerStageResolved: { hr: 'Riješeno', en: 'Resolved' },
+  ledgerStageClosed: { hr: 'Zatvoreno', en: 'Closed' },
+  ledgerStageEmpty: { hr: 'Nema predmeta u ovoj fazi.', en: 'No cases at this stage.' },
+  ledgerStageEmptyAll: { hr: 'Prikaži sve predmete', en: 'Show every case' },
+
+  /* One line under a row that has reached an answer. */
+  ledgerHintPublished: { hr: 'Ured je objavio obvezu.', en: 'The office published its commitment.' },
+  ledgerHintResolved: { hr: 'Riješeno', en: 'Resolved' },
+  ledgerHintOverdue: { hr: 'Rok prekoračen', en: 'Past due' },
   ledgerSearchLabel: { hr: 'Broj predmeta', en: 'Case number' },
   ledgerSearchPlaceholder: { hr: 'VRS-123456', en: 'VRS-123456' },
   ledgerSearchSubmit: { hr: 'Otvori', en: 'Open' },
@@ -153,6 +174,11 @@ export const entryStrings = {
   testInstance: {
     hr: 'Testna instanca. Podaci su sintetički. Ovo nije službeni kanal Općine Vrsar.',
     en: 'Test instance. Data is synthetic. This is not an official channel of Općina Vrsar.',
+  },
+  /** Same band, one link: the office side of the test instance is one tap away. */
+  testInstanceStaff: {
+    hr: 'Za općinu: prijava',
+    en: 'For the municipality: sign in',
   },
 } satisfies Record<string, LocalizedText>;
 

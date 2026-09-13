@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import {
+  demoStaffLogin,
   exchangeMagicLink,
   exchangeOidcCallback,
   getOidcAuthorization,
@@ -30,6 +31,7 @@ export function initVrsarLogin(): void {
   const emailError = document.querySelector<HTMLElement>('[data-email-error]');
   const magicSubmit = document.querySelector<HTMLButtonElement>('[data-magic-submit]');
   const oidcButton = document.querySelector<HTMLButtonElement>('[data-oidc-button]');
+  const demoButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-demo-role]'));
 
   const hash = location.hash.startsWith('#') ? new URLSearchParams(location.hash.slice(1)) : null;
   const magicEmail = hash?.get('email') ?? '';
@@ -45,6 +47,7 @@ export function initVrsarLogin(): void {
     setState(state, pilotCopy.login.signingIn[lang]);
     if (emailForm) emailForm.hidden = true;
     if (oidcButton) oidcButton.disabled = true;
+    for (const button of demoButtons) button.disabled = true;
     try {
       await action();
       const session = await getPilotSession();
@@ -54,6 +57,7 @@ export function initVrsarLogin(): void {
       setState(state, apiErrorMessage(error, lang), 'error');
       if (emailForm) emailForm.hidden = false;
       if (oidcButton) oidcButton.disabled = false;
+      for (const button of demoButtons) button.disabled = false;
     }
   }
 
@@ -69,6 +73,16 @@ export function initVrsarLogin(): void {
     } else {
       void finishSignIn(() => exchangeOidcCallback(code, oidcState));
     }
+  }
+
+  // Test instance only: the role is all the browser sends, the server holds the passcode.
+  for (const button of demoButtons) {
+    button.addEventListener('click', () => {
+      const role = button.dataset.demoRole;
+      if (role !== 'official' && role !== 'reviewer') return;
+      clearState(state);
+      void finishSignIn(() => demoStaffLogin(role));
+    });
   }
 
   emailForm?.addEventListener('submit', async (event) => {

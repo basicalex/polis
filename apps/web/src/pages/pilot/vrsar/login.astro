@@ -6,6 +6,12 @@ import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.ast
 import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
 
 const lang = parsePilotLang(Astro.url);
+/*
+ * The hosted test instance shows the two office roles as one tap each, so a
+ * visitor can see the municipality's queues without an account. The build sets
+ * this; a request cannot. Every other build keeps this page as it was.
+ */
+const testInstance = import.meta.env.PUBLIC_TEST_INSTANCE === '1';
 ---
 
 <VrsarPilotShell
@@ -22,28 +28,49 @@ const lang = parsePilotLang(Astro.url);
 
     <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state></p>
 
-    <section class="pilot-section panel" aria-labelledby="email-login-title" data-email-login>
-      <h2 id="email-login-title">{pilotCopy.login.emailHeading[lang]}</h2>
-      <form class="pilot-form" data-magic-form novalidate>
-        <div class="field" data-width="email">
-          <label for="pilot-email">{pilotCopy.login.email[lang]}</label>
-          <input id="pilot-email" name="email" type="email" autocomplete="email" required maxlength="254" aria-describedby="pilot-email-hint pilot-email-error" />
-          <p class="field-hint" id="pilot-email-hint">{pilotCopy.login.emailHint[lang]}</p>
-          <p class="field-error" id="pilot-email-error" data-email-error></p>
+    {testInstance && (
+      <section class="pilot-section panel pilot-demo" aria-labelledby="demo-login-title" data-demo-login>
+        <h2 id="demo-login-title">{pilotCopy.login.demoHeading[lang]}</h2>
+        <p class="pilot-demo-note">{pilotCopy.login.demoNote[lang]}</p>
+        <div class="pilot-demo-choices">
+          <button class="pilot-demo-choice" type="button" data-demo-role="official">
+            <span class="pilot-demo-choice-label">{pilotCopy.login.demoOfficial[lang]}</span>
+            <span class="pilot-demo-choice-help">{pilotCopy.login.demoOfficialHelp[lang]}</span>
+          </button>
+          <button class="pilot-demo-choice" type="button" data-demo-role="reviewer">
+            <span class="pilot-demo-choice-label">{pilotCopy.login.demoReviewer[lang]}</span>
+            <span class="pilot-demo-choice-help">{pilotCopy.login.demoReviewerHelp[lang]}</span>
+          </button>
         </div>
-        <div class="pilot-actions">
-          <button class="btn" data-variant="primary" type="submit" data-magic-submit>{pilotCopy.login.sendLink[lang]}</button>
-        </div>
-      </form>
-    </section>
+      </section>
+    )}
 
-    <section class="pilot-section panel" aria-labelledby="staff-login-title" data-oidc-login>
-      <h2 id="staff-login-title">{pilotCopy.login.oidc[lang]}</h2>
-      <p>{pilotCopy.login.oidcHelp[lang]}</p>
-      <div class="pilot-actions">
-        <button class="btn" data-variant="secondary" type="button" data-oidc-button>{pilotCopy.login.oidcAction[lang]}</button>
-      </div>
-    </section>
+    <div class="pilot-login-other" data-secondary={testInstance ? 'true' : undefined}>
+      {testInstance && <h2 class="pilot-login-other-title">{pilotCopy.login.demoOtherHeading[lang]}</h2>}
+
+      <section class="pilot-section panel" aria-labelledby="email-login-title" data-email-login>
+        <h2 id="email-login-title">{pilotCopy.login.emailHeading[lang]}</h2>
+        <form class="pilot-form" data-magic-form novalidate>
+          <div class="field" data-width="email">
+            <label for="pilot-email">{pilotCopy.login.email[lang]}</label>
+            <input id="pilot-email" name="email" type="email" autocomplete="email" required maxlength="254" aria-describedby="pilot-email-hint pilot-email-error" />
+            <p class="field-hint" id="pilot-email-hint">{pilotCopy.login.emailHint[lang]}</p>
+            <p class="field-error" id="pilot-email-error" data-email-error></p>
+          </div>
+          <div class="pilot-actions">
+            <button class="btn" data-variant="primary" type="submit" data-magic-submit>{pilotCopy.login.sendLink[lang]}</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="pilot-section panel" aria-labelledby="staff-login-title" data-oidc-login>
+        <h2 id="staff-login-title">{pilotCopy.login.oidc[lang]}</h2>
+        <p>{pilotCopy.login.oidcHelp[lang]}</p>
+        <div class="pilot-actions">
+          <button class="btn" data-variant="secondary" type="button" data-oidc-button>{pilotCopy.login.oidcAction[lang]}</button>
+        </div>
+      </section>
+    </div>
   </article>
 
   <script>

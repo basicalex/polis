@@ -652,6 +652,125 @@ test('OIDC proxy fixes the callback URI and does not accept a browser redirect t
   assert.equal(spoofed.status, 400);
 });
 
+test('demo sign-in exchanges a role for a session and never takes an address or a passcode from the browser', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({
+      sessionToken: 'demo-session-token',
+      citizen: { id: 'actor-official', email: 'official@vrsar.example.test' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const options = {
+    publicRelease: true,
+    testInstance: true,
+    backendBase: 'https://trace.internal',
+    demoPasscode: 'shared-demo-passcode',
+    fetchImpl,
+  };
+
+  const official = await handlePilotProxy(proxyContext('identity/demo-login', {
+    method: 'POST',
+    body: { role: 'official' },
+  }), options);
+  assert.equal(official.status, 200);
+  assert.deepEqual(await official.json(), { ok: true });
+  assert.equal(calls[0].url, 'https://trace.internal/api/v1/identity/exchange');
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    email: 'official@vrsar.example.test',
+    passcode: 'shared-demo-passcode',
+  });
+  assert.equal(calls[0].init.headers.get('authorization'), null);
+  assert.equal(calls[0].init.headers.get('idempotency-key'), null);
+  assert.match(official.headers.get('set-cookie') ?? '', /polis_pilot_session=demo-session-token/);
+  assert.match(official.headers.get('set-cookie') ?? '', /HttpOnly/);
+
+  const reviewer = await handlePilotProxy(proxyContext('identity/demo-login', {
+    method: 'POST',
+    body: { role: 'reviewer' },
+  }), options);
+  assert.equal(reviewer.status, 200);
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    email: 'reviewer@vrsar.example.test',
+    passcode: 'shared-demo-passcode',
+  });
+
+  const renamed = await handlePilotProxy(proxyContext('identity/demo-login', {
+    method: 'POST',
+    body: { role: 'official' },
+  }), {
+    ...options,
+    demoOfficialEmail: 'sluzbenik@vrsar.example.test',
+    demoReviewerEmail: 'recenzent@vrsar.example.test',
+  });
+  assert.equal(renamed.status, 200);
+  assert.equal(JSON.parse(calls[2].init.body).email, 'sluzbenik@vrsar.example.test');
+
+  for (const body of [
+    { role: 'resident' },
+    { role: 'admin' },
+    { role: '' },
+    {},
+    { role: ['official'] },
+  ]) {
+    const rejected = await handlePilotProxy(proxyContext('identity/demo-login', {
+      method: 'POST',
+      body,
+    }), options);
+    assert.equal(rejected.status, 400, JSON.stringify(body));
+  }
+
+  for (const body of [
+    { role: 'official', email: 'mayor@vrsar.example.test' },
+    { role: 'official', passcode: 'guessed' },
+    { email: 'mayor@vrsar.example.test', passcode: 'guessed' },
+  ]) {
+    const smuggled = await handlePilotProxy(proxyContext('identity/demo-login', {
+      method: 'POST',
+      body,
+    }), options);
+    assert.equal(smuggled.status, 400, JSON.stringify(body));
+  }
+
+  const wrongMethod = await handlePilotProxy(proxyContext('identity/demo-login'), options);
+  assert.equal(wrongMethod.status, 404);
+  assert.equal(calls.length, 3);
+});
+
+test('demo sign-in does not exist without the test instance flag or without the passcode', async () => {
+  let called = 0;
+  const fetchImpl = async () => {
+    called += 1;
+    return new Response(JSON.stringify({ sessionToken: 'demo-session-token' }), { status: 200 });
+  };
+
+  const withoutPasscode = await handlePilotProxy(proxyContext('identity/demo-login', {
+    method: 'POST',
+    body: { role: 'official' },
+  }), {
+    publicRelease: true,
+    testInstance: true,
+    backendBase: 'https://trace.internal',
+    demoPasscode: '',
+    fetchImpl,
+  });
+  assert.equal(withoutPasscode.status, 404);
+  assert.equal((await withoutPasscode.json()).error, 'not_found');
+
+  const offTheTestInstance = await handlePilotProxy(proxyContext('identity/demo-login', {
+    method: 'POST',
+    body: { role: 'official' },
+  }), {
+    publicRelease: false,
+    testInstance: false,
+    backendBase: 'https://trace.internal',
+    demoPasscode: 'shared-demo-passcode',
+    fetchImpl,
+  });
+  assert.equal(offTheTestInstance.status, 404);
+  assert.equal(called, 0);
+});
+
 test('identity exchange stores only an HttpOnly cookie and strips the bearer response', async () => {
   const fetchImpl = async () => new Response(JSON.stringify({
     sessionToken: 'opaque-session-token',

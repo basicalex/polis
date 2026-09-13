@@ -24,9 +24,28 @@ interface ProxyContext {
 
 interface ProxyOverrides {
   publicRelease?: boolean;
+  testInstance?: boolean;
   backendBase?: string | null;
   fetchImpl?: typeof fetch;
+  /** Worker secret. Without it the demo sign-in route does not exist. */
+  demoPasscode?: string | null;
+  demoOfficialEmail?: string | null;
+  demoReviewerEmail?: string | null;
 }
+
+/**
+ * The one-tap demo sign-in of the hosted test instance: the browser names a
+ * role, the server holds the shared passcode of the two synthetic staff
+ * accounts. Absent on any build that is not a test instance.
+ */
+interface DemoLoginConfig {
+  passcode: string;
+  officialEmail: string;
+  reviewerEmail: string;
+}
+
+const DEMO_OFFICIAL_EMAIL = 'official@vrsar.example.test';
+const DEMO_REVIEWER_EMAIL = 'reviewer@vrsar.example.test';
 
 interface RouteMatch {
   upstreamPath: string;
@@ -41,6 +60,12 @@ interface RouteMatch {
    */
   objectKeys?: Readonly<Record<string, readonly string[]>>;
   upstreamBody?: Record<string, unknown>;
+  /**
+   * Replaces the parsed browser body with the body the backend receives, so a
+   * route can carry a server-held secret the browser never names. Returning a
+   * `Response` rejects the request.
+   */
+  upstreamBodyFrom?: (body: Record<string, unknown>) => Record<string, unknown> | Response;
   /** Only `limit` is forwarded, and only for routes that page a list. */
   listQuery?: boolean;
 }
@@ -367,6 +392,68 @@ function identityAuthorizeRoute(method: string, path: string, appOrigin: string)
   return null;
 }
 
+function trimmedSetting(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/**
+ * Each build-time value is read in its literal `import.meta.env.NAME` form,
+ * because that is the only form the bundler replaces, and the object itself is
+ * absent outside a build.
+ */
+function metaSetting(read: () => unknown): string | null {
+  try {
+    return trimmedSetting(read());
+  } catch {
+    return null;
+  }
+}
+
+function demoLoginConfig(testInstance: boolean, overrides: ProxyOverrides): DemoLoginConfig | null {
+  if (!testInstance) return null;
+  const passcode =
+    overrides.demoPasscode !== undefined
+      ? trimmedSetting(overrides.demoPasscode)
+      : metaSetting(() => import.meta.env.PILOT_DEMO_STAFF_PASSCODE);
+  if (!passcode) return null;
+  const officialEmail =
+    (overrides.demoOfficialEmail !== undefined
+      ? trimmedSetting(overrides.demoOfficialEmail)
+      : metaSetting(() => import.meta.env.PILOT_DEMO_OFFICIAL_EMAIL)) ?? DEMO_OFFICIAL_EMAIL;
+  const reviewerEmail =
+    (overrides.demoReviewerEmail !== undefined
+      ? trimmedSetting(overrides.demoReviewerEmail)
+      : metaSetting(() => import.meta.env.PILOT_DEMO_REVIEWER_EMAIL)) ?? DEMO_REVIEWER_EMAIL;
+  return { passcode, officialEmail, reviewerEmail };
+}
+
+/**
+ * One tap signs the visitor into a synthetic staff account. The browser sends
+ * only a role name; the account address and the passcode are added here and
+ * never travel to the browser, and the session lands in the same HttpOnly
+ * cookie a magic link would set.
+ */
+function demoLoginRoute(method: string, path: string, demo: DemoLoginConfig | null): RouteMatch | null {
+  if (!demo || method !== 'POST' || path !== 'identity/demo-login') return null;
+  return {
+    upstreamPath: '/api/v1/identity/exchange',
+    needsSession: false,
+    idempotency: false,
+    responseKind: 'identity-session',
+    bodyKeys: ['role'],
+    upstreamBodyFrom: (body) => {
+      const role = body.role;
+      if (role !== 'official' && role !== 'reviewer') {
+        return jsonError(400, 'invalid_request', 'The demo role must be official or reviewer.');
+      }
+      return {
+        email: role === 'official' ? demo.officialEmail : demo.reviewerEmail,
+        passcode: demo.passcode,
+      };
+    },
+  };
+}
+
 /** The browser may ask for a page size and nothing else. */
 function listQuery(route: RouteMatch, url: URL): string {
   if (!route.listQuery) return '';
@@ -412,7 +499,8 @@ export async function handlePilotProxy(
     overrides.publicRelease ??
     (typeof import.meta.env !== 'undefined' && import.meta.env.PUBLIC_RELEASE === '1');
   const testInstance =
-    typeof import.meta.env !== 'undefined' && import.meta.env.PUBLIC_TEST_INSTANCE === '1';
+    overrides.testInstance ??
+    (typeof import.meta.env !== 'undefined' && import.meta.env.PUBLIC_TEST_INSTANCE === '1');
   if (publicRelease && !testInstance) {
     return jsonError(404, 'pilot_not_available', 'This test workflow is not available.');
   }
@@ -433,7 +521,9 @@ export async function handlePilotProxy(
   }
 
   const route =
-    matchTraceRoute(method, path) ?? identityAuthorizeRoute(method, path, context.url.origin);
+    matchTraceRoute(method, path) ??
+    identityAuthorizeRoute(method, path, context.url.origin) ??
+    demoLoginRoute(method, path, demoLoginConfig(testInstance, overrides));
   if (!route) return jsonError(404, 'not_found', 'Endpoint not found.');
 
   const configured =
@@ -458,6 +548,11 @@ export async function handlePilotProxy(
       const parsed = await readJsonBody(context.request, route.bodyKeys ?? [], route.objectKeys);
       if (parsed instanceof Response) return parsed;
       body = route.upstreamBody ? { ...parsed, ...route.upstreamBody } : parsed;
+    }
+    if (route.upstreamBodyFrom) {
+      const built = route.upstreamBodyFrom(body);
+      if (built instanceof Response) return built;
+      body = built;
     }
   }
 
