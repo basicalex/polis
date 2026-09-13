@@ -103,6 +103,20 @@ DATABASE_URL="$DATABASE_URL" node deploy/railway/seed-identities.mjs --yes
 
 The existing `scripts/pilot/seed-identities.mjs` cannot target Supabase: it requires an owned runtime, an explicit local marker, loopback, a `*_test` database, bundled local PostgreSQL binaries, and hard-codes `polis_trace_test`. The Railway seed script preserves its four synthetic rows and idempotent update behavior. `trace-official-test` and `trace-reviewer-test` receive `staff` identity level; their distinct trace roles come from the trace allowlists.
 
+## Demo cases and staff passcode
+
+`seed-demo-cases.mjs` runs from a trusted laptop against the hosted test instance. It gives `official@vrsar.example.test` and `reviewer@vrsar.example.test` the configured passcode, signs both synthetic staff identities in through platform-api, files nine synthetic Vrsar cases, and advances them to a demo spread covering every public state.
+
+Export `DATABASE_URL`, `IDENTITY_HMAC_KEY`, `DEMO_STAFF_PASSCODE`, and `PLATFORM_API_BASE`, then run:
+
+```sh
+node deploy/railway/seed-demo-cases.mjs --yes
+```
+
+The script never reads a local environment file. It records the filed case numbers and record IDs outside the repository at `${XDG_STATE_HOME:-~/.local/state}/polis/seed-demo-cases.json`. When that marker exists, the script reuses the recorded cases instead of filing another batch and safely resumes any incomplete lifecycle work. Pass `--reset` with `--yes` only when a new nine-case batch is intentional; existing hosted cases are not deleted.
+
+The passcode grants staff access to these two synthetic identities on the hosted test instance only. Keep it in the secret manager and never place it in the repository or shared logs.
+
 Migration/deploy order:
 
 1. Run core migrations with `migrate-core.mjs`.
