@@ -6,13 +6,17 @@ import '../styles/public.css';
 import {
   landing,
   landingEntryIds,
+  landingPlaceIds,
   landingSectionIds,
+  landingWayIds,
   record,
   stageLabels,
   stages,
   statusLabels,
   type Lang,
   type LandingEntryId,
+  type LandingPlaceId,
+  type LocalizedText,
   type Stage,
 } from '../content/public-release';
 
@@ -35,6 +39,16 @@ const loopStages = stages.map((stage) => stage.stage);
  * trace material: the first stages are appended history, the record stands on
  * the response stage, and the review gate and the receipt are still ahead.
  */
+/**
+ * Both places are marked for what they are before the visitor picks one: Vrsar
+ * is a target and nothing more, Grad Primjer is the fictional town the
+ * demonstration runs in. The stamp words are the reviewed ones (P4).
+ */
+const placeStamps: Record<LandingPlaceId, LocalizedText> = {
+  vrsar: statusLabels.pilotTarget,
+  primjer: statusLabels.demonstrationFixture,
+};
+
 const recordStageState: Record<Stage, 'is-appended' | 'is-active' | 'is-ahead'> = {
   voice: 'is-appended',
   responsibility: 'is-appended',
@@ -80,6 +94,54 @@ const recordStageState: Record<Stage, 'is-appended' | 'is-active' | 'is-ahead'> 
         }
       </ol>
     </figure>
+  </section>
+
+  <section class="landing-section" id={ids.place} aria-labelledby={`${ids.place}-title`}>
+    <h2 id={`${ids.place}-title`}>{text.placeTitle}</h2>
+    <p class="landing-section-lede">{text.placeLede}</p>
+
+    <ul class="landing-places">
+      {
+        landingPlaceIds.map((place) => (
+          <li>
+            <a class="landing-place" href={`${entryHrefs.citizen}?place=${place}`}>
+              <span class="landing-place-head">
+                <span class="landing-place-name">{text.places[place].name}</span>
+                <span class="status-label" data-style="stamp" data-tone="warning">
+                  {placeStamps[place][lang]}
+                </span>
+              </span>
+              <span class="landing-place-note">{text.places[place].note}</span>
+              <span class="landing-entry-arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <ul class="landing-ways" aria-label={text.waysTitle}>
+      {
+        landingWayIds.map((way) => (
+          <li class="landing-way">
+            <span class="landing-way-name">{text.ways[way]}</span>
+            {way === 'web' ? (
+              <a class="landing-way-link" href={entryHrefs.citizen}>
+                {text.webWay}
+              </a>
+            ) : (
+              <Fragment>
+                <span class="landing-way-value">{text.phoneUnset}</span>
+                <span class="status-label" data-style="stamp" data-tone="warning">
+                  {statusLabels.notLive[lang]}
+                </span>
+              </Fragment>
+            )}
+          </li>
+        ))
+      }
+    </ul>
   </section>
 
   <section class="landing-section" id={ids.audience} aria-labelledby={`${ids.audience}-title`}>

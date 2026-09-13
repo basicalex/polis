@@ -486,11 +486,26 @@ export const landingEntryIds = [
 export type LandingEntryId = (typeof landingEntryIds)[number];
 
 /**
+ * The places a visitor can start from. `vrsar` is the pilot target and
+ * `primjer` is the fictional town the demonstration runs in; both rows lead to
+ * the citizen entry, which is the only reporting route this release serves.
+ */
+export const landingPlaceIds = ['vrsar', 'primjer'] as const;
+
+export type LandingPlaceId = (typeof landingPlaceIds)[number];
+
+/** SMS, a call, and the web form. The first two carry no live number yet. */
+export const landingWayIds = ['sms', 'call', 'web'] as const;
+
+export type LandingWayId = (typeof landingWayIds)[number];
+
+/**
  * Anchor ids for the landing sections. They are localized because the opening
  * buttons jump to them and a Croatian page should not carry English anchors.
  */
 export const landingSectionIds = {
   en: {
+    place: 'where-are-you',
     audience: 'who-it-is-for',
     howItWorks: 'how-it-works',
     trust: 'why-it-can-be-trusted',
@@ -498,6 +513,7 @@ export const landingSectionIds = {
     demonstration: 'demonstration',
   },
   hr: {
+    place: 'gdje-ste',
     audience: 'za-koga-je',
     howItWorks: 'kako-radi',
     trust: 'zasto-se-u-to-moze-vjerovati',
@@ -521,6 +537,26 @@ export const landing = {
       check: 'Not checked yet',
       receipt: 'Not appended yet',
     },
+    placeTitle: 'Where are you?',
+    placeLede: 'Pick the place, describe the problem, and you get a case number.',
+    places: {
+      vrsar: {
+        name: 'Općina Vrsar',
+        note: 'The municipality the pilot aims at. Until a pilot is agreed, the report opens in the demonstration.',
+      },
+      primjer: {
+        name: 'Grad Primjer',
+        note: 'A fictional town. Everything you file there is fictional too, and it stays in this browser.',
+      },
+    },
+    waysTitle: 'Three ways in',
+    phoneUnset: '+385 — (number not active yet)',
+    ways: {
+      sms: 'SMS',
+      call: 'Call',
+      web: 'Web',
+    },
+    webWay: 'Open the report form',
     audienceTitle: 'Who it is for',
     audiences: [
       {
@@ -616,6 +652,26 @@ export const landing = {
       check: 'Još nije provedena',
       receipt: 'Još nije upisana',
     },
+    placeTitle: 'Gdje ste?',
+    placeLede: 'Odaberite mjesto, opišite problem i dobit ćete broj predmeta.',
+    places: {
+      vrsar: {
+        name: 'Općina Vrsar',
+        note: 'Općina na koju pilot-projekt cilja. Dok se pilot-projekt ne dogovori, prijava se otvara u demonstraciji.',
+      },
+      primjer: {
+        name: 'Grad Primjer',
+        note: 'Izmišljeni grad. I sve što ondje prijavite izmišljeno je i ostaje u ovom pregledniku.',
+      },
+    },
+    waysTitle: 'Tri načina prijave',
+    phoneUnset: '+385 — (broj još nije aktivan)',
+    ways: {
+      sms: 'SMS',
+      call: 'Poziv',
+      web: 'Web',
+    },
+    webWay: 'Otvorite obrazac za prijavu',
     audienceTitle: 'Za koga je',
     audiences: [
       {

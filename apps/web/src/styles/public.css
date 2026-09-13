@@ -132,6 +132,116 @@
   max-width: 46ch;
 }
 
+/* ---- where are you: the place is the first choice, then reporting ----------
+   Two visible rows, not a dropdown (C4). Each row carries the stamp for what
+   the place is before it is picked, and every row leads to the same citizen
+   entry because that is the only reporting route this release serves. */
+
+.landing-places {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-place {
+  min-height: var(--tap-target);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-place-head {
+  grid-column: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+
+.landing-place-name {
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--type-heading-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.landing-place-note {
+  grid-column: 1;
+  max-width: 62ch;
+  color: var(--polis-muted);
+  line-height: 1.5;
+}
+
+.landing-place .landing-entry-arrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.landing-place:hover,
+.landing-place:focus-visible {
+  background: var(--polis-surface-tint);
+}
+
+.landing-place:hover .landing-place-name,
+.landing-place:focus-visible .landing-place-name {
+  color: var(--polis-trace);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.landing-place:hover .landing-entry-arrow,
+.landing-place:focus-visible .landing-entry-arrow {
+  color: var(--polis-trace);
+}
+
+/* ---- three ways in: one row on desktop, stacked under 40rem ---- */
+
+.landing-ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-3) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-way {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+
+.landing-way-name {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  font-weight: 650;
+}
+
+.landing-way-value {
+  color: var(--polis-text);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.landing-way-link {
+  color: var(--polis-trace);
+  font-size: var(--type-data);
+  font-weight: 600;
+}
+
 /* ---- who it is for ---- */
 
 .landing-audiences {
@@ -355,6 +465,16 @@
     gap: var(--space-1) var(--space-3);
     padding-inline: var(--space-2);
     margin-inline: calc(var(--space-2) * -1);
+  }
+
+  .landing-place {
+    padding: var(--space-3);
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .landing-ways {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 }
 
