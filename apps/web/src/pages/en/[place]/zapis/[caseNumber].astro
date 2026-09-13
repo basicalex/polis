@@ -1,0 +1,43 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * One public case under its place. The shell is readable in every state; the
+ * approved public text appears only once independent review cleared it. An
+ * unreadable case number answers the same as an unknown one, so the page never
+ * says which of the two it is.
+ */
+
+import Base from '../../../../layouts/Base.astro';
+import IntentScreen from '../../../../components/entry/IntentScreen.astro';
+import PlaceCase from '../../../../components/entry/PlaceCase.astro';
+import { entryMeta, entryStrings } from '../../../../content/entry';
+import { text } from '../../../../content/chrome';
+import { findPilotPlace, findPlace } from '../../../../content/places';
+import { caseNumberRegExp } from '../../../../content/pilot/vrsar-public-case';
+
+const lang = 'en' as const;
+const slug = Astro.params.place ?? '';
+const place = findPlace(slug);
+if (!place) return new Response(null, { status: 404 });
+const caseNumber = (Astro.params.caseNumber ?? '').toUpperCase();
+if (!caseNumberRegExp.test(caseNumber)) return new Response(null, { status: 404 });
+const pilot = findPilotPlace(slug);
+const name = place.name[lang];
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{
+    hr: `/${place.slug}/zapis/${caseNumber}`,
+    en: `/en/${place.slug}/zapis/${caseNumber}`,
+  }}
+  title={pilot ? `${caseNumber} — ${text(entryStrings.ledgerTitle, lang)}` : `Polis — ${name}`}
+  description={
+    pilot ? text(entryMeta.caseDescription, lang) : `${name} — ${text(entryStrings.notHereYet, lang)}`
+  }
+>
+  {pilot ? <PlaceCase lang={lang} place={pilot} /> : <IntentScreen lang={lang} place={place} />}
+</Base>

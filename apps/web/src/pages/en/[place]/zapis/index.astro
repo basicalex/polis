@@ -1,0 +1,38 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S3 · the place ledger. Every case of the place in every state, counts and
+ * clock above, case-number search under them (entry-flow R8).
+ *
+ * An unknown slug is a 404; a place whose cases no backend can answer for gets
+ * the intent screen's "još nije ovdje" rather than an empty ledger (R4).
+ */
+
+import Base from '../../../../layouts/Base.astro';
+import IntentScreen from '../../../../components/entry/IntentScreen.astro';
+import PlaceLedger from '../../../../components/entry/PlaceLedger.astro';
+import { entryMeta, entryStrings } from '../../../../content/entry';
+import { text } from '../../../../content/chrome';
+import { findPilotPlace, findPlace } from '../../../../content/places';
+
+const lang = 'en' as const;
+const slug = Astro.params.place ?? '';
+const place = findPlace(slug);
+if (!place) return new Response(null, { status: 404 });
+const pilot = findPilotPlace(slug);
+const name = place.name[lang];
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{ hr: `/${place.slug}/zapis`, en: `/en/${place.slug}/zapis` }}
+  title={pilot ? `${text(entryStrings.ledgerTitle, lang)} — ${name}` : `Polis — ${name}`}
+  description={
+    pilot ? text(entryMeta.ledgerDescription, lang) : `${name} — ${text(entryStrings.notHereYet, lang)}`
+  }
+>
+  {pilot ? <PlaceLedger lang={lang} place={pilot} /> : <IntentScreen lang={lang} place={place} />}
+</Base>

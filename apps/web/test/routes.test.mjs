@@ -422,3 +422,126 @@ test('site chrome and footer read one bilingual content source', async () => {
   // Footer columns collapse to one on phones.
   assert.match(chrome, /\.footer-nav \{\s*grid-template-columns: minmax\(0, 1fr\);/);
 });
+
+test('the place ledger, filing, and case-number pages exist under both languages', async () => {
+  const pages = [
+    join('[place]', 'zapis', 'index.astro'),
+    join('[place]', 'zapis', '[caseNumber].astro'),
+    join('[place]', 'prijava', 'index.astro'),
+    join('[place]', 'prijava', '[caseNumber].astro'),
+    join('en', '[place]', 'zapis', 'index.astro'),
+    join('en', '[place]', 'zapis', '[caseNumber].astro'),
+    join('en', '[place]', 'prijava', 'index.astro'),
+    join('en', '[place]', 'prijava', '[caseNumber].astro'),
+  ];
+  for (const page of pages) await exists(page);
+
+  // Only a live place with a backend behind it renders the flow; a known place
+  // without one falls back to S2's "još nije ovdje" and an unknown slug is 404.
+  for (const page of pages) {
+    const source = await readFile(new URL(page, root), 'utf8');
+    assert.match(source, /findPilotPlace\(slug\)/, page);
+    assert.match(source, /new Response\(null, \{ status: 404 \}\)/, page);
+    assert.match(source, /IntentScreen/, page);
+    assert.match(source, /chrome="entry"/, page);
+  }
+
+  // A case number is a route, so an unreadable one is the same 404 as an
+  // unknown slug and never reaches the API.
+  for (const page of pages.filter((name) => name.includes('[caseNumber]'))) {
+    const source = await readFile(new URL(page, root), 'utf8');
+    assert.match(source, /caseNumberRegExp\.test\(caseNumber\)/, page);
+  }
+});
+
+test('the place ledger lists every state and says a count is not a vote', async () => {
+  const [component, script, content] = await Promise.all([
+    readFile(new URL('../src/components/entry/PlaceLedger.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/ledger.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
+  ]);
+
+  // The reviewed case-number shape, reused rather than rewritten.
+  assert.match(component, /CASE_NUMBER_PATTERN/);
+  assert.match(script, /caseNumberRegExp\.test\(value\)/);
+  // The existing stamp recipe and state translation, not a second vocabulary.
+  assert.match(script, /translatedCaseState/);
+  assert.match(script, /caseStateTone/);
+  assert.match(script, /listPublicCases\(LIST_LIMIT\)/);
+  // A row shape while loading, never a spinner.
+  assert.match(component, /ledger-row--skeleton/);
+  // Empty state carries an action, error state carries a retry.
+  assert.match(component, /EmptyState/);
+  assert.match(component, /data-retry/);
+  // The attention line keeps the meaning of the fixed "Ovo nije glasovanje".
+  assert.match(content, /Broj pratitelja nije glasovanje i ne mijenja redoslijed\./);
+});
+
+test('filing asks for no identity and sends the pin as coordinates', async () => {
+  const [component, script] = await Promise.all([
+    readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
+  ]);
+
+  // No name, no contact, no category, no upload in this wave (entry-flow R9).
+  assert.doesNotMatch(component, /type="email"|type="tel"|type="file"|name="name"/);
+  assert.match(component, /<textarea/);
+  assert.match(component, /maxlength=\{MAX_TEXT\}/);
+  assert.match(component, /<noscript>/);
+  // The pin is optional and coarse; location is asked for on a tap (R5).
+  assert.match(script, /getCurrentPosition/);
+  assert.match(script, /locate\?\.addEventListener\('click'/);
+  assert.match(script, /viewToLonLat/);
+  assert.match(script, /toFixed\(5\)/);
+  assert.match(script, /fileAnonymousCase\(/);
+  // The key leaves in a fragment, never a query (R10).
+  assert.match(script, /#k=\$\{encodeURIComponent\(filed\.reopenKey\)\}/);
+  assert.doesNotMatch(script, /\?k=/);
+});
+
+test('the reopen key never reaches a path, a query, or a request', async () => {
+  const sources = await Promise.all(
+    [
+      '../src/scripts/entry/case-number.ts',
+      '../src/scripts/entry/case.ts',
+      '../src/scripts/entry/report.ts',
+      '../src/components/entry/CaseNumber.astro',
+      '../src/components/entry/PlaceCase.astro',
+    ].map(async (path) => [path, await readFile(new URL(path, import.meta.url), 'utf8')]),
+  );
+
+  for (const [path, source] of sources) {
+    // No key in a query string and no key handed to fetch.
+    assert.doesNotMatch(source, /[?&]k=/, path);
+    assert.doesNotMatch(source, /reopenKey[^\n]*\?/, path);
+    assert.doesNotMatch(source, /fetch\([^)]*reopenKey/, path);
+    assert.doesNotMatch(source, /href[^\n]*\?[^\n]*k=/, path);
+  }
+
+  const s5 = sources.find(([path]) => path.endsWith('case-number.ts'))[1];
+  // S5 reads the key from its own fragment and writes it back into one.
+  assert.match(s5, /location\.hash/);
+  assert.match(s5, /new URLSearchParams\(fragment\)\.get\('k'\)/);
+  assert.match(s5, /recordUrl\.hash = `k=\$\{encodeURIComponent\(key\)\}`/);
+  // Without a fragment there is no key section at all.
+  assert.match(s5, /if \(!key\) return;/);
+
+  const casePage = sources.find(([path]) => path.endsWith('scripts/entry/case.ts'))[1];
+  assert.match(casePage, /new URLSearchParams\(fragment\)\.get\('k'\)/);
+  assert.match(casePage, /writeText\(location\.href\)/);
+});
+
+test('the map pages state the boundary attribution once', async () => {
+  const [base, map, index, english] = await Promise.all([
+    readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
+    readFile(new URL('index.astro', root), 'utf8'),
+    readFile(new URL('en/index.astro', root), 'utf8'),
+  ]);
+  // The corner of the map that draws the boundaries keeps it; the footer keeps
+  // its links and stops repeating it.
+  assert.match(map, /entry-map-attribution/);
+  assert.doesNotMatch(base, /entry-attribution/);
+  assert.match(base, /class="entry-footer-links"/);
+  for (const page of [index, english]) assert.doesNotMatch(page, /\battribution\b/);
+});

@@ -46,17 +46,12 @@ interface Props {
    * site header so the boundary and the navigation are each stated exactly once. The skip link,
    * head, main, and footer are unchanged. `DemoShell` does not set this — the page passes it.
    *
-   * `'entry'` is the front door, S1 and S2 of the entry flow. The root asks one question, so the
-   * chrome is a wordmark, the language switch, and a footer of the boundary attribution plus
-   * privacy and source (entry-flow R1). Banner, head, skip link, and direction contract are the
-   * same as every other page.
+   * `'entry'` is the front door of the entry flow. The root asks one question, so the chrome is a
+   * wordmark, the language switch, and a footer of privacy and source (entry-flow R1). The boundary
+   * attribution rides in the corner of the map that draws the boundaries, so the footer does not
+   * repeat it. Banner, head, skip link, and direction contract are the same as every other page.
    */
   chrome?: 'site' | 'demo' | 'entry';
-  /**
-   * Entry chrome only: render the boundary attribution in the footer. The map
-   * pages set it because they draw the boundaries; the intent screen does not.
-   */
-  attribution?: boolean;
 }
 
 const {
@@ -65,7 +60,6 @@ const {
   lang = 'en',
   alternates,
   chrome = 'site',
-  attribution = false,
 } = Astro.props as Props;
 const demoChrome = chrome === 'demo';
 const entryChrome = chrome === 'entry';
@@ -240,7 +234,6 @@ const isCurrentPath = (href: string) =>
 
       {entryChrome && (
         <footer class="entry-footer" id="site-footer">
-          {attribution && <p class="entry-attribution">{text(entryStrings.attribution, lang)}</p>}
           <p class="entry-footer-links">
             <a href="/privacy">{text(entryStrings.privacy, lang)}</a>
             <a href="/source">{text(entryStrings.source, lang)}</a>

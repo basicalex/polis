@@ -1,0 +1,51 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S5 · the case number. The end of the flow: the number, the link that carries
+ * the reopen key in its fragment, and the way into the public record (R10).
+ * Nothing is fetched here — the number is in the path and the key is in the
+ * fragment, which never reaches a server.
+ */
+
+import Base from '../../../layouts/Base.astro';
+import CaseNumber from '../../../components/entry/CaseNumber.astro';
+import IntentScreen from '../../../components/entry/IntentScreen.astro';
+import { entryMeta, entryStrings } from '../../../content/entry';
+import { text } from '../../../content/chrome';
+import { findPilotPlace, findPlace } from '../../../content/places';
+import { caseNumberRegExp } from '../../../content/pilot/vrsar-public-case';
+
+const lang = 'hr' as const;
+const slug = Astro.params.place ?? '';
+const place = findPlace(slug);
+if (!place) return new Response(null, { status: 404 });
+const caseNumber = (Astro.params.caseNumber ?? '').toUpperCase();
+if (!caseNumberRegExp.test(caseNumber)) return new Response(null, { status: 404 });
+const pilot = findPilotPlace(slug);
+const name = place.name[lang];
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{
+    hr: `/${place.slug}/prijava/${caseNumber}`,
+    en: `/en/${place.slug}/prijava/${caseNumber}`,
+  }}
+  title={pilot ? `${caseNumber} — ${text(entryStrings.caseNumberTitle, lang)}` : `Polis — ${name}`}
+  description={
+    pilot
+      ? text(entryMeta.caseNumberDescription, lang)
+      : `${name} — ${text(entryStrings.notHereYet, lang)}`
+  }
+>
+  {
+    pilot ? (
+      <CaseNumber lang={lang} place={pilot} caseNumber={caseNumber} />
+    ) : (
+      <IntentScreen lang={lang} place={place} />
+    )
+  }
+</Base>

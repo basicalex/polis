@@ -1,0 +1,124 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S4 · filing.
+ *
+ * A pin, a text and one optional line about where exactly. No name, no e-mail,
+ * no phone, no category, no upload: the form asks for no identity at all
+ * (entry-flow R9), and the same record comes out of it as out of an SMS or a
+ * call. The map has no street tiles, so the pin is coarse by construction and
+ * the free-text line carries the detail.
+ */
+
+import '../../styles/entry.css';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import type { Lang } from '../../content/public-release';
+import type { LivePlace } from '../../content/places';
+import { publicCaseCopy } from '../../content/pilot/vrsar-public-case';
+
+interface Props {
+  lang: Lang;
+  place: LivePlace;
+}
+
+const { lang, place } = Astro.props as Props;
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
+
+const MAX_TEXT = 4000;
+const MAX_WHERE = 900;
+const COUNT_FROM = 3500;
+
+/*
+ * The same number VrsarChannelHelp shows, read the same way: with nothing
+ * configured the line says the number is not active rather than printing one
+ * that would not answer.
+ */
+const configuredPhone = String(import.meta.env.PUBLIC_PILOT_PHONE ?? '').trim();
+const phoneActive = /^\+?[\d\s()-]{6,}$/.test(configuredPhone);
+const phone = phoneActive ? configuredPhone : publicCaseCopy.channel.numberUnset[lang === 'en' ? 'en' : 'hr'];
+
+const strings = {
+  required: label('reportTextRequired'),
+  failed: label('reportFailed'),
+  sending: label('reportSending'),
+  submit: label('reportSubmit'),
+  charsLeft: label('reportCharsLeft'),
+};
+---
+
+<div
+  class="report"
+  data-report
+  data-base={base}
+  data-place={place.slug}
+  data-county={place.county}
+  data-geo={place.geoSlug}
+  data-max-text={String(MAX_TEXT)}
+  data-count-from={String(COUNT_FROM)}
+>
+  <a class="intent-back" href={`${base}${place.slug}`}>← {place.name[lang]}</a>
+  <h1 class="report-title">{label('report')}</h1>
+
+  <form class="report-form" data-report-form novalidate>
+    <div class="report-map" data-report-map>
+      <svg data-map viewBox="0 0 1000 980" role="img" aria-label={label('reportMapLabel')}>
+        <g data-layer="neighbours"></g>
+        <g data-layer="place"></g>
+        <g data-layer="pin"></g>
+      </svg>
+      <div class="entry-map-actions">
+        <button class="btn" type="button" data-locate>{label('locate')}</button>
+      </div>
+      <p class="entry-map-attribution">{label('attribution')}</p>
+    </div>
+    <p class="report-map-caption" id="report-map-caption">{label('reportMapCaption')}</p>
+
+    <div class="field">
+      <label for="report-text">{label('reportTextLabel')}</label>
+      <textarea
+        id="report-text"
+        name="text"
+        rows="6"
+        required
+        maxlength={MAX_TEXT}
+        aria-describedby="report-text-count report-text-error"
+        data-text
+      ></textarea>
+      <p class="field-hint" id="report-text-count" role="status" aria-live="polite" data-count></p>
+      <p class="field-error" id="report-text-error" role="alert" data-text-error></p>
+    </div>
+
+    <div class="field">
+      <label for="report-where">{label('reportWhereLabel')}</label>
+      <input
+        type="text"
+        id="report-where"
+        name="where"
+        maxlength={MAX_WHERE}
+        autocomplete="off"
+        placeholder={label('reportWherePlaceholder')}
+        data-where
+      />
+    </div>
+
+    <button class="btn report-submit" data-variant="primary" type="submit" data-submit>
+      {strings.submit}
+    </button>
+    <p class="report-note">{label('reportPrivacyNote')}</p>
+    <p class="field-error" role="alert" data-form-error></p>
+
+    <noscript>
+      <p class="report-note">{label('reportNoScript')} {phone}</p>
+    </noscript>
+  </form>
+
+  <script is:inline type="application/json" id="report-strings" set:html={JSON.stringify(strings)} />
+</div>
+
+<script>
+  import '../../scripts/entry/report';
+</script>

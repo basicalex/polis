@@ -63,6 +63,14 @@ const expectedCurrentByKind = {
     '/pilot/vrsar/receipts',
     '/pilot/vrsar/receipts/:receiptId',
     '/pilot/vrsar/zapis/:caseNumber',
+    '/:place/zapis',
+    '/:place/zapis/:caseNumber',
+    '/:place/prijava',
+    '/:place/prijava/:caseNumber',
+    '/en/:place/zapis',
+    '/en/:place/zapis/:caseNumber',
+    '/en/:place/prijava',
+    '/en/:place/prijava/:caseNumber',
     '/proofs',
     '/proofs/:id',
     '/rewards',
@@ -173,6 +181,10 @@ test('the most literal pattern wins and only a real tie throws', () => {
   assert.equal(classifyReleasePath('/en/vrsar').id, 'place-en');
   assert.equal(classifyReleasePath('/vrsar/zapis').id, 'place-record');
   assert.equal(classifyReleasePath('/vrsar/prijava/VRS-878993').id, 'place-report-case');
+  assert.equal(classifyReleasePath('/en/vrsar/zapis').id, 'place-record-en');
+  assert.equal(classifyReleasePath('/en/vrsar/zapis/VRS-878993').id, 'place-record-case-en');
+  assert.equal(classifyReleasePath('/en/vrsar/prijava').id, 'place-report-en');
+  assert.equal(classifyReleasePath('/en/vrsar/prijava/VRS-878993').id, 'place-report-case-en');
   // Equal literal counts: the pattern whose literal sits further left wins, so
   // `/en/zapis` is the English place page and not a Croatian record route.
   assert.equal(classifyReleasePath('/en/zapis').id, 'place-en');
@@ -216,7 +228,11 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/vrsar', 'safe'],
     ['/en/vrsar', 'safe'],
     ['/vrsar/zapis', 'backend-dependent'],
+    ['/vrsar/zapis/VRS-878993', 'backend-dependent'],
     ['/vrsar/prijava', 'backend-dependent'],
+    ['/vrsar/prijava/VRS-878993', 'backend-dependent'],
+    ['/en/vrsar/zapis', 'backend-dependent'],
+    ['/en/vrsar/prijava', 'backend-dependent'],
     ['/release-boundary', 'safe'],
     ['/governance/jur-croatia-local', 'backend-dependent'],
     ['/governance/jur-croatia-local/institutions/inst-complaints-office', 'backend-dependent'],

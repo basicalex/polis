@@ -76,3 +76,55 @@ export function lonLatToView(lon: number, lat: number): Point {
   const [x, y] = lonLatTo3765(lon, lat);
   return metresToView(x, y);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Inverse                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** SVG user units of the 1000 × 980 viewBox back to EPSG:3765 metres. */
+export function viewToMetres(x: number, y: number): Point {
+  return [x / UNITS_PER_METRE + BBOX_3765[0], BBOX_3765[3] - y / UNITS_PER_METRE];
+}
+
+/** Inverse transverse Mercator, EPSG:3765 metres to WGS84 degrees (Snyder 8-x). */
+export function metresToLonLat(x: number, y: number): Point {
+  const e4 = E2 * E2;
+  const e6 = e4 * E2;
+  const m = (y - FALSE_NORTHING) / K0;
+  const mu = m / (A * (1 - E2 / 4 - (3 * e4) / 64 - (5 * e6) / 256));
+  const root = Math.sqrt(1 - E2);
+  const e1 = (1 - root) / (1 + root);
+  const phi1 =
+    mu +
+    ((3 * e1) / 2 - (27 * e1 ** 3) / 32) * Math.sin(2 * mu) +
+    ((21 * e1 ** 2) / 16 - (55 * e1 ** 4) / 32) * Math.sin(4 * mu) +
+    ((151 * e1 ** 3) / 96) * Math.sin(6 * mu) +
+    ((1097 * e1 ** 4) / 512) * Math.sin(8 * mu);
+  const sinPhi1 = Math.sin(phi1);
+  const cosPhi1 = Math.cos(phi1);
+  const tanPhi1 = Math.tan(phi1);
+  const c1 = EP2 * cosPhi1 * cosPhi1;
+  const t1 = tanPhi1 * tanPhi1;
+  const n1 = A / Math.sqrt(1 - E2 * sinPhi1 * sinPhi1);
+  const r1 = (A * (1 - E2)) / (1 - E2 * sinPhi1 * sinPhi1) ** 1.5;
+  const d = (x - FALSE_EASTING) / (n1 * K0);
+  const phi =
+    phi1 -
+    ((n1 * tanPhi1) / r1) *
+      ((d * d) / 2 -
+        ((5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * EP2) * d ** 4) / 24 +
+        ((61 + 90 * t1 + 298 * c1 + 45 * t1 * t1 - 252 * EP2 - 3 * c1 * c1) * d ** 6) / 720);
+  const lam =
+    LON0 +
+    (d -
+      ((1 + 2 * t1 + c1) * d ** 3) / 6 +
+      ((5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * EP2 + 24 * t1 * t1) * d ** 5) / 120) /
+      cosPhi1;
+  return [(lam * 180) / Math.PI, (phi * 180) / Math.PI];
+}
+
+/** SVG user units straight back to WGS84 degrees. Inverse of `lonLatToView`. */
+export function viewToLonLat(x: number, y: number): Point {
+  const [mx, my] = viewToMetres(x, y);
+  return metresToLonLat(mx, my);
+}

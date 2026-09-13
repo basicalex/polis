@@ -478,8 +478,16 @@ try {
     assert(hasShell, `${demoPath} does not render the demo shell`);
   }
 
+  // The place map and the intent screen are safe, but everything behind the two
+  // buttons needs the pilot backend, which the release build does not carry.
   for (const boundaryCase of [
     { path: '/partners', kind: 'backend-dependent' },
+    { path: '/vrsar/zapis', kind: 'backend-dependent' },
+    { path: '/vrsar/zapis/VRS-123456', kind: 'backend-dependent' },
+    { path: '/vrsar/prijava', kind: 'backend-dependent' },
+    { path: '/vrsar/prijava/VRS-123456', kind: 'backend-dependent' },
+    { path: '/en/vrsar/zapis', kind: 'backend-dependent' },
+    { path: '/en/vrsar/prijava', kind: 'backend-dependent' },
     { path: '/complaints/case-private', kind: 'restricted' },
     { path: '/contribute/review', kind: 'not-live' },
   ]) {
@@ -496,6 +504,9 @@ try {
       `${boundaryCase.path} did not render release-boundary content`,
     );
   }
+
+  // Gating the flow must not take the two buttons off the intent screen.
+  await assertIntent(desktopPage, 'hr');
 
   const legacyPresent = await desktopPage.goto(`${baseUrl}/?present=1`, {
     waitUntil: 'domcontentloaded',

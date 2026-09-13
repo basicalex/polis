@@ -88,3 +88,17 @@ export function placesInCounty(county: string): Place[] {
 }
 
 export const liveSlugs: readonly string[] = livePlaces.map((place) => place.slug);
+
+/** The one pilot that can take a case today; the flow pages need its backend. */
+export const PILOT_PLACE_ID = 'vrsar-orsera';
+
+/**
+ * The place behind a slug when it is live and its cases reach the pilot
+ * backend. Anything else — a known place without a signed municipality, or a
+ * live place on a pilot this build cannot talk to — comes back undefined and
+ * the page falls through to the intent screen's "još nije ovdje" (R4).
+ */
+export function findPilotPlace(slug: string): LivePlace | undefined {
+  const place = findPlace(slug);
+  return place && place.status === 'live' && place.pilotId === PILOT_PLACE_ID ? place : undefined;
+}

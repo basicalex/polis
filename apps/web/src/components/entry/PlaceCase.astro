@@ -1,0 +1,61 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * One public case under its place, in the entry chrome.
+ *
+ * The shell, the trace, the receipt and the attention controls are the pilot
+ * components, driven by the same client script as /pilot/vrsar/zapis — nothing
+ * is forked here. The only addition is the reopen-key line: when the person
+ * arrives on their own link, the fragment is theirs to keep, so the page says
+ * so and offers to copy the whole address. The fragment never leaves the
+ * browser: it is not sent, not logged, and never written into a query.
+ */
+
+import '../../styles/entry.css';
+import '../../styles/pilot/vrsar.css';
+import VrsarPublicShell from '../pilot/vrsar/VrsarPublicShell.astro';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import type { Lang } from '../../content/public-release';
+import type { LivePlace } from '../../content/places';
+import { pilotCopy } from '../../content/pilot/vrsar';
+
+interface Props {
+  lang: Lang;
+  place: LivePlace;
+}
+
+const { lang, place } = Astro.props as Props;
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
+const strings = { copyLink: label('copyLink'), copied: label('copied') };
+---
+
+<div class="entry-case" data-entry-case>
+  <a class="intent-back" href={`${base}${place.slug}/zapis`}>{label('caseBack')}</a>
+
+  <p class="entry-case-key" data-key-line hidden>
+    <span>{label('caseKeyLine')}</span>
+    <button class="btn" data-variant="secondary" type="button" data-copy-link>{strings.copyLink}</button>
+  </p>
+
+  <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>
+    {pilotCopy.common.loading[lang]}
+  </p>
+
+  <VrsarPublicShell lang={lang} />
+
+  <div class="pilot-state-actions">
+    <button class="btn" data-variant="secondary" type="button" data-retry hidden>
+      {pilotCopy.common.retry[lang]}
+    </button>
+  </div>
+
+  <script is:inline type="application/json" id="entry-case-strings" set:html={JSON.stringify(strings)} />
+</div>
+
+<script>
+  import '../../scripts/entry/case';
+</script>

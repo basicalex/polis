@@ -23,13 +23,22 @@ const OUT = process.env.SHOT_OUT_DIR ?? '/tmp/polis-ui-audit';
 const JSON_OUT = process.env.UI_AUDIT_JSON ?? '';
 
 const ROUTES = [
-  // The entry flow: the map, a chosen region, and the intent screen.
+  // The entry flow: the map, a chosen region, the intent screen, the place
+  // ledger, one public case, filing, and the case number.
   '/',
   '/?zupanija=istarska',
   '/vrsar',
+  '/vrsar/zapis',
+  '/vrsar/zapis/VRS-123456',
+  '/vrsar/prijava',
+  '/vrsar/prijava/VRS-123456',
   '/porec',
   '/en/',
   '/en/vrsar',
+  '/en/vrsar/zapis',
+  '/en/vrsar/zapis/VRS-123456',
+  '/en/vrsar/prijava',
+  '/en/vrsar/prijava/VRS-123456',
   '/presentation',
   '/en/presentation',
   '/transparency',

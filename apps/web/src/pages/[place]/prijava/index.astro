@@ -1,0 +1,36 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * S4 · filing. A pin, a text, one line about where exactly, and no identity at
+ * all (entry-flow R9). A place with no backend behind it cannot take a case, so
+ * it gets the intent screen's "još nije ovdje" instead of a form (R4).
+ */
+
+import Base from '../../../layouts/Base.astro';
+import IntentScreen from '../../../components/entry/IntentScreen.astro';
+import ReportForm from '../../../components/entry/ReportForm.astro';
+import { entryMeta, entryStrings } from '../../../content/entry';
+import { text } from '../../../content/chrome';
+import { findPilotPlace, findPlace } from '../../../content/places';
+
+const lang = 'hr' as const;
+const slug = Astro.params.place ?? '';
+const place = findPlace(slug);
+if (!place) return new Response(null, { status: 404 });
+const pilot = findPilotPlace(slug);
+const name = place.name[lang];
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{ hr: `/${place.slug}/prijava`, en: `/en/${place.slug}/prijava` }}
+  title={pilot ? `${text(entryStrings.report, lang)} — ${name}` : `Polis — ${name}`}
+  description={
+    pilot ? text(entryMeta.reportDescription, lang) : `${name} — ${text(entryStrings.notHereYet, lang)}`
+  }
+>
+  {pilot ? <ReportForm lang={lang} place={pilot} /> : <IntentScreen lang={lang} place={place} />}
+</Base>
