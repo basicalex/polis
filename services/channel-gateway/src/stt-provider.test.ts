@@ -140,6 +140,8 @@ function channelConfig(overrides: Partial<ChannelConfig>): ChannelConfig {
     maxRecordingSeconds: 180,
     maxInboundChars: 1_600,
     vaultTtlDays: 180,
+    appendWindowHours: 72,
+    closedRetentionDays: 30,
     eventTtlHours: 168,
     audioTtlMinutes: 60,
     purgeIntervalMs: 3_600_000,

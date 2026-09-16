@@ -9,7 +9,7 @@ import { logEvent } from './log.js';
 import { verifyChannelMigrations } from './migrations.js';
 import { createChannelProvider } from './provider-factory.js';
 import { PostgresChannelStore } from './repository.js';
-import { purgeExpired } from './retention.js';
+import { runRetentionCycle } from './retention.js';
 import { deliverOutbound, runRelayCycle } from './relay.js';
 import { channelRoutes } from './routes.js';
 import { createTraceClient } from './trace-client.js';
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   };
   const server = startService('channel-gateway', port, channelRoutes(deps), { readiness });
   const purgeTimer = setInterval(() => {
-    void purgeExpired(repository, deps.now()).catch((error: unknown) => {
+    void runRetentionCycle(deps).catch((error: unknown) => {
       logEvent({
         service: 'channel-gateway',
         stage: 'retention',

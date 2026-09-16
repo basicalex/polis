@@ -13,6 +13,7 @@ import type {
   ChannelRecording,
   EventState,
   InboxCompletion,
+  LinkClosure,
   OutboxState,
   PurgeCounts,
   RecordingUpdate,
@@ -45,6 +46,7 @@ function copyLink(value: ChannelLink): ChannelLink {
     reopenKeyNonce: copyBytes(value.reopenKeyNonce),
     reopenKeyTag: copyBytes(value.reopenKeyTag),
     lastMessageAt: new Date(value.lastMessageAt),
+    closedAt: value.closedAt ? new Date(value.closedAt) : null,
     expiresAt: new Date(value.expiresAt),
   };
 }
@@ -149,9 +151,27 @@ export class MemoryChannelStore implements ChannelStore {
     this.#links.set(`${value.phoneHash}\0${value.recordId}`, copyLink(value));
   }
 
-  async closeLink(phoneHash: string, recordId: string): Promise<void> {
+  async closeLink(phoneHash: string, recordId: string, closure: LinkClosure): Promise<void> {
     const value = this.#links.get(`${phoneHash}\0${recordId}`);
-    if (value) value.state = 'closed';
+    if (!value) return;
+    value.state = 'closed';
+    value.closedAt = new Date(closure.closedAt);
+    value.expiresAt = new Date(
+      Math.min(value.expiresAt.getTime(), new Date(closure.expiresAt).getTime()),
+    );
+  }
+
+  async listLinksByState(state: ChannelLink['state'], limit: number): Promise<ChannelLink[]> {
+    return [...this.#links.values()]
+      .filter((value) => value.state === state)
+      .sort((left, right) => left.lastMessageAt.getTime() - right.lastMessageAt.getTime())
+      .slice(0, Math.max(0, limit))
+      .map(copyLink);
+  }
+
+  async capIdentityExpiry(phoneHash: string, expiresAt: Date): Promise<void> {
+    const value = this.#identities.get(phoneHash);
+    if (value && value.expiresAt > expiresAt) value.expiresAt = new Date(expiresAt);
   }
   async upsertCall(value: ChannelCall): Promise<void> {
     const existing = this.#calls.get(value.callId);

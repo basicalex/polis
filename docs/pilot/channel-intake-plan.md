@@ -14,7 +14,7 @@ Stub injection is available only with `CHANNEL_PROVIDER=stub` and `CHANNEL_ALLOW
 
 1. `channel-gateway` normalizes the sender to E.164, seals the number with AES-256-GCM, and computes a municipality-scoped, peppered HMAC hash only for abuse limits.
 2. `STOP`, `STOJ`, or `PREKID` blocks the hashed number. `START`, `POČNI`, or `POCNI` reopens the channel.
-3. The gateway seals the SMS body while it waits for processing. A new report creates a Trace case. A later message from the same number appends to its open case. A case number such as `VRS-184213` selects that open case when the number has more than one.
+3. The gateway seals the SMS body while it waits for processing. A new report creates a Trace case. A later text from the same number appends to its open case if that case had activity in the last 72 hours. A text written as `NOVA` plus the report opens a new case; the keyword must be in capitals, so the ordinary word `nova` stays part of the text. A text that starts with the case number, such as `VRS-184213`, goes to that case at any time.
 4. Trace returns a case number and a reopen reference. The gateway keeps the number-to-case link and queues a Croatian confirmation through the Infobip SMS API.
 5. Trace creates a case number with the prefix `VRS-` and six random digits. The first digit is never zero. The old counter table remains but is unused. Random numbers prevent enumeration and hide the public case count while remaining easy to dictate by phone.
 6. An Infobip delivery report changes an outbox message to `delivered` or `failed`. Staff see `DOSTAVLJENO` only after a real delivery report. Stub mode leaves the stamp at `U DOSTAVI`.
@@ -99,7 +99,7 @@ code.
 
 ## Retention
 
-- The target retention rule for the gateway vault is to purge a number and its contact-data links 30 days after the case closes or after its last message. The code will follow this case-tied rule.
+- The gateway purges the relay link and its vault material 30 days after the case is resolved or closed. `CHANNEL_CLOSED_RETENTION_DAYS` sets that period, default 30. `CHANNEL_VAULT_TTL_DAYS` is the ceiling for cases that never close.
 - The gateway deletes Infobip recordings and transcripts after processing. Set the Infobip account retention to the minimum.
 - The gateway zeroes the in-memory original after transcription and distortion. It never stores original audio.
 - The default audio sink retains no distorted audio after transcription. Any non-default sink needs a written purpose, access rule, and shorter explicit retention period before use.
@@ -145,5 +145,6 @@ Do not set `CHANNEL_PROVIDER=infobip` until every item has an owner and dated ev
 - [ ] L8: Capture one live inbound SMS, one delivery report, and one full call event sequence with a recording file. Confirm the event names, signature header format, and transcription endpoint with Infobip before changing `CHANNEL_PROVIDER` to `infobip`.
 - [ ] Obtain native Croatian sign-off for the SMS, call prompt, readback, stop, error, and status copy.
 - [ ] Verify rate caps per hashed number and per case, `STOP`/`STOJ`/`PREKID` blocking, webhook spoof rejection, provider recording and transcript deletion, and the case-tied vault purge.
+- [ ] Run the closure sweep against live cases and confirm it purges links 30 days after a case is resolved or closed.
 - [ ] Set the Infobip account's recording and transcript retention to the minimum.
 - [ ] Set `CHANNEL_PROCESSING_AGREEMENT=true` only after the agreements and checks above are complete.

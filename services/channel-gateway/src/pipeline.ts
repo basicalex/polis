@@ -439,24 +439,37 @@ export async function handleDeliveryEvent(
   };
 }
 
-function selectedLink(links: ChannelLink[], text: string): ChannelLink | null {
-  if (links.length === 0) return null;
+function selectTarget(
+  links: ChannelLink[],
+  text: string,
+  now: Date,
+  windowMs: number,
+): { link: ChannelLink | null; text: string } {
+  const nova = /^\s*NOVA(?=$|[\s:,;.!?-])[\s:,;.!?-]*/u.exec(text);
+  if (nova) {
+    const remainder = text.slice(nova[0].length);
+    return { link: null, text: remainder.trim() ? remainder : text };
+  }
   const targeted = /^\s*([A-Z]{2,10}-\d{1,12})(?:\s*[:,;-]\s*|\s+)/iu.exec(text)?.[1];
-  if (!targeted) return links[0] ?? null;
-  return (
-    links.find((link) => link.caseNumber.toUpperCase() === targeted.toUpperCase()) ??
-    links[0] ??
-    null
-  );
+  if (targeted) {
+    const link = links.find(
+      (candidate) => candidate.caseNumber.toUpperCase() === targeted.toUpperCase(),
+    );
+    if (link) return { link, text };
+  }
+  const link = links[0] ?? null;
+  if (link && now.getTime() - link.lastMessageAt.getTime() <= windowMs) return { link, text };
+  return { link: null, text };
 }
 
 async function createOrAppend(
   row: InboxRow,
   deps: PipelineDeps,
 ): Promise<{ recordId: string; caseNumber: string; created: boolean } | null> {
-  const text = openBody(deps, row);
+  const rawText = openBody(deps, row);
   const links = await deps.store.listOpenLinks(row.phoneHash);
-  const link = selectedLink(links, text);
+  const windowMs = deps.config.appendWindowHours * 3_600_000;
+  const { link, text } = selectTarget(links, rawText, deps.now(), windowMs);
   if (link) {
     const reopenKey = openReopenKey(deps, link);
     await deps.trace.appendChannelMessage(
@@ -515,6 +528,7 @@ async function createOrAppend(
     keyVersion: reopen.version,
     channel: 'sms',
     state: 'open',
+    closedAt: null,
     lastMessageAt: deps.now(),
     expiresAt: ttl(deps, deps.config.vaultTtlDays),
   });
@@ -605,4 +619,10 @@ export async function runInboxCycle(
   return { processed, failed };
 }
 
-export const __private = { parseMessagingEvents, parseDeliveryEvents, sha256Hex, openBody };
+export const __private = {
+  parseMessagingEvents,
+  parseDeliveryEvents,
+  sha256Hex,
+  openBody,
+  selectTarget,
+};

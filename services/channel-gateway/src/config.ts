@@ -48,6 +48,8 @@ export interface ChannelConfig {
   maxRecordingSeconds: number;
   maxInboundChars: number;
   vaultTtlDays: number;
+  appendWindowHours: number;
+  closedRetentionDays: number;
   eventTtlHours: number;
   audioTtlMinutes: number;
   purgeIntervalMs: number;
@@ -395,6 +397,20 @@ export function parseChannelConfig(env: NodeJS.ProcessEnv = process.env): Channe
       10_000,
     ),
     vaultTtlDays: integerValue(env.CHANNEL_VAULT_TTL_DAYS, 'CHANNEL_VAULT_TTL_DAYS', 180, 1, 3_650),
+    appendWindowHours: integerValue(
+      env.CHANNEL_APPEND_WINDOW_HOURS,
+      'CHANNEL_APPEND_WINDOW_HOURS',
+      72,
+      1,
+      720,
+    ),
+    closedRetentionDays: integerValue(
+      env.CHANNEL_CLOSED_RETENTION_DAYS,
+      'CHANNEL_CLOSED_RETENTION_DAYS',
+      30,
+      1,
+      365,
+    ),
     eventTtlHours: integerValue(
       env.CHANNEL_EVENT_TTL_HOURS,
       'CHANNEL_EVENT_TTL_HOURS',

@@ -14,6 +14,7 @@ import type {
   ChannelRecording,
   EventState,
   InboxCompletion,
+  LinkClosure,
   OutboxState,
   PurgeCounts,
   RecordingUpdate,
@@ -46,6 +47,7 @@ interface LinkRow {
   state: ChannelLink['state'];
   last_message_at: DateValue;
   expires_at: DateValue;
+  closed_at: DateValue | null;
 }
 
 interface CallRow {
@@ -151,6 +153,7 @@ function link(row: LinkRow): ChannelLink {
     channel: row.channel,
     state: row.state,
     lastMessageAt: date(row.last_message_at),
+    closedAt: row.closed_at ? date(row.closed_at) : null,
     expiresAt: date(row.expires_at),
   };
 }
@@ -278,7 +281,7 @@ export class PostgresChannelStore implements ChannelStore {
   async listOpenLinks(phoneHash: string): Promise<ChannelLink[]> {
     const rows = await this.#sql<LinkRow[]>`
       SELECT phone_hash, record_id, case_number, reopen_key_ciphertext, reopen_key_nonce,
-             reopen_key_tag, key_version, channel, state, last_message_at, expires_at
+             reopen_key_tag, key_version, channel, state, last_message_at, closed_at, expires_at
       FROM channel_links
       WHERE phone_hash = ${phoneHash} AND state = 'open'
       ORDER BY last_message_at DESC
@@ -289,7 +292,7 @@ export class PostgresChannelStore implements ChannelStore {
   async findLinkByRecord(recordId: string): Promise<ChannelLink | null> {
     const rows = await this.#sql<LinkRow[]>`
       SELECT phone_hash, record_id, case_number, reopen_key_ciphertext, reopen_key_nonce,
-             reopen_key_tag, key_version, channel, state, last_message_at, expires_at
+             reopen_key_tag, key_version, channel, state, last_message_at, closed_at, expires_at
       FROM channel_links
       WHERE record_id = ${recordId}
       LIMIT 1
@@ -301,11 +304,11 @@ export class PostgresChannelStore implements ChannelStore {
     await this.#sql`
       INSERT INTO channel_links (
         phone_hash, record_id, case_number, reopen_key_ciphertext, reopen_key_nonce,
-        reopen_key_tag, key_version, channel, state, last_message_at, expires_at
+        reopen_key_tag, key_version, channel, state, last_message_at, closed_at, expires_at
       ) VALUES (
         ${value.phoneHash}, ${value.recordId}, ${value.caseNumber}, ${value.reopenKeyCiphertext},
         ${value.reopenKeyNonce}, ${value.reopenKeyTag}, ${value.keyVersion}, ${value.channel},
-        ${value.state}, ${value.lastMessageAt}, ${value.expiresAt}
+        ${value.state}, ${value.lastMessageAt}, ${value.closedAt}, ${value.expiresAt}
       )
       ON CONFLICT (phone_hash, record_id) DO UPDATE SET
         case_number = EXCLUDED.case_number,
@@ -316,16 +319,41 @@ export class PostgresChannelStore implements ChannelStore {
         channel = EXCLUDED.channel,
         state = EXCLUDED.state,
         last_message_at = EXCLUDED.last_message_at,
+        closed_at = EXCLUDED.closed_at,
         expires_at = EXCLUDED.expires_at
     `;
   }
 
-  async closeLink(phoneHash: string, recordId: string): Promise<void> {
+  async closeLink(phoneHash: string, recordId: string, closure: LinkClosure): Promise<void> {
     await this.#sql`
-      UPDATE channel_links SET state = 'closed'
+      UPDATE channel_links
+      SET state = 'closed',
+          closed_at = ${closure.closedAt},
+          expires_at = LEAST(expires_at, ${closure.expiresAt})
       WHERE phone_hash = ${phoneHash} AND record_id = ${recordId}
     `;
   }
+
+  async listLinksByState(state: ChannelLink['state'], limit: number): Promise<ChannelLink[]> {
+    const rows = await this.#sql<LinkRow[]>`
+      SELECT phone_hash, record_id, case_number, reopen_key_ciphertext, reopen_key_nonce,
+             reopen_key_tag, key_version, channel, state, last_message_at, closed_at, expires_at
+      FROM channel_links
+      WHERE state = ${state}
+      ORDER BY last_message_at ASC
+      LIMIT ${limit}
+    `;
+    return rows.map(link);
+  }
+
+  async capIdentityExpiry(phoneHash: string, expiresAt: Date): Promise<void> {
+    await this.#sql`
+      UPDATE channel_identities
+      SET expires_at = LEAST(expires_at, ${expiresAt})
+      WHERE phone_hash = ${phoneHash}
+    `;
+  }
+
   async upsertCall(value: ChannelCall): Promise<void> {
     await this.#sql`
       INSERT INTO channel_calls (

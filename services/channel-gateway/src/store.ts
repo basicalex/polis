@@ -12,6 +12,7 @@ import type {
   CallStep,
   EventState,
   InboxCompletion,
+  LinkClosure,
   OutboxState,
   PurgeCounts,
   RecordingUpdate,
@@ -24,7 +25,11 @@ export interface ChannelStore {
   listOpenLinks(phoneHash: string): Promise<ChannelLink[]>;
   findLinkByRecord(recordId: string): Promise<ChannelLink | null>;
   upsertLink(link: ChannelLink): Promise<void>;
-  closeLink(phoneHash: string, recordId: string): Promise<void>;
+  /** Marks the link closed and caps its expiry to the closed-case retention. */
+  closeLink(phoneHash: string, recordId: string, closure: LinkClosure): Promise<void>;
+  listLinksByState(state: ChannelLink['state'], limit: number): Promise<ChannelLink[]>;
+  /** Lowers the identity expiry; never extends it. */
+  capIdentityExpiry(phoneHash: string, expiresAt: Date): Promise<void>;
   upsertCall(call: ChannelCall): Promise<void>;
   getCall(callId: string): Promise<ChannelCall | null>;
   markCallStep(callId: string, step: CallStep, updatedAt: Date): Promise<void>;

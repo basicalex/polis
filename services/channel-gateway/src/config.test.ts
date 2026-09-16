@@ -36,6 +36,8 @@ test('development defaults are closed stubs with bounded retention and active ke
   assert.equal(config.maxRecordingSeconds, 180);
   assert.equal(config.maxInboundChars, 1_600);
   assert.equal(config.vaultTtlDays, 180);
+  assert.equal(config.appendWindowHours, 72);
+  assert.equal(config.closedRetentionDays, 30);
   assert.equal(config.eventTtlHours, 168);
   assert.equal(config.audioTtlMinutes, 60);
   assert.equal(config.purgeIntervalMs, 3_600_000);
@@ -194,6 +196,10 @@ test('tunables reject unsafe enum, boolean, zero distortion, and out-of-range in
     ['CHANNEL_MAX_RECORDING_SECONDS', '0'],
     ['CHANNEL_MAX_INBOUND_CHARS', '0'],
     ['CHANNEL_VAULT_TTL_DAYS', '0'],
+    ['CHANNEL_APPEND_WINDOW_HOURS', '0'],
+    ['CHANNEL_APPEND_WINDOW_HOURS', '721'],
+    ['CHANNEL_CLOSED_RETENTION_DAYS', '0'],
+    ['CHANNEL_CLOSED_RETENTION_DAYS', '366'],
     ['CHANNEL_EVENT_TTL_HOURS', '0'],
     ['CHANNEL_AUDIO_TTL_MINUTES', '0'],
     ['CHANNEL_PURGE_INTERVAL_MS', '999'],
@@ -210,6 +216,8 @@ test('tunables reject unsafe enum, boolean, zero distortion, and out-of-range in
   for (const [key, value] of invalid) {
     assert.throws(() => parse({ [key]: value }), new RegExp(key));
   }
+  assert.equal(parse({ CHANNEL_APPEND_WINDOW_HOURS: '720' }).appendWindowHours, 720);
+  assert.equal(parse({ CHANNEL_CLOSED_RETENTION_DAYS: '365' }).closedRetentionDays, 365);
   assert.throws(
     () =>
       parse({

@@ -36,6 +36,8 @@ function config(overrides: Partial<ChannelConfig> = {}): ChannelConfig {
     maxRecordingSeconds: 120,
     maxInboundChars: 1000,
     vaultTtlDays: 30,
+    appendWindowHours: 72,
+    closedRetentionDays: 30,
     eventTtlHours: 24,
     audioTtlMinutes: 30,
     purgeIntervalMs: 60_000,
@@ -74,7 +76,7 @@ function event(id: string, from: string, text: string): Uint8Array {
 
 interface Fixture {
   deps: PipelineDeps;
-  caseRequests: unknown[];
+  caseRequests: Array<{ text: string | null }>;
   appendRequests: Array<{ caseNumber: string; input: unknown }>;
   logs: string[];
   sentMessages: Array<{ to: string; text: string; idempotencyKey: string }>;
@@ -84,7 +86,7 @@ function fixture(
   traceOverrides: Partial<TraceClient> = {},
   configOverrides: Partial<ChannelConfig> = {},
 ): Fixture {
-  const caseRequests: unknown[] = [];
+  const caseRequests: Array<{ text: string | null }> = [];
   const appendRequests: Array<{ caseNumber: string; input: unknown }> = [];
   const logs: string[] = [];
   const sentMessages: Array<{ to: string; text: string; idempotencyKey: string }> = [];
@@ -124,6 +126,9 @@ function fixture(
         return { messages: [] };
       },
       async markDelivery() {},
+      async readCaseClosure() {
+        return null;
+      },
       ...traceOverrides,
     },
     audit: { async emit() {} },
@@ -141,6 +146,34 @@ async function accept(subject: PipelineDeps, id: string, text: string): Promise<
     scheduleProcessing: false,
   });
   assert.equal(response.status, 202);
+}
+
+async function seedLink(
+  subject: PipelineDeps,
+  {
+    recordId = 'rec-existing',
+    caseNumber = 'VRS-1',
+    lastMessageAt = now,
+  }: { recordId?: string; caseNumber?: string; lastMessageAt?: Date } = {},
+): Promise<ChannelLink> {
+  const hash = phoneHash(phone, subject.config.vaultPepper, subject.config.municipalityId);
+  const sealed = sealString(key, `rk-${caseNumber}`, 'reopen-key');
+  const link: ChannelLink = {
+    phoneHash: hash,
+    recordId,
+    caseNumber,
+    reopenKeyCiphertext: sealed.ciphertext,
+    reopenKeyNonce: sealed.nonce,
+    reopenKeyTag: sealed.tag,
+    keyVersion: 1,
+    channel: 'sms',
+    state: 'open',
+    closedAt: null,
+    lastMessageAt,
+    expiresAt: new Date(now.getTime() + 180 * 86_400_000),
+  };
+  await subject.store.upsertLink(link);
+  return link;
 }
 
 test('handleMessagingEvent verifies signatures and dedupes accepted event ids', async () => {
@@ -286,6 +319,81 @@ test('runInboxCycle creates a case and confirms only after Trace returns it', as
   );
 });
 
+test('plain text appends to the most recent link inside the append window', async () => {
+  const subject = fixture();
+  await seedLink(subject.deps, {
+    lastMessageAt: new Date(now.getTime() - 71 * 3_600_000),
+  });
+  await accept(subject.deps, 'evt-inside-window', 'Dodatak prijavi');
+  assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+  assert.equal(subject.appendRequests.length, 1);
+  assert.equal(subject.caseRequests.length, 0);
+});
+
+test('plain text creates a new case outside the append window', async () => {
+  const subject = fixture();
+  const oldLink = await seedLink(subject.deps, {
+    recordId: 'rec-old',
+    lastMessageAt: new Date(now.getTime() - 73 * 3_600_000),
+  });
+  await accept(subject.deps, 'evt-outside-window', 'Nova prijava bez ključne riječi');
+  assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+  assert.equal(subject.caseRequests.length, 1);
+  assert.equal(subject.appendRequests.length, 0);
+  const links = await subject.deps.store.listOpenLinks(oldLink.phoneHash);
+  assert.deepEqual(links.map((link) => link.recordId).sort(), ['rec-1', 'rec-old']);
+});
+
+test('NOVA in capitals forces a new case and strips only the leading keyword', async () => {
+  for (const [index, text, expected] of [
+    [1, 'NOVA Rupa na Rivi', 'Rupa na Rivi'],
+    [2, 'NOVA: tekst', 'tekst'],
+  ] as const) {
+    const subject = fixture();
+    await seedLink(subject.deps);
+    await accept(subject.deps, `evt-nova-${index}`, text);
+    assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+    assert.equal(subject.caseRequests[0]?.text, expected);
+    assert.equal(subject.appendRequests.length, 0);
+  }
+});
+
+test('nova written as an ordinary word appends with the text unchanged', async () => {
+  for (const [index, text] of [
+    [1, 'Nova rupa na Rivi'],
+    [2, 'nova rupa'],
+    [3, 'Novak je tu'],
+  ] as const) {
+    const subject = fixture();
+    await seedLink(subject.deps);
+    await accept(subject.deps, `evt-nova-word-${index}`, text);
+    assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+    assert.equal(subject.appendRequests.length, 1);
+    assert.equal((subject.appendRequests[0]?.input as { text: string }).text, text);
+    assert.equal(subject.caseRequests.length, 0);
+  }
+});
+
+test('case-number targeting wins outside the append window', async () => {
+  const subject = fixture();
+  await seedLink(subject.deps, {
+    lastMessageAt: new Date(now.getTime() - 10 * 86_400_000),
+  });
+  await accept(subject.deps, 'evt-target-stale', 'VRS-1 dodatak');
+  assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+  assert.equal(subject.appendRequests[0]?.caseNumber, 'VRS-1');
+  assert.equal(subject.caseRequests.length, 0);
+});
+
+test('bare NOVA keeps a non-empty narrative while forcing a new case', async () => {
+  const subject = fixture();
+  await seedLink(subject.deps);
+  await accept(subject.deps, 'evt-bare-nova', 'NOVA');
+  assert.deepEqual(await runInboxCycle(subject.deps), { processed: 1, failed: 0 });
+  assert.equal(subject.caseRequests[0]?.text, 'NOVA');
+  assert.equal(subject.appendRequests.length, 0);
+});
+
 test('multi-link prefix selects the owned case and append acknowledgement names it', async () => {
   const subject = fixture();
   const hash = phoneHash(
@@ -308,6 +416,7 @@ test('multi-link prefix selects the owned case and append acknowledgement names 
       keyVersion: 1,
       channel: 'sms',
       state: 'open',
+      closedAt: null,
       lastMessageAt: now,
       expiresAt: new Date(now.getTime() + 1000),
     };
@@ -369,7 +478,10 @@ test('inbound and new-case caps complete without creating or confirming excess w
   );
   const link = await newCases.deps.store.findLinkByRecord('rec-1');
   assert.ok(link);
-  await newCases.deps.store.closeLink(hash, link.recordId);
+  await newCases.deps.store.closeLink(hash, link.recordId, {
+    closedAt: now,
+    expiresAt: new Date(now.getTime() + 30 * 86_400_000),
+  });
   await accept(newCases.deps, 'evt-case-2', 'Druga prijava');
   await runInboxCycle(newCases.deps);
   assert.equal(newCases.caseRequests.length, 1);

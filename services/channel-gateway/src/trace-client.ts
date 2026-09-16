@@ -7,7 +7,12 @@ import { internalHeaders } from '@polis/service-runtime';
 
 import type { ChannelConfig } from './config.js';
 import type { ChannelKind } from './types.js';
-import type { TraceChannelCase, TraceClient, TraceOutboxMessage } from './pipeline-types.js';
+import type {
+  TraceCaseClosure,
+  TraceChannelCase,
+  TraceClient,
+  TraceOutboxMessage,
+} from './pipeline-types.js';
 import type { FetchImplementation } from './infobip-client.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -124,6 +129,65 @@ export class HttpTraceClient implements TraceClient {
     );
     const message = record(json.message);
     return { message: { id: requiredString(message, 'id') } };
+  }
+
+  async readCaseClosure(caseNumber: string): Promise<TraceCaseClosure | null> {
+    let json: Record<string, unknown>;
+    try {
+      json = record(
+        await this.#request(
+          `/internal/trace/public/cases/${encodeURIComponent(caseNumber)}`,
+          'GET',
+          undefined,
+          undefined,
+          200,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof TraceClientError && error.status === 404) return null;
+      throw error;
+    }
+
+    const shell = record(json.case);
+    const state = requiredString(shell, 'state');
+    if (state !== 'resolved' && state !== 'closed') return { state, terminalAt: null };
+
+    const shellTerminalAt = shell.terminalAt;
+    if (typeof shellTerminalAt === 'string' && shellTerminalAt.length > 0) {
+      return { state, terminalAt: shellTerminalAt };
+    }
+
+    const publicRecord =
+      json.record !== null && typeof json.record === 'object' && !Array.isArray(json.record)
+        ? record(json.record)
+        : null;
+    const events = publicRecord && Array.isArray(publicRecord.events) ? publicRecord.events : [];
+    const lastEventAt = (action: string): string | null => {
+      for (let index = events.length - 1; index >= 0; index -= 1) {
+        const entry = events[index];
+        if (
+          entry !== null &&
+          typeof entry === 'object' &&
+          !Array.isArray(entry) &&
+          (entry as Record<string, unknown>).action === action
+        ) {
+          return requiredString(record(entry), 'createdAt');
+        }
+      }
+      return null;
+    };
+
+    if (state === 'closed') {
+      const closedAt = lastEventAt('case-closed');
+      if (closedAt) return { state, terminalAt: closedAt };
+    } else {
+      const resolvedAt = publicRecord?.resolvedAt;
+      if (typeof resolvedAt === 'string') return { state, terminalAt: resolvedAt };
+      const standingAt = lastEventAt('case-resolved-standing');
+      if (standingAt) return { state, terminalAt: standingAt };
+    }
+
+    return { state, terminalAt: requiredString(shell, 'updatedAt') };
   }
 
   async listOutbox(limit: number): Promise<{ messages: TraceOutboxMessage[] }> {

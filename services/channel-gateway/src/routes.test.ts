@@ -56,6 +56,8 @@ function baseConfig(allowStubInjection = false): ChannelConfig {
     maxRecordingSeconds: 180,
     maxInboundChars: 1600,
     vaultTtlDays: 180,
+    appendWindowHours: 72,
+    closedRetentionDays: 30,
     eventTtlHours: 168,
     audioTtlMinutes: 60,
     purgeIntervalMs: 3_600_000,
@@ -93,6 +95,9 @@ function deps(
         return { messages: [] };
       },
       async markDelivery() {},
+      async readCaseClosure() {
+        return null;
+      },
     },
     audit: { async emit() {} },
     log() {},

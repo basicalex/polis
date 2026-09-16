@@ -28,6 +28,8 @@ function config(): ChannelConfig {
     maxRecordingSeconds: 60,
     maxInboundChars: 1000,
     vaultTtlDays: 30,
+    appendWindowHours: 72,
+    closedRetentionDays: 30,
     eventTtlHours: 24,
     audioTtlMinutes: 10,
     purgeIntervalMs: 60000,
@@ -151,6 +153,99 @@ test('listOutbox validates trace messages and authenticates the poll', async () 
       },
     ],
   });
+});
+
+test('readCaseClosure parses terminal timestamps without an idempotency header', async () => {
+  process.env.INTERNAL_API_TOKEN = 'internal-token';
+  const cases = [
+    {
+      caseNumber: 'VRS/1',
+      response: {
+        case: {
+          state: 'resolved',
+          updatedAt: '2026-09-12T05:00:00.000Z',
+        },
+        record: { resolvedAt: '2026-09-12T04:00:00.000Z', events: [] },
+      },
+      expected: { state: 'resolved', terminalAt: '2026-09-12T04:00:00.000Z' },
+    },
+    {
+      caseNumber: 'VRS-2',
+      response: {
+        case: { state: 'closed', updatedAt: '2026-09-12T06:00:00.000Z' },
+        record: null,
+      },
+      expected: { state: 'closed', terminalAt: '2026-09-12T06:00:00.000Z' },
+    },
+    {
+      caseNumber: 'VRS-3',
+      response: {
+        case: { state: 'closed', updatedAt: '2026-09-12T07:00:00.000Z' },
+        record: {
+          events: [
+            { action: 'case-closed', createdAt: '2026-09-12T01:00:00.000Z' },
+            { action: 'case-reopened', createdAt: '2026-09-12T02:00:00.000Z' },
+            { action: 'case-closed', createdAt: '2026-09-12T03:00:00.000Z' },
+          ],
+        },
+      },
+      expected: { state: 'closed', terminalAt: '2026-09-12T03:00:00.000Z' },
+    },
+    {
+      caseNumber: 'VRS-4',
+      response: {
+        case: {
+          state: 'resolved',
+          terminalAt: '2026-09-12T01:00:00.000Z',
+          updatedAt: '2026-09-12T09:00:00.000Z',
+        },
+        record: { resolvedAt: '2026-09-12T08:00:00.000Z', events: [] },
+      },
+      expected: { state: 'resolved', terminalAt: '2026-09-12T01:00:00.000Z' },
+    },
+    {
+      caseNumber: 'VRS-5',
+      response: {
+        case: { state: 'answered', updatedAt: '2026-09-12T10:00:00.000Z' },
+        record: { resolvedAt: null, events: [] },
+      },
+      expected: { state: 'answered', terminalAt: null },
+    },
+  ] as const;
+
+  for (const entry of cases) {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = createTraceClient(config(), async (input, init) => {
+      calls.push({ url: String(input), init: init ?? {} });
+      return Response.json(entry.response);
+    });
+
+    assert.deepEqual(await client.readCaseClosure(entry.caseNumber), entry.expected);
+    assert.equal(
+      calls[0]?.url,
+      `http://trace.local/base/internal/trace/public/cases/${encodeURIComponent(entry.caseNumber)}`,
+    );
+    assert.equal(calls[0]?.init.method, 'GET');
+    assert.equal(calls[0]?.init.body, undefined);
+    const headers = calls[0]?.init.headers as Record<string, string>;
+    assert.equal(Object.hasOwn(headers, 'idempotency-key'), false);
+  }
+});
+
+test('readCaseClosure maps 404 to null and preserves other trace errors', async () => {
+  process.env.INTERNAL_API_TOKEN = 'internal-token';
+  const notFound = createTraceClient(config(), async () =>
+    Response.json({ error: 'not_found' }, { status: 404 }),
+  );
+  const failed = createTraceClient(config(), async () =>
+    Response.json({ error: 'internal_error' }, { status: 500 }),
+  );
+
+  assert.equal(await notFound.readCaseClosure('VRS-404'), null);
+  await assert.rejects(
+    failed.readCaseClosure('VRS-500'),
+    (error) => error instanceof TraceClientError && error.status === 500,
+  );
 });
 
 test('trace errors carry status and retryability', async () => {

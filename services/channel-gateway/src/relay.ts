@@ -141,6 +141,7 @@ export async function runRelayCycle(
       createdAt: now,
       expiresAt: ttl(deps),
     });
+    await deps.store.upsertLink({ ...link, lastMessageAt: now });
     await deps.trace.markDelivery(
       message.id,
       { state: 'handed-off' },

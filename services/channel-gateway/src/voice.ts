@@ -177,6 +177,7 @@ async function handleCallEstablished(event: ProviderEvent, deps: PipelineDeps): 
     keyVersion: deps.config.activeVaultKeyVersion,
     channel: 'voice',
     state: 'open',
+    closedAt: null,
     lastMessageAt: now,
     expiresAt: ttl(deps),
   });

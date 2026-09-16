@@ -69,6 +69,11 @@ export interface TraceChannelCase {
   state: string;
 }
 
+export interface TraceCaseClosure {
+  state: string;
+  terminalAt: string | null;
+}
+
 export interface TraceOutboxMessage {
   id: string;
   recordId: string;
@@ -100,6 +105,8 @@ export interface TraceClient {
     },
     idempotencyKey: string,
   ): Promise<{ message: { id: string } }>;
+  /** Returns null when trace does not know the case. */
+  readCaseClosure(caseNumber: string): Promise<TraceCaseClosure | null>;
   listOutbox(limit: number): Promise<{ messages: TraceOutboxMessage[] }>;
   markDelivery(
     messageId: string,

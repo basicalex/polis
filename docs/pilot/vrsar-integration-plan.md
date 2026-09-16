@@ -43,7 +43,7 @@ Telnyx is transport only. Polis owns the case, the routing, the privacy boundary
 
 1. Telnyx posts `message.received` to the webhook. The service verifies `telnyx-signature-ed25519` and `telnyx-timestamp`, rejects anything older than a few minutes.
 2. Sender number is hashed with a keyed HMAC into a relay token. The number itself is written only to the relay store, with a TTL.
-3. If the relay token has an open case within a window (default 72 hours) and the text does not start with `NOVA`, the text is appended to that case. Otherwise a new case is created.
+3. If the relay token has an open case within a window (default 72 hours) and the text does not start with `NOVA`, the text is appended to that case. Otherwise a new case is created. A text that starts with the case number goes to that case at any time, window or not.
 4. The case is created with channel `sms`, the raw text as the private narrative, and the public shell only.
 5. Reply within seconds: `Prijava je zaprimljena. Broj predmeta: VRS-1842.` Second line for reopen: `Stanje: polis.intrface.eu/vrsar/VRS-1842`.
 6. Status changes that the institution publishes trigger an SMS through the relay token. Officials never see the number.
@@ -62,7 +62,7 @@ Telnyx is transport only. Polis owns the case, the routing, the privacy boundary
 `phone number ≠ citizen identity ≠ case data.`
 
 - Trace records store `relay_token`, never the number.
-- The relay store is a separate schema with its own key, encrypted, purged N days after case closure (N pending D4).
+- The relay store is a separate schema with its own key, encrypted, purged 30 days after case closure.
 - Numbers never appear in logs, error messages, public projections, exports, or analytics.
 - Telnyx message and call detail records are set to the shortest retention Telnyx allows, and a DPA is signed. Telnyx EU data residency to be confirmed (R2).
 - Classification (category, settlement, track, duplicate hint) runs institution-side as an aid to the queue, never as a public gate, and is rule-based first. This keeps the pre-partner decision to cut AI from the public surface.
@@ -89,7 +89,7 @@ Telnyx is transport only. Polis owns the case, the routing, the privacy boundary
 
 - D1 Place slug: `polis.intrface.eu/vrsar` or `polis.intrface.eu/hr/vrsar-orsera`. Recommendation: `/vrsar`, short enough to say on a phone and print on a poster.
 - D2 Case prefix: `VRS`. Recommendation: keep, it matches the copy already reviewed.
-- D3 Follow-up window for SMS append: 72 hours, keyword `NOVA` to force a new case. Recommendation: accept.
-- D4 Relay retention after closure: 30 days. Recommendation: accept, and state it in the post as "briše se nakon zatvaranja predmeta".
+- D3 Decided 2026-09-16. Follow-up window for SMS append: 72 hours, set by `CHANNEL_APPEND_WINDOW_HOURS` (default 72). The keyword `NOVA`, in capitals, forces a new case.
+- D4 Decided 2026-09-16. Relay retention after closure: 30 days, set by `CHANNEL_CLOSED_RETENTION_DAYS` (default 30). The post says "briše se nakon zatvaranja predmeta".
 - D5 Legal-basis path for the relay number (consent line in the auto-reply vs. legitimate interest documented by the municipality). Blocks P2 go-live, not P2 engineering.
 - D6 Formal address in citizen copy: the post uses the formal plural ("Prijavite"), the app uses the singular imperative ("Podnesi prijavu"). Recommendation: formal plural on every surface the municipality signs, singular only inside the app.

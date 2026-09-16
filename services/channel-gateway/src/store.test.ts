@@ -63,6 +63,7 @@ function fixtures(): FixtureState {
     channel: 'sms',
     state: 'open',
     lastMessageAt: now,
+    closedAt: null,
     expiresAt: future,
   };
   const call: ChannelCall = {
@@ -136,11 +137,38 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
   await store.setBlocked(value.phoneHash, true);
   assert.equal((await store.getIdentity(value.phoneHash))?.blocked, true);
   await store.setBlocked(value.phoneHash, false);
+  const cappedIdentityExpiry = new Date(value.now.getTime() + 86_400_000);
+  await store.capIdentityExpiry(value.phoneHash, cappedIdentityExpiry);
+  assert.equal(
+    (await store.getIdentity(value.phoneHash))?.expiresAt.getTime(),
+    cappedIdentityExpiry.getTime(),
+  );
+  await store.capIdentityExpiry(
+    value.phoneHash,
+    new Date(cappedIdentityExpiry.getTime() + 86_400_000),
+  );
+  assert.equal(
+    (await store.getIdentity(value.phoneHash))?.expiresAt.getTime(),
+    cappedIdentityExpiry.getTime(),
+  );
 
   await store.upsertLink(value.link);
   assert.equal((await store.listOpenLinks(value.phoneHash))[0]?.recordId, value.link.recordId);
-  await store.closeLink(value.phoneHash, value.link.recordId);
+  const closure = {
+    closedAt: value.now,
+    expiresAt: new Date(value.now.getTime() + 30 * 86_400_000),
+  };
+  await store.closeLink(value.phoneHash, value.link.recordId, closure);
   assert.deepEqual(await store.listOpenLinks(value.phoneHash), []);
+  const closedLink = (await store.listLinksByState('closed', 10))[0];
+  assert.equal(closedLink?.closedAt?.getTime(), value.now.getTime());
+  assert.equal(closedLink?.expiresAt.getTime(), closure.expiresAt.getTime());
+  assert.equal(
+    (await store.listLinksByState('open', 10)).some(
+      (candidate) => candidate.recordId === value.link.recordId,
+    ),
+    false,
+  );
   await store.upsertLink(value.link);
   await store.upsertCall(value.call);
   assert.equal((await store.getCall(value.call.callId))?.step, 'prompt');

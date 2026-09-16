@@ -35,6 +35,8 @@ function config(overrides: Partial<ChannelConfig> = {}): ChannelConfig {
     maxRecordingSeconds: 120,
     maxInboundChars: 1000,
     vaultTtlDays: 30,
+    appendWindowHours: 72,
+    closedRetentionDays: 30,
     eventTtlHours: 24,
     audioTtlMinutes: 30,
     purgeIntervalMs: 60_000,
@@ -103,6 +105,9 @@ function fixture(
       async markDelivery(id, input) {
         deliveries.push({ id, state: input.state, failureCode: input.failureCode });
       },
+      async readCaseClosure() {
+        return null;
+      },
       ...trace,
     },
     audit: { async emit() {} },
@@ -141,6 +146,7 @@ async function seedIdentityAndLink(
     keyVersion: 1,
     channel: 'sms',
     state: 'open',
+    closedAt: null,
     lastMessageAt: initialNow,
     expiresAt: new Date(initialNow.getTime() + 1000),
   };
@@ -218,9 +224,12 @@ test('runRelayCycle maps by record id and dedupes repeated source ids', async ()
     },
   });
   await seedIdentityAndLink(subject);
+  subject.advance(60_000);
+  const handedOffAt = subject.now();
   assert.deepEqual(await runRelayCycle(subject), { handedOff: 1, failed: 0, duplicates: 0 });
+  assert.deepEqual((await subject.store.findLinkByRecord('rec-1'))?.lastMessageAt, handedOffAt);
   assert.deepEqual(await runRelayCycle(subject), { handedOff: 0, failed: 0, duplicates: 1 });
-  const outbox = await subject.store.claimOutbox(initialNow, 1);
+  const outbox = await subject.store.claimOutbox(handedOffAt, 1);
   assert.equal(
     openString(
       key,

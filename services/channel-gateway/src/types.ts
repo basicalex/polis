@@ -34,6 +34,13 @@ export interface ChannelLink {
   channel: ChannelKind;
   state: 'open' | 'closed';
   lastMessageAt: Date;
+  /** When the case reached a terminal state (resolved or closed); null while the link is open. */
+  closedAt: Date | null;
+  expiresAt: Date;
+}
+
+export interface LinkClosure {
+  closedAt: Date;
   expiresAt: Date;
 }
 

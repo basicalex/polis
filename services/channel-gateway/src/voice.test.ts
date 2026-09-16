@@ -130,6 +130,8 @@ function fixture() {
       maxRecordingSeconds: 180,
       maxInboundChars: 1600,
       vaultTtlDays: 30,
+      appendWindowHours: 72,
+      closedRetentionDays: 30,
       eventTtlHours: 24,
       audioTtlMinutes: 30,
       purgeIntervalMs: 60_000,
@@ -165,6 +167,9 @@ function fixture() {
         return { messages: [] };
       },
       async markDelivery() {},
+      async readCaseClosure() {
+        return null;
+      },
     },
     audit: { async emit() {} },
     log(fields) {
