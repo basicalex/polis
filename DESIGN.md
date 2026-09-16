@@ -6,6 +6,13 @@ direction:
   locked: 'Trace line'
   mechanism: 'One accountability record appends through voice, responsibility, response, independent check, and public receipt.'
   source: 'Reviewed generation 1 Trace line pitch, selected by the user on 2026-08-21. Visual world revised to light civic by the user on 2026-08-22; the mechanism and meaning model are unchanged. Interactive demo platform added by the user on 2026-08-22: the staged pitch moves to /presentation and the root becomes the product landing with working role demos. Demo chrome and tactile material locked by the user on 2026-08-22 from design-lab/demo-cohesion/refined (gen2): segmented role switcher, one-line boundary, ledger rows, engraved trace timeline, straight ink-stamp status marks.'
+mark:
+  name: 'Ring, line, square'
+  meaning: 'Open ring is the voice, the line is the trace, the filled square is the filed public record: the ledger stepper compressed to its first and last node.'
+  locked: '2026-09-13 by the user from design-lab/brand/refined'
+  assets: 'apps/web/public/brand/ (mark teal/ink/paper, app icon, lockups) and apps/web/public/favicon.svg; wordmark is Source Serif 4 SemiBold outlined'
+  geometry: '88x40 box: ring diameter 36 at (20,20), stroke 4.5, line x36-60, square 26 at x58-84; favicon uses stroke 6'
+  rule: 'One mark only. The serif P is the wordmark initial, never a second logo. Never redraw the timeline as the logo.'
 colors:
   bg: '#FAF8F5'
   surface: '#FFFFFF'

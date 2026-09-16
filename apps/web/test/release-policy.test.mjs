@@ -267,7 +267,8 @@ test('normalization, matching, and asset bypass reject ambiguous paths', () => {
   assert.equal(matchReleasePattern('/pilot/vrsar/api/*path', '/pilot/vrsar/api/records/id/review'), true);
   assert.equal(matchReleasePattern('/pilot/vrsar/api/*path', '/pilot/vrsar/api'), false);
   assert.equal(isReleaseAssetPath('/_astro/app.hash.js'), true);
-  assert.equal(isReleaseAssetPath('/fonts/BarlowCondensed-Bold.ttf'), true);
+  assert.equal(isReleaseAssetPath('/fonts/SourceSerif4-SemiBold-latin.woff2'), true);
+  assert.equal(isReleaseAssetPath('/brand/polis-mark.svg'), true);
   assert.equal(isReleaseAssetPath('/robots.txt'), true);
   assert.equal(isReleaseAssetPath('/geo/hr/istarska.json'), true);
   assert.equal(isReleaseAssetPath('/geo/hr-places.json'), true);

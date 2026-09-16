@@ -101,8 +101,40 @@ export const entryStrings = {
   copied: { hr: 'Kopirano', en: 'Copied' },
 
   /** S4 · filing */
-  reportMapLabel: { hr: 'Karta općine', en: 'Map of the municipality' },
-  reportMapCaption: { hr: 'Dodirnite kartu gdje je problem.', en: 'Tap the map where the problem is.' },
+  reportMapLabel: {
+    hr: 'Karta ulica za odabir lokacije problema',
+    en: 'Street map for choosing the problem location',
+  },
+  reportMapCaption: {
+    hr: 'Dodirnite ili kliknite kartu gdje je problem. Tipkovnica: strelice pomiču kartu, Enter ili razmaknica odabire središte.',
+    en: 'Tap or click the map where the problem is. Keyboard: use the arrow keys to pan, then Enter or Space to choose the centre.',
+  },
+  reportMapAttribution: {
+    hr: '© OpenStreetMap suradnici',
+    en: '© OpenStreetMap contributors',
+  },
+  reportMapClear: { hr: 'Ukloni lokaciju', en: 'Clear location' },
+  reportMapSelected: { hr: 'Odabrana lokacija:', en: 'Selected location:' },
+  reportMapCleared: { hr: 'Lokacija je uklonjena.', en: 'The location was cleared.' },
+  reportMapMarkerLabel: { hr: 'Odabrana lokacija', en: 'Selected location' },
+  reportMapZoomIn: { hr: 'Povećaj kartu', en: 'Zoom in' },
+  reportMapZoomOut: { hr: 'Smanji kartu', en: 'Zoom out' },
+  reportMapUnavailable: {
+    hr: 'Karta trenutačno nije dostupna. Opišite lokaciju u polju ispod.',
+    en: 'The map is unavailable. Describe the location below.',
+  },
+  reportMapLocationDenied: {
+    hr: 'Pristup lokaciji nije dopušten. Odaberite točku na karti ili opišite lokaciju ispod.',
+    en: 'Location access was denied. Choose a point on the map or describe the location below.',
+  },
+  reportMapLocationError: {
+    hr: 'Vašu lokaciju nije moguće odrediti. Odaberite točku na karti ili opišite lokaciju ispod.',
+    en: 'Your location could not be found. Choose a point on the map or describe the location below.',
+  },
+  reportMapPrivacy: {
+    hr: 'Karta ulica učitava pločice izravno s OpenStreetMapa. OpenStreetMap prima vašu IP adresu i prikazano područje karte, ali ne tekst prijave ni fotografiju.',
+    en: 'The street map loads tiles directly from OpenStreetMap. OpenStreetMap receives your IP address and the map area shown, but not your report text or photo.',
+  },
   reportTextLabel: { hr: 'Što se dogodilo?', en: 'What happened?' },
   reportTextRequired: { hr: 'Napišite što se dogodilo.', en: 'Write what happened.' },
   reportCharsLeft: { hr: 'Preostalo znakova:', en: 'Characters left:' },

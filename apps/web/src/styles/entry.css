@@ -28,11 +28,16 @@
 }
 
 .entry-wordmark {
-  color: var(--polis-text);
-  font-family: var(--display);
-  font-size: var(--type-heading-sm);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
   text-decoration: none;
+}
+
+.entry-wordmark-image {
+  display: block;
+  width: clamp(7rem, 20vw, 8.25rem);
+  height: auto;
 }
 
 .entry-language {
@@ -706,35 +711,138 @@
   gap: var(--space-4);
 }
 
+.report-map-block,
+.report-map-copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .report-map {
   position: relative;
   min-width: 0;
   border: 1px solid var(--polis-border);
   border-radius: var(--radius-md);
-  background: var(--polis-surface);
+  background: var(--polis-surface-2);
   overflow: hidden;
 }
 
-.report-map svg {
-  display: block;
+.report-map-canvas {
   width: 100%;
-  height: auto;
-  aspect-ratio: 3 / 2;
+  height: 25rem;
+  background: var(--polis-surface-2);
   cursor: crosshair;
-  touch-action: manipulation;
 }
 
-.report-pin {
-  fill: var(--polis-trace);
-  stroke: var(--polis-surface);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
+.report-map-canvas:focus-visible {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: -0.25rem;
 }
 
-.report-map-caption {
+.report-map .entry-map-actions,
+.report-map .entry-map-attribution {
+  z-index: 900;
+}
+
+.report-map .entry-map-actions .btn {
+  min-height: var(--tap-target);
+  background: var(--polis-surface);
+}
+
+.report-map .entry-map-attribution a {
+  color: inherit;
+  text-underline-offset: 0.14em;
+}
+
+.report-map .leaflet-container {
+  font-family: var(--body);
+}
+
+.report-map .leaflet-bar {
+  border: 1px solid var(--polis-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.report-map .leaflet-control-zoom.leaflet-bar a {
+  display: grid;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  place-items: center;
+  border-color: var(--polis-border);
+  background: var(--polis-surface);
+  color: var(--polis-text);
+  font: 600 1.25rem/1 var(--body);
+}
+
+.report-map .leaflet-control-zoom.leaflet-bar a:hover,
+.report-map .leaflet-control-zoom.leaflet-bar a:focus {
+  background: var(--polis-surface-2);
+  color: var(--polis-trace);
+}
+
+.report-map .leaflet-control-zoom.leaflet-bar a:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: 0.125rem;
+}
+
+.report-map-marker {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+}
+
+.report-map-marker-dot {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0.1875rem solid var(--polis-surface);
+  border-radius: 50%;
+  background: var(--polis-trace);
+  box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, var(--polis-text) 32%, transparent);
+}
+
+.report-map-marker:focus-visible {
+  outline: 0.125rem solid var(--polis-text);
+  outline-offset: 0.1875rem;
+}
+
+.report-map-caption,
+.report-map-status,
+.report-map-error {
   margin: 0;
-  color: var(--polis-muted);
   font-size: var(--type-data);
+  line-height: 1.45;
+}
+
+.report-map-caption,
+.report-map-status {
+  color: var(--polis-muted);
+}
+
+.report-map-error {
+  color: var(--polis-danger);
+}
+
+.report-map-status:empty,
+.report-map-error:empty {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  .report-map-canvas {
+    height: 21.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-map .leaflet-zoom-animated,
+  .report-map .leaflet-fade-anim .leaflet-popup {
+    transition: none;
+  }
 }
 
 /*

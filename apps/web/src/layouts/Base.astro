@@ -166,7 +166,9 @@ const isCurrentPath = (href: string) =>
 
       {entryChrome && (
         <header class="entry-bar">
-          <a class="entry-wordmark" href={homeHref}>Polis</a>
+          <a class="entry-wordmark" href={homeHref}>
+            <img class="entry-wordmark-image" src="/brand/polis-lockup.svg" alt="Polis" />
+          </a>
           <a class="entry-language" href={otherLanguageHref} hreflang={otherLang} lang={otherLang}>
             {languageEndonyms[otherLang]}
           </a>

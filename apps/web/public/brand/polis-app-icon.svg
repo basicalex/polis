@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Polis">
+  <rect width="512" height="512" rx="112" fill="#0E7490"/>
+  <path transform="translate(94.91 181.07) scale(3.75)" d="M2 20a18 18 0 1 1 36 0a18 18 0 1 1-36 0ZM6.5 20a13.5 13.5 0 1 0 27 0a13.5 13.5 0 1 0-27 0ZM36 17.75h24v4.5H36ZM58 7h26v26H58Z" fill="#FAF8F5"/>
+</svg>

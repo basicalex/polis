@@ -23,11 +23,13 @@
     "@polis/domain": "workspace:*",
     "@polis/ui": "workspace:*",
     "astro": "^7.2.0",
+    "leaflet": "1.9.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/leaflet": "^1.9.22",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "playwright-core": "^1.62.1",

@@ -4,6 +4,8 @@
 
 import '../styles/public.css';
 import Base from '../layouts/Base.astro';
+import { text } from '../content/chrome';
+import { entryStrings } from '../content/entry';
 ---
 
 <Base title="Privacy">
@@ -22,6 +24,7 @@ import Base from '../layouts/Base.astro';
         restricted rail. They are not fetched, serialized into page data, placed in the DOM, or
         printed by any surface in this build.
       </p>
+      <p>{text(entryStrings.reportMapPrivacy, 'en')}</p>
     </section>
   </article>
 </Base>

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /*
- * S4 behaviour: draw the place and its neighbours from the county's own
- * boundary file, take a pin on a tap, and file the case.
+ * S4 behaviour: start the optional street map in an isolated module, prepare
+ * one optional photo, and file the case. A map or tile failure never owns the
+ * form: text, the free-text location line and photo filing keep working.
  *
- * The pin is optional and coarse — there are no street tiles and none are
- * wanted (entry-flow R6). Location is asked for on a tap, never on load (R5).
  * The case number and the reopen key come back in the response body; the key
  * travels on in the fragment of the next address and nowhere else (R10).
  *
@@ -18,25 +17,6 @@
  */
 
 import { fileAnonymousCase } from '../../lib/pilot/vrsar/api';
-import { lonLatToView, viewToLonLat } from '../../lib/geo/projection';
-
-interface CountyPlace {
-  slug: string;
-  name: string;
-  kind: 'grad' | 'opcina' | 'otok';
-  d: string;
-  bbox: [number, number, number, number];
-  centroid: [number, number];
-}
-
-interface CountyFile {
-  county: string;
-  name: string;
-  bbox: [number, number, number, number];
-  places: CountyPlace[];
-}
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** What the backend takes, decoded: anything larger is refused there. */
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -148,11 +128,6 @@ if (root) start(root);
 function start(report: HTMLElement): void {
   const form = report.querySelector<HTMLFormElement>('[data-report-form]');
   const mapRoot = report.querySelector<HTMLElement>('[data-report-map]');
-  const svg = report.querySelector<SVGSVGElement>('[data-map]');
-  const neighbours = report.querySelector<SVGGElement>('[data-layer="neighbours"]');
-  const placeLayer = report.querySelector<SVGGElement>('[data-layer="place"]');
-  const pinLayer = report.querySelector<SVGGElement>('[data-layer="pin"]');
-  const locate = report.querySelector<HTMLButtonElement>('[data-locate]');
   const textarea = report.querySelector<HTMLTextAreaElement>('[data-text]');
   const where = report.querySelector<HTMLInputElement>('[data-where]');
   const submit = report.querySelector<HTMLButtonElement>('[data-submit]');
@@ -166,18 +141,15 @@ function start(report: HTMLElement): void {
   const photoRemove = report.querySelector<HTMLButtonElement>('[data-photo-remove]');
   const photoStatus = report.querySelector<HTMLElement>('[data-photo-status]');
   const photoError = report.querySelector<HTMLElement>('[data-photo-error]');
-  if (!form || !svg || !neighbours || !placeLayer || !pinLayer || !textarea) return;
+  if (!form || !textarea) return;
 
   const strings = readStrings();
   const base = report.dataset.base === '/en/' ? '/en/' : '/';
   const place = report.dataset.place ?? '';
-  const countySlug = report.dataset.county ?? '';
-  const geoSlug = report.dataset.geo ?? '';
   const maxText = Number(report.dataset.maxText) || 4000;
   const countFrom = Number(report.dataset.countFrom) || maxText;
 
-  let pin: [number, number] | null = null;
-  let pinRadius = 6;
+  let pin: { lat: number; lon: number } | null = null;
   let sending = false;
   let photo: { contentType: 'image/jpeg'; base64: string } | null = null;
   let photoObjectUrl: string | null = null;
@@ -187,93 +159,43 @@ function start(report: HTMLElement): void {
 
   // ---- the map ------------------------------------------------------------
 
-  function paint(file: CountyFile): void {
-    const own = file.places.find((item) => item.slug === geoSlug);
-    if (!own) return;
-
-    const rest = document.createDocumentFragment();
-    for (const item of file.places) {
-      if (item.slug === geoSlug) continue;
-      const shape = document.createElementNS(SVG_NS, 'path');
-      shape.setAttribute('d', item.d);
-      shape.setAttribute('class', 'place-shape');
-      shape.setAttribute('data-status', item.kind === 'otok' ? 'filler' : 'not-yet');
-      rest.append(shape);
-    }
-    neighbours!.replaceChildren(rest);
-
-    const mine = document.createElementNS(SVG_NS, 'path');
-    mine.setAttribute('d', own.d);
-    mine.setAttribute('class', 'place-shape');
-    mine.setAttribute('data-status', 'live');
-    placeLayer!.replaceChildren(mine);
-
-    const width = own.bbox[2] - own.bbox[0];
-    const height = own.bbox[3] - own.bbox[1];
-    const pad = Math.max(width, height) * 0.35;
-    const box = [own.bbox[0] - pad, own.bbox[1] - pad, width + pad * 2, height + pad * 2];
-    svg!.setAttribute('viewBox', box.map((value) => Math.round(value * 100) / 100).join(' '));
-    pinRadius = Math.max(1.5, box[2] / 28);
+  function showMapUnavailable(): void {
+    const mapError = mapRoot?.querySelector<HTMLElement>('[data-map-error]');
+    if (mapError) mapError.textContent = strings.mapUnavailable ?? '';
+    if (mapRoot) mapRoot.dataset.ready = 'false';
   }
 
-  async function loadCounty(): Promise<void> {
-    if (!countySlug) return;
-    try {
-      const response = await fetch(`/geo/hr/${countySlug}.json`, {
-        headers: { accept: 'application/json' },
-      });
-      if (!response.ok) return;
-      paint((await response.json()) as CountyFile);
-    } catch {
-      // No boundary file, no map. The text and the free-text line still file.
+  if (mapRoot) {
+    const center = {
+      lat: Number(mapRoot.dataset.centerLat),
+      lon: Number(mapRoot.dataset.centerLon),
+    };
+    if (Number.isFinite(center.lat) && Number.isFinite(center.lon)) {
+      void import('./report-map')
+        .then(({ initReportMap }) => {
+          initReportMap(mapRoot, {
+            center,
+            strings: {
+              locating: strings.locating ?? '',
+              mapUnavailable: strings.mapUnavailable ?? '',
+              mapLocationDenied: strings.mapLocationDenied ?? '',
+              mapLocationError: strings.mapLocationError ?? '',
+              mapSelected: strings.mapSelected ?? '',
+              mapCleared: strings.mapCleared ?? '',
+              mapMarkerLabel: strings.mapMarkerLabel ?? '',
+              mapZoomIn: strings.mapZoomIn ?? '',
+              mapZoomOut: strings.mapZoomOut ?? '',
+            },
+            onCoordinatesChange: (coordinates) => {
+              pin = coordinates;
+            },
+          });
+        })
+        .catch(showMapUnavailable);
+    } else {
+      showMapUnavailable();
     }
   }
-
-  function drawPin(): void {
-    if (!pin) {
-      pinLayer!.replaceChildren();
-      return;
-    }
-    const mark = document.createElementNS(SVG_NS, 'circle');
-    mark.setAttribute('class', 'report-pin');
-    mark.setAttribute('cx', String(Math.round(pin[0] * 100) / 100));
-    mark.setAttribute('cy', String(Math.round(pin[1] * 100) / 100));
-    mark.setAttribute('r', String(Math.round(pinRadius * 100) / 100));
-    pinLayer!.replaceChildren(mark);
-  }
-
-  function pointFromEvent(event: PointerEvent | MouseEvent): [number, number] | null {
-    const matrix = svg!.getScreenCTM();
-    if (!matrix) return null;
-    const point = svg!.createSVGPoint();
-    point.x = event.clientX;
-    point.y = event.clientY;
-    const local = point.matrixTransform(matrix.inverse());
-    return [local.x, local.y];
-  }
-
-  svg.addEventListener('click', (event) => {
-    const point = pointFromEvent(event);
-    if (!point) return;
-    pin = point;
-    drawPin();
-  });
-
-  locate?.addEventListener('click', () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        pin = lonLatToView(position.coords.longitude, position.coords.latitude);
-        drawPin();
-      },
-      () => {
-        // A refused or failed lookup leaves the map as it is; the pin is optional.
-      },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
-    );
-  });
-
-  void loadCounty();
 
   // ---- the text -----------------------------------------------------------
 
@@ -358,12 +280,10 @@ function start(report: HTMLElement): void {
 
   // ---- filing -------------------------------------------------------------
 
-  /** "<lat>,<lon>" at five decimals: about a metre, which is all a coarse pin means. */
+  /** "<lat>,<lon>" in WGS84 at five decimals, preserving the filing contract. */
   function pinLocation(): string {
-    if (!pin) return '';
-    const [lon, lat] = viewToLonLat(pin[0], pin[1]);
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return '';
-    return `${lat.toFixed(5)},${lon.toFixed(5)}`;
+    if (!pin || !Number.isFinite(pin.lat) || !Number.isFinite(pin.lon)) return '';
+    return `${pin.lat.toFixed(5)},${pin.lon.toFixed(5)}`;
   }
 
   form.addEventListener('submit', (event) => {
@@ -401,7 +321,6 @@ function start(report: HTMLElement): void {
       });
   });
 
-  if (mapRoot) mapRoot.dataset.ready = 'true';
 }
 
 function readStrings(): Record<string, string> {

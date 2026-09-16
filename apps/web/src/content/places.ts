@@ -22,6 +22,8 @@ export interface LivePlace {
   county: string;
   pilotId: string;
   caseNumberPrefix: string;
+  /** Initial report-map camera only. It is never filed until the person selects a point. */
+  reportMapCenter: { lat: number; lon: number };
   name: LocalizedText;
   status: 'live';
 }
@@ -45,6 +47,7 @@ export const livePlaces: LivePlace[] = [
     county: 'istarska',
     pilotId: 'vrsar-orsera',
     caseNumberPrefix: 'VRS',
+    reportMapCenter: { lat: 45.149, lon: 13.605 },
     name: { hr: 'Općina Vrsar', en: 'Vrsar Municipality' },
     status: 'live',
   },

@@ -243,6 +243,8 @@ test('the place map ships our own SVG and no map provider', async () => {
   ]);
   // Boundary attribution rides with the map (ODbL and CC BY-SA are share-alike).
   assert.match(map, /attribution/);
+  assert.doesNotMatch(map, /leaflet/i);
+  assert.doesNotMatch(script, /leaflet|tile\.openstreetmap/i);
   // Every request the script makes is same-origin data we generated.
   const fetches = script.match(/fetch\((['"`])[^'"`]+\1/g) ?? [];
   assert.ok(fetches.length > 0);
@@ -250,6 +252,75 @@ test('the place map ships our own SVG and no map provider', async () => {
   // Location is asked for on a tap, never on load (R5).
   assert.match(script, /locate\?\.addEventListener\('click'/);
   assert.equal((script.match(/getCurrentPosition/g) ?? []).length, 1);
+});
+
+test('entry chrome uses the approved full Polis lockup once', async () => {
+  const [base, styles, lockup] = await Promise.all([
+    readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/entry.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/brand/polis-lockup.svg', import.meta.url), 'utf8'),
+  ]);
+
+  assert.equal((base.match(/src="\/brand\/polis-lockup\.svg"/g) ?? []).length, 1);
+  assert.match(base, /class="entry-wordmark-image"[^>]*alt="Polis"/);
+  assert.doesNotMatch(base, /class="entry-wordmark"[^>]*>Polis<\/a>/);
+  assert.match(styles, /\.entry-wordmark \{[^}]*min-height: var\(--tap-target\)/s);
+  assert.match(styles, /width: clamp\(7rem, 20vw, 8\.25rem\)/);
+  assert.match(lockup, /viewBox="0 0 224\.27 44"/);
+});
+
+test('the report map bundles Leaflet only on the filing surface', async () => {
+  const [component, mapScript, reportScript, styles, placeMap, placeMapScript, places, privacy, content] =
+    await Promise.all([
+      readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
+      readFile(new URL('../src/scripts/entry/report-map.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/styles/entry.css', import.meta.url), 'utf8'),
+      readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
+      readFile(new URL('../src/scripts/entry/map.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/content/places.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/pages/privacy.astro', import.meta.url), 'utf8'),
+      readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
+    ]);
+
+  assert.match(component, /import 'leaflet\/dist\/leaflet\.css'/);
+  assert.match(component, /href="https:\/\/www\.openstreetmap\.org\/copyright"/);
+  assert.match(component, /data-report-map-canvas/);
+  assert.match(component, /data-map-error/);
+  assert.doesNotMatch(component, /<svg data-map|data-layer="place"/);
+  assert.match(reportScript, /import\('\.\/report-map'\)/);
+  assert.match(mapScript, /REPORT_MAP_TILE_URL = 'https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png'/);
+  assert.match(mapScript, /const INITIAL_ZOOM = 15/);
+  assert.match(mapScript, /const MAX_ZOOM = 19/);
+  assert.match(mapScript, /maxNativeZoom: MAX_ZOOM/);
+  assert.match(mapScript, /iconSize: \[44, 44\]/);
+  assert.match(styles, /\.report-map \.leaflet-control-zoom\.leaflet-bar a \{[^}]*width: var\(--tap-target\);[^}]*height: var\(--tap-target\)/s);
+  assert.doesNotMatch(mapScript, /detectRetina|fetch\(|geo\/hr|geoSlug|polygon/i);
+  assert.match(mapScript, /const failedTiles = new Set<HTMLElement>\(\)/);
+  assert.match(mapScript, /tiles\.on\('tileerror'/);
+  assert.match(mapScript, /tiles\.on\('tileload', resolveTileFailure\)/);
+  assert.match(mapScript, /tiles\.on\('tileunload', resolveTileFailure\)/);
+  assert.match(mapScript, /delete root\.dataset\.tiles/);
+  assert.match(mapScript, /mapError\.textContent = ''/);
+  assert.match(mapScript, /prefers-reduced-motion: reduce/);
+  assert.match(places, /reportMapCenter: \{ lat: 45\.149, lon: 13\.605 \}/);
+  assert.match(privacy, /entryStrings\.reportMapPrivacy/);
+  assert.match(content, /OpenStreetMap receives your IP address and the map area shown/);
+  assert.doesNotMatch(placeMap, /leaflet/i);
+  assert.doesNotMatch(placeMapScript, /leaflet|tile\.openstreetmap/i);
+});
+
+test('security policy permits only OpenStreetMap tile images', async () => {
+  const [headers, middleware] = await Promise.all([
+    readFile(new URL('../public/_headers', import.meta.url), 'utf8'),
+    readFile(new URL('../src/middleware.ts', import.meta.url), 'utf8'),
+  ]);
+
+  for (const source of [headers, middleware]) {
+    assert.match(source, /img-src 'self' data: blob: https:\/\/tile\.openstreetmap\.org;/);
+    assert.doesNotMatch(source, /connect-src[^;]*openstreetmap/);
+    assert.doesNotMatch(source, /script-src[^;]*openstreetmap/);
+  }
 });
 
 test('public release presenter preserves keyboard, fullscreen recovery, and default-visible content', async () => {
@@ -477,10 +548,11 @@ test('the place ledger lists every state and says a count is not a vote', async 
   assert.match(content, /Broj pratitelja nije glasovanje i ne mijenja redoslijed\./);
 });
 
-test('filing asks for no identity and sends the pin as coordinates', async () => {
-  const [component, script] = await Promise.all([
+test('filing asks for no identity and sends an optional WGS84 point', async () => {
+  const [component, script, mapScript] = await Promise.all([
     readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/report-map.ts', import.meta.url), 'utf8'),
   ]);
 
   // No name, no contact, no category (entry-flow R9). The one photo is the
@@ -489,12 +561,27 @@ test('filing asks for no identity and sends the pin as coordinates', async () =>
   assert.match(component, /<textarea/);
   assert.match(component, /maxlength=\{MAX_TEXT\}/);
   assert.match(component, /<noscript>/);
-  // The pin is optional and coarse; location is asked for on a tap (R5).
-  assert.match(script, /getCurrentPosition/);
-  assert.match(script, /locate\?\.addEventListener\('click'/);
-  assert.match(script, /viewToLonLat/);
-  assert.match(script, /toFixed\(5\)/);
+
+  // The camera seed is not a pin. A point only appears after map, keyboard or
+  // explicit geolocation input, and clearing it restores text-only filing.
+  assert.doesNotMatch(component, /data-layer="pin"|class="report-pin"/);
+  assert.match(component, /data-clear-location hidden/);
+  assert.match(mapScript, /map\.on\('click'/);
+  assert.match(mapScript, /marker\.on\('dragend'/);
+  assert.match(mapScript, /event\.key !== 'Enter' && event\.key !== ' '/);
+  assert.match(mapScript, /options\.onCoordinatesChange\(null\)/);
+  assert.equal((mapScript.match(/getCurrentPosition/g) ?? []).length, 1);
+  assert.match(mapScript, /locateButton\.addEventListener\('click'/);
+  assert.match(mapScript, /enableHighAccuracy: true/);
+
+  // Map startup is isolated from the form; coordinates stay WGS84 latitude,
+  // longitude at five decimals and precede any free-text location detail.
+  assert.match(script, /import\('\.\/report-map'\)/);
+  assert.match(script, /\.catch\(showMapUnavailable\)/);
+  assert.match(script, /`\$\{pin\.lat\.toFixed\(5\)\},\$\{pin\.lon\.toFixed\(5\)\}`/);
+  assert.match(script, /\[pinLocation\(\), where\?\.value\.trim\(\) \?\? ''\]/);
   assert.match(script, /fileAnonymousCase\(/);
+
   // The key leaves in a fragment, never a query (R10).
   assert.match(script, /#k=\$\{encodeURIComponent\(filed\.reopenKey\)\}/);
   assert.doesNotMatch(script, /\?k=/);

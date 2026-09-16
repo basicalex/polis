@@ -5,11 +5,10 @@
 /*
  * S4 · filing.
  *
- * A pin, a text, one optional line about where exactly and one optional photo.
- * No name, no e-mail, no phone, no category: the form asks for no identity at
- * all (entry-flow R9), and the same record comes out of it as out of an SMS or
- * a call. The map has no street tiles, so the pin is coarse by construction and
- * the free-text line carries the detail.
+ * A street-level pin, a text, one optional line about where exactly and one
+ * optional photo. No name, no e-mail, no phone, no category: the form asks for
+ * no identity at all (entry-flow R9), and the same record comes out of it as
+ * out of an SMS or a call. The pin remains optional; text-only filing works.
  *
  * The photo is re-encoded in the browser before it is sent and is a restricted
  * attachment on the other side: the office and the reopen-key holder see it,
@@ -17,6 +16,7 @@
  * case has one.
  */
 
+import 'leaflet/dist/leaflet.css';
 import '../../styles/entry.css';
 import { entryStrings } from '../../content/entry';
 import { text } from '../../content/chrome';
@@ -52,10 +52,19 @@ const strings = {
   sending: label('reportSending'),
   submit: label('reportSubmit'),
   charsLeft: label('reportCharsLeft'),
+  locating: label('locating'),
   photoWorking: label('reportPhotoWorking'),
   photoTooLarge: label('reportPhotoTooLarge'),
   photoUnreadable: label('reportPhotoUnreadable'),
   photoAlt: label('reportPhotoAlt'),
+  mapUnavailable: label('reportMapUnavailable'),
+  mapLocationDenied: label('reportMapLocationDenied'),
+  mapLocationError: label('reportMapLocationError'),
+  mapSelected: label('reportMapSelected'),
+  mapCleared: label('reportMapCleared'),
+  mapMarkerLabel: label('reportMapMarkerLabel'),
+  mapZoomIn: label('reportMapZoomIn'),
+  mapZoomOut: label('reportMapZoomOut'),
 };
 ---
 
@@ -64,8 +73,6 @@ const strings = {
   data-report
   data-base={base}
   data-place={place.slug}
-  data-county={place.county}
-  data-geo={place.geoSlug}
   data-max-text={String(MAX_TEXT)}
   data-count-from={String(COUNT_FROM)}
 >
@@ -73,18 +80,40 @@ const strings = {
   <h1 class="report-title">{label('report')}</h1>
 
   <form class="report-form" data-report-form novalidate>
-    <div class="report-map" data-report-map>
-      <svg data-map viewBox="0 0 1000 980" role="img" aria-label={label('reportMapLabel')}>
-        <g data-layer="neighbours"></g>
-        <g data-layer="place"></g>
-        <g data-layer="pin"></g>
-      </svg>
-      <div class="entry-map-actions">
-        <button class="btn" type="button" data-locate>{label('locate')}</button>
+    <div
+      class="report-map-block"
+      data-report-map
+      data-center-lat={String(place.reportMapCenter.lat)}
+      data-center-lon={String(place.reportMapCenter.lon)}
+    >
+      <div class="report-map">
+        <div
+          class="report-map-canvas"
+          data-report-map-canvas
+          role="region"
+          tabindex="0"
+          aria-label={label('reportMapLabel')}
+          aria-describedby="report-map-caption report-map-status report-map-error"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space"
+        ></div>
+        <div class="entry-map-actions">
+          <button class="btn" type="button" data-locate>{label('locate')}</button>
+          <button class="btn" type="button" data-variant="secondary" data-clear-location hidden>
+            {label('reportMapClear')}
+          </button>
+        </div>
+        <p class="entry-map-attribution">
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+            {label('reportMapAttribution')}
+          </a>
+        </p>
       </div>
-      <p class="entry-map-attribution">{label('attribution')}</p>
+      <div class="report-map-copy">
+        <p class="report-map-caption" id="report-map-caption">{label('reportMapCaption')}</p>
+        <p class="report-map-status" id="report-map-status" role="status" aria-live="polite" data-map-status></p>
+        <p class="report-map-error" id="report-map-error" role="alert" data-map-error></p>
+      </div>
     </div>
-    <p class="report-map-caption" id="report-map-caption">{label('reportMapCaption')}</p>
 
     <div class="field">
       <label for="report-text">{label('reportTextLabel')}</label>
