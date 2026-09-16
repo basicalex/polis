@@ -42,6 +42,9 @@ const strings = {
   alsoAffected: label('ledgerAlsoAffected'),
   notFixed: label('ledgerNotFixed'),
   textHeld: label('ledgerTextHeld'),
+  textPending: label('ledgerTextPending'),
+  textRemovedFiler: label('ledgerTextRemovedFiler'),
+  textRemovedRetention: label('ledgerTextRemovedRetention'),
   hintAnswered: label('ledgerHintAnswered'),
   hintResolved: label('ledgerHintResolved'),
   hintDisputed: label('ledgerHintDisputed'),
@@ -49,16 +52,29 @@ const strings = {
 };
 /*
  * Four facts the chips cannot say: how many cases are still with the office, how
- * many of those have run out of time, how many texts the office is holding, and
- * how many cases it closed. A removal shows up here as a number on the office's
- * own page.
+ * many of those have run out of time, what the place's publicity mode makes of
+ * the text, and how many cases the office closed.
+ *
+ * The third fact is the one the mode changes. In the open mode it is the texts
+ * the office is holding; in the release mode the texts still waiting to be
+ * published; in the shell mode, where text is never published, the only text
+ * number worth a slot is how many were removed. In the open and release modes a
+ * removal still shows, as a fifth item that appears once there is one to count.
+ *
+ * Every item is rendered and the mode decides which are shown, because the
+ * fetched pilot config can disagree with the build-time mode.
  */
 const summary = [
-  { key: 'open', label: strings.open },
-  { key: 'overdue', label: strings.overdue },
-  { key: 'held', label: strings.held },
-  { key: 'closed', label: strings.closed },
+  { key: 'open', label: strings.open, modes: 'open release shell' },
+  { key: 'overdue', label: strings.overdue, modes: 'open release shell' },
+  { key: 'held', label: strings.held, modes: 'open' },
+  { key: 'pendingRelease', label: label('ledgerPendingRelease'), modes: 'release' },
+  { key: 'removed', label: label('ledgerRemoved'), modes: 'shell' },
+  { key: 'closed', label: strings.closed, modes: 'open release shell' },
+  { key: 'removed', label: label('ledgerRemoved'), modes: 'open release', whenCounted: true },
 ] as const;
+const summaryShown = (item: (typeof summary)[number]) =>
+  item.modes.split(' ').includes(place.publicTextMode) && !('whenCounted' in item);
 
 /*
  * One chip per public stage, plus "Sve". The chip carries its own address, so a
@@ -85,6 +101,7 @@ const stages = [
   data-base={base}
   data-place={place.slug}
   data-prefix={place.caseNumberPrefix}
+  data-public-text-mode={place.publicTextMode}
 >
   <a class="intent-back" href={`${base}${place.slug}`}>← {place.name[lang]}</a>
   <h1 class="ledger-title">{label('ledgerTitle')}</h1>
@@ -92,7 +109,12 @@ const stages = [
   <div class="ledger-summary" data-summary>
     {
       summary.map((item) => (
-        <p class="ledger-summary-item">
+        <p
+          class="ledger-summary-item"
+          data-summary-modes={item.modes}
+          data-summary-when-counted={'whenCounted' in item ? 'true' : undefined}
+          hidden={!summaryShown(item)}
+        >
           <span class="ledger-summary-value" data-count={item.key}>—</span>
           <span class="ledger-summary-label">{item.label}</span>
         </p>

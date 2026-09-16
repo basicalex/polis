@@ -605,7 +605,9 @@
   overflow-wrap: anywhere;
 }
 
-.ledger-row-text[data-held='true'] {
+/* A sentence about the text, not the text: held, waiting, or removed. */
+.ledger-row-text[data-held='true'],
+.ledger-row-text[data-removed='true'] {
   color: var(--polis-muted);
   font-style: italic;
 }

@@ -4,6 +4,7 @@
 import {
   closeCase,
   decideAiProposal,
+  getPilotConfig,
   getPrivateRecord,
   getPublicCase,
   holdCase,
@@ -17,9 +18,11 @@ import type {
   AiProposal,
   CaseMessage,
   HoldReason,
+  PilotConfig,
   PilotRole,
   PrivateTraceRecord,
   PublicCaseShell,
+  PublicTextMode,
   TraceAttachment,
   TraceEvent,
 } from '../../../lib/pilot/vrsar/model';
@@ -58,7 +61,17 @@ const MAX_MESSAGE_CHARS = 480;
 /** Below this the model's own confidence is worth stating as a caution. */
 const LOW_CONFIDENCE = 0.5;
 const STAFF_ROLES: readonly PilotRole[] = ['official'];
+/*
+ * The reasons an official may choose. The other four — pending-release, policy,
+ * notices, confidential — belong to the system, which is why they are not in
+ * this list and the backend refuses them from the hold route. Where one of them
+ * is the current reason, the staff view prints it as a label.
+ */
 const HOLD_REASONS: readonly HoldReason[] = ['personal-data', 'abuse', 'off-topic', 'other'];
+
+function isSystemHoldReason(reason: unknown): boolean {
+  return typeof reason === 'string' && !(HOLD_REASONS as readonly string[]).includes(reason);
+}
 
 let started = false;
 
@@ -119,11 +132,17 @@ export function initVrsarCaseDetail(): void {
 
   let record: PrivateTraceRecord | null = null;
   let shell: PublicCaseShell | null = null;
+  let config: PilotConfig | null = null;
   let role: PilotRole = 'resident';
   let messageFormBuilt = false;
   let closeFormState: 'none' | 'form' | 'blocked' = 'none';
-  let textActionsState: 'none' | 'form' | 'blocked' = 'none';
+  let textActionsState: 'none' | 'form' | 'blocked' | 'shell' | 'removed' = 'none';
   let labelRow: HTMLElement | null = null;
+
+  /** The municipality's publicity mode; 'open' until the config says otherwise. */
+  function publicTextMode(): PublicTextMode {
+    return config?.publicTextMode ?? 'open';
+  }
 
   function isStaff(): boolean {
     return STAFF_ROLES.includes(role);
@@ -281,15 +300,22 @@ export function initVrsarCaseDetail(): void {
     row.className = 'pilot-ledger-row';
     const main = document.createElement('div');
     main.className = 'pilot-ledger-main';
-    const author = message.direction === 'inbound'
-      ? pilotCopy.messages.inbound[lang]
-      : pilotCopy.messages.outbound[lang];
-    // An appeal or a dispute is named, so it never reads as an ordinary reply.
+    // A notice comes from a reader the office never sees, so it is filed under
+    // the system rather than under the filer.
+    const author = message.kind === 'notice'
+      ? translatedRole('system', lang)
+      : message.direction === 'inbound'
+        ? pilotCopy.messages.inbound[lang]
+        : pilotCopy.messages.outbound[lang];
+    // An appeal, a dispute or a notice is named, so it never reads as an
+    // ordinary reply.
     const kind = message.kind === 'label-appeal'
       ? pilotCopy.messages.labelAppeal[lang]
       : message.kind === 'dispute'
         ? pilotCopy.messages.dispute[lang]
-        : '';
+        : message.kind === 'notice'
+          ? pilotCopy.messages.notice[lang]
+          : '';
     main.append(
       createTextElement('strong', kind ? `${author} · ${kind}` : author),
       createTextElement('p', message.body),
@@ -300,7 +326,14 @@ export function initVrsarCaseDetail(): void {
       ),
     );
     row.append(main);
-    if (message.direction === 'outbound') {
+    // What the reader said was wrong with the text, as the column carries it.
+    if (message.kind === 'notice' && message.noticeReason) {
+      row.append(
+        stamp(translatedHoldReason(message.noticeReason, lang), 'unknown', {
+          noticeReason: String(message.noticeReason),
+        }),
+      );
+    } else if (message.direction === 'outbound') {
       row.append(
         stamp(translatedDelivery(message.deliveryState, lang), 'unknown', {
           delivery: String(message.deliveryState ?? 'unknown'),
@@ -452,13 +485,24 @@ export function initVrsarCaseDetail(): void {
     });
     visibility.setAttribute('aria-label', `${pilotCopy.publicText.status[lang]}: ${translatedTextStatus(shell.textStatus, lang)}`);
     marks.append(visibility);
+    // How many readers reported the text, next to what the public can see of it.
+    const notices = Number(shell.noticeCount) || 0;
+    if (notices > 0) {
+      marks.append(
+        stamp(`${pilotCopy.publicText.noticeCount[lang]}: ${notices}`, 'unknown', {
+          noticeCount: String(notices),
+        }),
+      );
+    }
     for (const label of Array.isArray(shell.labels) ? shell.labels : []) {
       // A soft label never highlights: the chip stays in the neutral tone (rule P4).
       marks.append(stamp(translatedCaseLabel(label, lang), 'unknown', { caseLabel: label }));
     }
 
     const body: Node[] = [marks];
-    if (shell.textStatus === 'held') {
+    if (shell.textStatus === 'removed') {
+      body.push(createTextElement('p', pilotCopy.publicText.removedNoRelease[lang], 'pilot-state'));
+    } else if (shell.textStatus === 'held') {
       body.push(
         createTextElement('p', pilotCopy.publicText.heldNotice[lang], 'pilot-state'),
         createTextElement(
@@ -476,10 +520,35 @@ export function initVrsarCaseDetail(): void {
     textPanel.replaceChildren(...body);
   }
 
+  /**
+   * The reason on the case, printed rather than offered, when the system set
+   * it. An official cannot pick these, so a select would lie about the choice.
+   * The row is built empty and filled on every render, because the forms around
+   * it are built once and must not be rebuilt under a half-typed note.
+   */
+  function systemReasonRow(): HTMLElement {
+    const row = createTextElement('p', '', 'pilot-event-meta');
+    row.dataset.systemReason = '';
+    row.hidden = true;
+    return row;
+  }
+
+  function renderSystemReasonRows(): void {
+    const shown = Boolean(shell && shell.textStatus === 'held' && isSystemHoldReason(shell.holdReason));
+    const line = shown
+      ? `${pilotCopy.publicText.holdReason[lang]}: ${translatedHoldReason(shell?.holdReason, lang)}`
+      : '';
+    for (const row of textActions?.querySelectorAll<HTMLElement>('[data-system-reason]') ?? []) {
+      row.textContent = line;
+      row.hidden = !shown;
+    }
+  }
+
   function holdSection(): HTMLElement {
     const section = document.createElement('section');
     section.className = 'panel pilot-section';
     section.append(createTextElement('h3', pilotCopy.publicText.holdHeading[lang]));
+    section.append(systemReasonRow());
     const form = document.createElement('form');
     form.className = 'pilot-form';
     const reason = document.createElement('select');
@@ -490,7 +559,9 @@ export function initVrsarCaseDetail(): void {
       option.value = value;
       reason.append(option);
     }
-    const reasonField = createField(reason, pilotCopy.publicText.holdReason[lang]);
+    const reasonField = createField(reason, pilotCopy.publicText.holdReason[lang], {
+      hint: pilotCopy.publicText.systemReasonsHint[lang],
+    });
     const note = document.createElement('textarea');
     note.id = 'case-hold-note';
     note.rows = 2;
@@ -525,6 +596,9 @@ export function initVrsarCaseDetail(): void {
     const section = document.createElement('section');
     section.className = 'panel pilot-section';
     section.append(createTextElement('h3', pilotCopy.publicText.releaseHeading[lang]));
+    // In release mode this form is the act of publishing, and the reason the
+    // text is waiting stands above it as a label.
+    section.append(systemReasonRow());
     const form = document.createElement('form');
     form.className = 'pilot-form';
     const redacted = document.createElement('textarea');
@@ -606,26 +680,44 @@ export function initVrsarCaseDetail(): void {
   }
 
   /**
-   * Hold and release stop at a closed case; the soft label stays available in
-   * every state, as the transition table says.
+   * Which text actions the office has. A closed case stops them, as the
+   * transition table says; a removed text and a shell-mode municipality stop
+   * them too, and each says so in one sentence instead of showing a dead form.
+   * The soft label stays available in every state.
    */
+  function textActionsMode(current: PrivateTraceRecord): 'form' | 'blocked' | 'shell' | 'removed' {
+    if (current.status === 'closed') return 'blocked';
+    if (shell?.textStatus === 'removed') return 'removed';
+    if (publicTextMode() === 'shell') return 'shell';
+    return 'form';
+  }
+
+  function textActionsBody(mode: 'form' | 'blocked' | 'shell' | 'removed'): Node[] {
+    if (mode === 'blocked') {
+      return [createTextElement('p', pilotCopy.publicText.closedNoAction[lang], 'pilot-state')];
+    }
+    if (mode === 'removed') {
+      return [createTextElement('p', pilotCopy.publicText.removedNoRelease[lang], 'pilot-state')];
+    }
+    if (mode === 'shell') {
+      return [createTextElement('p', pilotCopy.publicText.shellModeNoRelease[lang], 'pilot-state')];
+    }
+    return [holdSection(), releaseSection()];
+  }
+
   function renderPublicText(current: PrivateTraceRecord): void {
     if (!textSection || !textActions) return;
     textSection.hidden = !isStaff();
     if (!isStaff()) return;
     renderPublicTextPanel();
-    const mode = current.status === 'closed' ? 'blocked' : 'form';
+    const mode = textActionsMode(current);
     if (textActionsState !== mode) {
       textActionsState = mode;
       labelRow = document.createElement('section');
       labelRow.className = 'panel pilot-section';
-      textActions.replaceChildren(
-        ...(mode === 'blocked'
-          ? [createTextElement('p', pilotCopy.publicText.closedNoAction[lang], 'pilot-state')]
-          : [holdSection(), releaseSection()]),
-        labelRow,
-      );
+      textActions.replaceChildren(...textActionsBody(mode), labelRow);
     }
+    renderSystemReasonRows();
     renderLabelRow();
   }
 
@@ -820,7 +912,14 @@ export function initVrsarCaseDetail(): void {
       return;
     }
     try {
-      record = await getPrivateRecord(id);
+      // The publicity mode decides which text actions exist, so it is read with
+      // the record; a config that will not load leaves the open-mode forms up.
+      const [loaded, loadedConfig] = await Promise.all([
+        getPrivateRecord(id),
+        getPilotConfig().catch(() => null),
+      ]);
+      record = loaded;
+      config = loadedConfig;
       await loadShell();
       renderRecord(record);
       clearState(state);

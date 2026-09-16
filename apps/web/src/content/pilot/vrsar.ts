@@ -364,6 +364,27 @@ export const pilotCopy = Object.freeze({
       'Il caso è chiuso. Il testo non cambia più.',
       'The case is closed. The text no longer changes.',
     ),
+    /*
+     * What the office is told when the publicity mode or a removal has already
+     * settled the question. Draft wording; the native editor still has to say
+     * yes to it (open item O4).
+     */
+    noticeCount: localized('Prijave teksta', 'Segnalazioni sul testo', 'Reports about the text'),
+    shellModeNoRelease: localized(
+      'Ova općina ne objavljuje tekst prijave, pa objava nije moguća.',
+      'Questo comune non pubblica il testo delle segnalazioni, quindi la pubblicazione non è possibile.',
+      'This municipality does not publish report text, so releasing it is not possible.',
+    ),
+    removedNoRelease: localized(
+      'Tekst je uklonjen. Objava više nije moguća.',
+      'Il testo è stato rimosso. La pubblicazione non è più possibile.',
+      'The text was removed. It can no longer be released.',
+    ),
+    systemReasonsHint: localized(
+      'Razloge koje postavlja sustav službena osoba ne bira.',
+      'I motivi impostati dal sistema non sono scelti dal personale.',
+      'The staff do not choose the reasons the system sets.',
+    ),
   },
   channel: {
     label: localized('Kanal prijave', 'Canale della segnalazione', 'Report channel'),
@@ -425,6 +446,8 @@ export const pilotCopy = Object.freeze({
     outbound: localized('Ured', 'Ufficio', 'Office'),
     labelAppeal: localized('Osporavanje oznake', 'Contestazione dell’etichetta', 'Label appeal'),
     dispute: localized('Osporavanje dovršetka', 'Contestazione del completamento', 'Completion dispute'),
+    /* A reader's report about the text. Draft wording, still for the editor (O4). */
+    notice: localized('Prijava teksta', 'Segnalazione sul testo', 'Report about the text'),
     formHeading: localized('Pošalji pitanje podnositelju', 'Invia una domanda al segnalante', 'Send a question to the filer'),
     body: localized('Tekst pitanja', 'Testo della domanda', 'Question text'),
     bodyHint: localized(
@@ -553,14 +576,25 @@ export const textStatusLabels: Readonly<Record<string, LocalizedText>> = Object.
   public: localized('JAVNO', 'PUBBLICO', 'PUBLIC'),
   held: localized('ZADRŽANO', 'TRATTENUTO', 'HELD'),
   redacted: localized('SKRAĆENO', 'RIDOTTO', 'SHORTENED'),
+  removed: localized('UKLONJENO', 'RIMOSSO', 'REMOVED'),
   unknown: localized('VIDLJIVOST NIJE POZNATA', 'VISIBILITÀ SCONOSCIUTA', 'VISIBILITY UNKNOWN'),
 });
 
+/*
+ * All eight hold reasons. The first four are the assessment reasons an official
+ * picks; the last four the system sets, and the staff view shows those as
+ * labels rather than choices. The new words are drafts for the native editor
+ * (open item O4).
+ */
 export const holdReasonLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   'personal-data': localized('Osobni podaci', 'Dati personali', 'Personal data'),
   abuse: localized('Uvredljiv sadržaj', 'Contenuto offensivo', 'Abusive content'),
   'off-topic': localized('Izvan teme', 'Fuori tema', 'Off topic'),
   other: localized('Drugi razlog', 'Altro motivo', 'Other reason'),
+  'pending-release': localized('Čeka objavu', 'In attesa di pubblicazione', 'Awaiting publication'),
+  policy: localized('Politika objave', 'Politica di pubblicazione', 'Publication policy'),
+  notices: localized('Prijave čitatelja', 'Segnalazioni dei lettori', 'Reader reports'),
+  confidential: localized('Povjerljiva osoba', 'Persona di fiducia', 'Confidential officer'),
   unknown: localized('Razlog nije poznat', 'Motivo sconosciuto', 'Reason unknown'),
 });
 
@@ -752,6 +786,7 @@ export const textStatusTones: Readonly<Record<string, string>> = Object.freeze({
   public: 'valid',
   held: 'warning',
   redacted: 'warning',
+  removed: 'unknown',
   unknown: 'unknown',
 });
 

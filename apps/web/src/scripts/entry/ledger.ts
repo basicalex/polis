@@ -12,7 +12,12 @@
  */
 
 import { getPilotConfig, listPublicCases } from '../../lib/pilot/vrsar/api';
-import { entityName, type PilotConfig, type PublicCaseShell } from '../../lib/pilot/vrsar/model';
+import {
+  entityName,
+  type PilotConfig,
+  type PublicCaseShell,
+  type PublicTextMode,
+} from '../../lib/pilot/vrsar/model';
 import {
   caseStateTone,
   caseNumberRegExp,
@@ -26,6 +31,8 @@ import {
   countLedgerStages,
   countOpenCases,
   countOverdueCases,
+  countPendingRelease,
+  countRemoved,
   filterLedgerCases,
   isOverdue,
   ledgerFilterFromLocation,
@@ -65,6 +72,8 @@ function start(ledger: HTMLElement): void {
   let stage: LedgerFilter = ledgerFilterFromLocation(location.search);
   const base = ledger.dataset.base === '/en/' ? '/en/' : '/';
   const place = ledger.dataset.place ?? '';
+  // The build-time mode from places.ts, until the pilot config says otherwise.
+  let textMode: PublicTextMode = readTextMode(ledger.dataset.publicTextMode);
   const caseHref = (caseNumber: string) => `${base}${place}/zapis/${encodeURIComponent(caseNumber)}`;
 
   // ---- the search field ---------------------------------------------------
@@ -136,13 +145,26 @@ function start(ledger: HTMLElement): void {
 
     link.append(head, meta);
 
-    // The report itself, in the first line or two of it. A held text says so
-    // here rather than leaving the row looking empty.
-    const excerpt = shell.textStatus === 'held' ? (strings.textHeld ?? '') : textExcerpt(shell.text);
-    if (excerpt) {
-      const line = createTextElement('span', excerpt, 'ledger-row-text');
-      if (shell.textStatus === 'held') line.dataset.held = 'true';
-      link.append(line);
+    // The report itself, in the first line or two of it. A text the office is
+    // holding, waiting to publish or has removed says so here rather than
+    // leaving the row looking empty.
+    //
+    // A shell-mode place never publishes report text, so a row carries no text
+    // element at all: a sentence about a held text would promise a text that is
+    // never coming.
+    if (textMode !== 'shell') {
+      const excerpt =
+        shell.textStatus === 'removed'
+          ? removedSentence(shell)
+          : shell.textStatus === 'held'
+            ? (shell.holdReason === 'pending-release' ? strings.textPending : strings.textHeld) ?? ''
+            : textExcerpt(shell.text);
+      if (excerpt) {
+        const line = createTextElement('span', excerpt, 'ledger-row-text');
+        if (shell.textStatus === 'held') line.dataset.held = 'true';
+        if (shell.textStatus === 'removed') line.dataset.removed = 'true';
+        link.append(line);
+      }
     }
 
     if (hint) {
@@ -163,6 +185,13 @@ function start(ledger: HTMLElement): void {
 
     item.append(link);
     return item;
+  }
+
+  /** Why the text is gone. The filer asked, or the retention period ran out. */
+  function removedSentence(shell: PublicCaseShell): string {
+    return (
+      (shell.removedReason === 'retention' ? strings.textRemovedRetention : strings.textRemovedFiler) ?? ''
+    );
   }
 
   /*
@@ -191,13 +220,17 @@ function start(ledger: HTMLElement): void {
     const counts: Record<string, number> = {
       open: countOpenCases(shells),
       overdue: countOverdueCases(shells),
-      // Held and closed are how a removal stays visible: as a number.
+      // Held, pending, removed and closed are how a text that is not on the
+      // page stays visible: as a number.
       held: countHeld(shells),
+      pendingRelease: countPendingRelease(shells),
+      removed: countRemoved(shells),
       closed: byStage.closed ?? 0,
     };
     for (const element of summary?.querySelectorAll<HTMLElement>('[data-count]') ?? []) {
       element.textContent = String(counts[element.dataset.count ?? ''] ?? 0);
     }
+    showSummaryItems(counts);
 
     // A stage nobody is in keeps its chip: the reader should see the whole path,
     // not only the parts of it this place happens to be standing in today.
@@ -209,6 +242,20 @@ function start(ledger: HTMLElement): void {
       chip.dataset.empty = count === 0 && key !== 'all' ? 'true' : 'false';
     });
     if (capped) capped.hidden = shells.length < LIST_LIMIT;
+  }
+
+  /*
+   * Which of the summary items this mode keeps. The items are all in the page;
+   * the mode decides which stand, and the fifth one waits for a count above
+   * zero, so a place that has never removed a text never carries the word.
+   */
+  function showSummaryItems(counts: Record<string, number>): void {
+    for (const item of summary?.querySelectorAll<HTMLElement>('[data-summary-modes]') ?? []) {
+      const modes = (item.dataset.summaryModes ?? '').split(' ');
+      const key = item.querySelector<HTMLElement>('[data-count]')?.dataset.count ?? '';
+      const counted = item.dataset.summaryWhenCounted !== 'true' || (counts[key] ?? 0) > 0;
+      item.hidden = !modes.includes(textMode) || !counted;
+    }
   }
 
   function markSelected(): void {
@@ -272,6 +319,11 @@ function start(ledger: HTMLElement): void {
       ]);
       loaded = shells;
       pilot = config;
+      // The municipality's own setting wins over the one built into the page.
+      if (config) {
+        textMode = readTextMode(config.publicTextMode);
+        ledger.dataset.publicTextMode = textMode;
+      }
       countAndShow(shells);
       draw();
     } catch {
@@ -292,6 +344,11 @@ function start(ledger: HTMLElement): void {
     void load();
   });
   void load();
+}
+
+/** An unknown mode is the open one: the page shows the text it has. */
+function readTextMode(value: unknown): PublicTextMode {
+  return value === 'release' || value === 'shell' ? value : 'open';
 }
 
 function documentLang(): PilotLang {
