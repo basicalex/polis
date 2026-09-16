@@ -46,6 +46,31 @@ const configuredPhone = String(import.meta.env.PUBLIC_PILOT_PHONE ?? '').trim();
 const phoneActive = /^\+?[\d\s()-]{6,}$/.test(configuredPhone);
 const phone = phoneActive ? configuredPhone : publicCaseCopy.channel.numberUnset[lang === 'en' ? 'en' : 'hr'];
 
+/*
+ * One privacy paragraph, composed from this municipality's publicity mode and
+ * its privacy block. The mode decides the first sentence; the rest is the same
+ * in every place, with the controller, the retention period and the DPO address
+ * filled in from the place. The full Article 13 notice is one tap away.
+ */
+const modeSentence =
+  place.publicTextMode === 'release'
+    ? label('reportPrivacyRelease')
+    : place.publicTextMode === 'shell'
+      ? label('reportPrivacyShell')
+      : label('reportPrivacyOpen');
+const privacyHref = `${base}${place.slug}/privatnost`;
+const privacyParagraph = [
+  label('reportPrivacyNote'),
+  modeSentence,
+  label('reportPrivacyController')
+    .replace('{controller}', place.privacy.controllerName[lang])
+    .replace('{address}', place.privacy.controllerAddress[lang]),
+  label('reportPrivacyPrivate'),
+  label('reportPrivacyRetention').replace('{days}', String(place.privacy.retentionDays)),
+  label('reportPrivacyRights'),
+  label('reportPrivacyDpo').replace('{email}', place.privacy.dpoContact),
+].join(' ');
+
 const strings = {
   required: label('reportTextRequired'),
   failed: label('reportFailed'),
@@ -188,7 +213,10 @@ const strings = {
     <button class="btn report-submit" data-variant="primary" type="submit" data-submit>
       {strings.submit}
     </button>
-    <p class="report-note">{label('reportPrivacyNote')}</p>
+    <p class="report-note">
+      {privacyParagraph}{' '}
+      <a class="report-note-link" href={privacyHref}>{label('reportPrivacyLink')}</a>
+    </p>
     <p class="field-error" role="alert" data-form-error></p>
 
     <noscript>

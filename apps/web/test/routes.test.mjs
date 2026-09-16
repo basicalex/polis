@@ -563,18 +563,116 @@ test('the place ledger lists every state and says a count is not a vote', async 
   }
 });
 
-test('the filing screen says the text is public at once', async () => {
-  const content = await readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8');
-  // The text and the location publish immediately; the warning that follows is
-  // what a filer can act on before they write.
-  assert.match(content, /Tekst i lokacija javni su odmah, pod brojem predmeta\./);
+test('the filing screen says what this municipality publishes and when', async () => {
+  const [content, component] = await Promise.all([
+    readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
+  ]);
+
+  // One sentence per publicity mode; the place decides which one the page says.
+  assert.match(content, /Tekst i lokaciju objavljujemo odmah, pod brojem predmeta\./);
+  assert.match(content, /Tekst i lokaciju objavljuje ured nakon provjere\./);
+  assert.match(content, /Tekst i lokaciju ne objavljujemo\./);
+  assert.match(component, /place\.publicTextMode === 'release'/);
+  assert.match(component, /place\.publicTextMode === 'shell'/);
+  assert.match(component, /label\('reportPrivacyOpen'\)/);
+
+  // The warning a filer can act on before they write stays.
   assert.match(content, /Ne pišite imena, brojeve telefona ni registracije drugih ljudi\./);
-  assert.match(content, /Vaši kontaktni podaci ostaju privatni\./);
-  assert.match(content, /The text and the location are public right away/);
   // The photo is the one thing that is not published in this wave.
   assert.match(content, /Zasad je vidi samo ured i ne objavljuje se\./);
   // The old promise of approval before publication is gone.
   assert.doesNotMatch(content, /dok ga ured ne odobri/);
+
+  // The rest of the paragraph: controller, what stays private, retention,
+  // rights, the data protection officer, and the way to the full notice.
+  assert.match(content, /Vaši kontaktni podaci i fotografija ostaju privatni\./);
+  assert.match(content, /Prijavu čuvamo \{days\} dana\./);
+  assert.match(content, /Voditelj obrade je \{controller\}, \{address\}\./);
+  assert.match(content, /pravo na pristup, brisanje i prigovor/);
+  assert.match(component, /'\{controller\}', place\.privacy\.controllerName\[lang\]/);
+  assert.match(component, /'\{address\}', place\.privacy\.controllerAddress\[lang\]/);
+  assert.match(component, /'\{days\}', String\(place\.privacy\.retentionDays\)/);
+  assert.match(component, /'\{email\}', place\.privacy\.dpoContact/);
+  assert.match(component, /\$\{base\}\$\{place\.slug\}\/privatnost/);
+  assert.match(component, /label\('reportPrivacyLink'\)/);
+});
+
+test('every live place has a data protection notice in both languages', async () => {
+  const pages = [join('[place]', 'privatnost.astro'), join('en', '[place]', 'privatnost.astro')];
+  for (const page of pages) await exists(page);
+
+  const [hr, en, notice, privacy, content] = await Promise.all([
+    readFile(new URL(pages[0], root), 'utf8'),
+    readFile(new URL(pages[1], root), 'utf8'),
+    readFile(new URL('../src/components/entry/PrivacyNotice.astro', import.meta.url), 'utf8'),
+    readFile(new URL('privacy.astro', root), 'utf8'),
+    readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
+  ]);
+
+  // Only a municipality that signed is a controller, so a known place without
+  // one has no notice at all rather than an empty page.
+  for (const [page, source] of [[pages[0], hr], [pages[1], en]]) {
+    assert.match(source, /findPilotPlace\(slug\)/, page);
+    assert.match(source, /new Response\(null, \{ status: 404 \}\)/, page);
+    assert.match(source, /PrivacyNotice/, page);
+    assert.match(source, /chrome="entry"/, page);
+  }
+  assert.match(hr, /lang = 'hr'/);
+  assert.match(en, /lang = 'en'/);
+
+  // The notice names the controller, the retention period and the officer, and
+  // says which line about publication this municipality's mode gives.
+  assert.match(notice, /'\{controller\}', privacy\.controllerName\[lang\]/);
+  assert.match(notice, /'\{address\}', privacy\.controllerAddress\[lang\]/);
+  assert.match(notice, /'\{days\}', String\(privacy\.retentionDays\)/);
+  assert.match(notice, /'\{email\}', privacy\.dpoContact/);
+  assert.match(notice, /privacy\.confidentialContact/);
+  assert.match(notice, /place\.publicTextMode === 'release'/);
+  assert.match(notice, /place\.publicTextMode === 'shell'/);
+  assert.match(notice, /privacyWhatIsPublicOpen/);
+  // The hash outlives the text, and the notice says so.
+  assert.match(content, /Otisak izvornog teksta ostaje javan i nakon uklanjanja teksta/);
+  assert.match(content, /Pritužbu možete podnijeti Agenciji za zaštitu osobnih podataka \(AZOP\)\./);
+
+  // The platform notice stays the platform's: the map tiles and one link per
+  // live place to the municipality that is the controller.
+  assert.match(privacy, /entryStrings\.reportMapPrivacy/);
+  assert.match(privacy, /livePlaces/);
+  assert.match(privacy, /\/privatnost/);
+});
+
+test('the case-number screen asks the public shell what happened to the text', async () => {
+  const [component, script] = await Promise.all([
+    readFile(new URL('../src/components/entry/CaseNumber.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/scripts/entry/case-number.ts', import.meta.url), 'utf8'),
+  ]);
+
+  // A reserved block, empty until the shell answers.
+  assert.match(component, /data-outcome\b/);
+  assert.match(component, /data-outcome-body/);
+  assert.match(component, /data-outcome-heading/);
+  assert.match(component, /data-outcome-note/);
+  assert.match(component, /data-outcome-contact/);
+  // The confidential officer travels as data on the root, not as a request.
+  assert.match(component, /data-confidential-name=/);
+  assert.match(component, /data-confidential-email=/);
+  assert.match(component, /data-confidential-phone=/);
+
+  assert.match(script, /getPublicCase\(caseNumber\)/);
+  assert.match(script, /held\.textStatus !== 'held'/);
+  assert.match(script, /'confidential'/);
+  assert.match(script, /'pending-release'/);
+  assert.match(script, /'policy'/);
+  // Contact lines only for the person holding the key.
+  assert.match(script, /if \(hasKey\) showConfidentialContact\(page\)/);
+  // A failed answer leaves the screen as it was.
+  assert.match(script, /\} catch \{\n    return;/);
+
+  // The key never becomes a query and nothing about this case is stored.
+  assert.doesNotMatch(script, /\?k=/);
+  assert.doesNotMatch(script, /localStorage/);
+  assert.doesNotMatch(script, /sessionStorage/);
 });
 
 test('filing asks for no identity and sends an optional WGS84 point', async () => {

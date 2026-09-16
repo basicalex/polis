@@ -107,6 +107,103 @@ export const publicCaseCopy = Object.freeze({
     redactedOn: localized('Uklonjeno', 'Rimosso il', 'Removed on'),
   },
 
+  /*
+   * A text that is gone. The filer can take their own words off the public
+   * record and the retention clock takes them off on its own; either way the
+   * case, its number and the hash of the original text stay where they were.
+   */
+  removed: {
+    heading: localized('Tekst je uklonjen', 'Il testo è stato rimosso', 'The text was removed'),
+    filer: localized(
+      'Tekst uklonjen na zahtjev podnositelja.',
+      'Testo rimosso su richiesta di chi ha segnalato.',
+      'The text was removed at the filer’s request.',
+    ),
+    retention: localized(
+      'Tekst uklonjen nakon isteka roka čuvanja.',
+      'Testo rimosso alla scadenza del periodo di conservazione.',
+      'The text was removed when the retention period ran out.',
+    ),
+    permanent: localized(
+      'Uklanjanje je trajno. Otisak izvornog teksta ostaje javan.',
+      'La rimozione è definitiva. L’impronta del testo originale resta pubblica.',
+      'The removal is permanent. The hash of the original text stays public.',
+    ),
+  },
+
+  /*
+   * What a reader can do about a text that should not stand: name the category
+   * and, if they want, say more. The office decides; the count is not public.
+   */
+  notice: {
+    open: localized('Prijavi ovaj tekst', 'Segnala questo testo', 'Report this text'),
+    intro: localized(
+      'Ako tekst sadrži osobne podatke, uvrede ili ne pripada ovamo, recite nam.',
+      'Se il testo contiene dati personali, offese o non c’entra nulla, diccelo.',
+      'If the text carries personal data, abuse, or does not belong here, tell us.',
+    ),
+    reasonLabel: localized('Razlog', 'Motivo', 'Reason'),
+    noteLabel: localized('Napomena (neobvezno)', 'Nota (facoltativa)', 'Note (optional)'),
+    submit: localized('Pošalji prijavu teksta', 'Invia la segnalazione del testo', 'Send the report'),
+    sent: localized('Zaprimljeno. Hvala.', 'Ricevuto. Grazie.', 'Received. Thank you.'),
+    already: localized(
+      'Već ste prijavili ovaj tekst.',
+      'Hai già segnalato questo testo.',
+      'You already reported this text.',
+    ),
+    failed: localized(
+      'Prijava nije poslana. Pokušajte ponovno.',
+      'La segnalazione non è stata inviata. Riprova.',
+      'The report was not sent. Try again.',
+    ),
+  },
+
+  /* The filer takes their own text off the record. Two taps, then it is gone. */
+  erase: {
+    open: localized('Ukloni moj tekst', 'Rimuovi il mio testo', 'Remove my text'),
+    confirmHeading: localized(
+      'Trajno ukloniti tekst?',
+      'Rimuovere il testo in modo definitivo?',
+      'Remove the text for good?',
+    ),
+    confirmBody: localized(
+      'Tekst nestaje s javnog zapisa i ne može se vratiti. Predmet, broj i otisak teksta ostaju.',
+      'Il testo sparisce dal record pubblico e non può tornare. Il caso, il numero e l’impronta del testo restano.',
+      'The text leaves the public record and cannot come back. The case, its number and the text hash stay.',
+    ),
+    confirm: localized('Trajno ukloni', 'Rimuovi definitivamente', 'Remove for good'),
+    cancel: localized('Odustani', 'Annulla', 'Cancel'),
+    done: localized('Tekst je uklonjen.', 'Il testo è stato rimosso.', 'The text was removed.'),
+    failed: localized(
+      'Uklanjanje nije uspjelo. Pokušajte ponovno.',
+      'La rimozione non è riuscita. Riprova.',
+      'The removal did not go through. Try again.',
+    ),
+  },
+
+  /* Where a whistleblower report goes instead of the public page. */
+  confidential: {
+    contact: localized(
+      'Povjerljiva osoba: {name}, {email}, {phone}',
+      'Persona di fiducia: {name}, {email}, {phone}',
+      'Confidential officer: {name}, {email}, {phone}',
+    ),
+  },
+
+  /* Public events this page writes into the trail in its own words. */
+  trail: {
+    textRemovedFiler: localized(
+      'Javni tekst uklonjen na zahtjev podnositelja',
+      'Testo pubblico rimosso su richiesta di chi ha segnalato',
+      'Public text removed at the filer’s request',
+    ),
+    textRemovedRetention: localized(
+      'Javni tekst uklonjen istekom roka čuvanja',
+      'Testo pubblico rimosso alla scadenza della conservazione',
+      'Public text removed when the retention period ran out',
+    ),
+  },
+
   /** Why a text is held, in the four words the compliance pass can use. */
   holdReason: {
     'personal-data': localized(
@@ -128,6 +225,26 @@ export const publicCaseCopy = Object.freeze({
       'Tekst je zadržan iz drugog razloga.',
       'Il testo è trattenuto per un altro motivo.',
       'The text is held for another reason.',
+    ),
+    'pending-release': localized(
+      'Tekst čeka objavu ureda.',
+      'Il testo attende la pubblicazione da parte dell’ufficio.',
+      'The text is waiting for the office to publish it.',
+    ),
+    policy: localized(
+      'Ova općina ne objavljuje tekst prijave.',
+      'Questo comune non pubblica il testo delle segnalazioni.',
+      'This municipality does not publish the text of reports.',
+    ),
+    notices: localized(
+      'Tekst je zadržan nakon prijava čitatelja.',
+      'Il testo è trattenuto dopo le segnalazioni dei lettori.',
+      'The text is held after readers reported it.',
+    ),
+    confidential: localized(
+      'Prijava je upućena povjerljivoj osobi općine.',
+      'La segnalazione è stata trasmessa alla persona di fiducia del comune.',
+      'The report went to the municipality’s confidential officer.',
     ),
   } as Readonly<Record<string, LocalizedText>>,
 
@@ -422,6 +539,31 @@ export function translatedCaseState(state: unknown, lang: PilotLang): string {
 export function translatedHoldReason(reason: unknown, lang: PilotLang): string {
   const key = typeof reason === 'string' ? reason : '';
   return publicCaseCopy.holdReason[key]?.[lang] ?? publicCaseCopy.holdReason.other[lang];
+}
+
+/** Why a text is gone: the filer asked, or the retention period ran out. */
+export function translatedRemovedReason(reason: unknown, lang: PilotLang): string {
+  return reason === 'retention'
+    ? publicCaseCopy.removed.retention[lang]
+    : publicCaseCopy.removed.filer[lang];
+}
+
+/** The same removal, said as one line in the public trail. */
+export function translatedTextRemoved(reason: unknown, lang: PilotLang): string {
+  return reason === 'retention'
+    ? publicCaseCopy.trail.textRemovedRetention[lang]
+    : publicCaseCopy.trail.textRemovedFiler[lang];
+}
+
+/** The confidential officer of the municipality, named in one line. */
+export function confidentialContactLine(
+  contact: { name: string; email: string; phone: string },
+  lang: PilotLang,
+): string {
+  return publicCaseCopy.confidential.contact[lang]
+    .replace('{name}', contact.name)
+    .replace('{email}', contact.email)
+    .replace('{phone}', contact.phone);
 }
 
 /**

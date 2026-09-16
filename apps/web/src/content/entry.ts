@@ -86,6 +86,24 @@ export const entryStrings = {
   ledgerNotFixed: { hr: 'Nije popravljeno', en: 'Not fixed' },
   /* A row whose text the office is holding says so where the text would stand. */
   ledgerTextHeld: { hr: 'Tekst je zadržan.', en: 'The text is held.' },
+  /*
+   * Two more text outcomes a row can carry: a text the office has not published
+   * yet, and a text that is gone. Both are stated in words, never as a blank.
+   */
+  ledgerPendingRelease: { hr: 'Čeka objavu', en: 'Awaiting publication' },
+  ledgerRemoved: { hr: 'Uklonjeno', en: 'Removed' },
+  ledgerTextPending: {
+    hr: 'Tekst čeka objavu ureda.',
+    en: 'The text is waiting for the office to publish it.',
+  },
+  ledgerTextRemovedFiler: {
+    hr: 'Tekst uklonjen na zahtjev podnositelja.',
+    en: 'The text was removed at the filer’s request.',
+  },
+  ledgerTextRemovedRetention: {
+    hr: 'Tekst uklonjen nakon isteka roka čuvanja.',
+    en: 'The text was removed after the retention period ended.',
+  },
   ledgerEmpty: { hr: 'Još nema predmeta.', en: 'No cases yet.' },
   ledgerEmptyPurpose: {
     hr: 'Ovdje stoji svaki predmet ove općine, u svakom stanju, čim ga ured zaprimi.',
@@ -175,9 +193,51 @@ export const entryStrings = {
   },
   reportSubmit: { hr: 'Pošalji prijavu', en: 'Send report' },
   reportSending: { hr: 'Šaljem…', en: 'Sending…' },
+  /*
+   * The filing note is composed on the page, one sentence per thing a filer has
+   * to know: what this municipality publishes and when, who the controller is,
+   * what stays private, how long the report is kept, and how rights are used.
+   * The warning below is the part a person can act on before they write.
+   */
   reportPrivacyNote: {
-    hr: 'Bez računa. Tekst i lokacija javni su odmah, pod brojem predmeta. Ne pišite imena, brojeve telefona ni registracije drugih ljudi. Vaši kontaktni podaci ostaju privatni.',
-    en: 'No account. The text and the location are public right away, under the case number. Do not write other people’s names, phone numbers or plates. Your contact details stay private.',
+    hr: 'Bez računa. Ne pišite imena, brojeve telefona ni registracije drugih ljudi.',
+    en: 'No account. Do not write other people’s names, phone numbers or plates.',
+  },
+  reportPrivacyOpen: {
+    hr: 'Tekst i lokaciju objavljujemo odmah, pod brojem predmeta.',
+    en: 'We publish the text and the location right away, under the case number.',
+  },
+  reportPrivacyRelease: {
+    hr: 'Tekst i lokaciju objavljuje ured nakon provjere. Broj predmeta javan je odmah.',
+    en: 'The office publishes the text and the location after a check. The case number is public right away.',
+  },
+  reportPrivacyShell: {
+    hr: 'Tekst i lokaciju ne objavljujemo. Javno je stanje predmeta i otisak izvornog teksta.',
+    en: 'We do not publish the text or the location. The case state and the fingerprint of the original text are public.',
+  },
+  reportPrivacyController: {
+    hr: 'Voditelj obrade je {controller}, {address}.',
+    en: 'The controller is {controller}, {address}.',
+  },
+  reportPrivacyPrivate: {
+    hr: 'Vaši kontaktni podaci i fotografija ostaju privatni.',
+    en: 'Your contact details and photo stay private.',
+  },
+  reportPrivacyRetention: {
+    hr: 'Prijavu čuvamo {days} dana.',
+    en: 'We keep the report for {days} days.',
+  },
+  reportPrivacyRights: {
+    hr: 'Imate pravo na pristup, brisanje i prigovor. Ostvarujete ih brojem predmeta i ključem iz svoje poveznice; bez njega prijavu ne možemo povezati s vama.',
+    en: 'You have the right of access, erasure and objection. You use them with the case number and the key in your link; without it we cannot connect the report to you.',
+  },
+  reportPrivacyDpo: {
+    hr: 'Službenik za zaštitu podataka: {email}.',
+    en: 'Data protection officer: {email}.',
+  },
+  reportPrivacyLink: {
+    hr: 'Cijela obavijest o zaštiti podataka',
+    en: 'The full data protection notice',
   },
   reportFailed: { hr: 'Prijava nije poslana. Pokušajte ponovno.', en: 'The report was not sent. Try again.' },
   reportNoScript: {
@@ -199,6 +259,105 @@ export const entryStrings = {
    * live place needs its own form from the native editor.
    */
   caseBackToPlace: { hr: 'Natrag na Općinu Vrsar', en: 'Back to Vrsar Municipality' },
+
+  /*
+   * S5 · what happened to the text. The screen paints the number without a
+   * request; this block is filled after the public shell answers, and only when
+   * the shell says the text is not public. Public text needs no explanation.
+   */
+  caseOutcomeConfidentialHeading: {
+    hr: 'Prijava je upućena povjerljivoj osobi',
+    en: 'The report went to the confidential officer',
+  },
+  caseOutcomeConfidentialNote: {
+    hr: 'Zbog sadržaja prijave tekst se ne objavljuje. Javite se povjerljivoj osobi općine.',
+    en: 'Because of what the report says, the text is not published. Contact the municipality’s confidential officer.',
+  },
+  caseOutcomePendingRelease: {
+    hr: 'Tekst čeka objavu ureda. Broj predmeta javan je odmah.',
+    en: 'The text is waiting for the office to publish it. The case number is public right away.',
+  },
+  caseOutcomePolicy: {
+    hr: 'Ova općina ne objavljuje tekst prijave. Javno je stanje predmeta i otisak teksta.',
+    en: 'This municipality does not publish report text. The case state and the fingerprint of the text are public.',
+  },
+  caseOutcomeHeld: {
+    hr: 'Tekst je zadržan. Razlog je javno naveden na zapisu predmeta.',
+    en: 'The text is held. The reason is stated publicly on the case record.',
+  },
+  /* Who acts next, for a hold nobody but the office can lift. */
+  caseOutcomeOfficeDecides: {
+    hr: 'O objavi teksta odlučuje ured.',
+    en: 'The office decides whether the text is published.',
+  },
+
+  /*
+   * The Article 13 notice under a place. One sentence per section; the mode
+   * decides which "what is public" line the page prints.
+   */
+  privacyHeading: { hr: 'Obavijest o zaštiti osobnih podataka', en: 'Data protection notice' },
+  privacyControllerTitle: { hr: 'Voditelj obrade', en: 'Controller' },
+  privacyController: {
+    hr: 'Voditelj obrade vaših podataka je {controller}, {address}. Polis vodi Intrface j.d.o.o. kao izvršitelj obrade, po uputi općine.',
+    en: 'The controller of your data is {controller}, {address}. Intrface j.d.o.o. runs Polis as processor, on the municipality’s instructions.',
+  },
+  privacyPurposeTitle: { hr: 'Svrha obrade', en: 'Purpose' },
+  privacyPurpose: {
+    hr: 'Zaprimanje prijave, postupanje po njoj i javni prikaz onoga što je općina učinila.',
+    en: 'To take in the report, act on it, and show in public what the municipality did.',
+  },
+  privacyLegalBasisTitle: { hr: 'Pravna osnova', en: 'Legal basis' },
+  privacyLegalBasis: {
+    hr: 'Obrada je nužna za izvršavanje zadaće od javnog interesa, članak 6. stavak 1. točka e Opće uredbe o zaštiti podataka.',
+    en: 'Processing is necessary for a task carried out in the public interest, Article 6(1)(e) of the General Data Protection Regulation.',
+  },
+  privacyWhatIsPublicTitle: { hr: 'Što je javno', en: 'What is public' },
+  privacyWhatIsPublicOpen: {
+    hr: 'Broj predmeta, tekst prijave i lokacija javni su od trenutka podnošenja, uz stanje predmeta, rok i odgovor ureda.',
+    en: 'The case number, the report text and the location are public from the moment of filing, with the case state, the due date and the office’s answer.',
+  },
+  privacyWhatIsPublicRelease: {
+    hr: 'Broj predmeta, stanje predmeta, rok i odgovor ureda javni su odmah. Tekst prijave i lokaciju objavljuje ured nakon provjere.',
+    en: 'The case number, the case state, the due date and the office’s answer are public right away. The office publishes the report text and the location after a check.',
+  },
+  privacyWhatIsPublicShell: {
+    hr: 'Javni su broj predmeta, stanje predmeta, rok, odgovor ureda i otisak izvornog teksta. Tekst prijave i lokacija nisu javni.',
+    en: 'The case number, the case state, the due date, the office’s answer and the fingerprint of the original text are public. The report text and the location are not.',
+  },
+  privacyWhatStaysPrivateTitle: { hr: 'Što ostaje privatno', en: 'What stays private' },
+  privacyWhatStaysPrivate: {
+    hr: 'Kontaktni podaci, fotografija i prepiska s uredom nisu javni. Vidi ih ured, a vi ključem iz svoje poveznice.',
+    en: 'Contact details, the photo and messages with the office are not public. The office sees them, and so do you, with the key in your link.',
+  },
+  privacyRetentionTitle: { hr: 'Rok čuvanja', en: 'Retention' },
+  privacyRetention: {
+    hr: 'Tekst prijave i lokaciju uklanjamo {days} dana nakon zatvaranja predmeta.',
+    en: 'We remove the report text and the location {days} days after the case is closed.',
+  },
+  privacyHashStays: {
+    hr: 'Otisak izvornog teksta ostaje javan i nakon uklanjanja teksta, da zapis ostane provjerljiv.',
+    en: 'The fingerprint of the original text stays public after the text is removed, so the record stays checkable.',
+  },
+  privacyRightsTitle: { hr: 'Vaša prava', en: 'Your rights' },
+  privacyRights: {
+    hr: 'Imate pravo na pristup, brisanje i prigovor. Ostvarujete ih brojem predmeta i ključem iz svoje poveznice; bez njega prijavu ne možemo povezati s vama.',
+    en: 'You have the right of access, erasure and objection. You use them with the case number and the key in your link; without it we cannot connect the report to you.',
+  },
+  privacyDpoTitle: { hr: 'Službenik za zaštitu podataka', en: 'Data protection officer' },
+  privacyDpo: {
+    hr: 'Službenik za zaštitu podataka: {email}.',
+    en: 'Data protection officer: {email}.',
+  },
+  privacyConfidentialTitle: { hr: 'Povjerljiva osoba', en: 'Confidential officer' },
+  privacyConfidential: {
+    hr: 'Za prijavu nepravilnosti obratite se povjerljivoj osobi općine. Polis nije kanal za zaštićeno unutarnje prijavljivanje.',
+    en: 'For a report of wrongdoing, contact the municipality’s confidential officer. Polis is not a channel for protected internal reporting.',
+  },
+  privacyComplaintTitle: { hr: 'Pritužba', en: 'Complaint' },
+  privacyComplaint: {
+    hr: 'Pritužbu možete podnijeti Agenciji za zaštitu osobnih podataka (AZOP).',
+    en: 'You can lodge a complaint with the Croatian Personal Data Protection Agency (AZOP).',
+  },
 
   /** chrome */
   attribution: {
@@ -252,5 +411,9 @@ export const entryMeta = {
   caseNumberDescription: {
     hr: 'Broj predmeta i poveznica s ključem za ponovno otvaranje.',
     en: 'The case number and the link that carries the reopen key.',
+  },
+  privacyDescription: {
+    hr: 'Tko obrađuje vašu prijavu, što je javno, koliko se čuva i kako ostvarujete svoja prava.',
+    en: 'Who processes your report, what is public, how long it is kept, and how you use your rights.',
   },
 } satisfies Record<string, LocalizedText>;

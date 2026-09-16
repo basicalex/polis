@@ -1,0 +1,32 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * The municipality's data protection notice. The filing screen links here, so
+ * the page only exists where a municipality is the controller: a known place
+ * without a signed municipality has no notice to give and answers 404.
+ */
+
+import Base from '../../../layouts/Base.astro';
+import PrivacyNotice from '../../../components/entry/PrivacyNotice.astro';
+import { entryMeta, entryStrings } from '../../../content/entry';
+import { text } from '../../../content/chrome';
+import { findPilotPlace } from '../../../content/places';
+
+const lang = 'en' as const;
+const slug = Astro.params.place ?? '';
+const place = findPilotPlace(slug);
+if (!place) return new Response(null, { status: 404 });
+const name = place.name[lang];
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{ hr: `/${place.slug}/privatnost`, en: `/en/${place.slug}/privatnost` }}
+  title={`${text(entryStrings.privacyHeading, lang)} — ${name}`}
+  description={text(entryMeta.privacyDescription, lang)}
+>
+  <PrivacyNotice lang={lang} place={place} />
+</Base>

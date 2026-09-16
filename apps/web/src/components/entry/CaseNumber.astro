@@ -32,10 +32,31 @@ const strings = {
   copy: label('copy'),
   copyLink: label('copyLink'),
   copied: label('copied'),
+  outcomeConfidentialHeading: label('caseOutcomeConfidentialHeading'),
+  outcomeConfidentialNote: label('caseOutcomeConfidentialNote'),
+  outcomePendingRelease: label('caseOutcomePendingRelease'),
+  outcomePolicy: label('caseOutcomePolicy'),
+  outcomeHeld: label('caseOutcomeHeld'),
+  outcomeOfficeDecides: label('caseOutcomeOfficeDecides'),
 };
+
+/*
+ * The confidential officer of this municipality. It rides on the root as plain
+ * data so the script never needs a second request to name a person the filer
+ * should call, and the lines only appear when the page carries the reopen key.
+ */
+const confidential = place.privacy.confidentialContact;
 ---
 
-<div class="case-number" data-case-number data-record-href={recordHref}>
+<div
+  class="case-number"
+  data-case-number
+  data-record-href={recordHref}
+  data-case={caseNumber}
+  data-confidential-name={confidential.name[lang]}
+  data-confidential-email={confidential.email}
+  data-confidential-phone={confidential.phone}
+>
   <p class="case-number-label">{label('caseNumberTitle')}</p>
   <p class="case-number-value" data-number>{caseNumber}</p>
   <button class="btn" data-variant="secondary" type="button" data-copy-number>{strings.copy}</button>
@@ -45,6 +66,23 @@ const strings = {
     <p class="case-number-link" data-link></p>
     <button class="btn" data-variant="secondary" type="button" data-copy-link>{strings.copyLink}</button>
     <p class="case-number-note">{label('caseKeyNote')}</p>
+  </section>
+
+  {/*
+    What happened to the text. The height is reserved from the first paint, so
+    the answer arrives into a space that is already there and nothing below it
+    moves. Public text says nothing here; the block stays empty.
+  */}
+  <section class="case-number-outcome" data-outcome>
+    <div class="case-number-outcome-body" data-outcome-body role="status" aria-live="polite" hidden>
+      <h2 class="case-number-subtitle" data-outcome-heading hidden></h2>
+      <p class="case-number-note" data-outcome-note></p>
+      <ul class="case-number-contact" data-outcome-contact hidden>
+        <li data-outcome-contact-name></li>
+        <li><a data-outcome-contact-email></a></li>
+        <li><a data-outcome-contact-phone></a></li>
+      </ul>
+    </div>
   </section>
 
   <div class="case-number-actions">

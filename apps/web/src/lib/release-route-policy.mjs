@@ -12,6 +12,8 @@ const policy = [
   { id: 'home', pattern: '/', kind: 'safe', inventory: 'current' },
   { id: 'place', pattern: '/:place', kind: 'safe', inventory: 'current' },
   { id: 'place-en', pattern: '/en/:place', kind: 'safe', inventory: 'current' },
+  { id: 'place-privacy', pattern: '/:place/privatnost', kind: 'safe', inventory: 'current' },
+  { id: 'place-privacy-en', pattern: '/en/:place/privatnost', kind: 'safe', inventory: 'current' },
   { id: 'home-hr', pattern: '/hr', kind: 'safe', inventory: 'planned' },
   { id: 'home-en', pattern: '/en', kind: 'safe', inventory: 'current' },
   { id: 'presentation', pattern: '/presentation', kind: 'safe', inventory: 'current' },

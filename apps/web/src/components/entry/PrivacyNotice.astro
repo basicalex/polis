@@ -1,0 +1,101 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * The Article 13 notice of one municipality.
+ *
+ * A reading page, not a surface of the flow: one column, one heading rank, one
+ * sentence per section. Everything here comes from the place — the controller,
+ * the retention period, the officers — and from its publicity mode, which
+ * decides the single line that says what becomes public and when.
+ *
+ * The platform notice at /privacy covers Intrface as processor and the map
+ * tiles; this page covers the municipality as controller.
+ */
+
+import '../../styles/entry.css';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import type { Lang } from '../../content/public-release';
+import type { LivePlace } from '../../content/places';
+
+interface Props {
+  lang: Lang;
+  place: LivePlace;
+}
+
+const { lang, place } = Astro.props as Props;
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
+const privacy = place.privacy;
+
+const whatIsPublic =
+  place.publicTextMode === 'release'
+    ? label('privacyWhatIsPublicRelease')
+    : place.publicTextMode === 'shell'
+      ? label('privacyWhatIsPublicShell')
+      : label('privacyWhatIsPublicOpen');
+
+const sections = [
+  {
+    title: label('privacyControllerTitle'),
+    lines: [
+      label('privacyController')
+        .replace('{controller}', privacy.controllerName[lang])
+        .replace('{address}', privacy.controllerAddress[lang]),
+    ],
+  },
+  { title: label('privacyPurposeTitle'), lines: [label('privacyPurpose')] },
+  { title: label('privacyLegalBasisTitle'), lines: [label('privacyLegalBasis')] },
+  { title: label('privacyWhatIsPublicTitle'), lines: [whatIsPublic] },
+  { title: label('privacyWhatStaysPrivateTitle'), lines: [label('privacyWhatStaysPrivate')] },
+  {
+    title: label('privacyRetentionTitle'),
+    lines: [
+      label('privacyRetention').replace('{days}', String(privacy.retentionDays)),
+      label('privacyHashStays'),
+    ],
+  },
+  { title: label('privacyRightsTitle'), lines: [label('privacyRights')] },
+  {
+    title: label('privacyDpoTitle'),
+    lines: [label('privacyDpo').replace('{email}', privacy.dpoContact)],
+  },
+];
+
+const confidential = privacy.confidentialContact;
+const phoneHref = `tel:${confidential.phone.replace(/[^+\d]/g, '')}`;
+---
+
+<article class="privacy-notice">
+  <a class="intent-back" href={`${base}${place.slug}`}>← {place.name[lang]}</a>
+  <h1 class="privacy-notice-title">{label('privacyHeading')}</h1>
+  <p class="privacy-notice-place">{place.name[lang]}</p>
+
+  {
+    sections.map((section) => (
+      <section class="privacy-notice-section">
+        <h2 class="privacy-notice-heading">{section.title}</h2>
+        {section.lines.map((line) => (
+          <p class="privacy-notice-line">{line}</p>
+        ))}
+      </section>
+    ))
+  }
+
+  <section class="privacy-notice-section">
+    <h2 class="privacy-notice-heading">{label('privacyConfidentialTitle')}</h2>
+    <p class="privacy-notice-line">{label('privacyConfidential')}</p>
+    <ul class="privacy-notice-contact">
+      <li>{confidential.name[lang]}</li>
+      <li><a href={`mailto:${confidential.email}`}>{confidential.email}</a></li>
+      <li><a href={phoneHref}>{confidential.phone}</a></li>
+    </ul>
+  </section>
+
+  <section class="privacy-notice-section">
+    <h2 class="privacy-notice-heading">{label('privacyComplaintTitle')}</h2>
+    <p class="privacy-notice-line">{label('privacyComplaint')}</p>
+  </section>
+</article>

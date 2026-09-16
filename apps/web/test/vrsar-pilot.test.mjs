@@ -327,6 +327,53 @@ test('the public case page publishes the report, the signed answer and the publi
   }
 });
 
+test('the public case page carries the removal, the notice and the erase control', async () => {
+  const [shell, script, copy] = await Promise.all([
+    readFile(new URL('src/components/pilot/vrsar/VrsarPublicShell.astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/public-case.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/pilot/vrsar-public-case.ts', webRoot), 'utf8'),
+  ]);
+
+  // Every hold reason the model knows says something in Croatian.
+  for (const reason of HOLD_REASONS) {
+    assert.ok(copy.includes(`'${reason}': localized(`) || copy.includes(`${reason}: localized(`), reason);
+  }
+  assert.match(copy, /Tekst čeka objavu ureda\./);
+  assert.match(copy, /Ova općina ne objavljuje tekst prijave\./);
+  assert.match(copy, /Tekst je zadržan nakon prijava čitatelja\./);
+  assert.match(copy, /Prijava je upućena povjerljivoj osobi općine\./);
+
+  // A removed text says who removed it and that it is not coming back.
+  assert.match(copy, /Tekst je uklonjen/);
+  assert.match(copy, /Tekst uklonjen na zahtjev podnositelja\./);
+  assert.match(copy, /Tekst uklonjen nakon isteka roka čuvanja\./);
+  assert.match(copy, /Uklanjanje je trajno\. Otisak izvornog teksta ostaje javan\./);
+
+  // The blocks and the two controls on the text.
+  assert.match(shell, /data-case-removed/);
+  assert.match(shell, /data-case-notice/);
+  assert.match(shell, /data-case-erase/);
+  assert.match(shell, /data-erase-confirm/);
+  // Two taps: the confirm panel stands between the button and the removal.
+  assert.ok(shell.indexOf('data-erase-open') < shell.indexOf('data-erase-confirm'));
+  assert.ok(shell.indexOf('data-erase-confirm') < shell.indexOf('data-erase-go'));
+
+  // A reader may name only the four reasons an assessment can name.
+  const select = shell.slice(shell.indexOf('<select'), shell.indexOf('</select>'));
+  assert.match(select, /data-notice-reason/);
+  const options = shell.match(/const noticeReasons = \[([^\]]+)\]/)?.[1] ?? '';
+  for (const reason of ASSESSMENT_HOLD_REASONS) assert.ok(options.includes(`'${reason}'`), reason);
+  for (const reason of ['pending-release', 'policy', 'notices', 'confidential']) {
+    assert.ok(!options.includes(`'${reason}'`), reason);
+  }
+
+  // The script drives both routes, and the notice count stays off the page.
+  assert.match(script, /eraseText\(shell\.caseNumber, \{ reopenKey \}\)/);
+  assert.match(script, /noticeCase\(caseNumber, \{/);
+  assert.match(script, /removedReason/);
+  assert.doesNotMatch(script, /noticeCount/);
+});
+
 test('public receipt keeps one truthful trail and leads with approved wording', async () => {
   const [component, detail, list, content, astroConfig, baseStyles] = await Promise.all([
     readFile(new URL('src/components/pilot/vrsar/VrsarReceipt.astro', webRoot), 'utf8'),

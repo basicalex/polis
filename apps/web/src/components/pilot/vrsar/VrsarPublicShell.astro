@@ -21,25 +21,54 @@
 
 import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+import { findPilotPlace, type LivePlace } from '../../../content/places';
 import VrsarAttentionControl from './VrsarAttentionControl.astro';
 import VrsarTraceSummary from './VrsarTraceSummary.astro';
 
 interface Props {
   lang: PilotLang;
+  /** The municipality this case belongs to; the page URL names it when it is not passed. */
+  place?: LivePlace;
 }
 
-const { lang } = Astro.props as Props;
+const { lang, place } = Astro.props as Props;
 const copy = publicCaseCopy.shell;
 const report = publicCaseCopy.text;
+const removed = publicCaseCopy.removed;
+const notice = publicCaseCopy.notice;
+const erase = publicCaseCopy.erase;
+const holdReasons = publicCaseCopy.holdReason;
 const chip = publicCaseCopy.label;
 const answer = publicCaseCopy.answer;
 const check = publicCaseCopy.check;
 const pending = publicCaseCopy.pending;
 const verification = publicCaseCopy.verification;
 const receipts = pilotCopy.receipts;
+
+/*
+ * A text held as confidential names the person who takes it instead. The
+ * contact belongs to the municipality, so it is read from places.ts: from the
+ * place the page passed, or else from the place slug in the address.
+ */
+const pathPlace = Astro.url.pathname
+  .split('/')
+  .filter(Boolean)
+  .map((segment) => findPilotPlace(segment))
+  .find((match) => match !== undefined);
+const contact = (place ?? pathPlace ?? findPilotPlace('vrsar'))?.privacy.confidentialContact;
+const contactName = contact ? (lang === 'en' ? contact.name.en : contact.name.hr) : undefined;
+/** The four reasons a reader may name; the other four belong to the system. */
+const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
 ---
 
-<div class="pilot-page" data-public-case hidden>
+<div
+  class="pilot-page"
+  data-public-case
+  data-confidential-name={contactName}
+  data-confidential-email={contact?.email}
+  data-confidential-phone={contact?.phone}
+  hidden
+>
   <section class="pilot-section panel" aria-labelledby="public-case-title">
     <div class="pilot-public-case-head">
       <h2 id="public-case-title">{copy.heading[lang]}</h2>
@@ -83,7 +112,15 @@ const receipts = pilotCopy.receipts;
     <div class="pilot-hold" data-case-hold hidden>
       <h3 class="pilot-answer-subhead">{report.heldHeading[lang]}</h3>
       <p class="pilot-hold-reason" data-case-hold-reason></p>
+      <p class="field-hint" data-case-confidential hidden></p>
       <p class="field-hint">{report.heldNext[lang]}</p>
+    </div>
+
+    <!-- A removed text. The block stands where a held one would; never both. -->
+    <div class="pilot-hold pilot-removed" data-case-removed hidden>
+      <h3 class="pilot-answer-subhead">{removed.heading[lang]}</h3>
+      <p class="pilot-hold-reason" data-case-removed-reason></p>
+      <p class="field-hint">{removed.permanent[lang]}</p>
     </div>
 
     <p class="field-hint" data-case-redacted hidden></p>
@@ -114,6 +151,41 @@ const receipts = pilotCopy.receipts;
         <button class="btn" data-variant="secondary" type="submit">{chip.appealSubmit[lang]}</button>
         <p class="pilot-state" role="status" data-appeal-state></p>
       </form>
+    </div>
+
+    <!--
+      Two controls on the text itself. The reader's report is quiet: it opens
+      only when someone wants it. The filer's removal asks twice and says what
+      it costs before it takes anything.
+    -->
+    <details class="pilot-notice" data-case-notice hidden>
+      <summary>{notice.open[lang]}</summary>
+      <form class="pilot-notice-form entry-form" data-notice-form novalidate>
+        <p class="field-hint">{notice.intro[lang]}</p>
+        <label for="public-case-notice-reason">{notice.reasonLabel[lang]}</label>
+        <select id="public-case-notice-reason" name="reason" data-notice-reason>
+          {noticeReasons.map((reason) => <option value={reason}>{holdReasons[reason][lang]}</option>)}
+        </select>
+        <label for="public-case-notice-note">{notice.noteLabel[lang]}</label>
+        <textarea id="public-case-notice-note" name="note" rows="3" maxlength="600" data-notice-note></textarea>
+        <button class="btn" data-variant="secondary" type="submit" data-notice-submit>{notice.submit[lang]}</button>
+        <p class="pilot-state" role="status" data-notice-state></p>
+      </form>
+    </details>
+
+    <div class="pilot-erase" data-case-erase hidden>
+      <button class="btn" data-variant="secondary" type="button" data-erase-open>{erase.open[lang]}</button>
+
+      <div class="pilot-erase-confirm" data-erase-confirm hidden>
+        <h3 class="pilot-answer-subhead">{erase.confirmHeading[lang]}</h3>
+        <p class="field-hint">{erase.confirmBody[lang]}</p>
+        <div class="pilot-erase-actions">
+          <button class="btn" type="button" data-erase-go>{erase.confirm[lang]}</button>
+          <button class="btn" data-variant="secondary" type="button" data-erase-cancel>{erase.cancel[lang]}</button>
+        </div>
+      </div>
+
+      <p class="pilot-state" role="status" data-erase-state></p>
     </div>
   </section>
 
@@ -257,6 +329,66 @@ const receipts = pilotCopy.receipts;
   .pilot-hold-reason {
     margin: 0;
     font-weight: 650;
+  }
+
+  /* Removal is not a category of hold, so the rule beside it is neutral. */
+  .pilot-removed {
+    border-inline-start-color: var(--polis-border-strong);
+  }
+
+  /* A reader's report on the text: available, not advertised. */
+  .pilot-notice {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--polis-border);
+  }
+
+  .pilot-notice > summary {
+    display: flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    cursor: pointer;
+  }
+
+  .pilot-notice-form {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+    margin-top: var(--space-3);
+  }
+
+  .pilot-notice-form select,
+  .pilot-notice-form textarea {
+    width: 100%;
+  }
+
+  .pilot-erase {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+    margin-top: var(--space-4);
+  }
+
+  /* The warning is the rule and the words, not a colour and not a modal. */
+  .pilot-erase-confirm {
+    display: grid;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-4);
+    border-inline-start: 3px solid var(--polis-restricted);
+    background: var(--polis-surface-2);
+  }
+
+  .pilot-erase-confirm h3 {
+    margin: 0;
+  }
+
+  .pilot-erase-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
   .pilot-label {

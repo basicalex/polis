@@ -14,9 +14,12 @@ import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.
 import VrsarPublicShell from '../../../../components/pilot/vrsar/VrsarPublicShell.astro';
 import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
 import { publicCaseCopy } from '../../../../content/pilot/vrsar-public-case';
+import { findPilotPlace } from '../../../../content/places';
 
 const lang = parsePilotLang(Astro.url);
 const copy = publicCaseCopy.page;
+/* The pilot shell stands for Vrsar, so the confidential contact is Vrsar's. */
+const place = findPilotPlace('vrsar');
 ---
 
 <VrsarPilotShell
@@ -41,7 +44,7 @@ const copy = publicCaseCopy.page;
       {pilotCopy.common.loading[lang]}
     </p>
 
-    <VrsarPublicShell lang={lang} />
+    <VrsarPublicShell lang={lang} place={place} />
     <VrsarChannelHelp lang={lang} />
 
     <div class="pilot-state-actions">

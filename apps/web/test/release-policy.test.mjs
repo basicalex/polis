@@ -26,6 +26,8 @@ const expectedCurrentByKind = {
     '/:place',
     '/en',
     '/en/:place',
+    '/:place/privatnost',
+    '/en/:place/privatnost',
     '/presentation',
     '/hr/presentation',
     '/en/presentation',

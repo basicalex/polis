@@ -3,14 +3,18 @@
 
 import {
   disputeCase,
+  eraseText,
   getPilotConfig,
   getPublicCase,
+  noticeCase,
   PilotApiError,
   recordCaseAttention,
 } from '../../../lib/pilot/vrsar/api';
 import {
+  ASSESSMENT_HOLD_REASONS,
   entityName,
   safeStringList,
+  type AssessmentHoldReason,
   type PilotConfig,
   type PublicCaseShell,
   type PublicDispute,
@@ -19,11 +23,14 @@ import {
 import { pilotCopy, stageLabels, type PilotLang } from '../../../content/pilot/vrsar';
 import {
   caseStateTone,
+  confidentialContactLine,
   isCaseNumber,
   publicCaseCopy,
   publicCaseHref,
   translatedCaseState,
   translatedHoldReason,
+  translatedRemovedReason,
+  translatedTextRemoved,
 } from '../../../content/pilot/vrsar-public-case';
 import {
   apiErrorMessage,
@@ -245,6 +252,10 @@ export function initVrsarPublicCase(): void {
   const isFiler = reopenKey !== '';
   /** The date the office released a redacted text, read off the public trail. */
   let releasedAtFromEvents = '';
+  /** The removal on the public trail, when the text is gone: its date and why. */
+  let removedFromEvents: { stage: string; reason: string } | null = null;
+  /** The pilot config of the last load, for the renders an action triggers. */
+  let loadedConfig: PilotConfig | null = null;
 
   function setText(selector: string, value: string, root: ParentNode = document): void {
     const element = root.querySelector<HTMLElement>(selector);
@@ -309,17 +320,28 @@ export function initVrsarPublicCase(): void {
   function renderText(shell: PublicCaseShell): void {
     const status = typeof shell.textStatus === 'string' ? shell.textStatus : 'public';
     const body = typeof shell.text === 'string' ? shell.text.trim() : '';
-    const held = status === 'held' || !body;
+    // A removed text is not a held one: the office has nothing left to decide.
+    const gone = status === 'removed';
+    const held = !gone && (status === 'held' || !body);
 
     const narrative = document.querySelector<HTMLElement>('[data-case-narrative]');
     if (narrative) {
-      narrative.textContent = held ? '' : body;
-      narrative.hidden = held;
+      narrative.textContent = held || gone ? '' : body;
+      narrative.hidden = held || gone;
     }
 
     const hold = document.querySelector<HTMLElement>('[data-case-hold]');
     show(hold, held);
-    if (held) setText('[data-case-hold-reason]', translatedHoldReason(shell.holdReason, lang));
+    if (held) {
+      setText('[data-case-hold-reason]', translatedHoldReason(shell.holdReason, lang));
+      renderConfidential(shell.holdReason);
+    }
+
+    const removed = document.querySelector<HTMLElement>('[data-case-removed]');
+    show(removed, gone);
+    if (gone) setText('[data-case-removed-reason]', translatedRemovedReason(shell.removedReason, lang));
+
+    renderTextControls(held, gone);
 
     const stamp = document.querySelector<HTMLElement>('[data-text-state]');
     if (stamp) {
@@ -340,13 +362,57 @@ export function initVrsarPublicCase(): void {
       redacted.hidden = status !== 'redacted';
     }
 
-    show(document.querySelector('[data-case-as-filed]'), !held && status !== 'redacted');
+    show(document.querySelector('[data-case-as-filed]'), !held && !gone && status !== 'redacted');
 
     const location_ = typeof shell.location === 'string' ? shell.location.trim() : '';
-    setText('[data-case-location]', held || !location_ ? publicCaseCopy.text.locationMissing[lang] : location_);
+    setText(
+      '[data-case-location]',
+      held || gone || !location_ ? publicCaseCopy.text.locationMissing[lang] : location_,
+    );
     setText('[data-case-text-hash]', typeof shell.textSha256 === 'string' ? shell.textSha256 : '');
 
     renderLabel(shell);
+  }
+
+  /**
+   * A text held as confidential goes to one named person, so the page names
+   * them. The contact is the municipality's, written onto the shell root at
+   * build time; without it the line simply stays away.
+   */
+  function renderConfidential(reason: unknown): void {
+    const line = document.querySelector<HTMLElement>('[data-case-confidential]');
+    if (!line) return;
+    const data = shellRoot?.dataset;
+    const name = data?.confidentialName ?? '';
+    const email = data?.confidentialEmail ?? '';
+    const phone = data?.confidentialPhone ?? '';
+    const named = reason === 'confidential' && Boolean(name && email && phone);
+    line.textContent = named ? confidentialContactLine({ name, email, phone }, lang) : '';
+    line.hidden = !named;
+  }
+
+  /**
+   * The two controls on the text. Anyone may report a text that stands; only
+   * the filer may take their own off the record, and only while it is there.
+   */
+  function renderTextControls(held: boolean, gone: boolean): void {
+    const notice = document.querySelector<HTMLElement>('[data-case-notice]');
+    if (notice) {
+      // Nothing to report about a text nobody can read.
+      notice.hidden = held || gone;
+      if (notice.hidden && notice instanceof HTMLDetailsElement) notice.open = false;
+    }
+
+    const erase = document.querySelector<HTMLElement>('[data-case-erase]');
+    if (!erase) return;
+    erase.hidden = !isFiler;
+    show(erase.querySelector('[data-erase-open]'), !gone);
+    if (gone) {
+      show(erase.querySelector('[data-erase-confirm]'), false);
+      setText('[data-erase-state]', publicCaseCopy.erase.done[lang], erase);
+    } else {
+      setText('[data-erase-state]', '', erase);
+    }
   }
 
   /**
@@ -571,16 +637,29 @@ export function initVrsarPublicCase(): void {
       stage.dataset.state = seen ? 'appended' : 'ahead';
       stage.dataset.proposed = 'false';
       const note = stage.querySelector<HTMLElement>('[data-trace-note]');
-      if (note) note.textContent = seen ? formatPilotDate(written.get(name), lang) : '';
+      if (!note) return;
+      const date = seen ? formatPilotDate(written.get(name), lang) : '';
+      // A removal is a public event of its own, so the trail says it happened.
+      const line = removedFromEvents?.stage === name
+        ? translatedTextRemoved(removedFromEvents.reason, lang)
+        : '';
+      note.textContent = [date, seen ? line : ''].filter(Boolean).join(' · ');
     });
   }
 
-  /** The release date the redaction note carries, taken from the public trail. */
+  /**
+   * Two facts the text block reads off the public trail: the date a redacted
+   * text was released, and the removal that took a text off the page.
+   */
   function readReleaseDate(record: PublicTraceRecord | null): void {
     releasedAtFromEvents = '';
+    removedFromEvents = null;
     const events = Array.isArray(record?.events) ? record?.events ?? [] : [];
     for (const event of events) {
       if (event?.action === 'text-released') releasedAtFromEvents = formatPilotDate(event.createdAt, lang);
+      if (event?.action === 'text-removed') {
+        removedFromEvents = { stage: String(event.stage ?? ''), reason: String(event.reason ?? '') };
+      }
     }
   }
 
@@ -709,6 +788,110 @@ export function initVrsarPublicCase(): void {
   }
 
   /**
+   * A reader's report about the text. It carries the same follower key the
+   * attention marks use, so a second report by the same browser changes
+   * nothing; the mark kept here only tells this browser it already sent one.
+   * The server owns the dedup, the limit and the count, and the count is never
+   * drawn on this page.
+   */
+  function bindNotice(shell: PublicCaseShell): void {
+    const form = document.querySelector<HTMLFormElement>('[data-notice-form]');
+    if (!form) return;
+    const store = readAttentionStore();
+    const key = markKey(shell.caseNumber, 'notice');
+    const submit = form.querySelector<HTMLButtonElement>('[data-notice-submit]');
+    if (store.marks[key] === true) {
+      setText('[data-notice-state]', publicCaseCopy.notice.already[lang], form);
+      if (submit) submit.disabled = true;
+    }
+    if (form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const select = form.querySelector<HTMLSelectElement>('[data-notice-reason]');
+      const field = form.querySelector<HTMLTextAreaElement>('[data-notice-note]');
+      const note = field?.value.trim() ?? '';
+      const button = form.querySelector<HTMLButtonElement>('[data-notice-submit]');
+      if (button) button.disabled = true;
+      setText('[data-notice-state]', pilotCopy.common.loading[lang], form);
+      void noticeCase(caseNumber, {
+        followerKey: store.followerKey,
+        reason: noticeReason(select?.value),
+        ...(note ? { note } : {}),
+      })
+        .then((result) => {
+          store.marks[key] = true;
+          writeAttentionStore();
+          if (field) field.value = '';
+          setText('[data-notice-state]', publicCaseCopy.notice.sent[lang], form);
+          // The third report holds the text, so the block is drawn again.
+          renderShell(result.case, loadedConfig);
+        })
+        .catch((error) => {
+          setText(
+            '[data-notice-state]',
+            `${publicCaseCopy.notice.failed[lang]} ${apiErrorMessage(error, lang)}`,
+            form,
+          );
+          if (button) button.disabled = false;
+        });
+    });
+  }
+
+  /** Only a reason a reader may name; the other four belong to the system. */
+  function noticeReason(value: unknown): AssessmentHoldReason {
+    return ASSESSMENT_HOLD_REASONS.includes(value as AssessmentHoldReason)
+      ? (value as AssessmentHoldReason)
+      : 'other';
+  }
+
+  /**
+   * The filer takes their own text off the public record. It asks twice, never
+   * once, and the second tap is the one that removes it. The case, its number
+   * and the hash of the original text stay where they were.
+   */
+  function bindErase(shell: PublicCaseShell, config: PilotConfig | null): void {
+    const box = document.querySelector<HTMLElement>('[data-case-erase]');
+    if (!box || !isFiler || box.dataset.bound === 'true') return;
+    box.dataset.bound = 'true';
+    const open = box.querySelector<HTMLButtonElement>('[data-erase-open]');
+    const panel = box.querySelector<HTMLElement>('[data-erase-confirm]');
+    const go = box.querySelector<HTMLButtonElement>('[data-erase-go]');
+    const cancel = box.querySelector<HTMLButtonElement>('[data-erase-cancel]');
+
+    open?.addEventListener('click', () => {
+      show(panel, true);
+      open.hidden = true;
+      go?.focus();
+    });
+
+    cancel?.addEventListener('click', () => {
+      show(panel, false);
+      if (open) open.hidden = false;
+      open?.focus();
+    });
+
+    go?.addEventListener('click', () => {
+      go.disabled = true;
+      setText('[data-erase-state]', pilotCopy.common.loading[lang], box);
+      void eraseText(shell.caseNumber, { reopenKey })
+        .then((result) => {
+          setText('[data-erase-state]', publicCaseCopy.erase.done[lang], box);
+          renderShell(result.case, config);
+          renderAttention(result.case);
+        })
+        .catch((error) => {
+          setText(
+            '[data-erase-state]',
+            `${publicCaseCopy.erase.failed[lang]} ${apiErrorMessage(error, lang)}`,
+            box,
+          );
+          go.disabled = false;
+        });
+    });
+  }
+
+  /**
    * The label appeal is a private message to the office, not public text, so it
    * goes to the case-message route with the same key and nothing else.
    */
@@ -785,12 +968,15 @@ export function initVrsarPublicCase(): void {
       ]);
       const shell = result.case;
       if (!shell || typeof shell.caseNumber !== 'string') throw new Error('invalid_public_case_response');
+      loadedConfig = config;
       readReleaseDate(result.record);
       renderShell(shell, config);
       renderAttention(shell);
       bindAttention(shell);
       renderAnswer(shell, result.record, config);
       bindDispute(config);
+      bindNotice(shell);
+      bindErase(shell, config);
       bindLabelAppeal();
       if (shellRoot) shellRoot.hidden = false;
       clearState(state);
