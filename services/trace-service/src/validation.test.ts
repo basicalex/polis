@@ -16,12 +16,14 @@ import {
   normalizeCreate,
   normalizeDelivery,
   normalizeDispute,
+  normalizeEraseText,
   normalizeFilerMessage,
   normalizeGatewayCreate,
   normalizeGatewayMessage,
   normalizeHold,
   normalizeLabel,
   normalizeOfficialMessage,
+  normalizeNotice,
   normalizeRelease,
   normalizeReopen,
   normalizeReopenRead,
@@ -166,6 +168,12 @@ test('signed commands and public text policy inputs are strict and normalized', 
     code(() => normalizeHold({ reason: 'secret' })),
     'invalid_request',
   );
+  for (const reason of ['pending-release', 'policy', 'notices', 'confidential']) {
+    assert.equal(
+      code(() => normalizeHold({ reason })),
+      'invalid_request',
+    );
+  }
   assert.equal(
     code(() => normalizeRelease({ redactedText: '' })),
     'invalid_request',
@@ -695,6 +703,47 @@ test('attention and delivery inputs enforce idempotent public actions and delive
   });
   assert.equal(
     code(() => normalizeDelivery({ state: 'delivered', failureCode: 'x'.repeat(201) })),
+    'invalid_request',
+  );
+});
+
+test('erasure and notices enforce keys, assessment reasons, and note bounds', () => {
+  assert.deepEqual(normalizeEraseText({ reopenKey: VALID_REOPEN_KEY }), {
+    reopenKey: VALID_REOPEN_KEY,
+  });
+  assert.deepEqual(
+    normalizeNotice({
+      followerKey: 'follower_key_1234',
+      reason: 'personal-data',
+      note: '  Contains a name.  ',
+    }),
+    {
+      followerKey: 'follower_key_1234',
+      reason: 'personal-data',
+      note: 'Contains a name.',
+    },
+  );
+  assert.equal(
+    code(() => normalizeNotice({ followerKey: 'short', reason: 'abuse' })),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeNotice({
+        followerKey: 'follower_key_1234',
+        reason: 'notices',
+      }),
+    ),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() =>
+      normalizeNotice({
+        followerKey: 'follower_key_1234',
+        reason: 'other',
+        note: 'x'.repeat(601),
+      }),
+    ),
     'invalid_request',
   );
 });

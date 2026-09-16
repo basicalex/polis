@@ -122,7 +122,9 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'POST /api/trace/public/cases',
         'GET /api/trace/public/cases/:caseNumber',
         'POST /api/trace/public/cases/:caseNumber/attention',
+        'POST /api/trace/public/cases/:caseNumber/notice',
         'POST /api/trace/cases/:caseNumber/dispute',
+        'POST /api/trace/cases/:caseNumber/erase-text',
         'POST /api/trace/cases/:caseNumber/private',
         'POST /api/trace/cases/:caseNumber/messages',
         'GET /api/trace/records/:id/messages',
@@ -245,15 +247,19 @@ test('anonymous trace reads carry only internal auth and preserve bounded list q
   await withEnvironment(enabledEnvironment, async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      calls.push({ url: String(input), init });
-      return new Response(JSON.stringify({ records: [] }), {
+      const url = String(input);
+      calls.push({ url, init });
+      const body = url.endsWith('/internal/trace/config')
+        ? { publicTextMode: 'release', publicTextRetentionDays: 365 }
+        : { records: [] };
+      return new Response(JSON.stringify(body), {
         status: 200,
         headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=30' },
       });
     }) as typeof globalThis.fetch;
 
     const routes = traceRoutes();
-    await route(routes, 'GET', '/api/trace/config').handler(
+    const config = await route(routes, 'GET', '/api/trace/config').handler(
       request('GET', '/api/trace/config?limit=99'),
       {},
       {},
@@ -273,6 +279,10 @@ test('anonymous trace reads carry only internal auth and preserve bounded list q
       assert.equal(headers.has('x-polis-identity-level'), false);
       assert.equal(headers.has('authorization'), false);
     }
+    assert.deepEqual(result(config).body, {
+      publicTextMode: 'release',
+      publicTextRetentionDays: 365,
+    });
     assert.equal(result(publicList).status, 200);
     assert.deepEqual(result(publicList).body, { records: [] });
   });
@@ -484,11 +494,25 @@ test('reopen-key and public case routes proxy without browser actor headers', as
       { followerKey: 'follower-secret', kind: 'follow', action: 'add' },
       { caseNumber: 'VRS-1842' },
     );
+    await route(routes, 'POST', '/api/trace/public/cases/:caseNumber/notice').handler(
+      request('POST', '/api/trace/public/cases/VRS-1842/notice', {
+        'idempotency-key': VALID_IDEMPOTENCY_KEY,
+      }),
+      { followerKey: 'follower-secret', reason: 'abuse', note: 'Contains personal details.' },
+      { caseNumber: 'VRS-1842' },
+    );
     await route(routes, 'POST', '/api/trace/cases/:caseNumber/dispute').handler(
       request('POST', '/api/trace/cases/VRS-1842/dispute', {
         'idempotency-key': VALID_IDEMPOTENCY_KEY,
       }),
       { reopenKey: 'body-only-secret', text: 'The lamp is still dark.' },
+      { caseNumber: 'VRS-1842' },
+    );
+    await route(routes, 'POST', '/api/trace/cases/:caseNumber/erase-text').handler(
+      request('POST', '/api/trace/cases/VRS-1842/erase-text', {
+        'idempotency-key': VALID_IDEMPOTENCY_KEY,
+      }),
+      { reopenKey: 'body-only-secret' },
       { caseNumber: 'VRS-1842' },
     );
 
@@ -499,7 +523,9 @@ test('reopen-key and public case routes proxy without browser actor headers', as
         'http://trace.internal/internal/trace/cases/VRS-1842/private',
         'http://trace.internal/internal/trace/cases/VRS-1842/messages',
         'http://trace.internal/internal/trace/public/cases/VRS-1842/attention',
+        'http://trace.internal/internal/trace/public/cases/VRS-1842/notice',
         'http://trace.internal/internal/trace/cases/VRS-1842/dispute',
+        'http://trace.internal/internal/trace/cases/VRS-1842/erase-text',
       ],
     );
     for (const call of calls) {
@@ -510,18 +536,17 @@ test('reopen-key and public case routes proxy without browser actor headers', as
       assert.equal(headers.has('authorization'), false);
     }
     assert.equal(new Headers(calls[1]?.init?.headers).has('idempotency-key'), false);
-    assert.equal(
-      new Headers(calls[2]?.init?.headers).get('idempotency-key'),
-      VALID_IDEMPOTENCY_KEY,
-    );
-    assert.equal(
-      new Headers(calls[3]?.init?.headers).get('idempotency-key'),
-      VALID_IDEMPOTENCY_KEY,
-    );
-    assert.equal(
-      new Headers(calls[4]?.init?.headers).get('idempotency-key'),
-      VALID_IDEMPOTENCY_KEY,
-    );
+    for (const call of calls.slice(2)) {
+      assert.equal(new Headers(call.init?.headers).get('idempotency-key'), VALID_IDEMPOTENCY_KEY);
+    }
+    assert.deepEqual(JSON.parse(String(calls[4]?.init?.body)), {
+      followerKey: 'follower-secret',
+      reason: 'abuse',
+      note: 'Contains personal details.',
+    });
+    assert.deepEqual(JSON.parse(String(calls[6]?.init?.body)), {
+      reopenKey: 'body-only-secret',
+    });
   });
 });
 
@@ -688,6 +713,26 @@ test('private trace writes verify sessions, reject authority spoofing, and forwa
 
 test('trace preserves downstream status, body, and safe content headers', async () => {
   await withEnvironment(enabledEnvironment, async () => {
+    for (const [error, message] of [
+      ['release_not_permitted', 'Text release is not permitted.'],
+      ['text_removed', 'Public text has been removed.'],
+    ] as const) {
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ error }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })) as typeof globalThis.fetch;
+      const response = result(
+        await route(traceRoutes(), 'GET', '/api/trace/public/records/:id').handler(
+          request('GET', '/api/trace/public/records/record-1'),
+          {},
+          { id: 'record-1' },
+        ),
+      );
+      assert.equal(response.status, 409);
+      assert.deepEqual(response.body, { error, message });
+    }
+
     let publicCalls = 0;
     globalThis.fetch = (async () => {
       publicCalls += 1;
@@ -783,9 +828,23 @@ test('public trace writes enforce their per-IP limits with and without public-ed
           limit: 30,
         },
         {
+          path: '/api/trace/public/cases/:caseNumber/notice',
+          url: '/api/trace/public/cases/VRS-1842/notice',
+          body: { followerKey: 'follower-key', reason: 'personal-data', note: 'Name included.' },
+          params: { caseNumber: 'VRS-1842' },
+          limit: 10,
+        },
+        {
           path: '/api/trace/cases/:caseNumber/dispute',
           url: '/api/trace/cases/VRS-1842/dispute',
           body: { reopenKey: 'reopen-key', text: 'The problem remains.' },
+          params: { caseNumber: 'VRS-1842' },
+          limit: 5,
+        },
+        {
+          path: '/api/trace/cases/:caseNumber/erase-text',
+          url: '/api/trace/cases/VRS-1842/erase-text',
+          body: { reopenKey: 'reopen-key' },
           params: { caseNumber: 'VRS-1842' },
           limit: 5,
         },
@@ -831,17 +890,45 @@ test('public trace writes enforce their per-IP limits with and without public-ed
         });
       }
 
-      assert.equal(fetchCalls, 40);
+      assert.equal(fetchCalls, 55);
     });
   }
 });
 
-test('public-edge mode still blocks private trace routes', async () => {
+test('public-edge mode blocks private trace routes and unknown methods', async () => {
   await withEnvironment({ ...enabledEnvironment, PUBLIC_EDGE: 'true' }, async () => {
-    const privateRoute = route(withPublicEdge(traceRoutes()), 'GET', '/api/trace/records');
+    const unknownMethodRoutes: Route[] = [
+      {
+        method: 'GET',
+        path: '/api/trace/public/cases/:caseNumber/notice',
+        handler: () => {
+          throw new Error('unknown method handler must not run');
+        },
+      },
+      {
+        method: 'GET',
+        path: '/api/trace/cases/:caseNumber/erase-text',
+        handler: () => {
+          throw new Error('unknown method handler must not run');
+        },
+      },
+    ];
+    const routes = withPublicEdge([...traceRoutes(), ...unknownMethodRoutes]);
+    const privateRoute = route(routes, 'GET', '/api/trace/records');
     const response = result(await privateRoute.handler(request('GET', privateRoute.path), {}, {}));
     assert.equal(response.status, 405);
     assert.deepEqual(response.body, { error: 'method_not_allowed', reason: 'public_edge' });
+    for (const unknown of unknownMethodRoutes) {
+      const blocked = result(
+        await route(routes, unknown.method, unknown.path).handler(
+          request(unknown.method, unknown.path),
+          {},
+          { caseNumber: 'VRS-1842' },
+        ),
+      );
+      assert.equal(blocked.status, 405);
+      assert.deepEqual(blocked.body, { error: 'method_not_allowed', reason: 'public_edge' });
+    }
   });
 });
 

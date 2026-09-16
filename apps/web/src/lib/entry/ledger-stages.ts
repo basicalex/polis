@@ -9,6 +9,8 @@
  * hundred shells once and this module decides what the reader sees. Keeping it
  * pure is what makes the chip counts testable without a browser.
  */
+import type { HoldReason, RemovedReason, TextStatus } from '../pilot/vrsar/model.ts';
+
 
 /** The six public states a case shell can carry, in the order a case walks them. */
 export const LEDGER_STAGES = [
@@ -32,7 +34,9 @@ export const LEDGER_STAGE_PARAM = 'stage';
 export interface LedgerCaseLike {
   state?: unknown;
   clockDueAt?: unknown;
-  textStatus?: unknown;
+  textStatus?: TextStatus;
+  holdReason?: HoldReason | null;
+  removedReason?: RemovedReason | null;
 }
 
 export function isLedgerStage(value: unknown): value is LedgerStage {
@@ -69,13 +73,29 @@ export function countLedgerStages(cases: readonly LedgerCaseLike[]): Record<Ledg
   }
   return counts;
 }
-/** Held text stays visible as a count even though process state does not change. */
+/** All held text counts, including pending-release; removed text does not. */
 export function countHeld(cases: readonly LedgerCaseLike[]): number {
   let held = 0;
   for (const item of cases) {
     if (item?.textStatus === 'held') held += 1;
   }
   return held;
+}
+
+export function countRemoved(cases: readonly LedgerCaseLike[]): number {
+  let removed = 0;
+  for (const item of cases) {
+    if (item?.textStatus === 'removed') removed += 1;
+  }
+  return removed;
+}
+
+export function countPendingRelease(cases: readonly LedgerCaseLike[]): number {
+  let pending = 0;
+  for (const item of cases) {
+    if (item?.textStatus === 'held' && item.holdReason === 'pending-release') pending += 1;
+  }
+  return pending;
 }
 
 

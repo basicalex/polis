@@ -42,11 +42,16 @@ There is no reviewer role, review route, or self-review check. Official assignme
 
 Text visibility is separate from process state:
 
-| `textStatus` | shell `text` | `holdReason` |
-| --- | --- | --- |
-| `public` | narrative as filed | null |
-| `held` | null | one of `personal-data`, `abuse`, `off-topic`, `other` |
-| `redacted` | the official's redacted version | null |
+| `textStatus` | shell `text` | `holdReason` | `removedReason` |
+| --- | --- | --- | --- |
+| `public` | narrative as filed | null | null |
+| `held` | null | one of `personal-data`, `abuse`, `off-topic`, `other`, `pending-release`, `policy`, `notices`, `confidential` | null |
+| `redacted` | the official's redacted version | null | null |
+| `removed` | null | null | `filer` or `retention` |
+
+The first four hold reasons are assessment reasons. The last four are
+system-owned. Official holds and public notices reject system-owned reasons
+with `400 invalid_request`.
 
 ## Commands and transitions
 
@@ -60,8 +65,8 @@ All commands are by `official` unless the table says otherwise.
 | `reopen` | `disputed` | `answered` | office accepts the dispute and will redo |
 | `dispute` (filer, reopen key) | `resolved` | `disputed` | public text; at most 3 per case |
 | `close` | `open`, `assigned` | `closed` | existing `CloseInput` |
-| `hold` | any but `closed` | same | `textStatus` becomes `held` with reason |
-| `release` | any but `closed` | same | `textStatus` becomes `public`, or `redacted` when `redactedText` is given |
+| `hold` | any but `closed` | same | `textStatus` becomes `held`; after removal returns `409 text_removed` |
+| `release` | any but `closed` | same | `textStatus` becomes `public`, or `redacted` when `redactedText` is given; returns `409 release_not_permitted` in `shell` mode or `409 text_removed` after removal |
 | `label` | any | same | set or clear `form-letter` |
 
 `hold` may also be issued by the synchronous filing-time compliance pass with actor role `system`. The pass runs before insert for web and channel creation and on dispute text. A hold leaves the public shell visible with its reason and original-text hash.
@@ -74,24 +79,48 @@ Every successful command locks its record and atomically writes state, event, an
 
 Every write accepts `Idempotency-Key` (UUID) and, except creation, `expectedVersion` (integer). Channel and filer message appends are the explicit `expectedVersion` carve-out because their ordered append semantics do not overwrite a caller-supplied record version. Same actor/key and same request returns the original result without new events; same key with different input is 409. A stale version is 409 with a stable error code. Scope replay authorization to the current authenticated actor and record access. Generate identifiers and timestamps on the server.
 
-The report narrative and filed location are public after the synchronous compliance pass unless held. A release may restore the filed text or publish a redacted version. Resident identity, contact data, raw upload bytes, private messages, internal notes, and internal actor identifiers stay private. They never appear in public serialization, public event descriptions, public exports, client error responses, or application logs. Photos remain private in this wave.
+The report narrative and filed location follow `PilotConfig.publicTextMode`.
+`open` publishes them after the synchronous compliance pass. `release` holds
+them with `pending-release` until an official release. `shell` holds them with
+`policy` and never permits release. A release may restore the filed text or
+publish a redacted version. Erasure removes both public fields but leaves the
+original text hash public. Resident identity, contact data, raw upload bytes,
+private messages, internal notes, and internal actor identifiers stay private.
+They never appear in public serialization, public event descriptions, public
+exports, client error responses, or application logs. Photos remain private in
+this wave.
 
 ## Public shell
 
 `CaseShell` gains, and `CASE_SHELL_HASH_FIELDS` includes:
 
 ```ts
-text: string | null; // narrative as filed, or redacted, or null when held
-location: string | null; // filed location, with the same visibility as text
-textStatus: 'public' | 'held' | 'redacted';
-holdReason: 'personal-data' | 'abuse' | 'off-topic' | 'other' | null;
-textSha256: string; // sha256 of the narrative as filed, always present
-labels: string[]; // [] or ['form-letter']
+text: string | null;
+location: string | null;
+textStatus: 'public' | 'held' | 'redacted' | 'removed';
+holdReason:
+  | 'personal-data'
+  | 'abuse'
+  | 'off-topic'
+  | 'other'
+  | 'pending-release'
+  | 'policy'
+  | 'notices'
+  | 'confidential'
+  | null;
+removedReason: 'filer' | 'retention' | null;
+textSha256: string;
+labels: string[];
 notFixedCount: number;
 disputeCount: number;
+noticeCount: number;
 ```
 
-`area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`, `clockDueAt`, `followerCount`, and `alsoAffectedCount` stay. `contactEmail` and attachments stay private.
+`area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`,
+`clockDueAt`, `followerCount`, and `alsoAffectedCount` stay. The canonical hash
+order places `removedReason` after `holdReason` and `noticeCount` after
+`disputeCount`. `contactEmail` and attachments stay private. The public web
+does not render `noticeCount`.
 
 Case numbers use the configured prefix and a random six-digit suffix, for example `VRS-482113`. They are not sequential. The existing `trace_case_counters` table remains only for migration compatibility.
 
@@ -114,7 +143,7 @@ publishedAt: string;
 resolvedAt: string | null;
 disputes: Array<{
   text: string | null;
-  textStatus: 'public' | 'held';
+  textStatus: 'public' | 'held' | 'removed';
   holdReason: HoldReason | null;
   createdAt: string;
 }>;
@@ -132,13 +161,16 @@ The five stage IDs stay. Their event allowlist is:
 
 | stage | events (action, actorRole) |
 | --- | --- |
-| `voice` | `report-filed` (resident); `text-held` (system or official, `reason`); `text-released` (official, `redacted: boolean`); `label-set` / `label-cleared` (system or official, `label`) |
+| `voice` | `report-filed` (resident); `text-held` (system or official, `reason`); `text-released` (official, `redacted: boolean`); `text-removed` (resident or system, `{ reason: 'filer' \| 'retention' }`); `label-set` / `label-cleared` (system or official, `label`) |
 | `responsibility` | `office-assigned` (official) |
 | `response` | `commitment-published` (official, `signedBy.name`) |
 | `check` | `completion-reported` (official); `completion-disputed` (resident); `case-reopened` (official) |
 | `receipt` | `case-resolved-standing` (system), written by `resolution` and meaning "reported complete and not disputed" |
 
 `case-closed` (official, `publicReason`) may occur in `voice` or `responsibility`. `#publicMilestones` builds the trail from events that exist and requires no review event.
+
+`CaseMessage.kind` also accepts `notice`. Notice messages store their reason in
+`noticeReason: HoldReason | null`, not in the message body.
 
 ## Routes
 
@@ -153,17 +185,23 @@ Trace-service internal routes are:
 | POST | `/internal/trace/records/:id/close` | official |
 | POST | `/internal/trace/records/:id/hold` | official, body `{ reason, note? }` |
 | POST | `/internal/trace/records/:id/release` | official, body `{ redactedText?, note? }` |
+| POST | `/internal/trace/cases/:caseNumber/erase-text` | reopen key, body `{ reopenKey }`; returns the public shell |
+| POST | `/internal/trace/public/cases/:caseNumber/notice` | public, body `{ followerKey, reason, note? }`; returns the public shell |
 | POST | `/internal/trace/records/:id/label` | official, body `{ label: 'form-letter', action: 'set' \| 'clear' }` |
 | POST | `/internal/trace/cases/:caseNumber/dispute` | reopen key in body `{ reopenKey, text }` |
 | POST | `/internal/trace/public/cases/:caseNumber/attention` | anyone, kinds `follow`, `also-affected`, `not-fixed` |
 
-Removed: `/records/:id/review` and `/records/:id/resolution-review`. The AI proposal decision route and `GET /records/:id/messages` are official-only. Platform-api mirrors this table under `/api/trace/…`; the web BFF allowlist mirrors platform-api.
+Removed: `/records/:id/review` and `/records/:id/resolution-review`. The AI
+proposal decision route and `GET /records/:id/messages` are official-only.
+Message reads include `noticeReason`. `GET /internal/trace/config` includes
+`publicTextMode` and `publicTextRetentionDays`. Platform-api mirrors this table
+under `/api/trace/…`; the web BFF allowlist mirrors platform-api.
 
 Public and channel routes remain bounded:
 
 | Method | Path | Access | Request / result |
 | --- | --- | --- | --- |
-| GET | `/api/trace/config` | public | Municipality, category, office, localized labels, sources, and intake state. |
+| GET | `/api/trace/config` | public | Municipality, category, office, localized labels, sources, intake state, `publicTextMode`, and `publicTextRetentionDays`. |
 | GET | `/api/trace/session` | signed in | `{ actorId, role, municipalityId }`; authority comes from server mapping. |
 | POST | `/api/trace/public/cases` | public | Files `{ text, location?, photo? }`; runs compliance before insert; returns 201 `{ case, shell }`. |
 | GET | `/api/trace/public/cases/:caseNumber` | public | Returns the public shell and public record when present. |
@@ -171,8 +209,19 @@ Public and channel routes remain bounded:
 | POST | `/api/trace/cases/:caseNumber/private` | reopen key | Returns the filer's private case view. |
 | POST | `/api/trace/cases/:caseNumber/messages` | reopen key | Appends a private filer message or label appeal. |
 | POST | `/api/trace/cases/:caseNumber/dispute` | reopen key | Files public dispute text from a `resolved` case. |
+| POST | `/api/trace/cases/:caseNumber/erase-text` | reopen key | Accepts `{ reopenKey }`; returns the public shell. |
+| POST | `/api/trace/public/cases/:caseNumber/notice` | public | Accepts `{ followerKey, reason, note? }`; returns the public shell. |
 
 Channel gateway routes use `x-polis-trace-gateway` with a configured gateway ID; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Public case routes are anonymous behind the internal service boundary. Handler errors use `{ "error": "stable_code", "message": "safe explanation" }`.
+
+The erase route allows 5 requests per IP per 10 minutes. The notice route
+allows 10 requests per IP per 10 minutes. Either returns `429 rate_limited`
+over its limit. A notice reason must be one of the four assessment hold
+reasons; `note` is optional and at most 600 characters.
+
+`PilotConfig.publicTextMode` is `open`, `release`, or `shell` and defaults to
+`open`. `PilotConfig.publicTextRetentionDays` is an integer of at least 30 and
+defaults to 730.
 
 Bound and validate every string, list, and upload. Reject unknown authority fields. Dates must be valid date-only values. Service configuration fails closed when required internal credentials or the official role mapping are absent or contradictory.
 

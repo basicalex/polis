@@ -1,6 +1,8 @@
 {
   "id": "vrsar-orsera",
   "testEnvironment": true,
+  "publicTextMode": "open",
+  "publicTextRetentionDays": 730,
   "municipality": {
     "id": "vrsar-orsera",
     "name": {

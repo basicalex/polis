@@ -6,6 +6,7 @@ import { startService } from '@polis/service-runtime';
 import { parseTraceConfig } from './config.js';
 import { verifyTraceMigrations } from './migrations.js';
 import { TraceRepository } from './repository.js';
+import { runRetention } from './retention.js';
 import { traceRoutes } from './routes.js';
 
 export * from './canonical.js';
@@ -13,6 +14,7 @@ export * from './config.js';
 export * from './domain.js';
 export * from './migrations.js';
 export * from './repository.js';
+export * from './retention.js';
 export * from './routes.js';
 export * from './types.js';
 export * from './validation.js';
@@ -26,8 +28,28 @@ async function main(): Promise<void> {
     throw new Error('TRACE_SERVICE_PORT must be an integer from 0 to 65535');
   }
   const repository = new TraceRepository(config.databaseUrl, config);
+  const retentionIntervalMinutes = config.retentionIntervalMinutes ?? 0;
+  const retentionTimer =
+    retentionIntervalMinutes > 0
+      ? setInterval(() => {
+          void runRetention(repository, {
+            now: new Date(),
+            batchSize: 100,
+            retentionDays: config.pilot.publicTextRetentionDays,
+          }).catch(() => {
+            console.error(
+              JSON.stringify({
+                service: 'trace-service',
+                stage: 'retention',
+                error: 'retention_failed',
+              }),
+            );
+          });
+        }, retentionIntervalMinutes * 60_000)
+      : undefined;
   const server = startService('trace-service', port, traceRoutes(repository, config));
   server.once('close', () => {
+    clearInterval(retentionTimer);
     void repository.close().catch(() => {
       console.error(
         JSON.stringify({

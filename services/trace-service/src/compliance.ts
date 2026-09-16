@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 
 import { internalHeaders } from '@polis/service-runtime';
+import type { HoldReason } from './types.js';
 
 const EMAIL_PATTERN = /\b[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+\b/i;
 const PHONE_PATTERN = /(?<!\d)(?:\+385(?:[\s/-]?\d){8,9}|09\d(?:[\s/-]?\d){6,7})(?!(?:[\s/-]?\d))/;
@@ -31,6 +32,40 @@ const BUILT_IN_HOLD_TERMS = [
   'murder you',
   'shoot you',
   'bomb you',
+] as const;
+
+export const CONFIDENTIAL_TERMS = [
+  'mito',
+  'namještanje natječaja',
+  'zlouporaba položaja',
+  'zviždač',
+  'prijavljujem nepravilnost',
+  'corruption',
+  'bribe',
+  'bribery',
+  'kickback',
+  'rigged procurement',
+  'abuse of office',
+  'whistleblower',
+  'whistleblowing',
+] as const;
+
+export const SPECIAL_CATEGORY_TERMS = [
+  'zdravstveno stanje',
+  'boluje od dijabetesa',
+  'hiv pozitivan',
+  'multipla skleroza',
+  'etnička pripadnost',
+  'nacionalna pripadnost',
+  'vjerska pripadnost',
+  'seksualna orijentacija',
+  'član političke stranke',
+  'političko članstvo',
+  'član sindikata',
+  'sindikalno članstvo',
+  'podaci treće osobe',
+  'osobni podaci susjeda',
+  'ime i prezime susjeda',
 ] as const;
 
 function hasEmail(value: string): boolean {
@@ -74,6 +109,16 @@ const BUILT_IN_HOLD_PATTERNS = BUILT_IN_HOLD_TERMS.map(holdTermPattern).filter(
   (pattern): pattern is RegExp => pattern !== null,
 );
 
+const CONFIDENTIAL_PATTERNS = [
+  ...CONFIDENTIAL_TERMS.map(holdTermPattern).filter(
+    (pattern): pattern is RegExp => pattern !== null,
+  ),
+  /(?<![\p{L}\p{N}_])korupcij\p{L}*(?![\p{L}\p{N}_])/u,
+] as const;
+const SPECIAL_CATEGORY_PATTERNS = SPECIAL_CATEGORY_TERMS.map(holdTermPattern).filter(
+  (pattern): pattern is RegExp => pattern !== null,
+);
+
 function hasHoldTerm(value: string, configuredTerms: readonly string[]): boolean {
   const normalizedValue = value.normalize('NFKC').toLowerCase();
   if (BUILT_IN_HOLD_PATTERNS.some((pattern) => pattern.test(normalizedValue))) return true;
@@ -84,9 +129,42 @@ function hasHoldTerm(value: string, configuredTerms: readonly string[]): boolean
   return false;
 }
 
-function isHoldReason(value: unknown): value is HoldReason {
+function hasPatterns(value: string, patterns: readonly RegExp[]): boolean {
+  const normalizedValue = value.normalize('NFKC').toLowerCase();
+  return patterns.some((pattern) => pattern.test(normalizedValue));
+}
+
+function hasConfidentialTerm(value: string, configuredTerms: readonly string[]): boolean {
+  if (hasPatterns(value, CONFIDENTIAL_PATTERNS)) return true;
+  return configuredTerms.some((term) =>
+    holdTermPattern(term)?.test(value.normalize('NFKC').toLowerCase()),
+  );
+}
+
+const HOLD_RANK: Record<HoldReason, number> = {
+  confidential: 4,
+  'personal-data': 3,
+  abuse: 2,
+  'off-topic': 1,
+  other: 1,
+  'pending-release': 0,
+  policy: 0,
+  notices: 0,
+};
+
+function strongerHold(current: HoldReason | null, candidate: HoldReason | null): HoldReason | null {
+  if (candidate === null) return current;
+  if (current === null || HOLD_RANK[candidate] > HOLD_RANK[current]) return candidate;
+  return current;
+}
+
+export function isHoldReason(value: unknown): value is HoldReason {
   return (
-    value === 'personal-data' || value === 'abuse' || value === 'off-topic' || value === 'other'
+    value === 'personal-data' ||
+    value === 'abuse' ||
+    value === 'off-topic' ||
+    value === 'other' ||
+    value === 'confidential'
   );
 }
 
@@ -110,8 +188,6 @@ function parseGatewayReply(value: unknown): GatewayReply | null {
   return candidate as GatewayReply;
 }
 
-export type HoldReason = 'personal-data' | 'abuse' | 'off-topic' | 'other';
-
 export interface AssessTextInput {
   text: string;
   location: string | null;
@@ -122,6 +198,7 @@ export interface AssessTextInput {
 export interface AssessTextDeps {
   gatewayUrl: string | null;
   holdTerms: string[];
+  confidentialTerms: string[];
   fetch?: typeof fetch;
 }
 
@@ -157,15 +234,22 @@ export async function assessText(
   const oib = hasOib(combinedText);
   const plate = hasCroatianPlate(combinedText);
   const holdTerm = hasHoldTerm(combinedText, deps.holdTerms);
+  const confidential = hasConfidentialTerm(combinedText, deps.confidentialTerms);
+  const specialCategory = hasPatterns(combinedText, SPECIAL_CATEGORY_PATTERNS);
 
   if (email) signals.push('local:email');
   if (phone) signals.push('local:phone');
   if (oib) signals.push('local:oib');
   if (plate) signals.push('local:plate');
   if (holdTerm) signals.push('local:hold-term');
+  if (confidential) signals.push('local:confidential');
+  if (specialCategory) signals.push('local:special-category');
 
-  const hasPersonalData = email || phone || oib || plate;
-  let hold: HoldReason | null = hasPersonalData ? 'personal-data' : holdTerm ? 'abuse' : null;
+  const hasPersonalData = email || phone || oib || plate || specialCategory;
+  let hold: HoldReason | null = null;
+  hold = strongerHold(hold, holdTerm ? 'abuse' : null);
+  hold = strongerHold(hold, hasPersonalData ? 'personal-data' : null);
+  hold = strongerHold(hold, confidential ? 'confidential' : null);
 
   const hash = normalizedSha256(input.text);
   let formLetter = input.recentNarrativeHashes.includes(hash);
@@ -191,8 +275,9 @@ export async function assessText(
       const reply = parseGatewayReply(await response.json());
       if (!reply) throw new Error('ai_compliance_invalid_response');
 
-      if (hold === null && reply.hold !== null) {
-        hold = reply.hold;
+      const gatewayHold = strongerHold(hold, reply.hold);
+      if (gatewayHold !== hold) {
+        hold = gatewayHold;
         signals.push('gateway:hold');
       }
       if (reply.formLetterScore >= 0.8) {

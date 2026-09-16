@@ -9,6 +9,8 @@ import {
   LEDGER_STAGE_PARAM,
   countLedgerStages,
   countHeld,
+  countPendingRelease,
+  countRemoved,
   countOpenCases,
   countOverdueCases,
   filterLedgerCases,
@@ -22,8 +24,14 @@ const webRoot = new URL('../', import.meta.url);
 
 const NOW = Date.parse('2026-09-13T12:00:00Z');
 
-function shell(state, clockDueAt = null, textStatus = 'public') {
-  return { state, clockDueAt, textStatus };
+function shell(
+  state,
+  clockDueAt = null,
+  textStatus = 'public',
+  holdReason = null,
+  removedReason = null,
+) {
+  return { state, clockDueAt, textStatus, holdReason, removedReason };
 }
 
 const cases = [
@@ -65,9 +73,17 @@ test('every stage keeps a count, including the stages nobody is in', () => {
   assert.equal(emptyPlace.resolved, 0);
   assert.equal(emptyPlace.all, 1);
 });
-test('held text is counted apart from process state', () => {
-  assert.equal(countHeld(cases), 1);
-  assert.equal(countHeld([shell('received'), shell('closed', null, 'held')]), 1);
+test('text visibility counts stay separate from process state', () => {
+  const visibilityCases = [
+    shell('received', null, 'held', 'pending-release'),
+    shell('answered', null, 'held', 'personal-data'),
+    shell('resolved', null, 'removed', null, 'filer'),
+    shell('closed', null, 'removed', null, 'retention'),
+    shell('assigned'),
+  ];
+  assert.equal(countHeld(visibilityCases), 2);
+  assert.equal(countRemoved(visibilityCases), 2);
+  assert.equal(countPendingRelease(visibilityCases), 1);
 });
 
 

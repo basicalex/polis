@@ -20,7 +20,9 @@ import {
   assertExpectedVersion,
   canCloseCase,
   canReadPrivate,
+  canReleaseText,
   canUpload,
+  holdReasonAtFiling,
   reopenKeyHash,
   requireRole,
   requireTransition,
@@ -48,10 +50,13 @@ import type {
   CommandContext,
   DisputeInput,
   FilerCaseView,
+  EraseTextInput,
   FilerMessageInput,
   GatewayCreateInput,
   GatewayMessageInput,
   HoldReason,
+  NoticeInput,
+  RemovedReason,
   OfficialMessageInput,
   PrivateEvent,
   PrivateRecord,
@@ -151,6 +156,7 @@ interface CaseShellRow {
   location: string | null;
   text_status: TextStatus;
   hold_reason: HoldReason | null;
+  removed_reason: RemovedReason | null;
   text_sha256: string;
   labels: string[];
   closed_public_reason: string | null;
@@ -160,6 +166,7 @@ interface CaseShellRow {
   also_affected_count: number;
   not_fixed_count: number;
   dispute_count: number;
+  notice_count: number;
   shell_hash: string;
   updated_at: Date | string;
 }
@@ -174,6 +181,7 @@ interface CaseMessageRow {
   body: string;
   body_sha256: string;
   author_kind: CaseMessageAuthorKind;
+  notice_reason: HoldReason | null;
   author_actor_id: string | null;
   in_reply_to: string | null;
   delivery_state: CaseMessageDeliveryState;
@@ -335,6 +343,7 @@ function caseShell(row: CaseShellRow): CaseShell {
     location: row.location,
     textStatus: row.text_status,
     holdReason: row.hold_reason,
+    removedReason: row.removed_reason,
     textSha256: row.text_sha256.trim(),
     labels: [...row.labels],
     closedPublicReason: row.closed_public_reason,
@@ -344,6 +353,7 @@ function caseShell(row: CaseShellRow): CaseShell {
     alsoAffectedCount: row.also_affected_count,
     notFixedCount: row.not_fixed_count,
     disputeCount: row.dispute_count,
+    noticeCount: row.notice_count,
     shellHash: row.shell_hash.trim(),
     updatedAt: iso(row.updated_at),
     testEnvironment: true,
@@ -362,6 +372,7 @@ function caseMessage(row: CaseMessageRow, redactActor = false): CaseMessage {
     source: row.source,
     body: row.body,
     bodySha256: row.body_sha256.trim(),
+    noticeReason: row.notice_reason,
     authorKind: row.author_kind,
     authorActorId: redactActor ? null : row.author_actor_id,
     inReplyTo: row.in_reply_to,
@@ -515,6 +526,7 @@ export class TraceRepository implements TraceStore {
         input.location ?? null,
         this.config.pilot.municipality.id,
       );
+      const filingHold = holdReasonAtFiling(this.config.pilot.publicTextMode, assessment.hold);
       await tx`
         INSERT INTO trace_records (
           id, municipality_id, category, office, owner_actor_id, case_number, origin, filer_kind,
@@ -525,7 +537,7 @@ export class TraceRepository implements TraceStore {
           ${recordId}, 'vrsar-orsera', 'public-lighting', 'communal-system', NULL, ${caseNumber},
           ${input.channel}, 'anonymous-channel', ${ctx.actor.id}, ${issued.hash}, 'open', 0,
           NULL, NULL, NULL, ${tx.json(jsonValue([]))},
-          ${assessment.hold ? 'held' : 'public'}, ${assessment.hold},
+          ${filingHold ? 'held' : 'public'}, ${filingHold},
           ${assessment.normalizedSha256}, ${assessment.formLetter ? ['form-letter'] : []},
           ${now}, ${now}
         )
@@ -554,7 +566,7 @@ export class TraceRepository implements TraceStore {
         { origin: input.channel, source: input.source, occurredAt: input.occurredAt },
         now,
       );
-      if (assessment.hold) {
+      if (filingHold) {
         await this.#appendEvent(
           tx,
           current,
@@ -562,7 +574,7 @@ export class TraceRepository implements TraceStore {
           'voice',
           'text-held',
           null,
-          { reason: assessment.hold, signals: assessment.signals },
+          { reason: filingHold, signals: assessment.signals },
           now,
         );
       }
@@ -782,6 +794,7 @@ export class TraceRepository implements TraceStore {
           UPDATE trace_records SET
             status = 'disputed',
             dispute_count = dispute_count + 1,
+            terminal_at = NULL,
             version = version + 1,
             updated_at = ${now}
           WHERE id = ${record.id}
@@ -825,6 +838,34 @@ export class TraceRepository implements TraceStore {
           record: publicRecord,
         },
       };
+    });
+    if ('error' in outcome) throw outcome.error;
+    return outcome.value;
+  }
+
+  async eraseText(
+    caseNumber: string,
+    input: EraseTextInput,
+    _ctx: CommandContext,
+  ): Promise<{ case: CaseShell }> {
+    const outcome = await this.#sql.begin(async (tx) => {
+      const authenticated = await this.#authenticateReopen(tx, caseNumber, input.reopenKey);
+      if ('error' in authenticated) return { error: authenticated.error };
+      if (authenticated.record.text_status === 'removed') {
+        const shells = await tx<CaseShellRow[]>`
+          SELECT * FROM trace_case_shells WHERE record_id = ${authenticated.record.id}
+        `;
+        if (!shells[0]) throw integrityError();
+        return { value: { case: caseShell(shells[0]) } };
+      }
+      const removed = await this.#removePublicText(
+        tx,
+        authenticated.record,
+        'filer',
+        authenticated.actor,
+        new Date().toISOString(),
+      );
+      return { value: { case: removed.shell } };
     });
     if ('error' in outcome) throw outcome.error;
     return outcome.value;
@@ -955,6 +996,103 @@ export class TraceRepository implements TraceStore {
     return this.#sql.begin((tx) => this.#recordAttention(tx, caseNumber, input));
   }
 
+  async recordNotice(
+    caseNumber: string,
+    input: NoticeInput,
+    _ctx: CommandContext,
+  ): Promise<{ case: CaseShell }> {
+    return this.#sql.begin(async (tx) => {
+      const records = await tx<RecordRow[]>`
+        SELECT * FROM trace_records WHERE case_number = ${caseNumber} FOR UPDATE
+      `;
+      const record = records[0];
+      if (!record) throw errorForUnknownCase();
+      if (record.notice_count >= 3) {
+        const shells = await tx<CaseShellRow[]>`
+          SELECT * FROM trace_case_shells WHERE record_id = ${record.id}
+        `;
+        if (!shells[0]) throw integrityError();
+        return { case: caseShell(shells[0]) };
+      }
+      if (!this.config.attentionPepper) throw new Error('trace attention pepper unavailable');
+      const subjectHash = sha256(input.followerKey + caseNumber + this.config.attentionPepper);
+      const inserted = await tx<{ record_id: string }[]>`
+        INSERT INTO trace_case_attention (record_id, subject_hash, kind, reason, created_at)
+        VALUES (${record.id}, ${subjectHash}, 'notice', ${input.reason}, NOW())
+        ON CONFLICT DO NOTHING
+        RETURNING record_id
+      `;
+      if (!inserted[0]) {
+        const shells = await tx<CaseShellRow[]>`
+          SELECT * FROM trace_case_shells WHERE record_id = ${record.id}
+        `;
+        if (!shells[0]) throw integrityError();
+        return { case: caseShell(shells[0]) };
+      }
+      const now = new Date().toISOString();
+      const note = input.note ?? '';
+      await tx`
+        INSERT INTO trace_case_messages (
+          id, record_id, direction, kind, channel, source, body, body_sha256,
+          notice_reason, author_kind, author_actor_id, in_reply_to, delivery_state, created_at
+        ) VALUES (
+          ${randomUUID()}, ${record.id}, 'inbound', 'notice', ${record.origin}, 'typed',
+          ${note}, ${sha256(note)}, ${input.reason}, 'system', ${SYSTEM_ACTOR.id}, NULL, 'not-applicable', ${now}
+        )
+      `;
+      let next = (
+        await tx<RecordRow[]>`
+          UPDATE trace_records SET notice_count = notice_count + 1, updated_at = ${now}
+          WHERE id = ${record.id} RETURNING *
+        `
+      )[0]!;
+      if (
+        next.notice_count === 3 &&
+        (next.text_status === 'public' || next.text_status === 'redacted')
+      ) {
+        next = (
+          await tx<RecordRow[]>`
+            UPDATE trace_records SET
+              text_status = 'held', hold_reason = 'notices', redacted_text = NULL,
+              version = version + 1, updated_at = ${now}
+            WHERE id = ${record.id} RETURNING *
+          `
+        )[0]!;
+        await this.#appendEvent(
+          tx,
+          next,
+          SYSTEM_ACTOR,
+          'voice',
+          'text-held',
+          null,
+          { reason: 'notices' },
+          now,
+        );
+        await this.#refreshSnapshotEvents(tx, next, now);
+      }
+      return { case: await this.#writeShell(tx, next) };
+    });
+  }
+
+  async removeExpiredText(now: Date, batchSize: number, retentionDays: number): Promise<number> {
+    return this.#sql.begin(async (tx) => {
+      const records = await tx<RecordRow[]>`
+        SELECT * FROM trace_records
+        WHERE terminal_at IS NOT NULL
+          AND status IN ('resolved', 'closed')
+          AND terminal_at + (${retentionDays} * INTERVAL '1 day') < ${now.toISOString()}
+          AND text_status <> 'removed'
+        ORDER BY terminal_at, id
+        FOR UPDATE SKIP LOCKED
+        LIMIT ${batchSize}
+      `;
+      for (const record of records) {
+        await this.#removePublicText(tx, record, 'retention', SYSTEM_ACTOR, now.toISOString());
+      }
+      return records.length;
+    });
+  }
+
   async downloadAttachment(
     actor: Actor,
     recordId: string,
@@ -999,6 +1137,7 @@ export class TraceRepository implements TraceStore {
         location,
         this.config.pilot.municipality.id,
       );
+      const filingHold = holdReasonAtFiling(this.config.pilot.publicTextMode, assessment.hold);
       await tx`
         INSERT INTO trace_records (
           id, municipality_id, category, office, owner_actor_id, case_number, status, version,
@@ -1007,7 +1146,7 @@ export class TraceRepository implements TraceStore {
         ) VALUES (
           ${id}, 'vrsar-orsera', 'public-lighting', 'communal-system', ${ctx.actor.id},
           ${caseNumber}, 'open', 0, NULL, NULL, NULL, ${tx.json(jsonValue([]))},
-          ${assessment.hold ? 'held' : 'public'}, ${assessment.hold},
+          ${filingHold ? 'held' : 'public'}, ${filingHold},
           ${assessment.normalizedSha256}, ${assessment.formLetter ? ['form-letter'] : []},
           ${now}, ${now}
         )
@@ -1034,7 +1173,7 @@ export class TraceRepository implements TraceStore {
         ctx.normalizedBody,
         now,
       );
-      if (assessment.hold) {
+      if (filingHold) {
         await this.#appendEvent(
           tx,
           record,
@@ -1042,7 +1181,7 @@ export class TraceRepository implements TraceStore {
           'voice',
           'text-held',
           null,
-          { reason: assessment.hold, signals: assessment.signals },
+          { reason: filingHold, signals: assessment.signals },
           now,
         );
       }
@@ -1148,6 +1287,7 @@ export class TraceRepository implements TraceStore {
           evidence_urls = ${tx.json(urls)},
           signed_by_name = ${signedBy.name},
           signed_by_title = ${signedBy.title},
+          terminal_at = ${now},
           updated_at = ${now}
         WHERE id = ${id} RETURNING *
       `;
@@ -1184,7 +1324,13 @@ export class TraceRepository implements TraceStore {
       requireRole(ctx.actor, 'official');
       requireTransition(transitionAllowed('reopen', record.status));
       const now = new Date().toISOString();
-      const next = await this.#updateStatus(tx, record, 'answered', now);
+      const next = (
+        await tx<RecordRow[]>`
+          UPDATE trace_records SET
+            status = 'answered', terminal_at = NULL, version = version + 1, updated_at = ${now}
+          WHERE id = ${record.id} RETURNING *
+        `
+      )[0]!;
       await this.#markOfficial(tx, id, ctx.actor.id);
       await this.#appendEvent(
         tx,
@@ -1205,6 +1351,9 @@ export class TraceRepository implements TraceStore {
   async hold(ctx: CommandContext, id: string): Promise<CommandResult> {
     return this.#recordCommand(ctx, id, async (tx, record) => {
       requireRole(ctx.actor, 'official');
+      if (record.text_status === 'removed') {
+        throw new DomainError(409, 'text_removed', 'The public text has been removed.');
+      }
       if (record.status === 'closed') requireTransition(false);
       const reason = ctx.normalizedBody.reason as HoldReason;
       const now = new Date().toISOString();
@@ -1236,6 +1385,13 @@ export class TraceRepository implements TraceStore {
   async release(ctx: CommandContext, id: string): Promise<CommandResult> {
     return this.#recordCommand(ctx, id, async (tx, record) => {
       requireRole(ctx.actor, 'official');
+      const releaseError = canReleaseText(this.config.pilot.publicTextMode, record.text_status);
+      if (releaseError === 'text_removed') {
+        throw new DomainError(409, releaseError, 'The public text has been removed.');
+      }
+      if (releaseError === 'release_not_permitted') {
+        throw new DomainError(409, releaseError, 'This publicity mode does not permit release.');
+      }
       if (record.status === 'closed') requireTransition(false);
       const redactedText = (ctx.normalizedBody.redactedText as string | null) ?? null;
       const now = new Date().toISOString();
@@ -1378,6 +1534,7 @@ export class TraceRepository implements TraceStore {
       {
         gatewayUrl: this.config.aiComplianceUrl ?? null,
         holdTerms: this.config.holdTerms ?? [],
+        confidentialTerms: this.config.confidentialTerms ?? [],
       },
     );
   }
@@ -1490,6 +1647,7 @@ export class TraceRepository implements TraceStore {
       authorActorId: string | null;
       deliveryState: CaseMessageDeliveryState;
       messageCreatedAt?: string;
+      noticeReason?: HoldReason | null;
     },
   ): Promise<CaseMessage> {
     if (input.inReplyTo) {
@@ -1520,6 +1678,7 @@ export class TraceRepository implements TraceStore {
       channel: input.channel,
       source: input.source,
       body: input.body,
+      notice_reason: input.noticeReason ?? null,
       body_sha256: sha256(input.body),
       author_kind: input.authorKind,
       author_actor_id: input.authorActorId,
@@ -1531,12 +1690,14 @@ export class TraceRepository implements TraceStore {
     };
     await tx`
       INSERT INTO trace_case_messages (
-        id, record_id, direction, kind, channel, source, body, body_sha256, author_kind,
-        author_actor_id, in_reply_to, delivery_state, delivery_failure_code, delivered_at, created_at
+        id, record_id, direction, kind, channel, source, body, body_sha256, notice_reason,
+        author_kind, author_actor_id, in_reply_to, delivery_state, delivery_failure_code,
+        delivered_at, created_at
       ) VALUES (
         ${row.id}, ${row.record_id}, ${row.direction}, ${row.kind}, ${row.channel}, ${row.source},
-        ${row.body}, ${row.body_sha256}, ${row.author_kind}, ${row.author_actor_id},
-        ${row.in_reply_to}, ${row.delivery_state}, NULL, NULL, ${row.created_at as string}
+        ${row.body}, ${row.body_sha256}, ${row.notice_reason}, ${row.author_kind},
+        ${row.author_actor_id}, ${row.in_reply_to}, ${row.delivery_state}, NULL, NULL,
+        ${row.created_at as string}
       )
     `;
     await this.#appendEvent(
@@ -1560,7 +1721,7 @@ export class TraceRepository implements TraceStore {
     `;
     const material = materials[0];
     if (!material) throw integrityError();
-    const held = record.text_status === 'held';
+    const hidden = record.text_status === 'held' || record.text_status === 'removed';
     const shellWithoutHash: Omit<CaseShell, 'shellHash'> = {
       caseNumber: record.case_number,
       municipalityId: record.municipality_id,
@@ -1568,14 +1729,15 @@ export class TraceRepository implements TraceStore {
       category: record.category,
       track: 'standard',
       state: shellStateFor(record.status),
-      text: held
+      text: hidden
         ? null
         : record.text_status === 'redacted'
           ? record.redacted_text
           : material.narrative,
-      location: held ? null : material.location,
+      location: hidden ? null : material.location,
       textStatus: record.text_status,
       holdReason: record.hold_reason,
+      removedReason: record.removed_reason,
       textSha256: record.text_sha256.trim(),
       labels: [...record.labels].sort(),
       closedPublicReason: record.closed_public_reason,
@@ -1585,6 +1747,7 @@ export class TraceRepository implements TraceStore {
       alsoAffectedCount: record.also_affected_count,
       notFixedCount: record.not_fixed_count,
       disputeCount: record.dispute_count,
+      noticeCount: record.notice_count,
       updatedAt: iso(record.updated_at),
       testEnvironment: true,
     };
@@ -1595,16 +1758,16 @@ export class TraceRepository implements TraceStore {
     await tx`
       INSERT INTO trace_case_shells (
         record_id, case_number, municipality_id, area, category, track, state,
-        text, location, text_status, hold_reason, text_sha256, labels,
+        text, location, text_status, hold_reason, removed_reason, text_sha256, labels,
         closed_public_reason, filed_at, clock_due_at, follower_count, also_affected_count,
-        not_fixed_count, dispute_count, shell_hash, updated_at
+        not_fixed_count, dispute_count, notice_count, shell_hash, updated_at
       ) VALUES (
         ${record.id}, ${shell.caseNumber}, ${shell.municipalityId}, ${shell.area}, ${shell.category},
         ${shell.track}, ${shell.state}, ${shell.text}, ${shell.location}, ${shell.textStatus},
-        ${shell.holdReason}, ${shell.textSha256}, ${shell.labels}, ${shell.closedPublicReason},
-        ${shell.filedAt}, ${shell.clockDueAt}, ${shell.followerCount},
+        ${shell.holdReason}, ${shell.removedReason}, ${shell.textSha256}, ${shell.labels},
+        ${shell.closedPublicReason}, ${shell.filedAt}, ${shell.clockDueAt}, ${shell.followerCount},
         ${shell.alsoAffectedCount}, ${shell.notFixedCount}, ${shell.disputeCount},
-        ${shell.shellHash}, ${shell.updatedAt}
+        ${shell.noticeCount}, ${shell.shellHash}, ${shell.updatedAt}
       )
       ON CONFLICT (record_id) DO UPDATE SET
         case_number = EXCLUDED.case_number,
@@ -1617,6 +1780,7 @@ export class TraceRepository implements TraceStore {
         location = EXCLUDED.location,
         text_status = EXCLUDED.text_status,
         hold_reason = EXCLUDED.hold_reason,
+        removed_reason = EXCLUDED.removed_reason,
         text_sha256 = EXCLUDED.text_sha256,
         labels = EXCLUDED.labels,
         closed_public_reason = EXCLUDED.closed_public_reason,
@@ -1626,6 +1790,7 @@ export class TraceRepository implements TraceStore {
         also_affected_count = EXCLUDED.also_affected_count,
         not_fixed_count = EXCLUDED.not_fixed_count,
         dispute_count = EXCLUDED.dispute_count,
+        notice_count = EXCLUDED.notice_count,
         shell_hash = EXCLUDED.shell_hash,
         updated_at = EXCLUDED.updated_at
     `;
@@ -1820,6 +1985,7 @@ export class TraceRepository implements TraceStore {
           closed_reason = ${input.reason},
           closed_note = ${input.note ?? null},
           closed_public_reason = ${input.publicReason},
+          terminal_at = ${now},
           updated_at = ${now}
         WHERE id = ${record.id}
         RETURNING *
@@ -2146,6 +2312,17 @@ export class TraceRepository implements TraceStore {
           reason: row.payload.reason as HoldReason,
           createdAt,
         });
+      } else if (
+        row.action === 'text-removed' &&
+        (row.actor_role === 'resident' || row.actor_role === 'system')
+      ) {
+        milestones.push({
+          stage: 'voice',
+          action: 'text-removed',
+          actorRole: row.actor_role,
+          reason: row.payload.reason as RemovedReason,
+          createdAt,
+        });
       } else if (row.action === 'text-released' && row.actor_role === 'official') {
         milestones.push({
           stage: 'voice',
@@ -2224,6 +2401,57 @@ export class TraceRepository implements TraceStore {
       }
     }
     return milestones;
+  }
+
+  async #removePublicText(
+    tx: QuerySql,
+    record: RecordRow,
+    reason: RemovedReason,
+    actor: Actor,
+    now: string,
+  ): Promise<{ record: RecordRow; shell: CaseShell }> {
+    const priorRows = await tx<PublicSnapshotRow[]>`
+      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+    `;
+    const prior = priorRows[0] ? verifiedPublicRecord(priorRows[0]) : null;
+    const next = (
+      await tx<RecordRow[]>`
+        UPDATE trace_records SET
+          text_status = 'removed',
+          hold_reason = NULL,
+          removed_reason = ${reason},
+          redacted_text = NULL,
+          version = version + 1,
+          updated_at = ${now}
+        WHERE id = ${record.id}
+        RETURNING *
+      `
+    )[0]!;
+    await this.#appendEvent(tx, next, actor, 'voice', 'text-removed', null, { reason }, now);
+    if (prior) {
+      const disputes = prior.disputes.map((dispute) => ({
+        ...dispute,
+        text: null,
+        textStatus: 'removed' as const,
+        holdReason: null,
+      }));
+      const events = await this.#publicMilestones(tx, next);
+      const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+        ...prior,
+        disputes,
+        events,
+      };
+      const receiptHash = computeReceiptHash(snapshotWithoutHash);
+      await tx`
+        UPDATE trace_public_snapshots SET
+          disputes = ${tx.json(jsonValue(disputes))},
+          public_events = ${tx.json(jsonValue(events))},
+          receipt_hash = ${receiptHash},
+          updated_at = ${now}
+        WHERE record_id = ${record.id}
+      `;
+    }
+    return { record: next, shell: await this.#writeShell(tx, next) };
   }
 
   async #refreshSnapshotEvents(tx: QuerySql, record: RecordRow, now: string): Promise<void> {

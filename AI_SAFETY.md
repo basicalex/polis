@@ -20,6 +20,9 @@ an unpublished draft and cannot publish or decide a case. An official accepts
 or rejects each proposal through the audited Trace decision path. The AI
 intake trace stores a hash of the report text, not the raw text.
 
+The confidential and special-category detectors hold text for a human; they
+never decide a case. Each hit is a logged signal. No model removes text.
+
 ## Rules for AI features
 
 - AI output must cite source evidence where it makes public claims.

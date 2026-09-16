@@ -30,6 +30,12 @@ Scope: `apps/web/src/content/demo-strings.mjs`, `apps/web/src/content/public-rel
 | answered (FLAGGED) | odgovoreno | pilot case state, status chip | **FLAGGED.** The official has published a signed commitment. Editor to confirm the neutral status form. |
 | disputed (FLAGGED) | osporeno | pilot case state, status chip | **FLAGGED.** The filer challenged the completion claim. Editor to confirm the administrative tone. |
 | held (FLAGGED) | zadržano | public text badge and hold notice | **FLAGGED.** The public shell remains visible while the text is withheld. Editor to confirm this does not imply final refusal. |
+| pending release (FLAGGED) | čeka objavu | public text badge and hold notice | **FLAGGED.** The text needs an official release before publication. Native editor to confirm the plain status form. |
+| removed (FLAGGED) | uklonjeno | public text badge and removal notice | **FLAGGED.** The public text and location are gone while the case shell stays. Native editor to confirm the neutral status form. |
+| a notice on a text (FLAGGED) | prijava teksta | public notice action | **FLAGGED.** A resident flags public text for office review. It is not a case report. Native editor to confirm the distinction. |
+| confidential officer (FLAGGED) | povjerljiva osoba | confidential-report hold notice | **FLAGGED.** The municipality's protected internal reporting contact. Native editor to confirm the legal term. |
+| publication policy (FLAGGED) | politika objave | public-text mode notice | **FLAGGED.** The municipality's rule for when report text may appear. Native editor to confirm the administrative term. |
+| privacy notice (FLAGGED) | obavijest o zaštiti podataka | per-place privacy page | **FLAGGED.** The resident-facing GDPR information. Native editor to confirm the formal title. |
 | form letter (FLAGGED) | obrazac / šablonska prijava | soft public label | **FLAGGED.** One non-blocking label for repeated campaign or machine-written text. Editor to choose between the formal and common term. |
 | not fixed (FLAGGED) | nije popravljeno | follower action and count | **FLAGGED.** A deduplicated public signal, not a vote or decision. Editor to confirm the plain form. |
 | dispute (FLAGGED) | osporavanje | filer action and public event | **FLAGGED.** A public challenge to a completion claim. Editor to confirm this noun for the action and trail. |

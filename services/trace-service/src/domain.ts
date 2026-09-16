@@ -2,7 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { createHash } from 'node:crypto';
-import type { Actor, RecordRow, ShellState, TraceConfig, TraceRole, TraceStatus } from './types.js';
+import {
+  ASSESSMENT_HOLD_REASONS,
+  type Actor,
+  type HoldReason,
+  type PublicTextMode,
+  type RecordRow,
+  type ShellState,
+  type TextStatus,
+  type TraceConfig,
+  type TraceRole,
+  type TraceStatus,
+} from './types.js';
 
 export function roleForActor(config: TraceConfig, actorId: string): TraceRole {
   if (config.officialIds.has(actorId)) return 'official';
@@ -21,6 +32,31 @@ export function canReadPrivate(
 
 export function canUpload(actor: Actor, record: Pick<RecordRow, 'owner_actor_id'>): boolean {
   return actor.id === record.owner_actor_id || actor.role === 'official';
+}
+
+export function isAssessmentHoldReason(
+  reason: HoldReason,
+): reason is (typeof ASSESSMENT_HOLD_REASONS)[number] {
+  return (ASSESSMENT_HOLD_REASONS as readonly HoldReason[]).includes(reason);
+}
+
+export function holdReasonAtFiling(
+  mode: PublicTextMode,
+  assessmentHold: HoldReason | null,
+): HoldReason | null {
+  if (assessmentHold === 'confidential') return 'confidential';
+  if (mode === 'shell') return 'policy';
+  if (assessmentHold !== null) return assessmentHold;
+  return mode === 'release' ? 'pending-release' : null;
+}
+
+export function canReleaseText(
+  mode: PublicTextMode,
+  textStatus: TextStatus,
+): 'release_not_permitted' | 'text_removed' | null {
+  if (textStatus === 'removed') return 'text_removed';
+  if (mode === 'shell') return 'release_not_permitted';
+  return null;
 }
 
 export function canCloseCase(status: TraceStatus): boolean {

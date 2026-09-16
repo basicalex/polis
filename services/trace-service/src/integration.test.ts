@@ -3,14 +3,31 @@
 
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import postgres from 'postgres';
 
-import { verifyReceiptHash, verifyShellHash } from './canonical.js';
+import {
+  buildShellHashMaterial,
+  canonicalJson,
+  sha256,
+  verifyEventChain,
+  verifyReceiptHash,
+  verifyShellHash,
+  type StoredEvent,
+} from './canonical.js';
 import { parseTraceConfig } from './config.js';
 import { DomainError } from './domain.js';
-import { runTraceMigrations, verifyTraceMigrations } from './migrations.js';
+import {
+  migrationsFolder,
+  readMigrations,
+  runTraceMigrations,
+  verifyTraceMigrations,
+} from './migrations.js';
 import { TraceRepository } from './repository.js';
+import { runRetention } from './retention.js';
 import type {
   Actor,
   CommandContext,
@@ -18,6 +35,7 @@ import type {
   GatewayCreateInput,
   PrivateRecord,
   TraceRole,
+  TraceStatus,
 } from './types.js';
 import {
   normalizeAssign,
@@ -66,6 +84,52 @@ async function rejectsCode(run: () => Promise<unknown>, expected: string): Promi
   );
 }
 
+async function assertValidChain(sql: postgres.Sql, recordId: string): Promise<void> {
+  const records = await sql<{ version: number; status: TraceStatus }[]>`
+    SELECT version, status FROM trace_records WHERE id = ${recordId}
+  `;
+  const rows = await sql<
+    Array<{
+      id: string;
+      record_id: string;
+      sequence: number;
+      previous_hash: string | null;
+      hash: string;
+      stage: StoredEvent['stage'];
+      action: string;
+      actor_id: string;
+      actor_role: StoredEvent['actorRole'];
+      note: string | null;
+      payload: Record<string, unknown>;
+      resulting_version: number;
+      resulting_status: TraceStatus;
+      created_at: Date | string;
+    }>
+  >`
+    SELECT * FROM trace_events WHERE record_id = ${recordId} ORDER BY sequence
+  `;
+  const events: StoredEvent[] = rows.map((row) => ({
+    id: row.id,
+    recordId: row.record_id,
+    sequence: row.sequence,
+    previousHash: row.previous_hash?.trim() ?? null,
+    hash: row.hash.trim(),
+    stage: row.stage,
+    action: row.action,
+    actorId: row.actor_id,
+    actorRole: row.actor_role,
+    note: row.note,
+    payload: row.payload,
+    resultingVersion: row.resulting_version,
+    resultingStatus: row.resulting_status,
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : new Date(row.created_at).toISOString(),
+  }));
+  assert.deepEqual(verifyEventChain(events, records[0]), { valid: true });
+}
+
 test(
   'trace database implements immediate public text, official answers, disputes, and policy controls',
   {
@@ -82,7 +146,109 @@ test(
     assert.equal(target.pathname, '/polis_trace_test');
     assert.equal(target.username, 'polis_test_owner');
 
-    await runTraceMigrations(databaseUrl);
+    const migrationSql = postgres(databaseUrl, { prepare: false, onnotice: () => undefined });
+    const schema = await migrationSql<{ relation: string | null }[]>`
+      SELECT to_regclass('public.trace_schema_migrations')::text AS relation
+    `;
+    if (!schema[0]?.relation) {
+      const stagedFolder = mkdtempSync(join(tmpdir(), 'trace-migrations-'));
+      try {
+        for (const migration of readMigrations(migrationsFolder).slice(0, -1)) {
+          writeFileSync(join(stagedFolder, `${migration.version}_staged.sql`), migration.sql);
+        }
+        await runTraceMigrations(databaseUrl, stagedFolder);
+        const seedId = '90000000-0000-4000-8000-000000000005';
+        const seedTime = '2026-09-01T10:00:00.000Z';
+        await migrationSql`
+          INSERT INTO trace_records (
+            id, municipality_id, category, office, owner_actor_id, status, version,
+            created_at, updated_at, case_number, text_sha256
+          ) VALUES (
+            ${seedId}, 'vrsar-orsera', 'public-lighting', 'communal-system',
+            'migration-seed-resident', 'open', 0, ${seedTime}, ${seedTime},
+            'VRS-900005', ${'a'.repeat(64)}
+          )
+        `;
+        await migrationSql`
+          INSERT INTO trace_report_private (record_id, subject, narrative, location, contact_email)
+          VALUES (${seedId}, 'Migration seed', 'Seed report text', 'Seed location', NULL)
+        `;
+        await migrationSql`
+          INSERT INTO trace_case_shells (
+            record_id, case_number, municipality_id, area, category, track, state,
+            text, location, text_status, hold_reason, text_sha256, closed_public_reason,
+            filed_at, clock_due_at, shell_hash, updated_at
+          ) VALUES (
+            ${seedId}, 'VRS-900005', 'vrsar-orsera', 'vrsar-orsera', 'public-lighting',
+            'standard', 'received', 'Seed report text', 'Seed location', 'public', NULL,
+            ${'a'.repeat(64)}, NULL, ${seedTime}, NULL, ${'0'.repeat(64)}, ${seedTime}
+          )
+        `;
+        await runTraceMigrations(databaseUrl);
+        const migrated = (
+          await migrationSql<
+            Array<{
+              shell_hash: string;
+              case_number: string;
+              municipality_id: string;
+              area: string;
+              category: string;
+              track: 'standard';
+              state: 'received';
+              text: string;
+              location: string;
+              text_status: 'public';
+              hold_reason: null;
+              removed_reason: null;
+              text_sha256: string;
+              labels: string[];
+              closed_public_reason: null;
+              filed_at: Date | string;
+              clock_due_at: null;
+              follower_count: number;
+              also_affected_count: number;
+              not_fixed_count: number;
+              dispute_count: number;
+              notice_count: number;
+            }>
+          >`SELECT * FROM trace_case_shells WHERE record_id = ${seedId}`
+        )[0]!;
+        const material = buildShellHashMaterial({
+          caseNumber: migrated.case_number,
+          municipalityId: migrated.municipality_id,
+          area: migrated.area,
+          category: migrated.category,
+          track: migrated.track,
+          state: migrated.state,
+          text: migrated.text,
+          location: migrated.location,
+          textStatus: migrated.text_status,
+          holdReason: migrated.hold_reason,
+          removedReason: migrated.removed_reason,
+          textSha256: migrated.text_sha256.trim(),
+          labels: migrated.labels,
+          closedPublicReason: migrated.closed_public_reason,
+          filedAt:
+            migrated.filed_at instanceof Date
+              ? migrated.filed_at.toISOString()
+              : new Date(migrated.filed_at).toISOString(),
+          clockDueAt: migrated.clock_due_at,
+          followerCount: migrated.follower_count,
+          alsoAffectedCount: migrated.also_affected_count,
+          notFixedCount: migrated.not_fixed_count,
+          disputeCount: migrated.dispute_count,
+          noticeCount: migrated.notice_count,
+          updatedAt: seedTime,
+          testEnvironment: true,
+        });
+        assert.equal(migrated.shell_hash.trim(), sha256(canonicalJson(material)));
+      } finally {
+        rmSync(stagedFolder, { recursive: true, force: true });
+      }
+    } else {
+      await runTraceMigrations(databaseUrl);
+    }
+    await migrationSql.end({ timeout: 5 });
     await verifyTraceMigrations(databaseUrl);
 
     const config = parseTraceConfig({
@@ -150,6 +316,78 @@ test(
       assert.equal(publicAtFiling.case.disputeCount, 0);
       assert.equal(JSON.stringify(publicAtFiling.case).includes('contactEmail'), false);
       assert.equal(verifyShellHash(publicAtFiling.case), true);
+      assert.equal(
+        sha256(canonicalJson(buildShellHashMaterial(publicAtFiling.case))),
+        publicAtFiling.case.shellHash,
+      );
+
+      const releaseRepository = new TraceRepository(databaseUrl, {
+        ...config,
+        pilot: { ...config.pilot, publicTextMode: 'release' },
+      });
+      try {
+        const releaseMode = recordFrom(
+          (
+            await releaseRepository.create(
+              ctx(
+                actor('trace-release-mode-resident', 'resident'),
+                '/internal/trace/records',
+                normalizeCreate({
+                  subject: 'Release mode report',
+                  narrative: 'A lamp near the park is dark.',
+                  location: 'Park',
+                }),
+              ),
+            )
+          ).body,
+        );
+        const releaseShell = await releaseRepository.getPublicCase(releaseMode.caseNumber);
+        assert.ok(releaseShell);
+        assert.equal(releaseShell.case.textStatus, 'held');
+        assert.equal(releaseShell.case.holdReason, 'pending-release');
+      } finally {
+        await releaseRepository.close();
+      }
+
+      const shellRepository = new TraceRepository(databaseUrl, {
+        ...config,
+        pilot: { ...config.pilot, publicTextMode: 'shell' },
+      });
+      try {
+        const shellMode = recordFrom(
+          (
+            await shellRepository.create(
+              ctx(
+                actor('trace-shell-mode-resident', 'resident'),
+                '/internal/trace/records',
+                normalizeCreate({
+                  subject: 'Shell mode report',
+                  narrative: 'A lamp at the school is dark.',
+                  location: 'School',
+                }),
+              ),
+            )
+          ).body,
+        );
+        const shellCase = await shellRepository.getPublicCase(shellMode.caseNumber);
+        assert.ok(shellCase);
+        assert.equal(shellCase.case.textStatus, 'held');
+        assert.equal(shellCase.case.holdReason, 'policy');
+        await rejectsCode(
+          () =>
+            shellRepository.release(
+              ctx(
+                official,
+                `/internal/trace/records/${shellMode.id}/release`,
+                normalizeRelease({}),
+              ),
+              shellMode.id,
+            ),
+          'release_not_permitted',
+        );
+      } finally {
+        await shellRepository.close();
+      }
 
       await rejectsCode(
         () =>
@@ -272,6 +510,51 @@ test(
       assert.equal(heldPublic.case.text, 'A lamp on a private lane is dark.');
       assert.equal(heldPublic.case.location, 'Private lane');
       assert.equal(heldPublic.case.holdReason, null);
+
+      const noticePath = `/internal/trace/public/cases/${held.caseNumber}/notice`;
+      const firstNotice = await repository.recordNotice(
+        held.caseNumber,
+        { followerKey: 'notice_follower_key_1', reason: 'personal-data', note: 'Contains a name.' },
+        ctx(resident, noticePath, {}),
+      );
+      assert.equal(firstNotice.case.noticeCount, 1);
+      const duplicateNotice = await repository.recordNotice(
+        held.caseNumber,
+        { followerKey: 'notice_follower_key_1', reason: 'personal-data' },
+        ctx(resident, noticePath, {}),
+      );
+      assert.equal(duplicateNotice.case.noticeCount, 1);
+      await repository.recordNotice(
+        held.caseNumber,
+        { followerKey: 'notice_follower_key_2', reason: 'abuse' },
+        ctx(resident, noticePath, {}),
+      );
+      const thirdNotice = await repository.recordNotice(
+        held.caseNumber,
+        { followerKey: 'notice_follower_key_3', reason: 'off-topic' },
+        ctx(resident, noticePath, {}),
+      );
+      assert.equal(thirdNotice.case.noticeCount, 3);
+      assert.equal(thirdNotice.case.textStatus, 'held');
+      assert.equal(thirdNotice.case.holdReason, 'notices');
+      const fourthNotice = await repository.recordNotice(
+        held.caseNumber,
+        { followerKey: 'notice_follower_key_4', reason: 'other' },
+        ctx(resident, noticePath, {}),
+      );
+      assert.equal(fourthNotice.case.noticeCount, 3);
+      assert.equal(fourthNotice.case.shellHash, thirdNotice.case.shellHash);
+      const noticeMessages = (
+        await repository.listMessages(
+          ctx(official, `/internal/trace/records/${held.id}/messages`, {}),
+          held.id,
+        )
+      ).messages.filter((message) => message.kind === 'notice');
+      assert.equal(noticeMessages.length, 3);
+      assert.deepEqual(
+        noticeMessages.map((message) => message.noticeReason),
+        ['personal-data', 'abuse', 'off-topic'],
+      );
 
       const duplicate = recordFrom(
         (
@@ -428,6 +711,69 @@ test(
       );
       assert.equal(appeal.message.kind, 'label-appeal');
 
+      const beforeErase = await repository.getPublicCase(channel.case.caseNumber);
+      assert.ok(beforeErase);
+      await rejectsCode(
+        () =>
+          repository.eraseText(
+            channel.case.caseNumber,
+            { reopenKey: 'wrong_reopen_key_1234' },
+            ctx(resident, `/internal/trace/cases/${channel.case.caseNumber}/erase-text`, {}),
+          ),
+        'case_not_found',
+      );
+      const erased = await repository.eraseText(
+        channel.case.caseNumber,
+        { reopenKey: channel.case.reopenKey },
+        ctx(resident, `/internal/trace/cases/${channel.case.caseNumber}/erase-text`, {}),
+      );
+      assert.equal(erased.case.textStatus, 'removed');
+      assert.equal(erased.case.removedReason, 'filer');
+      assert.equal(erased.case.text, null);
+      assert.equal(erased.case.location, null);
+      assert.equal(erased.case.textSha256, beforeErase.case.textSha256);
+      const erasedPublic = await repository.getPublicCase(channel.case.caseNumber);
+      assert.ok(erasedPublic?.record);
+      assert.equal(
+        erasedPublic.record.disputes.every(
+          (dispute) => dispute.text === null && dispute.textStatus === 'removed',
+        ),
+        true,
+      );
+      const erasedAgain = await repository.eraseText(
+        channel.case.caseNumber,
+        { reopenKey: channel.case.reopenKey },
+        ctx(resident, `/internal/trace/cases/${channel.case.caseNumber}/erase-text`, {}),
+      );
+      assert.equal(erasedAgain.case.shellHash, erased.case.shellHash);
+      await rejectsCode(
+        () =>
+          repository.release(
+            ctx(
+              official,
+              `/internal/trace/records/${channel.case.recordId}/release`,
+              normalizeRelease({}),
+            ),
+            channel.case.recordId,
+          ),
+        'text_removed',
+      );
+      await rejectsCode(
+        () =>
+          repository.hold(
+            ctx(
+              official,
+              `/internal/trace/records/${channel.case.recordId}/hold`,
+              normalizeHold({ reason: 'other' }),
+            ),
+            channel.case.recordId,
+          ),
+        'text_removed',
+      );
+      const privateAfterErase = await repository.getPrivate(official, channel.case.recordId);
+      assert.equal(privateAfterErase?.narrative, channelInput.text);
+      await assertValidChain(sql, channel.case.recordId);
+
       const closeCandidate = await repository.getPrivate(official, duplicate.id);
       assert.ok(closeCandidate);
       const closed = await repository.closeCase(
@@ -448,6 +794,32 @@ test(
       );
       assert.equal(closed.shell.state, 'closed');
       assert.equal(closed.shell.closedPublicReason, 'This report duplicates an existing case.');
+
+      await sql`
+        UPDATE trace_records
+        SET terminal_at = '2020-01-01T00:00:00.000Z'
+        WHERE id IN (${duplicate.id}, ${held.id}, ${channel.case.recordId})
+      `;
+      const retained = await runRetention(repository, {
+        now: new Date('2026-09-16T12:00:00.000Z'),
+        batchSize: 100,
+        retentionDays: 730,
+      });
+      assert.equal(retained, 1);
+      const retainedShell = await repository.getPublicCase(duplicate.caseNumber);
+      assert.ok(retainedShell);
+      assert.equal(retainedShell.case.textStatus, 'removed');
+      assert.equal(retainedShell.case.removedReason, 'retention');
+      assert.equal(retainedShell.case.text, null);
+      assert.equal(retainedShell.case.location, null);
+      assert.equal(verifyShellHash(retainedShell.case), true);
+      assert.equal((await repository.getPublicCase(held.caseNumber))?.case.textStatus, 'held');
+      assert.equal(
+        (await repository.getPublicCase(channel.case.caseNumber))?.case.removedReason,
+        'filer',
+      );
+      assert.notEqual((await repository.getPrivate(official, duplicate.id))?.narrative, '');
+      await assertValidChain(sql, duplicate.id);
 
       await repository.hold(
         ctx(

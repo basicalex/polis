@@ -86,6 +86,15 @@ function parseHoldTerms(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseRetentionInterval(raw: string | undefined): number {
+  if (raw === undefined || raw === '') return 0;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error('TRACE_RETENTION_INTERVAL_MINUTES must be a non-negative integer');
+  }
+  return value;
+}
+
 function localized(value: unknown, field: string): LocalizedText {
   if (!value || typeof value !== 'object') throw new Error(`invalid pilot ${field}`);
   const record = value as Record<string, unknown>;
@@ -167,6 +176,8 @@ export function validatePilotConfig(value: unknown): PilotConfig {
   const caseNumber = municipality?.caseNumber as Record<string, unknown> | undefined;
   const category = root.category as Record<string, unknown> | undefined;
   const office = root.office as Record<string, unknown> | undefined;
+  const publicTextMode = root.publicTextMode ?? 'open';
+  const publicTextRetentionDays = root.publicTextRetentionDays ?? 730;
   if (
     root.id !== 'vrsar-orsera' ||
     root.testEnvironment !== true ||
@@ -182,13 +193,18 @@ export function validatePilotConfig(value: unknown): PilotConfig {
     hasControl(office.routingStatus) ||
     !Array.isArray(root.sources) ||
     root.sources.length === 0 ||
-    root.sources.length > 50
+    root.sources.length > 50 ||
+    (publicTextMode !== 'open' && publicTextMode !== 'release' && publicTextMode !== 'shell') ||
+    !Number.isInteger(publicTextRetentionDays) ||
+    (publicTextRetentionDays as number) < 30
   ) {
     throw new Error('pilot config does not match fixed trace authority');
   }
   return {
     id: 'vrsar-orsera',
     testEnvironment: true,
+    publicTextMode,
+    publicTextRetentionDays: publicTextRetentionDays as number,
     municipality: {
       id: 'vrsar-orsera',
       name: localized(municipality.name, 'municipality.name'),
@@ -251,6 +267,8 @@ export function parseTraceConfig(
     aiIntakeUrl: parseOptionalHttpUrl(env.TRACE_AI_INTAKE_URL, 'TRACE_AI_INTAKE_URL'),
     aiComplianceUrl: parseOptionalHttpUrl(env.TRACE_AI_COMPLIANCE_URL, 'TRACE_AI_COMPLIANCE_URL'),
     holdTerms: parseHoldTerms(env.TRACE_HOLD_TERMS),
+    confidentialTerms: parseHoldTerms(env.TRACE_CONFIDENTIAL_TERMS),
+    retentionIntervalMinutes: parseRetentionInterval(env.TRACE_RETENTION_INTERVAL_MINUTES),
     caseNumberPrefix: pilotCaseNumber.prefix,
     pilot: parsedPilot,
   };
@@ -263,6 +281,8 @@ export function publicTraceConfig(config: TraceConfig): Record<string, unknown> 
     office: config.pilot.office,
     testEnvironment: true,
     intakeOpen: config.intakeOpen,
+    publicTextMode: config.pilot.publicTextMode,
+    publicTextRetentionDays: config.pilot.publicTextRetentionDays,
     sources: config.pilot.sources,
   };
 }

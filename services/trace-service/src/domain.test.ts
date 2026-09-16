@@ -14,7 +14,10 @@ import {
 } from './canonical.js';
 import {
   canCloseCase,
+  canReleaseText,
   canReadPrivate,
+  holdReasonAtFiling,
+  isAssessmentHoldReason,
   parseCaseNumberTarget,
   reopenKeyHash,
   shellStateFor,
@@ -86,6 +89,27 @@ test('reopen keys hash deterministically and case targets must start the message
   assert.equal(parseCaseNumberTarget('VRS-18421'), 'VRS-18421');
   assert.equal(parseCaseNumberTarget('please update VRS-1842'), null);
   assert.equal(parseCaseNumberTarget('VRS-123456789'), null);
+});
+
+test('filing hold reasons follow publicity mode and assessment precedence', () => {
+  assert.equal(holdReasonAtFiling('open', null), null);
+  assert.equal(holdReasonAtFiling('open', 'personal-data'), 'personal-data');
+  assert.equal(holdReasonAtFiling('open', 'abuse'), 'abuse');
+  assert.equal(holdReasonAtFiling('open', 'off-topic'), 'off-topic');
+  assert.equal(holdReasonAtFiling('release', null), 'pending-release');
+  assert.equal(holdReasonAtFiling('release', 'personal-data'), 'personal-data');
+  assert.equal(holdReasonAtFiling('release', 'abuse'), 'abuse');
+  assert.equal(holdReasonAtFiling('shell', 'personal-data'), 'policy');
+  assert.equal(holdReasonAtFiling('shell', 'confidential'), 'confidential');
+  assert.equal(holdReasonAtFiling('release', 'confidential'), 'confidential');
+});
+
+test('release checks removed text before shell policy and assessment reasons stay bounded', () => {
+  assert.equal(canReleaseText('shell', 'removed'), 'text_removed');
+  assert.equal(canReleaseText('shell', 'held'), 'release_not_permitted');
+  assert.equal(canReleaseText('open', 'held'), null);
+  assert.equal(isAssessmentHoldReason('personal-data'), true);
+  assert.equal(isAssessmentHoldReason('confidential'), false);
 });
 
 function event(overrides: Partial<EventHashMaterial> = {}): StoredEvent {

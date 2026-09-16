@@ -32,6 +32,29 @@ never a decision-maker; Intrface is not a reviewer. The LLM step must run on an
 EU-hosted model with no training on the data, processing on behalf of the
 municipality.
 
+## Publicity modes
+
+`PilotConfig.publicTextMode` controls when report text may become public. It
+defaults to `open`.
+
+| mode | at filing | shell text | release |
+| --- | --- | --- | --- |
+| `open` | public verbatim after the compliance pass | text, or hold reason | allowed |
+| `release` | held with reason `pending-release` | hold reason until released | allowed; release is the publish act |
+| `shell` | held with reason `policy` | never | refused with `409 release_not_permitted` |
+
+`holdReasonAtFiling(mode, assessment)` applies this order:
+
+1. `confidential` wins in every mode.
+2. In `open` mode, `personal-data` wins over `abuse`; otherwise the result is
+   `null`.
+3. In `release` mode, `personal-data` wins over `abuse`; otherwise the result is
+   `pending-release`.
+4. In `shell` mode, the result is `policy`.
+
+The compliance pass and the `form-letter` check run in every mode. The service
+logs their signals and labels even when policy never allows the text to appear.
+
 ## Process states
 
 `TRACE_STATUSES` becomes:
@@ -54,11 +77,16 @@ official submits again); `published` → `answered`; `resolution-pending-review`
 
 Text visibility is orthogonal to process state:
 
-| `textStatus` | shell `text` | `holdReason` |
-|---|---|---|
-| `public` | narrative as filed | null |
-| `held` | null | one of `personal-data`, `abuse`, `off-topic`, `other` |
-| `redacted` | the official's redacted version | null |
+| `textStatus` | shell `text` | `holdReason` | `removedReason` |
+| --- | --- | --- | --- |
+| `public` | narrative as filed | null | null |
+| `held` | null | one of `personal-data`, `abuse`, `off-topic`, `other`, `pending-release`, `policy`, `notices`, `confidential` | null |
+| `redacted` | the official's redacted version | null | null |
+| `removed` | null | null | `filer` or `retention` |
+
+The first four hold reasons are assessment reasons. The last four are
+system-owned. The official hold route and the public notice route reject
+system-owned reasons with `400 invalid_request`.
 
 Transitions (all by `official` unless stated):
 
@@ -70,8 +98,8 @@ Transitions (all by `official` unless stated):
 | `reopen` | `disputed` | `answered` | office accepts the dispute and will redo |
 | `dispute` (filer, reopen key) | `resolved` | `disputed` | public text; at most 3 per case |
 | `close` | `open`, `assigned` | `closed` | existing `CloseInput` |
-| `hold` | any but `closed` | same | `textStatus` → `held` with reason |
-| `release` | any but `closed` | same | `textStatus` → `public`, or `redacted` when `redactedText` is given |
+| `hold` | any but `closed` | same | `textStatus` → `held` with an assessment reason; refused with `409 text_removed` after removal |
+| `release` | any but `closed` | same | `textStatus` → `public`, or `redacted` when `redactedText` is given; refused with `409 release_not_permitted` in `shell` mode or `409 text_removed` after removal |
 | `label` | any | same | set or clear `form-letter` |
 
 `hold` is also issued by the compliance pass at filing (actor role `system`).
@@ -81,15 +109,29 @@ Transitions (all by `official` unless stated):
 `CaseShell` gains, and `CASE_SHELL_HASH_FIELDS` must include, these fields:
 
 ```
-text: string | null            // narrative as filed, or redacted, or null when held
-location: string | null        // the filed location string, same visibility as text
-textStatus: 'public' | 'held' | 'redacted'
-holdReason: 'personal-data' | 'abuse' | 'off-topic' | 'other' | null
-textSha256: string             // sha256 of the narrative as filed, always present
-labels: string[]               // [] or ['form-letter']
+text: string | null
+location: string | null
+textStatus: 'public' | 'held' | 'redacted' | 'removed'
+holdReason: 'personal-data' | 'abuse' | 'off-topic' | 'other' | 'pending-release' | 'policy' | 'notices' | 'confidential' | null
+removedReason: 'filer' | 'retention' | null
+textSha256: string
+labels: string[]
+closedPublicReason: string | null
+filedAt: string
+clockDueAt: string
+followerCount: number
+alsoAffectedCount: number
 notFixedCount: number
 disputeCount: number
+noticeCount: number
+testEnvironment: boolean
 ```
+
+The full canonical hash order is `caseNumber`, `municipalityId`, `area`,
+`category`, `track`, `state`, `text`, `location`, `textStatus`, `holdReason`,
+`removedReason`, `textSha256`, `labels`, `closedPublicReason`, `filedAt`,
+`clockDueAt`, `followerCount`, `alsoAffectedCount`, `notFixedCount`,
+`disputeCount`, `noticeCount`, `testEnvironment`.
 
 `area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`,
 `clockDueAt`, `followerCount`, `alsoAffectedCount` stay. `contactEmail` and
@@ -108,7 +150,7 @@ evidenceNote: string | null
 evidenceUrls: string[]
 publishedAt: string
 resolvedAt: string | null
-disputes: Array<{ text: string | null; textStatus: 'public' | 'held'; holdReason: HoldReason | null; createdAt: string }>
+disputes: Array<{ text: string | null; textStatus: 'public' | 'held' | 'removed'; holdReason: HoldReason | null; createdAt: string }>
 events: PublicEvent[]
 receiptHash: string
 ```
@@ -127,7 +169,7 @@ stage ids stay; their meaning is:
 
 | stage | events (action, actorRole) |
 |---|---|
-| `voice` | `report-filed` (resident); `text-held` (system or official, `reason`); `text-released` (official, `redacted: boolean`); `label-set` / `label-cleared` (system or official, `label`) |
+| `voice` | `report-filed` (resident); `text-held` (system or official, `reason`); `text-released` (official, `redacted: boolean`); `text-removed` (resident or system, `reason: 'filer' \| 'retention'`); `label-set` / `label-cleared` (system or official, `label`) |
 | `responsibility` | `office-assigned` (official) |
 | `response` | `commitment-published` (official, `signedBy.name`) |
 | `check` | `completion-reported` (official); `completion-disputed` (resident); `case-reopened` (official) |
@@ -156,11 +198,17 @@ assessText(input: {
 
 Local checks always run: e-mail, phone (`+385` and `09x` forms), OIB (11 digits
 passing ISO 7064 MOD 11,10), Croatian licence plates
-(`[A-ZŠĐČĆŽ]{2}[ -]?\d{3,4}[ -]?[A-ZŠĐČĆŽ]{1,2}`), and a term list from
+(`[A-ZŠĐČĆŽ]{2}[ -]?\d{3,4}[ -]?[A-ZŠĐČĆŽ]{1,2}`), a term list from
 `TRACE_HOLD_TERMS` (comma-separated, optional) merged with a short built-in
-list. Personal-data hits give `hold: 'personal-data'`; term hits give `abuse`.
-`formLetter` is true when `normalizedSha256` matches any recent hash.
-Normalization: NFKC, lowercase, strip punctuation, collapse whitespace.
+list, confidential-report terms from `TRACE_CONFIDENTIAL_TERMS`
+(comma-separated, optional), and special-category terms. The special-category
+check covers third-party health, ethnicity, religion, sexual orientation,
+political, and union data. It holds the text for a human under
+`personal-data`. A confidential-report hit uses `confidential`, which wins over
+every other result. Other personal-data hits give `personal-data`; hold-term
+hits give `abuse`. `formLetter` is true when `normalizedSha256` matches any
+recent hash. Normalization uses NFKC, lowercase, stripped punctuation, and
+collapsed whitespace.
 
 When `TRACE_AI_COMPLIANCE_URL` is set, POST
 `{ text, location, language: 'hr' }` to `<url>/internal/ai/compliance` with
@@ -175,6 +223,54 @@ The pass runs inside `create` and `createChannelCase` before the insert, and on
 `dispute` text. The existing asynchronous AI intake (category and duplicate
 proposals) is unchanged.
 
+## Erasure
+
+`POST /internal/trace/cases/:caseNumber/erase-text` accepts `{ reopenKey }` and
+authenticates like a dispute. It removes public text and location, sets
+`textStatus` to `removed` and `removedReason` to `filer`, blanks the filer's
+dispute texts in the snapshot, and writes `text-removed` at stage `voice` with
+actor role `resident`. It works in every process state, including `closed`.
+A repeat call is idempotent and returns the unchanged public shell.
+
+The office's public commitment and resolution remain. The private case file
+also remains under the office's archive rules. `textSha256` stays public.
+
+## Public notices
+
+`POST /internal/trace/public/cases/:caseNumber/notice` accepts
+`{ followerKey, reason, note? }`. `reason` must be one of the four assessment
+hold reasons. `note` is optional and at most 600 characters. The service
+deduplicates by the existing follower-key hash with attention kind `notice`.
+
+The first notice from a key increments `noticeCount` and writes a private
+message with kind `notice`, `noticeReason` set to the reason, and body set to
+the note or an empty string. At three notices, public or redacted text becomes
+held with reason `notices`. The system writes the existing `text-held` event.
+A repeat notice from the same key changes nothing. Both paths return the public
+shell. `noticeCount` is for the office UI; the public web does not render it.
+
+## Retention
+
+Resolution and closure set `trace_records.terminal_at`. Reopen and dispute
+clear it. `runRetention(now, batchSize)` processes locked rows in batches with
+`FOR UPDATE SKIP LOCKED`. Once `terminal_at` plus
+`publicTextRetentionDays` is earlier than `now`, it removes public text and
+location, blanks dispute texts, sets `removedReason` to `retention`, and writes
+`text-removed` at stage `voice` with actor role `system`. It skips text already
+removed.
+
+`publicTextRetentionDays` is an integer of at least 30 and defaults to 730.
+`bun run retention` runs the job. `TRACE_RETENTION_INTERVAL_MINUTES` controls
+the in-process interval; unset or `0` disables it.
+
+## Confidential reports
+
+The compliance pass holds whistleblower-looking text with reason
+`confidential` for a human. The public shell shows that reason but not the
+text. The resident must use the municipality's confidential officer for a
+protected internal report. This platform is not that internal reporting
+channel.
+
 ## Attention and abuse limits
 
 `AttentionInput.kind` gains `'not-fixed'`, accepted only while the state is
@@ -183,6 +279,10 @@ counted into `notFixedCount`. Disputes are limited to 3 per case; the 4th
 returns `409 dispute_limit`. Label appeal: `FilerMessageInput` gains
 `kind?: 'append' | 'label-appeal'`; an appeal is a private message to the
 office, the official clears the label with `label`.
+
+The public `erase-text` route is limited to 5 requests per IP per 10 minutes.
+The public `notice` route is limited to 10 requests per IP per 10 minutes.
+Over the limit returns `429 rate_limited`.
 
 platform-api adds a per-IP fixed window on the public trace routes, reusing the
 limiter in `public-edge.ts`: `POST /public/cases` 5 per 10 min,
@@ -206,6 +306,8 @@ trace-service internal routes, after the change:
 | POST | `/internal/trace/records/:id/label` | official, body `{ label: 'form-letter', action: 'set' | 'clear' }` |
 | POST | `/internal/trace/cases/:caseNumber/dispute` | reopen key in body `{ reopenKey, text }` |
 | POST | `/internal/trace/public/cases/:caseNumber/attention` | anyone, kinds `follow`, `also-affected`, `not-fixed` |
+| POST | `/internal/trace/cases/:caseNumber/erase-text` | reopen key in body `{ reopenKey }` |
+| POST | `/internal/trace/public/cases/:caseNumber/notice` | anyone, body `{ followerKey, reason, note? }` |
 
 Removed: `/records/:id/review`, `/records/:id/resolution-review`. The AI
 proposal decision route and `GET /records/:id/messages` are official-only.
@@ -237,3 +339,8 @@ name and title.
 - O3 Demo store and `/demo/*` pages, `public-release.ts`, non-pilot pages,
   and the pitch deck still describe the reviewer; they follow in a later wave.
 - O4 Croatian strings for the new states go to the native editor before release.
+- O5 `textSha256` stays public after erasure. The DPO must sign off that a
+  SHA-256 hash of removed text is acceptable.
+- O6 Before release, the municipality must confirm in writing the controller
+  name and address, DPO contact, confidential contact, and retention period.
+  The values in `apps/web/src/content/places.ts` are placeholders.

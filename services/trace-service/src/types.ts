@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { IncomingMessage } from 'node:http';
-import type { HoldReason } from './compliance.js';
 
 export const TRACE_STATUSES = [
   'open',
@@ -25,8 +24,13 @@ export type ClosedReason =
   | 'no-action-possible'
   | 'resolved-elsewhere';
 export type ShellState = 'received' | 'assigned' | 'answered' | 'resolved' | 'disputed' | 'closed';
-export type TextStatus = 'public' | 'held' | 'redacted';
-export type { HoldReason };
+export type PublicTextMode = 'open' | 'release' | 'shell';
+export const ASSESSMENT_HOLD_REASONS = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
+export type AssessmentHoldReason = (typeof ASSESSMENT_HOLD_REASONS)[number];
+export type HoldReason =
+  AssessmentHoldReason | 'pending-release' | 'policy' | 'notices' | 'confidential';
+export type TextStatus = 'public' | 'held' | 'redacted' | 'removed';
+export type RemovedReason = 'filer' | 'retention';
 
 export interface Actor {
   id: string;
@@ -52,6 +56,8 @@ export interface PilotSource {
 export interface PilotConfig {
   id: 'vrsar-orsera';
   testEnvironment: true;
+  publicTextMode: PublicTextMode;
+  publicTextRetentionDays: number;
   municipality: {
     id: 'vrsar-orsera';
     name: LocalizedText;
@@ -72,6 +78,8 @@ export interface TraceConfig {
   aiIntakeUrl?: string | null;
   aiComplianceUrl?: string | null;
   holdTerms?: string[];
+  confidentialTerms?: string[];
+  retentionIntervalMinutes?: number;
   caseNumberPrefix?: string;
   pilot: PilotConfig;
 }
@@ -82,6 +90,8 @@ export interface ParsedTraceConfig extends TraceConfig {
   aiIntakeUrl: string | null;
   aiComplianceUrl: string | null;
   holdTerms: string[];
+  confidentialTerms: string[];
+  retentionIntervalMinutes: number;
   caseNumberPrefix: string;
   pilot: PilotConfig & {
     municipality: PilotConfig['municipality'] & {
@@ -114,6 +124,13 @@ export type PublicEvent =
       action: 'text-held';
       actorRole: 'system' | 'official';
       reason: HoldReason;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'text-removed';
+      actorRole: 'resident' | 'system';
+      reason: RemovedReason;
       createdAt: string;
     }
   | {
@@ -231,7 +248,7 @@ export interface PublicRecord {
   resolvedAt: string | null;
   disputes: Array<{
     text: string | null;
-    textStatus: 'public' | 'held';
+    textStatus: TextStatus;
     holdReason: HoldReason | null;
     createdAt: string;
   }>;
@@ -251,6 +268,7 @@ export interface CaseShell {
   location: string | null;
   textStatus: TextStatus;
   holdReason: HoldReason | null;
+  removedReason: RemovedReason | null;
   textSha256: string;
   labels: string[];
   closedPublicReason: string | null;
@@ -260,6 +278,7 @@ export interface CaseShell {
   alsoAffectedCount: number;
   notFixedCount: number;
   disputeCount: number;
+  noticeCount: number;
   shellHash: string;
   updatedAt: string;
   testEnvironment: true;
@@ -275,7 +294,8 @@ export type CaseMessageKind =
   | 'status-update'
   | 'receipt'
   | 'transcript'
-  | 'transcript-failed';
+  | 'transcript-failed'
+  | 'notice';
 export type CaseMessageSource = 'typed' | 'transcript' | 'system';
 export type CaseMessageAuthorKind = 'filer' | 'official' | 'system';
 export type CaseMessageDeliveryState =
@@ -290,6 +310,7 @@ export interface CaseMessage {
   source: CaseMessageSource;
   body: string;
   bodySha256: string;
+  noticeReason: HoldReason | null;
   authorKind: CaseMessageAuthorKind;
   authorActorId: string | null;
   inReplyTo: string | null;
@@ -356,6 +377,7 @@ export interface RecordRow {
   also_affected_count: number;
   not_fixed_count: number;
   dispute_count: number;
+  notice_count: number;
   status: TraceStatus;
   version: number;
   commitment: string | null;
@@ -364,11 +386,13 @@ export interface RecordRow {
   evidence_urls: string[] | null;
   text_status: TextStatus;
   hold_reason: HoldReason | null;
+  removed_reason: RemovedReason | null;
   text_sha256: string;
   redacted_text: string | null;
   labels: string[];
   signed_by_name: string | null;
   signed_by_title: string | null;
+  terminal_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -486,6 +510,16 @@ export interface DisputeInput {
   text: string;
 }
 
+export interface EraseTextInput {
+  reopenKey: string;
+}
+
+export interface NoticeInput {
+  followerKey: string;
+  reason: AssessmentHoldReason;
+  note?: string;
+}
+
 export interface AttentionInput {
   followerKey: string;
   kind: 'follow' | 'also-affected' | 'not-fixed';
@@ -540,6 +574,11 @@ export interface TraceStore {
     caseNumber: string,
     input: DisputeInput,
   ): Promise<{ case: CaseShell; record: PublicRecord }>;
+  eraseText(
+    caseNumber: string,
+    input: EraseTextInput,
+    ctx: CommandContext,
+  ): Promise<{ case: CaseShell }>;
   listMessages(ctx: CommandContext, recordId: string): Promise<{ messages: CaseMessage[] }>;
   postOfficialMessage(
     ctx: CommandContext,
@@ -572,6 +611,11 @@ export interface TraceStore {
   ): Promise<{
     counts: { followerCount: number; alsoAffectedCount: number; notFixedCount: number };
   }>;
+  recordNotice(
+    caseNumber: string,
+    input: NoticeInput,
+    ctx: CommandContext,
+  ): Promise<{ case: CaseShell }>;
   close(): Promise<void>;
 }
 

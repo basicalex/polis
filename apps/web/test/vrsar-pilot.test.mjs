@@ -6,8 +6,22 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { actionLabels, errorMessages, statusLabels, translatedAction } from '../src/content/pilot/vrsar.ts';
-import { createPrivateRecord, fileAnonymousCase, PilotApiError } from '../src/lib/pilot/vrsar/api.ts';
-import { latestTraceEvent } from '../src/lib/pilot/vrsar/model.ts';
+import {
+  createPrivateRecord,
+  eraseText,
+  fileAnonymousCase,
+  noticeCase,
+  PilotApiError,
+} from '../src/lib/pilot/vrsar/api.ts';
+import {
+  ASSESSMENT_HOLD_REASONS,
+  eraseResultFromEnvelope,
+  HOLD_REASONS,
+  latestTraceEvent,
+  noticeResultFromEnvelope,
+  pilotConfigFromResponse,
+  TEXT_STATUSES,
+} from '../src/lib/pilot/vrsar/model.ts';
 import {
   clearSessionCookie,
   handlePilotProxy,
@@ -49,6 +63,45 @@ function proxyContext(path, {
 }
 
 const key = '123e4567-e89b-42d3-a456-426614174000';
+test('publicity model and API exports carry the new controls', () => {
+  assert.deepEqual([...ASSESSMENT_HOLD_REASONS], [
+    'personal-data',
+    'abuse',
+    'off-topic',
+    'other',
+  ]);
+  assert.deepEqual([...HOLD_REASONS], [
+    'personal-data',
+    'abuse',
+    'off-topic',
+    'other',
+    'pending-release',
+    'policy',
+    'notices',
+    'confidential',
+  ]);
+  assert.deepEqual([...TEXT_STATUSES], ['public', 'held', 'redacted', 'removed']);
+  assert.equal(typeof eraseText, 'function');
+  assert.equal(typeof noticeCase, 'function');
+  assert.deepEqual(
+    pilotConfigFromResponse({ municipality: {}, category: {}, office: {}, testEnvironment: true }),
+    {
+      municipality: {},
+      category: {},
+      office: {},
+      testEnvironment: true,
+      publicTextMode: 'open',
+      publicTextRetentionDays: 730,
+    },
+  );
+  assert.equal(
+    eraseResultFromEnvelope({ case: { textStatus: 'removed', removedReason: 'filer' } }).case
+      .textStatus,
+    'removed',
+  );
+  assert.equal(noticeResultFromEnvelope({ case: { noticeCount: 3 } }).case.noticeCount, 3);
+});
+
 
 test('Vrsar pilot route set is present and isolated', async () => {
   for (const route of [
@@ -609,6 +662,81 @@ test('anonymous web filing proxy requires origin and idempotency without a sessi
   assert.equal(missingKey.status, 400);
   assert.equal(calls.length, 1);
 });
+test('erasure and notice proxies are session-free and reject extra fields', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ case: { caseNumber: 'VRS-1' } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const options = { publicRelease: false, backendBase: 'https://trace.internal', fetchImpl };
+
+  const erased = await handlePilotProxy(
+    proxyContext('cases/VRS-1/erase-text', {
+      method: 'POST',
+      idempotencyKey: key,
+      body: { reopenKey: 'private-reopen-key' },
+    }),
+    options,
+  );
+  assert.equal(erased.status, 200);
+
+  const noticed = await handlePilotProxy(
+    proxyContext('public/cases/VRS-1/notice', {
+      method: 'POST',
+      idempotencyKey: key,
+      body: {
+        followerKey: 'private-follower-key',
+        reason: 'personal-data',
+        note: 'Contains a phone number.',
+      },
+    }),
+    options,
+  );
+  assert.equal(noticed.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, 'https://trace.internal/api/trace/cases/VRS-1/erase-text');
+  assert.deepEqual(JSON.parse(calls[0].init.body), { reopenKey: 'private-reopen-key' });
+  assert.equal(calls[1].url, 'https://trace.internal/api/trace/public/cases/VRS-1/notice');
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    followerKey: 'private-follower-key',
+    reason: 'personal-data',
+    note: 'Contains a phone number.',
+  });
+  for (const call of calls) {
+    assert.equal(call.init.headers.get('authorization'), null);
+    assert.equal(call.init.headers.get('idempotency-key'), key);
+  }
+
+  const extraEraseField = await handlePilotProxy(
+    proxyContext('cases/VRS-1/erase-text', {
+      method: 'POST',
+      idempotencyKey: key,
+      body: { reopenKey: 'private-reopen-key', reason: 'filer' },
+    }),
+    options,
+  );
+  assert.equal(extraEraseField.status, 400);
+
+  const extraNoticeField = await handlePilotProxy(
+    proxyContext('public/cases/VRS-1/notice', {
+      method: 'POST',
+      idempotencyKey: key,
+      body: {
+        followerKey: 'private-follower-key',
+        reason: 'personal-data',
+        note: 'Contains a phone number.',
+        channel: 'web',
+      },
+    }),
+    options,
+  );
+  assert.equal(extraNoticeField.status, 400);
+  assert.equal(calls.length, 2);
+});
+
 
 test('the filing proxy forwards a full-size photo and refuses an unknown photo field', async () => {
   const calls = [];

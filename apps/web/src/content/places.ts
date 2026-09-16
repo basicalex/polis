@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
-
+/*
+ * This file keeps the build-time mode and retention copy for server-rendered
+ * text. The fetched pilot config wins once available; never block a render on it.
+ */
 /**
  * Which place slugs Polis answers for.
  *
@@ -10,8 +13,12 @@
  * Anything that is neither is a 404.
  */
 
-import knownPlaces from '../data/geo/hr-places.json';
+import type { PublicTextMode } from '../lib/pilot/vrsar/model';
+import knownPlaces from '../data/geo/hr-places.json' with { type: 'json' };
 import type { LocalizedText } from './public-release';
+
+export type { PublicTextMode } from '../lib/pilot/vrsar/model';
+
 
 export type PlaceStatus = 'live' | 'not-yet';
 
@@ -22,11 +29,25 @@ export interface LivePlace {
   county: string;
   pilotId: string;
   caseNumberPrefix: string;
+  publicTextMode: PublicTextMode;
+  privacy: PlacePrivacy;
   /** Initial report-map camera only. It is never filed until the person selects a point. */
   reportMapCenter: { lat: number; lon: number };
   name: LocalizedText;
   status: 'live';
 }
+export interface PlacePrivacy {
+  controllerName: LocalizedText;
+  controllerAddress: LocalizedText;
+  dpoContact: string;
+  confidentialContact: {
+    name: LocalizedText;
+    email: string;
+    phone: string;
+  };
+  retentionDays: number;
+}
+
 
 export interface KnownPlace {
   slug: string;
@@ -47,6 +68,29 @@ export const livePlaces: LivePlace[] = [
     county: 'istarska',
     pilotId: 'vrsar-orsera',
     caseNumberPrefix: 'VRS',
+    // TODO(pilot): confirm with the municipality in writing
+    publicTextMode: 'open',
+    privacy: {
+      // TODO(pilot): confirm with the municipality in writing
+      controllerName: { hr: 'Općina Vrsar-Orsera', en: 'Vrsar-Orsera Municipality' },
+      // TODO(pilot): confirm with the municipality in writing
+      controllerAddress: { hr: 'Trg Degrassi 1, 52450 Vrsar', en: 'Trg Degrassi 1, 52450 Vrsar' },
+      // TODO(pilot): confirm with the municipality in writing
+      dpoContact: 'szop@vrsar.hr',
+      confidentialContact: {
+        // TODO(pilot): confirm with the municipality in writing
+        name: {
+          hr: 'Povjerljiva osoba Općine Vrsar-Orsera',
+          en: 'Confidential officer, Vrsar-Orsera Municipality',
+        },
+        // TODO(pilot): confirm with the municipality in writing
+        email: 'povjerljiva.osoba@vrsar.hr',
+        // TODO(pilot): confirm with the municipality in writing
+        phone: '+385 52 441 026',
+      },
+      // TODO(pilot): confirm with the municipality in writing
+      retentionDays: 730,
+    },
     reportMapCenter: { lat: 45.149, lon: 13.605 },
     name: { hr: 'Općina Vrsar', en: 'Vrsar Municipality' },
     status: 'live',

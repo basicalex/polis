@@ -358,6 +358,13 @@ function reopenKey(value: unknown): string {
   return value;
 }
 
+function followerKey(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(value)) {
+    throw new InputError('invalid_request', 'followerKey is invalid.');
+  }
+  return value;
+}
+
 function occurredAt(value: unknown): string {
   const normalized = text(value, 'occurredAt', 64);
   const parsed = new Date(normalized);
@@ -605,13 +612,25 @@ export function normalizeDispute(value: unknown): Record<string, unknown> {
   };
 }
 
+export function normalizeEraseText(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['reopenKey']);
+  return { reopenKey: reopenKey(body.reopenKey) };
+}
+
+export function normalizeNotice(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['followerKey', 'reason', 'note']);
+  return {
+    followerKey: followerKey(body.followerKey),
+    reason: oneOf(body.reason, 'reason', ['personal-data', 'abuse', 'off-topic', 'other'] as const),
+    note: optionalBoundedText(body.note, 'note', 600),
+  };
+}
+
 export function normalizeAttention(value: unknown): Record<string, unknown> {
   const body = exactBody(value, ['followerKey', 'kind', 'action']);
-  if (typeof body.followerKey !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(body.followerKey)) {
-    throw new InputError('invalid_request', 'followerKey is invalid.');
-  }
+  const normalizedFollowerKey = followerKey(body.followerKey);
   return {
-    followerKey: body.followerKey,
+    followerKey: normalizedFollowerKey,
     kind: oneOf(body.kind, 'kind', ['follow', 'also-affected', 'not-fixed'] as const),
     action: oneOf(body.action, 'action', ['add', 'remove'] as const),
   };

@@ -12,7 +12,7 @@ test('bundled trace migrations are ordered and content hashed', () => {
   const migrations = readMigrations();
   assert.deepEqual(
     migrations.map((migration) => migration.version),
-    ['0001', '0002', '0003', '0004'],
+    ['0001', '0002', '0003', '0004', '0005'],
   );
   for (const migration of migrations) {
     assert.match(migration.hash, /^[a-f0-9]{64}$/);
@@ -24,6 +24,10 @@ test('bundled trace migrations are ordered and content hashed', () => {
   assert.match(migrations[2]!.sql, /filer_kind = 'account'/);
   assert.match(migrations[3]!.sql, /text_status/);
   assert.match(migrations[3]!.sql, /dispute_count/);
+  assert.match(migrations[4]!.sql, /terminal_at/);
+  assert.match(migrations[4]!.sql, /removed_reason/);
+  assert.match(migrations[4]!.sql, /notice_count/);
+  assert.match(migrations[4]!.sql, /trace_migration_canonical_json/);
 });
 
 test('migration application serializes the ledger with a transaction-scoped advisory lock', () => {

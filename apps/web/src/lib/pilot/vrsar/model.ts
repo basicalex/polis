@@ -39,8 +39,25 @@ export type CaseShellState =
   | 'disputed'
   | 'closed';
 
-export type HoldReason = 'personal-data' | 'abuse' | 'off-topic' | 'other';
-export type TextStatus = 'public' | 'held' | 'redacted';
+export const ASSESSMENT_HOLD_REASONS = [
+  'personal-data',
+  'abuse',
+  'off-topic',
+  'other',
+] as const;
+export const HOLD_REASONS = [
+  ...ASSESSMENT_HOLD_REASONS,
+  'pending-release',
+  'policy',
+  'notices',
+  'confidential',
+] as const;
+export type AssessmentHoldReason = (typeof ASSESSMENT_HOLD_REASONS)[number];
+export type HoldReason = (typeof HOLD_REASONS)[number];
+export type PublicTextMode = 'open' | 'release' | 'shell';
+export type RemovedReason = 'filer' | 'retention';
+export const TEXT_STATUSES = ['public', 'held', 'redacted', 'removed'] as const;
+export type TextStatus = (typeof TEXT_STATUSES)[number];
 export interface OfficialSignature {
   name: string;
   title: string;
@@ -74,6 +91,8 @@ export interface PilotConfig {
   testEnvironment: true;
   intakeOpen: boolean;
   sources: PilotSource[];
+  publicTextMode: PublicTextMode;
+  publicTextRetentionDays: number;
 }
 
 export interface PilotSession {
@@ -88,6 +107,7 @@ export type CaseMessageKind =
   | 'append'
   | 'label-appeal'
   | 'dispute'
+  | 'notice'
   | 'answer'
   | 'question'
   | 'status-update'
@@ -112,6 +132,7 @@ export interface CaseMessage {
   channel: TraceOrigin;
   source: CaseMessageSource;
   body: string;
+  noticeReason: HoldReason | null;
   authorKind: CaseMessageAuthorKind;
   authorActorId?: string | null;
   inReplyTo?: string | null;
@@ -152,6 +173,7 @@ export interface PublicCaseShell {
   location: string | null;
   textStatus: TextStatus;
   holdReason: HoldReason | null;
+  removedReason: RemovedReason | null;
   textSha256: string;
   labels: string[];
   closedPublicReason: string | null;
@@ -161,6 +183,7 @@ export interface PublicCaseShell {
   alsoAffectedCount: number;
   notFixedCount: number;
   disputeCount: number;
+  noticeCount: number;
   shellHash: string;
   updatedAt: string;
   testEnvironment: true;
@@ -270,6 +293,13 @@ export type PublicEvent =
     }
   | {
       stage: 'voice';
+      action: 'text-removed';
+      actorRole: 'resident' | 'system';
+      reason: RemovedReason;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
       action: 'text-released';
       actorRole: 'official';
       redacted: boolean;
@@ -329,7 +359,7 @@ export type PublicEvent =
 
 export interface PublicDispute {
   text: string | null;
-  textStatus: 'public' | 'held';
+  textStatus: 'public' | 'held' | 'removed';
   holdReason: HoldReason | null;
   createdAt: string;
 }
@@ -367,6 +397,27 @@ export function isTraceStatus(value: unknown): value is TraceStatus {
     value === 'disputed' ||
     value === 'closed'
   );
+}
+export function pilotConfigFromResponse(value: unknown): PilotConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('invalid_config_response');
+  }
+  const config = value as Partial<PilotConfig>;
+  const publicTextMode =
+    config.publicTextMode === 'release' || config.publicTextMode === 'shell'
+      ? config.publicTextMode
+      : 'open';
+  const publicTextRetentionDays =
+    typeof config.publicTextRetentionDays === 'number' &&
+    Number.isInteger(config.publicTextRetentionDays) &&
+    config.publicTextRetentionDays >= 30
+      ? config.publicTextRetentionDays
+      : 730;
+  return {
+    ...config,
+    publicTextMode,
+    publicTextRetentionDays,
+  } as PilotConfig;
 }
 
 export function recordFromEnvelope(value: unknown): PrivateTraceRecord {
@@ -438,6 +489,17 @@ export function publicCaseFromEnvelope(value: unknown): {
     case: shell as PublicCaseShell,
     record: record && typeof record === 'object' ? (record as PublicTraceRecord) : null,
   };
+}
+export function eraseResultFromEnvelope(value: unknown): { case: PublicCaseShell } {
+  const shell = envelopeMember(value, 'case', 'invalid_erase_response');
+  if (!shell || typeof shell !== 'object') throw new Error('invalid_erase_response');
+  return { case: shell as PublicCaseShell };
+}
+
+export function noticeResultFromEnvelope(value: unknown): { case: PublicCaseShell } {
+  const shell = envelopeMember(value, 'case', 'invalid_notice_response');
+  if (!shell || typeof shell !== 'object') throw new Error('invalid_notice_response');
+  return { case: shell as PublicCaseShell };
 }
 
 export function anonymousCaseFromEnvelope(value: unknown): {

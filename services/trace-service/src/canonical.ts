@@ -177,6 +177,7 @@ export const CASE_SHELL_HASH_FIELDS = [
   'location',
   'textStatus',
   'holdReason',
+  'removedReason',
   'textSha256',
   'labels',
   'closedPublicReason',
@@ -186,6 +187,7 @@ export const CASE_SHELL_HASH_FIELDS = [
   'alsoAffectedCount',
   'notFixedCount',
   'disputeCount',
+  'noticeCount',
   'testEnvironment',
 ] as const;
 
@@ -206,6 +208,7 @@ export function buildShellHashMaterial(
     location: shell.location,
     textStatus: shell.textStatus,
     holdReason: shell.holdReason,
+    removedReason: shell.removedReason,
     textSha256: shell.textSha256,
     labels: [...shell.labels].sort(),
     closedPublicReason: shell.closedPublicReason,
@@ -215,6 +218,7 @@ export function buildShellHashMaterial(
     alsoAffectedCount: shell.alsoAffectedCount,
     notFixedCount: shell.notFixedCount,
     disputeCount: shell.disputeCount,
+    noticeCount: shell.noticeCount,
     testEnvironment: shell.testEnvironment,
   };
 }

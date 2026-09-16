@@ -17,6 +17,7 @@ interface AssessmentOptions {
   location?: string | null;
   recentNarrativeHashes?: string[];
   holdTerms?: string[];
+  confidentialTerms?: string[];
   gatewayUrl?: string | null;
   fetch?: typeof fetch;
 }
@@ -32,6 +33,7 @@ function runAssessment(text: string, options: AssessmentOptions = {}) {
     {
       gatewayUrl: options.gatewayUrl ?? null,
       holdTerms: options.holdTerms ?? [],
+      confidentialTerms: options.confidentialTerms ?? [],
       fetch: options.fetch,
     },
   );
@@ -98,6 +100,49 @@ test('personal-data hold takes precedence over abuse', async () => {
 
   assert.equal(result.hold, 'personal-data');
   assert.deepEqual(result.signals, ['local:email', 'local:hold-term']);
+});
+
+test('confidential reports beat personal-data and abuse holds', async () => {
+  for (const text of [
+    'Prijavljujem mito u nabavi.',
+    'Dokazi o korupciji su poslani.',
+    'Whistleblower reports a kickback.',
+  ]) {
+    const result = await runAssessment(`${text} Pederčina stanar@example.hr.`);
+    assert.equal(result.hold, 'confidential');
+    assert.equal(result.signals.includes('local:confidential'), true);
+  }
+});
+
+test('configured confidential terms use whole-word matching', async () => {
+  const hit = await runAssessment('Skriveni dogovor postoji.', {
+    confidentialTerms: ['skriveni dogovor'],
+  });
+  const miss = await runAssessment('Opis skrivenih dogovora.', {
+    confidentialTerms: ['skriveni dogovor'],
+  });
+  assert.equal(hit.hold, 'confidential');
+  assert.deepEqual(hit.signals, ['local:confidential']);
+  assert.equal(miss.hold, null);
+});
+
+test('special-category phrases cause personal-data holds without ambiguous short words', async () => {
+  for (const text of [
+    'Susjed boluje od dijabetesa.',
+    'Navodi se etnička pripadnost stanara.',
+    'Upisana je vjerska pripadnost osobe.',
+    'Objavljena je seksualna orijentacija.',
+    'On je član političke stranke.',
+    'Ona je član sindikata.',
+    'Priloženi su podaci treće osobe.',
+  ]) {
+    const result = await runAssessment(text);
+    assert.equal(result.hold, 'personal-data', text);
+    assert.deepEqual(result.signals, ['local:special-category'], text);
+  }
+  for (const text of ['Rak na cesti.', 'Rom je naziv albuma.', 'Srb je dio druge riječi.']) {
+    assert.equal((await runAssessment(text)).hold, null, text);
+  }
 });
 
 test('normalized duplicate hash applies the form-letter label', async () => {

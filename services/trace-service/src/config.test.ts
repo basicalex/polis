@@ -41,6 +41,8 @@ const env = {
   TRACE_AI_INTAKE_URL: 'https://ai.test/intake',
   TRACE_AI_COMPLIANCE_URL: 'https://ai.test/compliance',
   TRACE_HOLD_TERMS: '  BAD term,Another  ',
+  TRACE_CONFIDENTIAL_TERMS: '  MITO,Whistleblower  ',
+  TRACE_RETENTION_INTERVAL_MINUTES: '15',
 };
 
 test('trace config maps roles and public text policy settings from the injected pilot loader', () => {
@@ -51,6 +53,10 @@ test('trace config maps roles and public text policy settings from the injected 
   assert.equal(config.aiIntakeUrl, 'https://ai.test/intake');
   assert.equal(config.aiComplianceUrl, 'https://ai.test/compliance');
   assert.deepEqual(config.holdTerms, ['bad term', 'another']);
+  assert.deepEqual(config.confidentialTerms, ['mito', 'whistleblower']);
+  assert.equal(config.retentionIntervalMinutes, 15);
+  assert.equal(config.pilot.publicTextMode, 'open');
+  assert.equal(config.pilot.publicTextRetentionDays, 730);
   assert.equal(config.caseNumberPrefix, 'VRS');
   const optional = parseTraceConfig(
     {
@@ -58,18 +64,24 @@ test('trace config maps roles and public text policy settings from the injected 
       TRACE_AI_INTAKE_URL: undefined,
       TRACE_AI_COMPLIANCE_URL: undefined,
       TRACE_HOLD_TERMS: ' , ',
+      TRACE_CONFIDENTIAL_TERMS: ' , ',
+      TRACE_RETENTION_INTERVAL_MINUTES: undefined,
     },
     () => pilot,
   );
   assert.equal(optional.aiIntakeUrl, null);
   assert.equal(optional.aiComplianceUrl, null);
   assert.deepEqual(optional.holdTerms, []);
+  assert.deepEqual(optional.confidentialTerms, []);
+  assert.equal(optional.retentionIntervalMinutes, 0);
   assert.deepEqual(publicTraceConfig(config), {
     municipality: pilot.municipality,
     category: pilot.category,
     office: pilot.office,
     testEnvironment: true,
     intakeOpen: true,
+    publicTextMode: 'open',
+    publicTextRetentionDays: 730,
     sources: [{ ...pilot.sources[0], url: 'https://example.test/source' }],
   });
 });
@@ -94,6 +106,8 @@ test('trace config fails closed on credentials, database, intake, and role mappi
     { TRACE_AI_COMPLIANCE_URL: '/relative' },
     { TRACE_AI_COMPLIANCE_URL: 'ftp://ai.test/compliance' },
     { TRACE_AI_COMPLIANCE_URL: 'https://user:secret@ai.test/compliance' },
+    { TRACE_RETENTION_INTERVAL_MINUTES: '-1' },
+    { TRACE_RETENTION_INTERVAL_MINUTES: '1.5' },
   ];
   for (const override of invalid) {
     const candidate = { ...env, ...override } as NodeJS.ProcessEnv;
@@ -105,6 +119,12 @@ test('pilot configuration must match the fixed authority and contain valid cited
   assert.throws(() => parseTraceConfig(env, () => ({ ...pilot, id: 'other' })));
   assert.throws(() => parseTraceConfig(env, () => ({ ...pilot, testEnvironment: false })));
   assert.throws(() => parseTraceConfig(env, () => ({ ...pilot, sources: [] })));
+  for (const publicTextMode of ['unknown', 1]) {
+    assert.throws(() => parseTraceConfig(env, () => ({ ...pilot, publicTextMode })));
+  }
+  for (const publicTextRetentionDays of [29, 30.5, '730']) {
+    assert.throws(() => parseTraceConfig(env, () => ({ ...pilot, publicTextRetentionDays })));
+  }
   assert.throws(() =>
     parseTraceConfig(env, () => ({
       ...pilot,

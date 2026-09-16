@@ -15,10 +15,12 @@ import type {
   CloseInput,
   CommandContext,
   DisputeInput,
+  EraseTextInput,
   FilerMessageInput,
   GatewayCreateInput,
   GatewayMessageInput,
   OfficialMessageInput,
+  NoticeInput,
   TraceConfig,
   TraceStore,
 } from './types.js';
@@ -34,10 +36,12 @@ import {
   normalizeCreate,
   normalizeDelivery,
   normalizeDispute,
+  normalizeEraseText,
   normalizeFilerMessage,
   normalizeGatewayCreate,
   normalizeGatewayMessage,
   normalizeHold,
+  normalizeNotice,
   normalizeLabel,
   normalizeOfficialMessage,
   normalizeRelease,
@@ -491,6 +495,22 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     },
     {
       method: 'POST',
+      path: '/internal/trace/cases/:caseNumber/erase-text',
+      maxBodyBytes: 2_000,
+      handler: safe(async (_request, body, params) => {
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeEraseText(body);
+        const path = `/internal/trace/cases/${caseNumber}/erase-text`;
+        const ctx = readContext(
+          { id: 'public:erase', email: null, role: 'resident' },
+          path,
+          normalized,
+        );
+        return store.eraseText(caseNumber, normalized as unknown as EraseTextInput, ctx);
+      }),
+    },
+    {
+      method: 'POST',
       path: '/internal/trace/cases/:caseNumber/messages',
       maxBodyBytes: 20_000,
       handler: safe(async (request, body, params) => {
@@ -619,6 +639,23 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
           caseNumber,
           normalizeAttention(body) as unknown as AttentionInput,
         );
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/public/cases/:caseNumber/notice',
+      maxBodyBytes: 2_000,
+      handler: safe(async (request, body, params) => {
+        validateIdempotencyKey(request.headers['idempotency-key']);
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeNotice(body);
+        const path = `/internal/trace/public/cases/${caseNumber}/notice`;
+        const ctx = readContext(
+          { id: 'public:notice', email: null, role: 'resident' },
+          path,
+          normalized,
+        );
+        return store.recordNotice(caseNumber, normalized as unknown as NoticeInput, ctx);
       }),
     },
   ];

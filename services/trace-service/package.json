@@ -8,6 +8,7 @@
     "typecheck": "node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
     "test": "bun --no-env-file test src",
     "migrate": "bun --no-env-file src/migrate.ts",
+    "retention": "bun --no-env-file src/retention.ts",
     "start": "node dist/index.js"
   },
   "dependencies": {

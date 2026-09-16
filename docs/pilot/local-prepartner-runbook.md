@@ -75,10 +75,12 @@ the explicit test marker. It creates these stable synthetic identities:
 | `trace-official-test` | `official@vrsar.example.test` | official allowlist |
 
 The runtime sets `TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test`.
-`TRACE_AI_COMPLIANCE_URL` and `TRACE_HOLD_TERMS` are optional; unset values
-keep the local compliance pass active without an AI gateway or extra hold
-terms. It sets `IDENTITY_DEV_TOKENS=false`; there is no browser bypass or role
-selector.
+`TRACE_AI_COMPLIANCE_URL`, `TRACE_HOLD_TERMS`, and
+`TRACE_CONFIDENTIAL_TERMS` are optional; unset values keep the local compliance
+pass active without an AI gateway or extra term lists.
+`TRACE_RETENTION_INTERVAL_MINUTES` is also optional; unset or `0` disables the
+retention interval. It sets `IDENTITY_DEV_TOKENS=false`; there is no browser
+bypass or role selector.
 
 The local SMTP relay binds only to `127.0.0.1`, requires its generated SMTP
 credentials, accepts only the three listed recipient addresses, bounds message
@@ -111,6 +113,18 @@ holds review-era rows (statuses `commitment-pending-review`, `returned`,
 hash-chained, so they cannot be rewritten. Reset the synthetic database and
 re-seed before migrating; this applies to the hosted test instance too.
 
+Trace migration `0005` runs after `0004_public_text`. It rewrites
+shell hashes to include the new canonical fields.
+
+Run one retention pass from `services/trace-service`:
+
+```sh
+bun run retention
+```
+
+The command removes eligible public text and location in bounded batches while
+keeping the office file and public answer.
+
 The harness supplies the shared explicit environment, including:
 
 - `SERVICE_HOST=127.0.0.1`, `DATABASE_URL` for the non-superuser app role,
@@ -120,9 +134,11 @@ The harness supplies the shared explicit environment, including:
   `IDENTITY_DEV_TOKENS=false`;
 - `TRACE_ENABLED=true`, `TRACE_INTERNAL_URL=http://127.0.0.1:8980`,
   `TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test`, and
-  `TRACE_INTAKE_OPEN=true`; optional `TRACE_AI_COMPLIANCE_URL` and
-  `TRACE_HOLD_TERMS` configure the gateway check and added local hold terms;
-  trace loads its fixed repository pilot configuration at
+  `TRACE_INTAKE_OPEN=true`; optional `TRACE_AI_COMPLIANCE_URL`,
+  `TRACE_HOLD_TERMS`, and `TRACE_CONFIDENTIAL_TERMS` configure the gateway
+  check and added local term lists; optional
+  `TRACE_RETENTION_INTERVAL_MINUTES` sets the retention interval, with unset or
+  `0` meaning off; trace loads its fixed repository pilot configuration at
   `config/pilots/vrsar-orsera.json`;
 - `PILOT_API_BASE=http://127.0.0.1:3000`, `PUBLIC_SITE_URL` on loopback, and
   `PUBLIC_RELEASE=0`.

@@ -26,6 +26,8 @@ import { traceRoutes } from './routes.js';
 const pilot: PilotConfig = {
   id: 'vrsar-orsera',
   testEnvironment: true,
+  publicTextMode: 'open',
+  publicTextRetentionDays: 730,
   municipality: { id: 'vrsar-orsera', name: { hr: 'Vrsar', it: 'Orsera', en: 'Vrsar' } },
   category: { id: 'public-lighting', name: { hr: 'Rasvjeta', it: 'Luci', en: 'Lighting' } },
   office: {
@@ -100,6 +102,7 @@ function caseShell(): CaseShell {
     location: 'Square',
     textStatus: 'public',
     holdReason: null,
+    removedReason: null,
     textSha256: 'd'.repeat(64),
     labels: [],
     closedPublicReason: null,
@@ -109,6 +112,7 @@ function caseShell(): CaseShell {
     alsoAffectedCount: 0,
     notFixedCount: 0,
     disputeCount: 0,
+    noticeCount: 0,
     shellHash: 'a'.repeat(64),
     updatedAt: '2026-09-12T10:00:00.000Z',
     testEnvironment: true,
@@ -145,6 +149,7 @@ function caseMessage(): CaseMessage {
     source: 'typed',
     body: 'Lamp is dark.',
     bodySha256: 'b'.repeat(64),
+    noticeReason: null,
     authorKind: 'filer',
     authorActorId: null,
     inReplyTo: null,
@@ -231,6 +236,7 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     readFilerCase: async () => ({ case: filerCase }),
     appendFilerMessage: async () => ({ message }),
     dispute: async () => ({ case: shell, record: publicRecord() }),
+    eraseText: async () => ({ case: shell }),
     listMessages: async () => ({ messages: [message] }),
     postOfficialMessage: async () => ({ message, record }),
     proposeAi: async () => ({ proposal }),
@@ -241,6 +247,7 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     recordAttention: async () => ({
       counts: { followerCount: 1, alsoAffectedCount: 0, notFixedCount: 0 },
     }),
+    recordNotice: async () => ({ case: shell }),
     close: async () => undefined,
     ...overrides,
   };
@@ -313,6 +320,7 @@ test('route table exposes every exact internal trace path', () => {
     'POST /internal/trace/channel/outbox/:messageId/delivery',
     'POST /internal/trace/cases/:caseNumber/private',
     'POST /internal/trace/cases/:caseNumber/dispute',
+    'POST /internal/trace/cases/:caseNumber/erase-text',
     'POST /internal/trace/cases/:caseNumber/messages',
     'GET /internal/trace/records/:id/messages',
     'POST /internal/trace/records/:id/messages',
@@ -322,6 +330,7 @@ test('route table exposes every exact internal trace path', () => {
     'GET /internal/trace/public/cases',
     'GET /internal/trace/public/cases/:caseNumber',
     'POST /internal/trace/public/cases/:caseNumber/attention',
+    'POST /internal/trace/public/cases/:caseNumber/notice',
   ]) {
     assert.ok(paths.includes(expected), expected);
   }
@@ -666,6 +675,22 @@ test('only channel creation responses expose a reopen key', async () => {
             followerKey: 'browser-follower-secret',
             kind: 'follow',
             action: 'add',
+          }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/cases/VRS-1842/erase-text`, {
+          method: 'POST',
+          headers: internalHeaders(),
+          body: JSON.stringify({ reopenKey: 'Abcdefghijklmnop_1234' }),
+        }),
+      () =>
+        fetch(`${base}/internal/trace/public/cases/VRS-1842/notice`, {
+          method: 'POST',
+          headers: internalHeaders(undefined, VALID_IDEMPOTENCY_KEY),
+          body: JSON.stringify({
+            followerKey: 'browser-follower-secret',
+            reason: 'personal-data',
+            note: 'Contains a name.',
           }),
         }),
     ];

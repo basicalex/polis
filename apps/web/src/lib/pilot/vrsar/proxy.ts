@@ -315,6 +315,16 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       bodyKeys: ['followerKey', 'kind', 'action'],
     };
   }
+  const notice = path.match(new RegExp(`^public/cases/(${CASE_SEGMENT})/notice$`));
+  if (method === 'POST' && notice) {
+    return {
+      upstreamPath: `/api/trace/public/cases/${encodeURIComponent(notice[1])}/notice`,
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['followerKey', 'reason', 'note'],
+    };
+  }
   const dispute = path.match(new RegExp(`^cases/(${CASE_SEGMENT})/dispute$`));
   if (method === 'POST' && dispute) {
     return {
@@ -323,6 +333,16 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       idempotency: true,
       responseKind: 'json',
       bodyKeys: ['reopenKey', 'text'],
+    };
+  }
+  const eraseText = path.match(new RegExp(`^cases/(${CASE_SEGMENT})/erase-text$`));
+  if (method === 'POST' && eraseText) {
+    return {
+      upstreamPath: `/api/trace/cases/${encodeURIComponent(eraseText[1])}/erase-text`,
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['reopenKey'],
     };
   }
   const filerMessage = path.match(new RegExp(`^cases/(${CASE_SEGMENT})/messages$`));

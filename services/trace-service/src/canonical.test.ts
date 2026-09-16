@@ -45,6 +45,7 @@ test('case shell hash covers every public shell field and excludes shellHash', (
     'location',
     'textStatus',
     'holdReason',
+    'removedReason',
     'textSha256',
     'labels',
     'closedPublicReason',
@@ -54,6 +55,7 @@ test('case shell hash covers every public shell field and excludes shellHash', (
     'alsoAffectedCount',
     'notFixedCount',
     'disputeCount',
+    'noticeCount',
     'testEnvironment',
   ]);
 
@@ -68,6 +70,7 @@ test('case shell hash covers every public shell field and excludes shellHash', (
     location: 'Riva',
     textStatus: 'public',
     holdReason: null,
+    removedReason: null,
     textSha256: 'a'.repeat(64),
     labels: ['form-letter'],
     closedPublicReason: null,
@@ -77,6 +80,7 @@ test('case shell hash covers every public shell field and excludes shellHash', (
     alsoAffectedCount: 0,
     notFixedCount: 0,
     disputeCount: 0,
+    noticeCount: 0,
     updatedAt: '2026-09-12T12:00:00.000Z',
     testEnvironment: true,
   };

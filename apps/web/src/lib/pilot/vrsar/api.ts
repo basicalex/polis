@@ -3,8 +3,10 @@
 
 import type {
   AiProposal,
+  AssessmentHoldReason,
   CaseMessage,
   PilotConfig,
+  HoldReason,
   PilotSession,
   PrivateTraceRecord,
   PublicCaseShell,
@@ -13,10 +15,13 @@ import type {
 import {
   anonymousCaseFromEnvelope,
   attentionCountsFromEnvelope,
+  eraseResultFromEnvelope,
   closeResultFromEnvelope,
   messageResultFromEnvelope,
   messagesFromEnvelope,
+  noticeResultFromEnvelope,
   proposalDecisionFromEnvelope,
+  pilotConfigFromResponse,
   publicCaseFromEnvelope,
   publicCasesFromEnvelope,
   publicRecordFromEnvelope,
@@ -130,7 +135,7 @@ async function requestJson<T = unknown>(
 }
 
 export async function getPilotConfig(signal?: AbortSignal): Promise<PilotConfig> {
-  return requestJson<PilotConfig>('/config', { signal });
+  return requestJson<PilotConfig>('/config', { signal, parse: pilotConfigFromResponse });
 }
 
 export async function getPilotSession(signal?: AbortSignal): Promise<PilotSession> {
@@ -211,7 +216,7 @@ export async function submitResolution(
 export async function holdCase(
   id: string,
   input: {
-    reason: 'personal-data' | 'abuse' | 'off-topic' | 'other';
+    reason: HoldReason;
     note?: string;
   },
 ): Promise<PrivateTraceRecord> {
@@ -399,6 +404,35 @@ export async function disputeCase(
       body: input,
       idempotent: true,
       parse: publicCaseFromEnvelope,
+    },
+  );
+}
+export async function eraseText(
+  caseNumber: string,
+  input: { reopenKey: string },
+): Promise<{ case: PublicCaseShell }> {
+  return requestJson<{ case: PublicCaseShell }>(
+    `/cases/${encodeURIComponent(caseNumber)}/erase-text`,
+    {
+      method: 'POST',
+      body: input,
+      idempotent: true,
+      parse: eraseResultFromEnvelope,
+    },
+  );
+}
+
+export async function noticeCase(
+  caseNumber: string,
+  input: { followerKey: string; reason: AssessmentHoldReason; note?: string },
+): Promise<{ case: PublicCaseShell }> {
+  return requestJson<{ case: PublicCaseShell }>(
+    `/public/cases/${encodeURIComponent(caseNumber)}/notice`,
+    {
+      method: 'POST',
+      body: input,
+      idempotent: true,
+      parse: noticeResultFromEnvelope,
     },
   );
 }
