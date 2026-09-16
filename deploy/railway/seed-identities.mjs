@@ -41,7 +41,12 @@ const requireFromDatabasePackage = createRequire(
 const postgres = requireFromDatabasePackage('postgres');
 const sql = postgres(databaseUrl, { max: 1, prepare: false });
 const rows = [
-  ['trace-resident-test', 'resident@vrsar.example.test', 'Trace resident test', 'verified_resident'],
+  [
+    'trace-resident-test',
+    'resident@vrsar.example.test',
+    'Trace resident test',
+    'verified_resident',
+  ],
   [
     'trace-resident-other-test',
     'other@vrsar.example.test',
@@ -49,7 +54,6 @@ const rows = [
     'verified_resident',
   ],
   ['trace-official-test', 'official@vrsar.example.test', 'Trace official test', 'staff'],
-  ['trace-reviewer-test', 'reviewer@vrsar.example.test', 'Trace reviewer test', 'staff'],
 ];
 
 try {

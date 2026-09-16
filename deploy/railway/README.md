@@ -54,8 +54,7 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | `TRACE_INTERNAL_URL` | platform | `http://trace-service.railway.internal:8980` | No; replace the port with that service's Railway `PORT` |
 | `TRACE_ENABLED` | platform | `true` | No |
 | `TRACE_WEB_GATEWAY_ACTOR_ID` | platform | `pilot-web` | No; must be present in trace's gateway allowlist |
-| `TRACE_OFFICIAL_CITIZEN_IDS` | trace | `trace-official-test` | No |
-| `TRACE_REVIEWER_CITIZEN_IDS` | trace | `trace-reviewer-test` | No; distinct from official ID |
+| `TRACE_OFFICIAL_CITIZEN_IDS` | trace | `trace-official-test` | No; the only staff role since the 2026-09-16 policy (`docs/pilot/public-text-policy.md`) |
 | `TRACE_GATEWAY_ACTOR_IDS` | trace | `pilot-web` | No; local `pilot-gateway` is omitted because channel-gateway is not deployed |
 | `TRACE_ATTENTION_PEPPER` | trace | `<RANDOM_SECRET_AT_LEAST_32_CHARACTERS>` | **Secret** |
 | `TRACE_INTAKE_OPEN` | trace | `true` | No; set `false` to fail closed without redeploying code |
@@ -79,6 +78,8 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | `PILOT_RUNTIME_DIR` | Local runtime ownership path; no Railway equivalent. |
 | `PILOT_TEST_DATABASE_MARKER` | Only the loopback pilot scripts require it. The hosted scripts instead require an explicit `--yes`. No service requires it. |
 | `TRACE_AI_INTAKE_URL` | Optional trace mirror; no AI intake service is deployed. |
+| `TRACE_AI_COMPLIANCE_URL`, `TRACE_HOLD_TERMS` | Optional. Unset keeps the local filing-time compliance pass active without an AI gateway or extra hold terms. |
+| second staff allowlist variable of the review era | Policy D2 (`docs/pilot/public-text-policy.md`) removed the second staff role, its trace allowlist variable and its `*-test` identity. Delete that variable from the `trace-service` Railway variables if it is still set; trace ignores it. |
 | `AUDIT_INTERNAL_URL` | Optional identity audit sink; audit-service is not deployed. Identity logs a safe `audit_unavailable` warning if an audit emission is attempted. |
 | `GRAPH_INTERNAL_URL`, `PROOF_INTERNAL_URL`, `POLIS_INTERNAL_URL`, `AI_INTERNAL_URL`, `CONTRIBUTION_INTERNAL_URL`, `REWARDS_INTERNAL_URL`, `VAULT_INTERNAL_URL`, `VC_ISSUER_INTERNAL_URL`, `SIGNING_INTERNAL_URL`, `COMPLAINTS_INTERNAL_URL` | Their services are not deployed in this three-service test. See the platform readiness limitation below. |
 | `TRACE_SERVICE_PORT`, `PLATFORM_API_PORT` | Railway supplies `PORT`, which takes precedence. |
@@ -101,11 +102,25 @@ DATABASE_URL="$DATABASE_URL" node deploy/railway/migrate-core.mjs --yes
 DATABASE_URL="$DATABASE_URL" node deploy/railway/seed-identities.mjs --yes
 ```
 
-The existing `scripts/pilot/seed-identities.mjs` cannot target Supabase: it requires an owned runtime, an explicit local marker, loopback, a `*_test` database, bundled local PostgreSQL binaries, and hard-codes `polis_trace_test`. The Railway seed script preserves its four synthetic rows and idempotent update behavior. `trace-official-test` and `trace-reviewer-test` receive `staff` identity level; their distinct trace roles come from the trace allowlists.
+The existing `scripts/pilot/seed-identities.mjs` cannot target Supabase: it requires an owned runtime, an explicit local marker, loopback, a `*_test` database, bundled local PostgreSQL binaries, and hard-codes `polis_trace_test`. The Railway seed script preserves its three synthetic rows and idempotent update behavior. `trace-official-test` receives `staff` identity level; its trace role comes from `TRACE_OFFICIAL_CITIZEN_IDS`. The fourth staff row an earlier seed created for the removed review role is harmless but unused; the demo seed no longer touches it.
 
 ## Demo cases and staff passcode
 
-`seed-demo-cases.mjs` runs from a trusted laptop against the hosted test instance. It gives `official@vrsar.example.test` and `reviewer@vrsar.example.test` the configured passcode, signs both synthetic staff identities in through platform-api, files nine synthetic Vrsar cases, and advances them to a demo spread covering every public state.
+`seed-demo-cases.mjs` runs from a trusted laptop against the hosted test instance. It gives `official@vrsar.example.test` the configured passcode, signs that synthetic official in through platform-api, files nine synthetic Vrsar cases through the public filing route, and advances them with the official's session to a demo spread that covers every public state of the 2026-09-16 six-state model:
+
+| # | public state | text | notes |
+| --- | --- | --- | --- |
+| 1 | `received` | public | plain open case |
+| 2 | `received` | public, label `form-letter` | same text as case 1; the filing-time compliance pass sees the duplicate hash and sets the soft label |
+| 3 | `received` | held, `personal-data` | text carries a synthetic phone number; the compliance pass holds it and the shell shows the reason |
+| 4 | `assigned` | public | office accepted responsibility |
+| 5 | `answered` | public | commitment signed with name, title and a due date 14 days ahead |
+| 6 | `answered` | public | commitment whose due date is 5 days in the past |
+| 7 | `resolved` | public | completion reported with evidence; two followers and one not-fixed mark |
+| 8 | `disputed` | public | completion reported, then disputed by the filer with public text using the reopen key |
+| 9 | `closed` | public | closed as a duplicate with a public reason |
+
+The commitment and the completion report are signed as `Ivana Testić`, a synthetic name. No real official's name is a test identity.
 
 Export `DATABASE_URL`, `IDENTITY_HMAC_KEY`, `DEMO_STAFF_PASSCODE`, and `PLATFORM_API_BASE`, then run:
 
@@ -113,9 +128,69 @@ Export `DATABASE_URL`, `IDENTITY_HMAC_KEY`, `DEMO_STAFF_PASSCODE`, and `PLATFORM
 node deploy/railway/seed-demo-cases.mjs --yes
 ```
 
-The script never reads a local environment file. It records the filed case numbers and record IDs outside the repository at `${XDG_STATE_HOME:-~/.local/state}/polis/seed-demo-cases.json`. When that marker exists, the script reuses the recorded cases instead of filing another batch and safely resumes any incomplete lifecycle work. Pass `--reset` with `--yes` only when a new nine-case batch is intentional; existing hosted cases are not deleted.
+Platform-api allows five public filings per ten minutes per IP. A fresh nine-case batch therefore waits inside the script for about ten minutes before filing cases six to nine, and the script prints a rate-limit stage line while it waits.
 
-The passcode grants staff access to these two synthetic identities on the hosted test instance only. Keep it in the secret manager and never place it in the repository or shared logs.
+`PUBLIC_WEB_BASE` is optional and only changes the case URLs the script prints; set it to `http://127.0.0.1:4321` when running against the local runtime. The script never reads a local environment file. It records the filed case numbers, record IDs, the attention keys and the reopen key of the disputed case outside the repository at `${XDG_STATE_HOME:-~/.local/state}/polis/seed-demo-cases.json`, mode `0600`. When that marker exists, the script reuses the recorded cases instead of filing another batch and safely resumes any incomplete lifecycle work. A marker written by the review-era seed (version 1) is rejected; pass `--reset` with `--yes` to start a new nine-case batch. Existing hosted cases are never deleted by the script.
+
+The passcode grants staff access to the synthetic official on the hosted test instance only. Keep it in the secret manager and never place it in the repository or shared logs.
+
+## Reset and reseed for migration 0004
+
+Trace migration `0004_public_text` must not run over review-era rows (the four removed statuses and the events of the removed staff role). Event rows are append-only and hash-chained, so the synthetic database is reset and reseeded rather than migrated in place. The hosted test instance holds synthetic data only, so a reset loses nothing that matters.
+
+Run from the repository root on a trusted laptop with `DATABASE_URL` loaded from the secret manager. `psql` must reach the Supabase pooler; use the same URL.
+
+1. Stop writes: set `TRACE_INTAKE_OPEN=false` on `trace-service` and redeploy, or pause the service.
+2. Drop the trace tables, the two trace functions and the trace migration ledger. Core tables (`citizens`, sessions) stay.
+
+   ```sh
+   psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --command "
+     DROP TABLE IF EXISTS
+       trace_reopen_attempts, trace_ai_proposals, trace_case_attention,
+       trace_case_messages, trace_case_shells, trace_case_counters,
+       trace_public_snapshots, trace_attachments, trace_command_idempotency,
+       trace_events, trace_record_participants, trace_report_private,
+       trace_records, trace_schema_migrations
+     CASCADE;
+     DROP FUNCTION IF EXISTS trace_reject_event_mutation();
+     DROP FUNCTION IF EXISTS trace_migration_canonical_json(jsonb);"
+   ```
+
+   The list is every `CREATE TABLE` and `CREATE FUNCTION` in `services/trace-service/migrations/0001` to `0004` at commit `da060ead` plus the ledger table `trace_schema_migrations` that `src/migrations.ts` owns. `CASCADE` removes the event triggers with their table. Re-check the list against the migration files if trace has gained a migration since.
+
+3. Remove the review-era identity and variable. Delete the second staff allowlist variable from the `trace-service` Railway variables (see the omitted-variables table). Optionally delete the unused fourth staff row:
+
+   ```sh
+   psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --command "
+     DELETE FROM citizens
+     WHERE email LIKE '%@vrsar.example.test'
+       AND id NOT IN ('trace-resident-test', 'trace-resident-other-test', 'trace-official-test');"
+   ```
+
+4. Deploy the three services from a commit at or after `da060ead`. `start.sh` on `trace-service` runs `dist/migrate.js`, which now applies `0001` to `0004` to the empty trace schema.
+
+   ```sh
+   railway up --service trace-service --detach
+   railway up --service citizen-identity-service --detach
+   railway up --service platform-api --detach
+   ```
+
+5. Reseed identities and set `TRACE_INTAKE_OPEN=true` again.
+
+   ```sh
+   bun run --filter @polis/db build
+   DATABASE_URL="$DATABASE_URL" node deploy/railway/seed-identities.mjs --yes
+   ```
+
+6. Discard the old demo marker and file the new spread.
+
+   ```sh
+   DATABASE_URL="$DATABASE_URL" IDENTITY_HMAC_KEY="$IDENTITY_HMAC_KEY" \
+     DEMO_STAFF_PASSCODE="$DEMO_STAFF_PASSCODE" PLATFORM_API_BASE="https://<PLATFORM_DOMAIN>" \
+     node deploy/railway/seed-demo-cases.mjs --yes --reset
+   ```
+
+7. Check the ledger: `GET https://<PLATFORM_DOMAIN>/api/trace/public/cases?limit=100` lists nine cases with states `received` (3, one held, one labelled), `assigned`, `answered` (2), `resolved`, `disputed`, `closed`.
 
 Migration/deploy order:
 
@@ -137,7 +212,6 @@ railway variable set --service trace-service \
   INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" \
   CORS_ALLOWED_ORIGINS='<PREVIEW_ORIGIN>' CORS_ORIGINS='<PREVIEW_ORIGIN>' \
   TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test \
-  TRACE_REVIEWER_CITIZEN_IDS=trace-reviewer-test \
   TRACE_GATEWAY_ACTOR_IDS=pilot-web \
   TRACE_ATTENTION_PEPPER="$TRACE_ATTENTION_PEPPER" TRACE_INTAKE_OPEN=true \
   PILOT_CONFIG_PATH=/app/config/pilots/vrsar-orsera.json \

@@ -1,13 +1,16 @@
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 
-const STAFF_EMAILS = ['official@vrsar.example.test', 'reviewer@vrsar.example.test'];
-const PUBLIC_WEB_BASE = 'https://polis-interface-web-preview.polis-apps-web.workers.dev';
+const STAFF_EMAIL = 'official@vrsar.example.test';
+const DEFAULT_PUBLIC_WEB_BASE = 'https://polis-interface-web-preview.polis-apps-web.workers.dev';
 const REQUEST_DELAY_MS = 250;
-const MAX_RATE_LIMIT_RETRIES = 5;
+const RATE_LIMIT_WAIT_STEPS_MS = [30_000, 60_000];
+const MAX_RATE_LIMIT_WAIT_MS = 11 * 60_000;
+const MARKER_VERSION = 2;
+const SIGNED_BY = { name: 'Ivana Testić', title: 'Viša stručna suradnica za komunalni sustav' };
 
 class SafeError extends Error {}
 
@@ -29,7 +32,8 @@ for (const name of requiredEnvironment) {
 const databaseUrl = process.env.DATABASE_URL;
 const identityHmacKey = process.env.IDENTITY_HMAC_KEY;
 const staffPasscode = process.env.DEMO_STAFF_PASSCODE;
-if (staffPasscode.length > 256) throw new SafeError('DEMO_STAFF_PASSCODE must be at most 256 characters');
+if (staffPasscode.length > 256)
+  throw new SafeError('DEMO_STAFF_PASSCODE must be at most 256 characters');
 
 let databaseTarget;
 try {
@@ -46,22 +50,29 @@ if (
   throw new SafeError('DATABASE_URL must name a PostgreSQL host and database');
 }
 
-let platformBase;
-try {
-  const parsed = new URL(process.env.PLATFORM_API_BASE);
-  if (
-    (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') ||
-    parsed.username ||
-    parsed.password ||
-    parsed.search ||
-    parsed.hash
-  ) {
-    throw new Error();
+function parseOrigin(value, name) {
+  try {
+    const parsed = new URL(value);
+    if (
+      (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error();
+    }
+    return parsed.href.replace(/\/+$/, '');
+  } catch {
+    throw new SafeError(`${name} must be an HTTP(S) origin without credentials`);
   }
-  platformBase = parsed.href.replace(/\/+$/, '');
-} catch {
-  throw new SafeError('PLATFORM_API_BASE must be an HTTP(S) origin without credentials');
 }
+
+const platformBase = parseOrigin(process.env.PLATFORM_API_BASE, 'PLATFORM_API_BASE');
+const publicWebBase = parseOrigin(
+  process.env.PUBLIC_WEB_BASE?.trim() || DEFAULT_PUBLIC_WEB_BASE,
+  'PUBLIC_WEB_BASE',
+);
 
 const stateRoot = process.env.XDG_STATE_HOME?.trim() || join(homedir(), '.local', 'state');
 const markerPath = join(stateRoot, 'polis', 'seed-demo-cases.json');
@@ -78,77 +89,110 @@ function dateAfter(days) {
   return date.toISOString().slice(0, 10);
 }
 
+function followerKey() {
+  return randomBytes(24).toString('base64url');
+}
+
+/**
+ * Demo spread. Every entry names the public shell state it must end in plus
+ * the text visibility and label the shell must show. Cases 1 and 2 share one
+ * text on purpose: the compliance pass sees the first filing's hash and puts
+ * the soft form-letter label on the second. Case 3 carries a synthetic phone
+ * number so the pass holds it for personal data.
+ */
+const FORM_LETTER_TEXT =
+  'Ulična svjetiljka na Obali maršala Tita uz marinu ne radi već nekoliko večeri. Dio šetnice ostaje potpuno neosvijetljen.';
+
 const demoCases = [
   {
     target: 'received',
-    text: 'Ulična svjetiljka na Obali maršala Tita uz marinu ne radi već nekoliko večeri. Dio šetnice ostaje potpuno neosvijetljen.',
+    textStatus: 'public',
+    labels: [],
+    text: FORM_LETTER_TEXT,
     location: 'Obala maršala Tita, uz marinu',
   },
   {
-    target: 'assigned',
-    text: 'Svjetiljka u Ulici Rade Končara stalno treperi i povremeno se potpuno ugasi. Kvar je vidljiv svake večeri.',
+    target: 'received',
+    textStatus: 'public',
+    labels: ['form-letter'],
+    text: FORM_LETTER_TEXT,
+    location: 'Obala maršala Tita, uz marinu',
+  },
+  {
+    target: 'received',
+    textStatus: 'held',
+    holdReason: 'personal-data',
+    labels: [],
+    text: 'Svjetiljka ispred zgrade u Ulici Rade Končara ne radi. Nazovite me na 091 234 5678 da vam pokažem gdje je kvar.',
     location: 'Ulica Rade Končara, kod raskrižja',
   },
   {
-    target: 'in-review',
+    target: 'assigned',
+    textStatus: 'public',
+    labels: [],
     text: 'Rasvjetni stup na parkiralištu Montraker srušen je uz rub kolnika. Svjetiljka je razbijena, a područje noću ostaje u mraku.',
     location: 'Parkiralište Montraker, zapadni ulaz',
-    publicSummary: 'Prijavljen je srušen rasvjetni stup na zapadnom ulazu parkirališta Montraker.',
-    commitment: 'Upravni odjel za komunalni sustav uklonit će oštećeni stup, postaviti novi stup sa svjetiljkom i provjeriti električni priključak.',
-    dueInDays: 21,
   },
   {
-    target: 'returned-in-review',
+    target: 'answered',
+    textStatus: 'public',
+    labels: [],
     text: 'Pješački prijelaz kod škole u Ulici Aldo Negri noću je slabo osvijetljen jer obližnja svjetiljka ne radi. Pješaci se teško uočavaju.',
     location: 'Ulica Aldo Negri, kod škole',
-    firstPublicSummary: 'Prijavljeno je slabo osvjetljenje u blizini škole.',
-    firstCommitment: 'Upravni odjel za komunalni sustav pregledat će javnu rasvjetu i odrediti potrebne radove.',
-    publicSummary: 'Prijavljen je kvar svjetiljke koja osvjetljava pješački prijelaz kod škole u Ulici Aldo Negri.',
-    commitment: 'Upravni odjel za komunalni sustav zamijenit će neispravnu svjetiljku, izmjeriti osvijetljenost prijelaza i po potrebi podesiti rasvjetno tijelo.',
+    commitment:
+      'Upravni odjel za komunalni sustav zamijenit će neispravnu svjetiljku, izmjeriti osvijetljenost prijelaza i po potrebi podesiti rasvjetno tijelo.',
     dueInDays: 14,
   },
   {
-    target: 'published',
+    target: 'answered',
+    textStatus: 'public',
+    labels: [],
+    overdue: true,
     text: 'Javna rasvjeta u Dalmatinskoj ulici ostaje uključena tijekom cijelog dana. Čini se da vremenski program ne prebacuje rasvjetu na dnevni režim.',
     location: 'Dalmatinska ulica, kod pošte',
-    publicSummary: 'Prijavljeno je da javna rasvjeta u Dalmatinskoj ulici ostaje uključena tijekom dana.',
-    commitment: 'Upravni odjel za komunalni sustav provjerit će upravljački sat, podesiti dnevno-noćni program i ispitati uključenje cijele rasvjetne grane.',
-    dueInDays: 10,
-  },
-  {
-    target: 'published',
-    text: 'Ormarić javne rasvjete na autobusnom stajalištu je oštećen i vrata se ne mogu zatvoriti. Kroz otvor se vide električni vodovi.',
-    location: 'Autobusno stajalište Vrsar centar',
-    publicSummary: 'Prijavljen je oštećen ormarić javne rasvjete s vidljivim električnim vodovima na autobusnom stajalištu.',
-    commitment: 'Upravni odjel za komunalni sustav osigurat će ormarić, zamijeniti oštećena vrata i zatražiti pregled električnih spojeva.',
-    dueInDays: 7,
+    commitment:
+      'Upravni odjel za komunalni sustav provjerit će upravljački sat, podesiti dnevno-noćni program i ispitati uključenje cijele rasvjetne grane.',
+    dueInDays: -5,
   },
   {
     target: 'resolved',
+    textStatus: 'public',
+    labels: [],
     text: 'Pješačka staza prema plaži Valkanela nema rasvjetu na dijelu između naselja i obalnog puta. Prolaz je nakon zalaska sunca potpuno taman.',
     location: 'Pješačka staza prema plaži Valkanela',
-    publicSummary: 'Prijavljen je neosvijetljen dio pješačke staze prema plaži Valkanela.',
-    commitment: 'Upravni odjel za komunalni sustav postavit će dvije svjetiljke na neosvijetljenom dijelu staze i provjeriti napajanje rasvjetne linije.',
+    commitment:
+      'Upravni odjel za komunalni sustav postavit će dvije svjetiljke na neosvijetljenom dijelu staze i provjeriti napajanje rasvjetne linije.',
     dueInDays: 30,
-    evidenceNote: 'Dana 11. rujna 2026. postavljena su dva nova rasvjetna tijela, popravljen je priključni vod i potvrđen je rad rasvjete duž cijelog dijela staze.',
+    evidenceNote:
+      'Dana 11. rujna 2026. postavljena su dva nova rasvjetna tijela, popravljen je priključni vod i potvrđen je rad rasvjete duž cijelog dijela staze.',
     evidenceUrl: 'https://www.vrsar.hr/komunalne-obavijesti/rasvjeta-staza-valkanela',
+    followers: 2,
+    notFixed: 1,
   },
   {
-    target: 'resolved',
+    target: 'disputed',
+    textStatus: 'public',
+    labels: [],
     text: 'Nova LED svjetiljka u Gradskoj ulici usmjerena je prema prozorima stanova i stvara jako blještanje tijekom noći. Potrebno je prilagoditi kut svjetiljke.',
     location: 'Gradska ulica, kod broja 12',
-    publicSummary: 'Prijavljeno je blještanje nove LED svjetiljke prema stanovima u Gradskoj ulici.',
-    commitment: 'Upravni odjel za komunalni sustav podesit će nagib LED svjetiljke, ugraditi zaslon prema pročelju i provjeriti osvijetljenost kolnika.',
+    commitment:
+      'Upravni odjel za komunalni sustav podesit će nagib LED svjetiljke, ugraditi zaslon prema pročelju i provjeriti osvijetljenost kolnika.',
     dueInDays: 14,
-    evidenceNote: 'Dana 12. rujna 2026. podešen je nagib LED svjetiljke i ugrađen je bočni zaslon; večernjom provjerom potvrđeno je da svjetlo više ne pada na prozore.',
+    evidenceNote:
+      'Dana 12. rujna 2026. podešen je nagib LED svjetiljke i ugrađen je bočni zaslon; večernjom provjerom potvrđeno je da svjetlo više ne pada na prozore.',
     evidenceUrl: 'https://www.vrsar.hr/komunalne-obavijesti/podesavanje-led-gradska',
+    disputeText:
+      'Svjetiljka i dalje osvjetljava prozore na drugom katu. Zaslon je postavljen, ali kut nije promijenjen; blještanje je isto kao prije.',
   },
   {
     target: 'closed',
+    textStatus: 'public',
+    labels: [],
     text: 'Svjetiljka na cesti prema groblju ne radi već nekoliko tjedana. Na tom dijelu nema drugog izvora javne rasvjete.',
     location: 'Cesta prema groblju, prvi zavoj',
     closeReason: 'duplicate',
-    closePublicReason: 'Prijava je zatvorena kao duplikat već evidentiranog kvara javne rasvjete na istoj lokaciji. Radovi se prate u ranijem zapisu.',
+    closePublicReason:
+      'Prijava je zatvorena kao duplikat već evidentiranog kvara javne rasvjete na istoj lokaciji. Radovi se prate u ranijem zapisu.',
   },
 ];
 
@@ -159,7 +203,9 @@ async function requestJson(path, options = {}) {
   if (options.sessionToken) headers.authorization = `Bearer ${options.sessionToken}`;
   if (options.idempotencyKey) headers['idempotency-key'] = options.idempotencyKey;
 
-  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+  let retry = 0;
+  let totalRateLimitWaitMilliseconds = 0;
+  while (true) {
     if (requestCount > 0) await delay(REQUEST_DELAY_MS);
     requestCount += 1;
 
@@ -182,14 +228,34 @@ async function requestJson(path, options = {}) {
       payload = null;
     }
 
-    if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+    if (response.status === 429) {
       rateLimitRetries += 1;
-      const retryAfter = Number(response.headers.get('retry-after'));
-      const waitMilliseconds = Number.isFinite(retryAfter)
-        ? Math.max(1_000, Math.min(15_000, retryAfter * 1_000))
-        : 1_500 * (attempt + 1);
-      console.log(JSON.stringify({ stage: 'rate-limit', retry: attempt + 1 }));
+      retry += 1;
+      if (totalRateLimitWaitMilliseconds >= MAX_RATE_LIMIT_WAIT_MS) {
+        throw new SafeError(`${options.label ?? 'API'} failed: 429 rate_limited`);
+      }
+
+      const retryAfterHeader = response.headers.get('retry-after');
+      const retryAfterSeconds = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
+      const steppedWaitMilliseconds =
+        RATE_LIMIT_WAIT_STEPS_MS[Math.min(retry - 1, RATE_LIMIT_WAIT_STEPS_MS.length - 1)];
+      const requestedWaitMilliseconds = Number.isFinite(retryAfterSeconds)
+        ? Math.max(1_000, Math.min(MAX_RATE_LIMIT_WAIT_MS, retryAfterSeconds * 1_000))
+        : steppedWaitMilliseconds;
+      const waitMilliseconds = Math.min(
+        requestedWaitMilliseconds,
+        MAX_RATE_LIMIT_WAIT_MS - totalRateLimitWaitMilliseconds,
+      );
+      console.log(
+        JSON.stringify({
+          stage: 'rate-limit',
+          label: options.label ?? 'API',
+          waitSeconds: waitMilliseconds / 1_000,
+          retry,
+        }),
+      );
       await delay(waitMilliseconds);
+      totalRateLimitWaitMilliseconds += waitMilliseconds;
       continue;
     }
 
@@ -206,7 +272,6 @@ async function requestJson(path, options = {}) {
     }
     return { status: response.status, payload };
   }
-  throw new SafeError(`${options.label ?? 'API'} failed: 429 rate_limited`);
 }
 
 async function saveMarker(marker) {
@@ -217,8 +282,15 @@ async function saveMarker(marker) {
 }
 
 function validateMarker(marker) {
-  if (!marker || marker.version !== 1 || !Array.isArray(marker.cases) || marker.cases.length !== 9) {
-    throw new SafeError('demo marker is invalid; use --reset to start a new batch');
+  if (
+    !marker ||
+    marker.version !== MARKER_VERSION ||
+    !Array.isArray(marker.cases) ||
+    marker.cases.length !== demoCases.length
+  ) {
+    throw new SafeError(
+      'demo marker is missing, invalid, or from the review-era seed; use --reset to start a new batch',
+    );
   }
   for (const [index, entry] of marker.cases.entries()) {
     if (
@@ -226,7 +298,13 @@ function validateMarker(marker) {
       entry.index !== index ||
       typeof entry.filingKey !== 'string' ||
       (entry.recordId !== null && typeof entry.recordId !== 'string') ||
-      (entry.caseNumber !== null && typeof entry.caseNumber !== 'string')
+      (entry.caseNumber !== null && typeof entry.caseNumber !== 'string') ||
+      (entry.reopenKey !== null && typeof entry.reopenKey !== 'string') ||
+      !Array.isArray(entry.followerKeys) ||
+      !entry.followerKeys.every((key) => typeof key === 'string') ||
+      !Array.isArray(entry.notFixedKeys) ||
+      !entry.notFixedKeys.every((key) => typeof key === 'string') ||
+      typeof entry.disputed !== 'boolean'
     ) {
       throw new SafeError('demo marker is invalid; use --reset to start a new batch');
     }
@@ -249,13 +327,17 @@ async function loadOrCreateMarker() {
   }
 
   const marker = {
-    version: 1,
+    version: MARKER_VERSION,
     createdAt: new Date().toISOString(),
-    cases: demoCases.map((_item, index) => ({
+    cases: demoCases.map((definition, index) => ({
       index,
       filingKey: randomUUID(),
       recordId: null,
       caseNumber: null,
+      reopenKey: null,
+      followerKeys: Array.from({ length: definition.followers ?? 0 }, followerKey),
+      notFixedKeys: Array.from({ length: definition.notFixed ?? 0 }, followerKey),
+      disputed: false,
     })),
   };
   await saveMarker(marker);
@@ -263,7 +345,7 @@ async function loadOrCreateMarker() {
   return marker;
 }
 
-async function setStaffPasscodes() {
+async function setStaffPasscode() {
   console.log(
     JSON.stringify({
       stage: 'staff-passcode',
@@ -287,7 +369,7 @@ async function setStaffPasscodes() {
     rows = await sql`
       UPDATE citizens
       SET passcode_hash = ${passcodeHash}
-      WHERE email IN (${STAFF_EMAILS[0]}, ${STAFF_EMAILS[1]})
+      WHERE email = ${STAFF_EMAIL}
       RETURNING email
     `;
   } catch {
@@ -296,11 +378,10 @@ async function setStaffPasscodes() {
     await sql.end({ timeout: 5 }).catch(() => undefined);
   }
 
-  const updatedEmails = rows.map((row) => row.email).sort();
-  if (updatedEmails.length !== STAFF_EMAILS.length) {
-    throw new SafeError(`staff passcode update expected 2 identities but updated ${updatedEmails.length}`);
+  if (rows.length !== 1) {
+    throw new SafeError(`staff passcode update expected 1 identity but updated ${rows.length}`);
   }
-  console.log(JSON.stringify({ stage: 'staff-passcode', updatedEmails }));
+  console.log(JSON.stringify({ stage: 'staff-passcode', updatedEmails: [STAFF_EMAIL] }));
 }
 
 async function signIn(email) {
@@ -317,6 +398,8 @@ async function signIn(email) {
 }
 
 async function fileCases(marker) {
+  // Sequential on purpose: the form-letter label depends on the earlier filing
+  // being on record before the duplicate is assessed.
   for (const entry of marker.cases) {
     if (entry.recordId && entry.caseNumber) continue;
     const definition = demoCases[entry.index];
@@ -332,12 +415,14 @@ async function fileCases(marker) {
       !filed ||
       typeof filed.recordId !== 'string' ||
       typeof filed.caseNumber !== 'string' ||
+      typeof filed.reopenKey !== 'string' ||
       filed.state !== 'received'
     ) {
       throw new SafeError('case filing returned invalid JSON');
     }
     entry.recordId = filed.recordId;
     entry.caseNumber = filed.caseNumber;
+    entry.reopenKey = definition.target === 'disputed' ? filed.reopenKey : null;
     await saveMarker(marker);
   }
 }
@@ -360,151 +445,130 @@ async function getRecord(recordId, officialToken) {
   return record;
 }
 
-async function command(record, suffix, sessionToken, body, officialToken) {
+async function command(record, suffix, officialToken, body) {
   await requestJson(`/api/trace/records/${encodeURIComponent(record.id)}/${suffix}`, {
     method: 'POST',
     body: { expectedVersion: record.version, ...body },
-    sessionToken,
+    sessionToken: officialToken,
     idempotencyKey: randomUUID(),
     label: `record ${suffix}`,
   });
   return getRecord(record.id, officialToken);
 }
 
-function commitmentBody(definition, initial = false) {
+function commitmentBody(definition) {
   return {
-    publicSummary: initial ? definition.firstPublicSummary : definition.publicSummary,
-    commitment: initial ? definition.firstCommitment : definition.commitment,
+    commitment: definition.commitment,
     dueDate: dateAfter(definition.dueInDays),
+    signedBy: SIGNED_BY,
   };
 }
 
-async function advanceStandard(record, definition, target, tokens) {
+function resolutionBody(definition) {
+  return {
+    evidenceNote: definition.evidenceNote,
+    evidenceUrls: [definition.evidenceUrl],
+    signedBy: SIGNED_BY,
+  };
+}
+
+async function recordAttention(caseNumber, key, kind) {
+  await requestJson(`/api/trace/public/cases/${encodeURIComponent(caseNumber)}/attention`, {
+    method: 'POST',
+    body: { followerKey: key, kind, action: 'add' },
+    idempotencyKey: randomUUID(),
+    label: `attention ${kind}`,
+  });
+}
+
+async function disputeCase(entry, definition) {
+  if (!entry.reopenKey) throw new SafeError('dispute needs the reopen key from the filing');
+  await requestJson(`/api/trace/cases/${encodeURIComponent(entry.caseNumber)}/dispute`, {
+    method: 'POST',
+    body: { reopenKey: entry.reopenKey, text: definition.disputeText },
+    idempotencyKey: randomUUID(),
+    label: 'case dispute',
+  });
+}
+
+/**
+ * Drives one record toward its target along the six-state lifecycle:
+ * open -> assigned -> answered -> resolved -> disputed. Every step checks the
+ * current status first, so an interrupted run resumes where it stopped.
+ */
+async function advance(record, definition, entry, tokens, marker) {
+  const { target } = definition;
+  if (target === 'received') return record;
+
+  if (target === 'closed') {
+    if (record.status === 'open' || record.status === 'assigned') {
+      record = await command(record, 'close', tokens.official, {
+        reason: definition.closeReason,
+        publicReason: definition.closePublicReason,
+      });
+    }
+    return record;
+  }
+
   if (record.status === 'open') {
-    record = await command(record, 'assign', tokens.official, {}, tokens.official);
+    record = await command(record, 'assign', tokens.official, {});
   }
   if (target === 'assigned') return record;
 
-  if (record.status === 'assigned' || record.status === 'returned') {
-    record = await command(
-      record,
-      'commitment',
-      tokens.official,
-      commitmentBody(definition),
-      tokens.official,
-    );
-  }
-  if (target === 'in-review') return record;
-
-  if (record.status === 'commitment-pending-review') {
-    record = await command(
-      record,
-      'review',
-      tokens.reviewer,
-      { decision: 'accept' },
-      tokens.official,
-    );
-  }
-  if (target === 'published') return record;
-
-  if (record.status === 'published') {
-    record = await command(
-      record,
-      'resolution',
-      tokens.official,
-      { evidenceNote: definition.evidenceNote, evidenceUrls: [definition.evidenceUrl] },
-      tokens.official,
-    );
-  }
-  if (record.status === 'resolution-pending-review') {
-    record = await command(
-      record,
-      'resolution-review',
-      tokens.reviewer,
-      { decision: 'accept' },
-      tokens.official,
-    );
-  }
-  return record;
-}
-
-async function advanceReturnedCase(record, definition, tokens) {
-  if (record.status === 'open') {
-    record = await command(record, 'assign', tokens.official, {}, tokens.official);
-  }
   if (record.status === 'assigned') {
-    record = await command(
-      record,
-      'commitment',
-      tokens.official,
-      commitmentBody(definition, true),
-      tokens.official,
-    );
+    record = await command(record, 'commitment', tokens.official, commitmentBody(definition));
   }
-  const hasReturn = record.events.some((event) => event?.action === 'commitment-returned');
-  if (record.status === 'commitment-pending-review' && !hasReturn) {
-    record = await command(
-      record,
-      'review',
-      tokens.reviewer,
-      { decision: 'return', note: 'Navesti točnu svjetiljku uz pješački prijelaz, konkretne radove i provjeru osvijetljenosti.' },
-      tokens.official,
-    );
+  if (target === 'answered') return record;
+
+  if (record.status === 'answered') {
+    record = await command(record, 'resolution', tokens.official, resolutionBody(definition));
   }
-  if (record.status === 'returned') {
-    record = await command(
-      record,
-      'commitment',
-      tokens.official,
-      commitmentBody(definition),
-      tokens.official,
-    );
+
+  if (record.status === 'resolved' && target === 'resolved') {
+    for (const key of entry.followerKeys) await recordAttention(entry.caseNumber, key, 'follow');
+    for (const key of entry.notFixedKeys) {
+      await recordAttention(entry.caseNumber, key, 'not-fixed');
+    }
+    return getRecord(record.id, tokens.official);
+  }
+
+  if (record.status === 'resolved' && target === 'disputed' && !entry.disputed) {
+    await disputeCase(entry, definition);
+    entry.disputed = true;
+    await saveMarker(marker);
+    record = await getRecord(record.id, tokens.official);
   }
   return record;
 }
+
+const EXPECTED_STATUS = {
+  received: 'open',
+  assigned: 'assigned',
+  answered: 'answered',
+  resolved: 'resolved',
+  disputed: 'disputed',
+  closed: 'closed',
+};
 
 async function driveCases(marker, tokens) {
-  const expectedStatus = {
-    received: 'open',
-    assigned: 'assigned',
-    'in-review': 'commitment-pending-review',
-    'returned-in-review': 'commitment-pending-review',
-    published: 'published',
-    resolved: 'resolved',
-    closed: 'closed',
-  };
-
   for (const entry of marker.cases) {
     const definition = demoCases[entry.index];
     let record = await getRecord(entry.recordId, tokens.official);
-
-    if (definition.target === 'received') {
-      // Intentionally untouched.
-    } else if (definition.target === 'returned-in-review') {
-      record = await advanceReturnedCase(record, definition, tokens);
-    } else if (definition.target === 'closed') {
-      if (record.status === 'open' || record.status === 'assigned' || record.status === 'returned') {
-        record = await command(
-          record,
-          'close',
-          tokens.reviewer,
-          {
-            reason: definition.closeReason,
-            publicReason: definition.closePublicReason,
-          },
-          tokens.official,
-        );
-      }
-    } else {
-      record = await advanceStandard(record, definition, definition.target, tokens);
-    }
-
-    if (record.status !== expectedStatus[definition.target]) {
+    record = await advance(record, definition, entry, tokens, marker);
+    if (record.status !== EXPECTED_STATUS[definition.target]) {
       throw new SafeError(
-        `case ${entry.index + 1} expected ${expectedStatus[definition.target]} but is ${record.status}`,
+        `case ${entry.index + 1} expected ${EXPECTED_STATUS[definition.target]} but is ${record.status}`,
       );
     }
   }
+}
+
+function sameLabels(actual, expected) {
+  return (
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    expected.every((label) => actual.includes(label))
+  );
 }
 
 async function verifyAndPrint(marker) {
@@ -515,23 +579,59 @@ async function verifyAndPrint(marker) {
 
   const byNumber = new Map(payload.cases.map((item) => [item.caseNumber, item]));
   const rows = marker.cases.map((entry) => {
-    const publicCase = byNumber.get(entry.caseNumber);
-    if (!publicCase || typeof publicCase.state !== 'string') {
+    const definition = demoCases[entry.index];
+    const shell = byNumber.get(entry.caseNumber);
+    if (!shell || typeof shell.state !== 'string') {
       throw new SafeError(`seeded case ${entry.caseNumber} is missing from the public list`);
+    }
+    if (shell.state !== definition.target) {
+      throw new SafeError(
+        `case ${entry.index + 1} expected public state ${definition.target} but is ${shell.state}`,
+      );
+    }
+    if (shell.textStatus !== definition.textStatus) {
+      throw new SafeError(
+        `case ${entry.index + 1} expected text ${definition.textStatus} but is ${shell.textStatus}`,
+      );
+    }
+    if (definition.textStatus === 'held' && shell.holdReason !== definition.holdReason) {
+      throw new SafeError(`case ${entry.index + 1} expected hold reason ${definition.holdReason}`);
+    }
+    if (!sameLabels(shell.labels, definition.labels)) {
+      throw new SafeError(`case ${entry.index + 1} expected labels ${definition.labels.join(',')}`);
+    }
+    if (definition.followers && shell.followerCount < definition.followers) {
+      throw new SafeError(`case ${entry.index + 1} expected ${definition.followers} followers`);
+    }
+    if (definition.notFixed && shell.notFixedCount < definition.notFixed) {
+      throw new SafeError(
+        `case ${entry.index + 1} expected ${definition.notFixed} not-fixed marks`,
+      );
+    }
+    if (definition.target === 'disputed' && !(shell.disputeCount >= 1)) {
+      throw new SafeError(`case ${entry.index + 1} expected a public dispute`);
+    }
+    if (definition.overdue) {
+      const today = dateAfter(0);
+      if (typeof shell.clockDueAt !== 'string' || shell.clockDueAt.slice(0, 10) >= today) {
+        throw new SafeError(`case ${entry.index + 1} expected a due date in the past`);
+      }
     }
     return {
       caseNumber: entry.caseNumber,
-      state: publicCase.state,
-      url: `${PUBLIC_WEB_BASE}/vrsar/zapis/${entry.caseNumber}`,
+      state: shell.state,
+      text: shell.textStatus,
+      labels: (shell.labels ?? []).join(',') || '-',
+      url: `${publicWebBase}/vrsar/zapis/${entry.caseNumber}`,
     };
   });
 
   const expectedSpread = {
-    received: 1,
+    received: 3,
     assigned: 1,
-    'in-review': 2,
-    published: 2,
-    resolved: 2,
+    answered: 2,
+    resolved: 1,
+    disputed: 1,
     closed: 1,
   };
   const actualSpread = Object.fromEntries(Object.keys(expectedSpread).map((state) => [state, 0]));
@@ -541,7 +641,9 @@ async function verifyAndPrint(marker) {
   }
   for (const [state, count] of Object.entries(expectedSpread)) {
     if (actualSpread[state] !== count) {
-      throw new SafeError(`public state ${state} expected ${count} but found ${actualSpread[state]}`);
+      throw new SafeError(
+        `public state ${state} expected ${count} but found ${actualSpread[state]}`,
+      );
     }
   }
 
@@ -552,6 +654,8 @@ async function verifyAndPrint(marker) {
       status: 'complete',
       cases: rows.length,
       stateSpread: actualSpread,
+      held: rows.filter((row) => row.text === 'held').length,
+      formLetter: rows.filter((row) => row.labels.includes('form-letter')).length,
       rateLimitRetries,
       marker: markerPath,
     }),
@@ -559,12 +663,9 @@ async function verifyAndPrint(marker) {
 }
 
 async function main() {
-  await setStaffPasscodes();
-  const tokens = {
-    official: await signIn(STAFF_EMAILS[0]),
-    reviewer: await signIn(STAFF_EMAILS[1]),
-  };
-  console.log(JSON.stringify({ stage: 'staff-sign-in', status: 'complete', users: 2 }));
+  await setStaffPasscode();
+  const tokens = { official: await signIn(STAFF_EMAIL) };
+  console.log(JSON.stringify({ stage: 'staff-sign-in', status: 'complete', users: 1 }));
 
   const marker = await loadOrCreateMarker();
   await fileCases(marker);

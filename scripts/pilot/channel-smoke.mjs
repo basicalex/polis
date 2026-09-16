@@ -75,9 +75,8 @@ try {
     },
   );
   requireValue(
-    staffSession?.actorId === TRACE_STAFF_ID &&
-      (staffSession.role === 'official' || staffSession.role === 'reviewer'),
-    'configured trace staff actor is unavailable',
+    staffSession?.actorId === TRACE_STAFF_ID && staffSession.role === 'official',
+    'configured trace official actor is unavailable',
   );
 
   const smsPhone = syntheticPhone('1');
@@ -102,10 +101,17 @@ try {
   );
   requireValue(
     publicCase?.case?.caseNumber === firstSms.caseNumber &&
-      typeof publicCase.case.state === 'string',
+      publicCase.case.state === 'received' &&
+      publicCase.case.textStatus === 'public' &&
+      publicCase.case.holdReason === null &&
+      typeof publicCase.case.text === 'string' &&
+      Array.isArray(publicCase.case.labels) &&
+      typeof publicCase.case.textSha256 === 'string',
     'public shell did not match the SMS case',
   );
-  printSafe(`Public shell ${firstSms.caseNumber}; state: ${publicCase.case.state}`);
+  printSafe(
+    `Public shell ${firstSms.caseNumber}; state: ${publicCase.case.state}; text: ${publicCase.case.textStatus}`,
+  );
 
   const beforeAppend = await listMessages(firstSms.recordId);
   requireValue(Array.isArray(beforeAppend?.messages), 'trace message lookup returned invalid data');

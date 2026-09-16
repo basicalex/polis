@@ -15,7 +15,6 @@ export const TEST_EMAILS = Object.freeze([
   'resident@vrsar.example.test',
   'other@vrsar.example.test',
   'official@vrsar.example.test',
-  'reviewer@vrsar.example.test',
 ]);
 
 export class PilotError extends Error {}
@@ -273,7 +272,6 @@ export function serviceEnvironment(runtime, extra = {}) {
     TRACE_INTERNAL_URL: 'http://127.0.0.1:8980',
     TRACE_ENABLED: 'true',
     TRACE_OFFICIAL_CITIZEN_IDS: 'trace-official-test',
-    TRACE_REVIEWER_CITIZEN_IDS: 'trace-reviewer-test',
     TRACE_INTAKE_OPEN: 'true',
     PILOT_CONFIG_PATH: path.join(ROOT, 'config/pilots/vrsar-orsera.json'),
     TRACE_PILOT_CONFIG_PATH: path.join(ROOT, 'config/pilots/vrsar-orsera.json'),

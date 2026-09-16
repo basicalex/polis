@@ -43,7 +43,6 @@ const rows = [
     'verified_resident',
   ],
   ['trace-official-test', 'official@vrsar.example.test', 'Trace official test', 'staff'],
-  ['trace-reviewer-test', 'reviewer@vrsar.example.test', 'Trace reviewer test', 'staff'],
 ];
 const values = rows
   .map(
