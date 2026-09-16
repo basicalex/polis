@@ -176,7 +176,13 @@ export async function assignRecord(id: string, expectedVersion: number): Promise
 
 export async function submitCommitment(
   id: string,
-  input: { expectedVersion: number; publicSummary: string; commitment: string; dueDate: string },
+  input: {
+    commitment: string;
+    dueDate: string;
+    signedBy: { name: string; title: string };
+    evidenceNote?: string;
+    evidenceUrls?: string[];
+  },
 ): Promise<PrivateTraceRecord> {
   return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/commitment`, {
     method: 'POST',
@@ -186,21 +192,13 @@ export async function submitCommitment(
   });
 }
 
-export async function reviewCommitment(
-  id: string,
-  input: { expectedVersion: number; decision: 'accept' | 'return'; note: string },
-): Promise<PrivateTraceRecord> {
-  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/review`, {
-    method: 'POST',
-    body: input,
-    idempotent: true,
-    parse: recordFromEnvelope,
-  });
-}
-
 export async function submitResolution(
   id: string,
-  input: { expectedVersion: number; evidenceNote: string; evidenceUrls: string[] },
+  input: {
+    evidenceNote: string;
+    evidenceUrls: string[];
+    signedBy: { name: string; title: string };
+  },
 ): Promise<PrivateTraceRecord> {
   return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/resolution`, {
     method: 'POST',
@@ -210,11 +208,50 @@ export async function submitResolution(
   });
 }
 
-export async function reviewResolution(
+export async function holdCase(
   id: string,
-  input: { expectedVersion: number; decision: 'accept' | 'return'; note: string },
+  input: {
+    reason: 'personal-data' | 'abuse' | 'off-topic' | 'other';
+    note?: string;
+  },
 ): Promise<PrivateTraceRecord> {
-  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/resolution-review`, {
+  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/hold`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: recordFromEnvelope,
+  });
+}
+
+export async function releaseCase(
+  id: string,
+  input: { redactedText?: string; note?: string },
+): Promise<PrivateTraceRecord> {
+  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/release`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: recordFromEnvelope,
+  });
+}
+
+export async function labelCase(
+  id: string,
+  input: { label: 'form-letter'; action: 'set' | 'clear' },
+): Promise<PrivateTraceRecord> {
+  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/label`, {
+    method: 'POST',
+    body: input,
+    idempotent: true,
+    parse: recordFromEnvelope,
+  });
+}
+
+export async function reopenCase(
+  id: string,
+  input: { note?: string },
+): Promise<PrivateTraceRecord> {
+  return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/reopen`, {
     method: 'POST',
     body: input,
     idempotent: true,
@@ -351,17 +388,39 @@ export async function getPublicCase(
     parse: publicCaseFromEnvelope,
   });
 }
+export async function disputeCase(
+  caseNumber: string,
+  input: { reopenKey: string; text: string },
+): Promise<{ case: PublicCaseShell; record: PublicTraceRecord | null }> {
+  return requestJson<{ case: PublicCaseShell; record: PublicTraceRecord | null }>(
+    `/cases/${encodeURIComponent(caseNumber)}/dispute`,
+    {
+      method: 'POST',
+      body: input,
+      idempotent: true,
+      parse: publicCaseFromEnvelope,
+    },
+  );
+}
+
 
 export async function recordCaseAttention(
   caseNumber: string,
-  input: { followerKey: string; kind: 'follow' | 'also-affected'; action: 'add' | 'remove' },
-): Promise<{ followerCount: number; alsoAffectedCount: number }> {
-  return requestJson(`/public/cases/${encodeURIComponent(caseNumber)}/attention`, {
-    method: 'POST',
-    body: input,
-    idempotent: true,
-    parse: attentionCountsFromEnvelope,
-  });
+  input: {
+    followerKey: string;
+    kind: 'follow' | 'also-affected' | 'not-fixed';
+    action: 'add' | 'remove';
+  },
+): Promise<{ followerCount: number; alsoAffectedCount: number; notFixedCount: number }> {
+  return requestJson<{ followerCount: number; alsoAffectedCount: number; notFixedCount: number }>(
+    `/public/cases/${encodeURIComponent(caseNumber)}/attention`,
+    {
+      method: 'POST',
+      body: input,
+      idempotent: true,
+      parse: attentionCountsFromEnvelope,
+    },
+  );
 }
 
 export async function requestMagicLink(email: string): Promise<void> {
@@ -377,7 +436,7 @@ export async function exchangeMagicLink(email: string, token: string): Promise<v
  * staff accounts, so the browser names a role and nothing else. The route is
  * absent on any other build.
  */
-export async function demoStaffLogin(role: 'official' | 'reviewer'): Promise<void> {
+export async function demoStaffLogin(role: 'official'): Promise<void> {
   await requestJson('/identity/demo-login', { method: 'POST', body: { role } });
 }
 

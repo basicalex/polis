@@ -6,7 +6,6 @@ import type { Actor, RecordRow, ShellState, TraceConfig, TraceRole, TraceStatus 
 
 export function roleForActor(config: TraceConfig, actorId: string): TraceRole {
   if (config.officialIds.has(actorId)) return 'official';
-  if (config.reviewerIds.has(actorId)) return 'reviewer';
   if (config.gatewayIds?.has(actorId)) return 'gateway';
   return 'resident';
 }
@@ -24,60 +23,32 @@ export function canUpload(actor: Actor, record: Pick<RecordRow, 'owner_actor_id'
   return actor.id === record.owner_actor_id || actor.role === 'official';
 }
 
-export function isCommitmentSourceState(status: TraceStatus): boolean {
-  return status === 'assigned' || status === 'returned';
-}
-
 export function canCloseCase(status: TraceStatus): boolean {
-  return status === 'open' || status === 'assigned' || status === 'returned';
+  return status === 'open' || status === 'assigned';
 }
 
 export function transitionAllowed(
-  command:
-    | 'assign'
-    | 'commitment'
-    | 'review-accept'
-    | 'review-return'
-    | 'resolution'
-    | 'resolution-review-accept'
-    | 'resolution-review-return'
-    | 'close',
+  command: 'assign' | 'commitment' | 'resolution' | 'reopen' | 'dispute' | 'close',
   status: TraceStatus,
 ): boolean {
   switch (command) {
     case 'assign':
       return status === 'open';
     case 'commitment':
-      return isCommitmentSourceState(status);
-    case 'review-accept':
-    case 'review-return':
-      return status === 'commitment-pending-review';
+      return status === 'assigned';
     case 'resolution':
-      return status === 'published';
-    case 'resolution-review-accept':
-    case 'resolution-review-return':
-      return status === 'resolution-pending-review';
+      return status === 'answered' || status === 'disputed';
+    case 'reopen':
+      return status === 'disputed';
+    case 'dispute':
+      return status === 'resolved';
     case 'close':
       return canCloseCase(status);
   }
 }
 
-export function shellStateFor(status: TraceStatus, closed = status === 'closed'): ShellState {
-  if (closed || status === 'closed') return 'closed';
-  switch (status) {
-    case 'open':
-      return 'received';
-    case 'assigned':
-      return 'assigned';
-    case 'commitment-pending-review':
-    case 'returned':
-    case 'resolution-pending-review':
-      return 'in-review';
-    case 'published':
-      return 'published';
-    case 'resolved':
-      return 'resolved';
-  }
+export function shellStateFor(status: TraceStatus): ShellState {
+  return status === 'open' ? 'received' : status;
 }
 
 export function reopenKeyHash(key: string): string {

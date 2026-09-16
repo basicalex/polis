@@ -4,6 +4,11 @@
 
 **Sources:** [Vrsar-Orsera research notes](vrsar-source-notes.md), [local pre-partner runbook](local-prepartner-runbook.md), and the [source manifest](prepartner-source-manifest-2026-09-05.json).
 
+**Policy note (2026-09-16):** The reviewer identity set recorded below is
+retired. Current roles and public-text handling follow
+[`public-text-policy.md`](public-text-policy.md). The dated evidence remains a
+record of the 2026-09-05 runtime.
+
 ## Boundary
 
 This work validates only an unofficial, synthetic Vrsar-Orsera software configuration. It has no real partner, real resident report, municipal intake, municipal account, outreach, public deployment, or municipal-system connection. The local test intake is functional and open after its controlled closure check; it is not a real or municipal intake.

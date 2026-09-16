@@ -30,6 +30,15 @@ const lang = parsePilotLang(Astro.url);
         <dl class="pilot-meta" data-private-fields></dl>
       </section>
 
+      {/* The office side of the public record: what the text says, and what the office may do to it. */}
+      <section class="pilot-section" aria-labelledby="case-public-text-title" data-public-text-section hidden>
+        <h2 id="case-public-text-title">{pilotCopy.publicText.heading[lang]}</h2>
+        <p class="pilot-disclosure">{pilotCopy.publicText.intro[lang]}</p>
+        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-public-text-state hidden></p>
+        <div class="pilot-section" data-public-text-panel></div>
+        <div class="pilot-section" data-public-text-actions></div>
+      </section>
+
       {/* Machine suggestions. Staff decide; nothing here changes the case on its own. */}
       <section class="pilot-section" aria-labelledby="case-ai-title" data-ai-section hidden>
         <h2 id="case-ai-title">{pilotCopy.ai.heading[lang]}</h2>
@@ -58,7 +67,7 @@ const lang = parsePilotLang(Astro.url);
         <ul class="pilot-ledger" data-private-attachments></ul>
       </section>
 
-      {/* Reviewer-only, and only while the case is still open to closing. */}
+      {/* Office-only, and only while the case is still open to closing. */}
       <section class="pilot-section" aria-labelledby="case-close-title" data-close-section hidden>
         <h2 id="case-close-title">{pilotCopy.close.heading[lang]}</h2>
         <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-close-state hidden></p>

@@ -17,7 +17,6 @@ let started = false;
 function roleDestination(role: string, lang: 'hr' | 'it' | 'en'): string {
   if (role === 'resident') return pilotHref('/pilot/vrsar/cases', lang);
   if (role === 'official') return pilotHref('/pilot/vrsar/staff', lang);
-  if (role === 'reviewer') return pilotHref('/pilot/vrsar/review', lang);
   return pilotHref('/pilot/vrsar', lang);
 }
 
@@ -79,7 +78,7 @@ export function initVrsarLogin(): void {
   for (const button of demoButtons) {
     button.addEventListener('click', () => {
       const role = button.dataset.demoRole;
-      if (role !== 'official' && role !== 'reviewer') return;
+      if (role !== 'official') return;
       clearState(state);
       void finishSignIn(() => demoStaffLogin(role));
     });

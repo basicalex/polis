@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { IncomingMessage } from 'node:http';
+import type { HoldReason } from './compliance.js';
 
 export const TRACE_STATUSES = [
   'open',
   'assigned',
-  'commitment-pending-review',
-  'returned',
-  'published',
-  'resolution-pending-review',
+  'answered',
   'resolved',
+  'disputed',
   'closed',
 ] as const;
 export type TraceStatus = (typeof TRACE_STATUSES)[number];
-export type TraceRole = 'resident' | 'official' | 'reviewer' | 'gateway';
+export type TraceRole = 'resident' | 'official' | 'gateway' | 'system';
 export type TraceStage = 'voice' | 'responsibility' | 'response' | 'check' | 'receipt';
 export type TraceOrigin = 'web' | 'sms' | 'voice';
 export type FilerKind = 'account' | 'anonymous-channel';
@@ -25,8 +24,9 @@ export type ClosedReason =
   | 'insufficient-information'
   | 'no-action-possible'
   | 'resolved-elsewhere';
-export type ShellState =
-  'received' | 'assigned' | 'in-review' | 'published' | 'resolved' | 'closed';
+export type ShellState = 'received' | 'assigned' | 'answered' | 'resolved' | 'disputed' | 'closed';
+export type TextStatus = 'public' | 'held' | 'redacted';
+export type { HoldReason };
 
 export interface Actor {
   id: string;
@@ -67,10 +67,11 @@ export interface TraceConfig {
   databaseUrl: string;
   intakeOpen: boolean;
   officialIds: ReadonlySet<string>;
-  reviewerIds: ReadonlySet<string>;
   gatewayIds?: ReadonlySet<string>;
   attentionPepper?: string;
   aiIntakeUrl?: string | null;
+  aiComplianceUrl?: string | null;
+  holdTerms?: string[];
   caseNumberPrefix?: string;
   pilot: PilotConfig;
 }
@@ -79,6 +80,8 @@ export interface ParsedTraceConfig extends TraceConfig {
   gatewayIds: ReadonlySet<string>;
   attentionPepper: string;
   aiIntakeUrl: string | null;
+  aiComplianceUrl: string | null;
+  holdTerms: string[];
   caseNumberPrefix: string;
   pilot: PilotConfig & {
     municipality: PilotConfig['municipality'] & {
@@ -107,6 +110,27 @@ export type PublicEvent =
       createdAt: string;
     }
   | {
+      stage: 'voice';
+      action: 'text-held';
+      actorRole: 'system' | 'official';
+      reason: HoldReason;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'text-released';
+      actorRole: 'official';
+      redacted: boolean;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'label-set' | 'label-cleared';
+      actorRole: 'system' | 'official';
+      label: 'form-letter';
+      createdAt: string;
+    }
+  | {
       stage: 'responsibility';
       action: 'office-assigned';
       actorRole: 'official';
@@ -114,26 +138,40 @@ export type PublicEvent =
     }
   | {
       stage: 'response';
-      action: 'commitment-filed';
+      action: 'commitment-published';
+      actorRole: 'official';
+      signedBy: string;
+      createdAt: string;
+    }
+  | {
+      stage: 'check';
+      action: 'completion-reported';
       actorRole: 'official';
       createdAt: string;
     }
   | {
       stage: 'check';
-      action: 'commitment-accepted';
-      actorRole: 'reviewer';
+      action: 'completion-disputed';
+      actorRole: 'resident';
+      createdAt: string;
+    }
+  | {
+      stage: 'check';
+      action: 'case-reopened';
+      actorRole: 'official';
       createdAt: string;
     }
   | {
       stage: 'receipt';
-      action: 'published';
-      actorRole: 'reviewer';
+      action: 'case-resolved-standing';
+      actorRole: 'system';
       createdAt: string;
     }
   | {
-      stage: 'receipt';
-      action: 'completion-approved';
-      actorRole: 'reviewer';
+      stage: 'voice' | 'responsibility';
+      action: 'case-closed';
+      actorRole: 'official';
+      publicReason: string;
       createdAt: string;
     };
 
@@ -157,7 +195,7 @@ export interface PrivateRecord {
   location: string;
   contactEmail: string | null;
   office: string;
-  publicSummary: string | null;
+  signedBy: { name: string; title: string } | null;
   commitment: string | null;
   dueDate: string | null;
   evidenceNote: string | null;
@@ -173,6 +211,8 @@ export interface PrivateRecord {
   closedPublicReason: string | null;
   followerCount: number;
   alsoAffectedCount: number;
+  notFixedCount: number;
+  disputeCount: number;
   aiProposals: AiProposal[];
 }
 
@@ -181,14 +221,20 @@ export interface PublicRecord {
   municipalityId: string;
   category: string;
   office: string;
-  status: 'published' | 'resolved';
-  publicSummary: string;
+  status: 'answered' | 'resolved' | 'disputed';
   commitment: string;
   dueDate: string;
+  signedBy: { name: string; title: string };
   evidenceNote: string | null;
   evidenceUrls: string[];
   publishedAt: string;
   resolvedAt: string | null;
+  disputes: Array<{
+    text: string | null;
+    textStatus: 'public' | 'held';
+    holdReason: HoldReason | null;
+    createdAt: string;
+  }>;
   events: PublicEvent[];
   receiptHash: string;
   testEnvironment: true;
@@ -201,11 +247,19 @@ export interface CaseShell {
   category: string;
   track: 'standard';
   state: ShellState;
+  text: string | null;
+  location: string | null;
+  textStatus: TextStatus;
+  holdReason: HoldReason | null;
+  textSha256: string;
+  labels: string[];
   closedPublicReason: string | null;
   filedAt: string;
   clockDueAt: string | null;
   followerCount: number;
   alsoAffectedCount: number;
+  notFixedCount: number;
+  disputeCount: number;
   shellHash: string;
   updatedAt: string;
   testEnvironment: true;
@@ -214,6 +268,8 @@ export interface CaseShell {
 export type CaseMessageDirection = 'inbound' | 'outbound';
 export type CaseMessageKind =
   | 'append'
+  | 'label-appeal'
+  | 'dispute'
   | 'answer'
   | 'question'
   | 'status-update'
@@ -221,7 +277,7 @@ export type CaseMessageKind =
   | 'transcript'
   | 'transcript-failed';
 export type CaseMessageSource = 'typed' | 'transcript' | 'system';
-export type CaseMessageAuthorKind = 'filer' | 'official' | 'reviewer' | 'system';
+export type CaseMessageAuthorKind = 'filer' | 'official' | 'system';
 export type CaseMessageDeliveryState =
   'pending' | 'handed-off' | 'delivered' | 'failed' | 'not-applicable';
 
@@ -298,13 +354,21 @@ export interface RecordRow {
   closed_public_reason: string | null;
   follower_count: number;
   also_affected_count: number;
+  not_fixed_count: number;
+  dispute_count: number;
   status: TraceStatus;
   version: number;
-  public_summary: string | null;
   commitment: string | null;
   due_date: string | null;
   evidence_note: string | null;
   evidence_urls: string[] | null;
+  text_status: TextStatus;
+  hold_reason: HoldReason | null;
+  text_sha256: string;
+  redacted_text: string | null;
+  labels: string[];
+  signed_by_name: string | null;
+  signed_by_title: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -350,6 +414,7 @@ export interface ReopenReadInput {
 }
 
 export interface FilerMessageInput {
+  kind?: 'append' | 'label-appeal';
   body: string;
   inReplyTo?: string;
 }
@@ -383,9 +448,47 @@ export interface CloseInput {
   publicReason: string;
 }
 
+export interface CommitmentInput {
+  expectedVersion: number;
+  commitment: string;
+  dueDate: string;
+  signedBy: { name: string; title: string };
+}
+
+export interface ResolutionInput {
+  expectedVersion: number;
+  evidenceNote: string;
+  evidenceUrls: string[];
+  signedBy: { name: string; title: string };
+}
+
+export interface HoldInput {
+  reason: HoldReason;
+  note?: string;
+}
+
+export interface ReleaseInput {
+  redactedText?: string;
+  note?: string;
+}
+
+export interface LabelInput {
+  label: 'form-letter';
+  action: 'set' | 'clear';
+}
+
+export interface ReopenInput {
+  note?: string;
+}
+
+export interface DisputeInput {
+  reopenKey: string;
+  text: string;
+}
+
 export interface AttentionInput {
   followerKey: string;
-  kind: 'follow' | 'also-affected';
+  kind: 'follow' | 'also-affected' | 'not-fixed';
   action: 'add' | 'remove';
 }
 
@@ -396,9 +499,11 @@ export interface TraceStore {
   create(ctx: CommandContext): Promise<{ status: number; body: unknown }>;
   assign(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
   commitment(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
-  review(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
   resolution(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
-  resolutionReview(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
+  reopen(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
+  hold(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
+  release(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
+  label(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
   addAttachment(ctx: CommandContext, id: string): Promise<{ status: number; body: unknown }>;
   downloadAttachment(
     actor: Actor,
@@ -431,6 +536,10 @@ export interface TraceStore {
     reopenKey: string,
     input: FilerMessageInput,
   ): Promise<{ message: CaseMessage }>;
+  dispute(
+    caseNumber: string,
+    input: DisputeInput,
+  ): Promise<{ case: CaseShell; record: PublicRecord }>;
   listMessages(ctx: CommandContext, recordId: string): Promise<{ messages: CaseMessage[] }>;
   postOfficialMessage(
     ctx: CommandContext,
@@ -460,7 +569,9 @@ export interface TraceStore {
   recordAttention(
     caseNumber: string,
     input: AttentionInput,
-  ): Promise<{ counts: { followerCount: number; alsoAffectedCount: number } }>;
+  ): Promise<{
+    counts: { followerCount: number; alsoAffectedCount: number; notFixedCount: number };
+  }>;
   close(): Promise<void>;
 }
 

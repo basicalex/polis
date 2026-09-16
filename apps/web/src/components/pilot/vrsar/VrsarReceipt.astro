@@ -21,16 +21,13 @@ const { lang } = Astro.props as Props;
     <p class="pilot-state" data-public-status-note></p>
   </header>
 
-  <section class="pilot-section pilot-approved-text" aria-labelledby="approved-summary-title">
+  <section class="pilot-section pilot-approved-text" aria-label={pilotCopy.receipts.commitment[lang]}>
     <p class="field-hint">{pilotCopy.receipts.approvedTextNote[lang]}</p>
     <div class="pilot-receipt-grid">
       <section class="pilot-section">
-        <h2 id="approved-summary-title">{pilotCopy.receipts.publicSummary[lang]}</h2>
-        <p class="pilot-public-copy" data-public-summary></p>
-      </section>
-      <section class="pilot-section">
         <h2>{pilotCopy.receipts.commitment[lang]}</h2>
         <p class="pilot-public-copy" data-public-commitment></p>
+        <p class="pilot-public-copy" data-public-signed-by></p>
       </section>
     </div>
   </section>

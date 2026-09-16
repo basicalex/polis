@@ -121,9 +121,6 @@ export function initVrsarEntry(): void {
       } else if (session.role === 'official') {
         path = '/pilot/vrsar/staff';
         label = pilotCopy.nav.staff[lang];
-      } else if (session.role === 'reviewer') {
-        path = '/pilot/vrsar/review';
-        label = pilotCopy.nav.review[lang];
       }
       const link = createTextElement('a', label);
       link.className = 'btn';

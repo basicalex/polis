@@ -12,16 +12,16 @@ Polis serves people who need to understand what happened after they raised a pub
 
 Primary product audiences include:
 
-- residents and community representatives following ownership and public follow-through without exposing private case material;
-- public officials and staff routing work, stating commitments, publishing evidence, and explaining outcomes;
-- independent reviewers who decide whether evidence supports a terminal status;
+- residents and community representatives following ownership and public follow-through without exposing private contact or casework;
+- public officials and staff routing work, publishing signed commitments and completion evidence, and explaining outcomes;
+- filers and followers checking completion through disputes and not-fixed signals;
 - journalists, watchdogs, funders, and technical contributors inspecting sources, rules, proofs, and public receipts.
 
 ## Product Purpose
 
-Polis connects community voice to official response and a public receipt. A person can raise a problem; the institution can identify responsibility, act, and publish a measurable commitment; an independent reviewer can assess the evidence; and the public can inspect the resulting status and trail.
+Polis connects community voice to official response and a public receipt. A person can raise a problem; the report text publishes after an automated compliance pass; the institution can identify responsibility, act, and publish a signed commitment and evidence; and the public can dispute a completion claim or mark it not fixed.
 
-Success means one scoped public process becomes easier to follow without making private case files public. A viewer should be able to identify who owns the response, what was promised, what evidence changed the status, and what happened in the end.
+Success means one scoped public process becomes easier to follow while contact data, attachments, and private casework stay restricted. A viewer should be able to identify who owns and signed the response, what was promised, what evidence changed the status, and what happened in the end.
 
 ## Positioning
 
@@ -30,10 +30,10 @@ Polis is the public response layer between community voice and government action
 1. community voice;
 2. explicit responsibility;
 3. official response;
-4. independent review;
+4. public check;
 5. a public receipt.
 
-Private case material stays on a separate restricted rail. Officials can file commitments and evidence, but cannot set their own terminal follow-through status.
+Private contact, attachments, and casework stay on a separate restricted rail. Report text is public after the filing-time compliance pass unless held; official release or redaction is a logged public event.
 
 ## Operating Context
 
@@ -41,7 +41,7 @@ Polis is evaluated and used across public and restricted workflows:
 
 - public process, institution, role, decision-right, claim, source, commitment, proof, status, and audit views;
 - private resident complaint casework and restricted staff operations;
-- contribution and independent-review queues;
+- official casework, text-control actions, and public dispute and not-fixed checks;
 - browser-side document verification against a registered proof manifest;
 - scoped pilot planning under a written charter with named owners, data boundaries, success measures, redaction, rollback, retention, and sunset terms.
 
@@ -49,9 +49,9 @@ The current strongest path is a local demonstrator with synthetic data. A real p
 
 ## Capabilities and Constraints
 
-- Public claims, commitments, rules, proofs, and outcomes can be inspected. Complaint narratives, identity, resident documents, and private case audit data do not become a public feed.
-- New commitments start **pending independent review** after the charter and scope gate. They publish only after review. Resolution claims also require independent review before a terminal status changes.
-- Evidence and proof do not make a claim true. They show what source, bytes, signature, timestamp, policy rule, review decision, or audit linkage supports the registered record.
+- Filed report text and location are public after the automated compliance pass. Held text keeps a public shell and reason; contact data, resident documents, attachments, and private case audit data stay restricted.
+- Officials publish commitments under their name and title and report completion with evidence. Filers may dispute completion; followers may mark it not fixed.
+- Evidence and proof do not make a claim true. They show what source, bytes, signature, timestamp, policy rule, public event, or audit linkage supports the registered record.
 - Use `hash-linked` or `tamper-evident`, not `immutable`.
 - The current governance, complaint, commitment, contribution/review, proof, audit, and vault capabilities are local demonstrator surfaces, not production approval.
 - Grad Primjer records and reported outcomes are synthetic presentation fixtures, not real participants, partners, or results.
@@ -83,9 +83,9 @@ No real partner, production authorization, real-world outcome, contracting entit
 ## Product Principles
 
 1. The voice is the start, the official response is the product, and the public receipt is the proof.
-2. Make responsibility, evidence, review authority, and product limits visible.
-3. Keep private case material private while preserving public accountability for process and response.
-4. Let independent review, not self-attestation, control publication and terminal follow-through states.
+2. Make responsibility, evidence, signed official answers, public checks, and product limits visible.
+3. Keep private contact and casework private while preserving public accountability for filed text, process, and response.
+4. Let public visibility, disputes, and not-fixed signals check official completion claims.
 5. Start with one chartered process and measurable public outcomes rather than replacing government wholesale.
 
 ## Accessibility & Inclusion

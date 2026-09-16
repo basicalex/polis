@@ -24,8 +24,14 @@ function request(
   method: string,
   url: string,
   headers: IncomingMessage['headers'] = {},
+  remoteAddress = '127.0.0.1',
 ): IncomingMessage {
-  return { method, url, headers } as IncomingMessage;
+  return {
+    method,
+    url,
+    headers,
+    socket: { remoteAddress },
+  } as IncomingMessage;
 }
 
 function route(routes: Route[], method: string, path: string): Route {
@@ -103,9 +109,11 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'GET /api/trace/records/:id',
         'POST /api/trace/records/:id/assign',
         'POST /api/trace/records/:id/commitment',
-        'POST /api/trace/records/:id/review',
         'POST /api/trace/records/:id/resolution',
-        'POST /api/trace/records/:id/resolution-review',
+        'POST /api/trace/records/:id/reopen',
+        'POST /api/trace/records/:id/hold',
+        'POST /api/trace/records/:id/release',
+        'POST /api/trace/records/:id/label',
         'POST /api/trace/records/:id/attachments',
         'GET /api/trace/records/:id/attachments/:attachmentId',
         'GET /api/trace/public/records',
@@ -114,6 +122,7 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'POST /api/trace/public/cases',
         'GET /api/trace/public/cases/:caseNumber',
         'POST /api/trace/public/cases/:caseNumber/attention',
+        'POST /api/trace/cases/:caseNumber/dispute',
         'POST /api/trace/cases/:caseNumber/private',
         'POST /api/trace/cases/:caseNumber/messages',
         'GET /api/trace/records/:id/messages',
@@ -126,10 +135,7 @@ test('trace routes are disabled by default and expose only the exact enabled con
       route(traceRoutes(), 'POST', '/api/trace/records/:id/attachments').maxBodyBytes,
       2_900_000,
     );
-    assert.equal(
-      route(traceRoutes(), 'POST', '/api/trace/public/cases').maxBodyBytes,
-      2_900_000,
-    );
+    assert.equal(route(traceRoutes(), 'POST', '/api/trace/public/cases').maxBodyBytes, 2_900_000);
     const paths = platformRoutes().map(({ path }) => path);
     assert.equal(
       paths.some((path) => path.startsWith('/api/v1/trace')),
@@ -442,7 +448,7 @@ test('anonymous web case creation fails closed without its gateway principal', a
   );
 });
 
-test('reopen and public case routes proxy without browser actor headers', async () => {
+test('reopen-key and public case routes proxy without browser actor headers', async () => {
   await withEnvironment(enabledEnvironment, async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -478,6 +484,13 @@ test('reopen and public case routes proxy without browser actor headers', async 
       { followerKey: 'follower-secret', kind: 'follow', action: 'add' },
       { caseNumber: 'VRS-1842' },
     );
+    await route(routes, 'POST', '/api/trace/cases/:caseNumber/dispute').handler(
+      request('POST', '/api/trace/cases/VRS-1842/dispute', {
+        'idempotency-key': VALID_IDEMPOTENCY_KEY,
+      }),
+      { reopenKey: 'body-only-secret', text: 'The lamp is still dark.' },
+      { caseNumber: 'VRS-1842' },
+    );
 
     assert.deepEqual(
       calls.map(({ url }) => url),
@@ -486,6 +499,7 @@ test('reopen and public case routes proxy without browser actor headers', async 
         'http://trace.internal/internal/trace/cases/VRS-1842/private',
         'http://trace.internal/internal/trace/cases/VRS-1842/messages',
         'http://trace.internal/internal/trace/public/cases/VRS-1842/attention',
+        'http://trace.internal/internal/trace/cases/VRS-1842/dispute',
       ],
     );
     for (const call of calls) {
@@ -502,6 +516,10 @@ test('reopen and public case routes proxy without browser actor headers', async 
     );
     assert.equal(
       new Headers(calls[3]?.init?.headers).get('idempotency-key'),
+      VALID_IDEMPOTENCY_KEY,
+    );
+    assert.equal(
+      new Headers(calls[4]?.init?.headers).get('idempotency-key'),
       VALID_IDEMPOTENCY_KEY,
     );
   });
@@ -534,6 +552,10 @@ test('new staff case routes require a verified session and trusted actor forward
       ['POST', '/api/trace/records/:id/messages'],
       ['POST', '/api/trace/records/:id/ai-proposals/:proposalId/decision'],
       ['POST', '/api/trace/records/:id/close'],
+      ['POST', '/api/trace/records/:id/reopen'],
+      ['POST', '/api/trace/records/:id/hold'],
+      ['POST', '/api/trace/records/:id/release'],
+      ['POST', '/api/trace/records/:id/label'],
     ] as const;
     for (const [method, path] of privateRoutes) {
       const response = result(
@@ -732,16 +754,94 @@ test('trace preserves downstream status, body, and safe content headers', async 
   });
 });
 
-test('legacy public-edge mode blocks every trace route', async () => {
+test('public trace writes enforce their per-IP limits with and without public-edge mode', async () => {
+  for (const publicEdge of [undefined, 'true'] as const) {
+    await withEnvironment({ ...enabledEnvironment, PUBLIC_EDGE: publicEdge }, async () => {
+      let fetchCalls = 0;
+      globalThis.fetch = (async () => {
+        fetchCalls += 1;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) as typeof globalThis.fetch;
+
+      const routes = publicEdge ? withPublicEdge(traceRoutes()) : traceRoutes();
+      const limited = [
+        {
+          path: '/api/trace/public/cases',
+          url: '/api/trace/public/cases',
+          body: { text: 'Streetlight is dark.' },
+          params: {},
+          limit: 5,
+        },
+        {
+          path: '/api/trace/public/cases/:caseNumber/attention',
+          url: '/api/trace/public/cases/VRS-1842/attention',
+          body: { followerKey: 'follower-key', kind: 'not-fixed', action: 'add' },
+          params: { caseNumber: 'VRS-1842' },
+          limit: 30,
+        },
+        {
+          path: '/api/trace/cases/:caseNumber/dispute',
+          url: '/api/trace/cases/VRS-1842/dispute',
+          body: { reopenKey: 'reopen-key', text: 'The problem remains.' },
+          params: { caseNumber: 'VRS-1842' },
+          limit: 5,
+        },
+      ] as const;
+
+      for (const spec of limited) {
+        const target = route(routes, 'POST', spec.path);
+        for (let index = 0; index < spec.limit; index += 1) {
+          const response = result(
+            await target.handler(
+              request(
+                'POST',
+                spec.url,
+                { 'idempotency-key': VALID_IDEMPOTENCY_KEY },
+                `rate-${publicEdge ?? 'default'}-${spec.path}`,
+              ),
+              spec.body,
+              spec.params,
+            ),
+          );
+          assert.equal(
+            response.status,
+            200,
+            `${publicEdge ?? 'default'} ${spec.path} request ${index + 1}`,
+          );
+        }
+        const blocked = result(
+          await target.handler(
+            request(
+              'POST',
+              spec.url,
+              { 'idempotency-key': VALID_IDEMPOTENCY_KEY },
+              `rate-${publicEdge ?? 'default'}-${spec.path}`,
+            ),
+            spec.body,
+            spec.params,
+          ),
+        );
+        assert.equal(blocked.status, 429, `${publicEdge ?? 'default'} ${spec.path}`);
+        assert.deepEqual(blocked.body, {
+          error: 'rate_limited',
+          message: 'Too many requests.',
+        });
+      }
+
+      assert.equal(fetchCalls, 40);
+    });
+  }
+});
+
+test('public-edge mode still blocks private trace routes', async () => {
   await withEnvironment({ ...enabledEnvironment, PUBLIC_EDGE: 'true' }, async () => {
-    const wrapped = withPublicEdge(traceRoutes());
-    for (const candidate of wrapped) {
-      const response = result(
-        await candidate.handler(request(candidate.method, candidate.path), {}, {}),
-      );
-      assert.equal(response.status, 405, `${candidate.method} ${candidate.path}`);
-      assert.deepEqual(response.body, { error: 'method_not_allowed', reason: 'public_edge' });
-    }
+    const privateRoute = route(withPublicEdge(traceRoutes()), 'GET', '/api/trace/records');
+    const response = result(await privateRoute.handler(request('GET', privateRoute.path), {}, {}));
+    assert.equal(response.status, 405);
+    assert.deepEqual(response.body, { error: 'method_not_allowed', reason: 'public_edge' });
   });
 });
 

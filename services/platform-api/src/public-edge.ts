@@ -13,20 +13,27 @@ import { result, type Route } from '@polis/service-runtime';
  */
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT = Number(process.env.PUBLIC_EDGE_RATE_LIMIT_PER_MIN ?? 60);
-const rateBuckets = new Map<string, { count: number; windowStart: number }>();
 
-/** Fixed-window per-IP rate limit (single-instance v1; see plan Assumptions). */
-function allowRequest(req: IncomingMessage): boolean {
-  const key = req.socket.remoteAddress ?? 'unknown';
-  const now = Date.now();
-  let bucket = rateBuckets.get(key);
-  if (!bucket || now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    bucket = { count: RATE_LIMIT, windowStart: now };
-    rateBuckets.set(key, bucket);
-  }
-  bucket.count -= 1;
-  return bucket.count >= 0;
+/** Build a fixed-window, per-IP limiter for one route or route group. */
+export function createFixedWindowPerIpLimiter(
+  limit: number,
+  windowMs: number,
+): (req: IncomingMessage) => boolean {
+  const rateBuckets = new Map<string, { count: number; windowStart: number }>();
+  return (req) => {
+    const key = req.socket?.remoteAddress ?? 'unknown';
+    const now = Date.now();
+    let bucket = rateBuckets.get(key);
+    if (!bucket || now - bucket.windowStart >= windowMs) {
+      bucket = { count: limit, windowStart: now };
+      rateBuckets.set(key, bucket);
+    }
+    bucket.count -= 1;
+    return bucket.count >= 0;
+  };
 }
+
+const allowPublicEdgeRequest = createFixedWindowPerIpLimiter(RATE_LIMIT, RATE_LIMIT_WINDOW_MS);
 
 // Infobip webhook ingress routes intentionally stay off this public-read allowlist.
 /** Exact routes permitted by the isolated public-read pilot. Unknown routes fail closed. */
@@ -69,6 +76,16 @@ const PUBLIC_EDGE_ALLOWED: Record<string, true> = {
   'POST /api/v1/verify/file': true,
   'POST /api/v1/verify/hash': true,
   'POST /api/v1/verify/manifest': true,
+  'GET /api/trace/config': true,
+  'GET /api/trace/public/records': true,
+  'GET /api/trace/public/records/:id': true,
+  'GET /api/trace/public/cases': true,
+  'POST /api/trace/public/cases': true,
+  'GET /api/trace/public/cases/:caseNumber': true,
+  'POST /api/trace/public/cases/:caseNumber/attention': true,
+  'POST /api/trace/cases/:caseNumber/dispute': true,
+  'POST /api/trace/cases/:caseNumber/private': true,
+  'POST /api/trace/cases/:caseNumber/messages': true,
   'GET /api/v1/pilot/charter': true,
   'GET /api/v1/pilot/results': true,
 };
@@ -106,7 +123,7 @@ export function withPublicEdge(routes: Route[]): Route[] {
         body: unknown,
         params: Record<string, string>,
       ): Promise<unknown> => {
-        if (!allowRequest(req)) return result(429, { error: 'rate_limited' });
+        if (!allowPublicEdgeRequest(req)) return result(429, { error: 'rate_limited' });
         return inner(req, body, params);
       },
     };

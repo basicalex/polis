@@ -546,6 +546,35 @@ test('the place ledger lists every state and says a count is not a vote', async 
   assert.match(component, /data-retry/);
   // The attention line keeps the meaning of the fixed "Ovo nije glasovanje".
   assert.match(content, /Broj pratitelja nije glasovanje i ne mijenja redoslijed\./);
+
+  // Held and closed cases are counted in the strip, so a removal shows as a
+  // number on the office's own page.
+  assert.match(component, /key: 'held'/);
+  assert.match(component, /key: 'closed'/);
+  assert.match(script, /countHeld\(shells\)/);
+  // Each row carries the report itself, or says the text is held.
+  assert.match(script, /textExcerpt\(shell\.text\)/);
+  assert.match(script, /ledger-row-text/);
+  assert.match(content, /ledgerTextHeld/);
+  // No resident surface promises a review of the text.
+  for (const source of [component, script, content]) {
+    assert.doesNotMatch(source, /neovisn/i);
+    assert.doesNotMatch(source, /independent review/i);
+  }
+});
+
+test('the filing screen says the text is public at once', async () => {
+  const content = await readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8');
+  // The text and the location publish immediately; the warning that follows is
+  // what a filer can act on before they write.
+  assert.match(content, /Tekst i lokacija javni su odmah, pod brojem predmeta\./);
+  assert.match(content, /Ne pišite imena, brojeve telefona ni registracije drugih ljudi\./);
+  assert.match(content, /Vaši kontaktni podaci ostaju privatni\./);
+  assert.match(content, /The text and the location are public right away/);
+  // The photo is the one thing that is not published in this wave.
+  assert.match(content, /Zasad je vidi samo ured i ne objavljuje se\./);
+  // The old promise of approval before publication is gone.
+  assert.doesNotMatch(content, /dok ga ured ne odobri/);
 });
 
 test('filing asks for no identity and sends an optional WGS84 point', async () => {

@@ -58,7 +58,6 @@ test('Vrsar pilot route set is present and isolated', async () => {
     join('cases', 'index.astro'),
     join('cases', '[caseId].astro'),
     join('staff', 'index.astro'),
-    join('review', 'index.astro'),
     join('receipts', 'index.astro'),
     join('receipts', '[receiptId].astro'),
     join('api', '[...path].ts'),
@@ -82,14 +81,23 @@ test('browser pilot code keeps bearer sessions out of Web Storage and uses only 
     'src/scripts/pilot/vrsar/cases.ts',
     'src/scripts/pilot/vrsar/case-detail.ts',
     'src/scripts/pilot/vrsar/staff.ts',
-    'src/scripts/pilot/vrsar/review.ts',
     'src/scripts/pilot/vrsar/receipts.ts',
     'src/scripts/pilot/vrsar/receipt-detail.ts',
   ];
   const sources = await Promise.all(browserFiles.map((file) => readFile(new URL(file, webRoot), 'utf8')));
   for (const [index, source] of sources.entries()) {
-    assert.doesNotMatch(source, /localStorage|sessionStorage|Bearer\s|authorization\s*:/i, browserFiles[index]);
-    assert.doesNotMatch(source, /api\/v1\/trace-records|window\.__API_URL/, browserFiles[index]);
+    const file = browserFiles[index];
+    assert.doesNotMatch(source, /sessionStorage|Bearer\s|authorization\s*:/i, file);
+    assert.doesNotMatch(source, /api\/v1\/trace-records|window\.__API_URL/, file);
+    // The office queue keeps the signing name and title between answers. That
+    // one key is the only Web Storage in the pilot, and it holds no session.
+    if (file === 'src/scripts/pilot/vrsar/staff.ts') {
+      assert.equal((source.match(/localStorage/g) ?? []).length, 2, file);
+      assert.match(source, /const SIGNATURE_KEY = 'polis\.pilot\.vrsar\.signature'/);
+      assert.doesNotMatch(source, /localStorage[\s\S]{0,120}(token|session|passcode)/i, file);
+    } else {
+      assert.doesNotMatch(source, /localStorage/, file);
+    }
   }
   assert.match(sources[0], /const API_ROOT = '\/pilot\/vrsar\/api'/);
 });
@@ -225,6 +233,47 @@ test('a successful response with an invalid envelope keeps the exact command key
   }
 });
 
+test('the public case page publishes the report, the signed answer and the public check', async () => {
+  const [shell, script, copy] = await Promise.all([
+    readFile(new URL('src/components/pilot/vrsar/VrsarPublicShell.astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/public-case.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/pilot/vrsar-public-case.ts', webRoot), 'utf8'),
+  ]);
+
+  // The report itself, its location and the hash of the original text.
+  assert.match(shell, /data-case-narrative/);
+  assert.match(shell, /data-case-location/);
+  assert.match(shell, /data-case-text-hash/);
+  assert.match(copy, /Objavljeno kako je zaprimljeno\./);
+
+  // A held text keeps its shell and names the category that held it.
+  assert.match(shell, /data-case-hold-reason/);
+  assert.match(script, /translatedHoldReason\(shell\.holdReason, lang\)/);
+  for (const reason of ['personal-data', 'abuse', 'off-topic', 'other']) {
+    assert.ok(copy.includes(`'${reason}': localized(`) || copy.includes(`${reason}: localized(`), reason);
+  }
+
+  // The answer is signed by a person, and there is no summary to publish.
+  assert.match(shell, /data-public-signed-by/);
+  assert.match(script, /function signature\(record: PublicTraceRecord\)/);
+  assert.doesNotMatch(shell, /data-public-summary/);
+  assert.doesNotMatch(script, /publicSummary/);
+
+  // The public checks the completion: the filer disputes, followers mark it.
+  assert.match(shell, /data-dispute-form/);
+  assert.match(shell, /data-dispute-list/);
+  assert.match(script, /disputeCase\(caseNumber, \{ reopenKey, text: body \}\)/);
+  assert.match(script, /'not-fixed'/);
+  assert.match(script, /'label-appeal'/);
+
+  // No reviewer exists, so no word on this surface may imply one.
+  for (const source of [shell, script, copy]) {
+    assert.doesNotMatch(source, /neovisn/i);
+    assert.doesNotMatch(source, /independent review/i);
+    assert.doesNotMatch(source, /provjeritelj/i);
+  }
+});
+
 test('public receipt keeps one truthful trail and leads with approved wording', async () => {
   const [component, detail, list, content, astroConfig, baseStyles] = await Promise.all([
     readFile(new URL('src/components/pilot/vrsar/VrsarReceipt.astro', webRoot), 'utf8'),
@@ -254,7 +303,7 @@ test('public receipt keeps one truthful trail and leads with approved wording', 
   assert.match(list, /entityName\(config\.office, lang\)/);
   assert.match(list, /entityName\(config\.category, lang\)/);
   assert.match(content, /interfaceLanguage: localized\('Jezik sučelja', 'Lingua dell’interfaccia', 'Interface language'\)/);
-  assert.match(content, /shown exactly as accepted by independent review/);
+  assert.match(content, /shown exactly as the office published it/);
   assert.match(astroConfig, /const pilotRuntime = Boolean\(process\.env\.PILOT_RUNTIME_DIR\?\.trim\(\)\)/);
   assert.match(astroConfig, /devToolbar: \{ enabled: !pilotRuntime \}/);
   // The status label is never boxed or filled: the shared recipe owns that.
@@ -272,7 +321,47 @@ test('public receipt renderers reference only the public projection vocabulary',
   }
 });
 
-test('pilot copy has HR default plus Italian and English and separates publication from resolution', async () => {
+test('the office surfaces carry the text actions and the signed answer, and the review queue is gone', async () => {
+  await assert.rejects(exists(join('review', 'index.astro')));
+  await assert.rejects(access(new URL('src/scripts/pilot/vrsar/review.ts', webRoot)));
+
+  const [caseScript, casePage, staffScript, shellScript, loginPage, shellComponent] = await Promise.all([
+    readFile(new URL('src/scripts/pilot/vrsar/case-detail.ts', webRoot), 'utf8'),
+    readFile(new URL('src/pages/pilot/vrsar/cases/[caseId].astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/staff.ts', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/shell.ts', webRoot), 'utf8'),
+    readFile(new URL('src/pages/pilot/vrsar/login.astro', webRoot), 'utf8'),
+    readFile(new URL('src/components/pilot/vrsar/VrsarPilotShell.astro', webRoot), 'utf8'),
+  ]);
+
+  // Nothing routes to a reviewer any more: no role, no nav entry, no demo tap.
+  for (const source of [caseScript, staffScript, shellScript, loginPage, shellComponent]) {
+    assert.doesNotMatch(source, /reviewer/i);
+    assert.doesNotMatch(source, /\/pilot\/vrsar\/review/);
+  }
+  assert.match(caseScript, /const STAFF_ROLES: readonly PilotRole\[\] = \['official'\]/);
+
+  // The case view carries the four text commands from the transition table.
+  assert.match(casePage, /data-public-text-section/);
+  assert.match(caseScript, /holdCase\(record!\.id, \{/);
+  assert.match(caseScript, /releaseCase\(record!\.id, \{ redactedText: text \}\)/);
+  assert.match(caseScript, /labelCase\(record!\.id, \{ label: 'form-letter', action: labelled \? 'clear' : 'set' \}\)/);
+  for (const reason of ['personal-data', 'abuse', 'off-topic', 'other']) {
+    assert.ok(caseScript.includes(`'${reason}'`), reason);
+  }
+  // Closing moved to the office, and still only where the table allows it.
+  assert.match(caseScript, /closeSection\.hidden = role !== 'official'/);
+  assert.match(caseScript, /current\.status === 'open' \|\| current\.status === 'assigned'/);
+
+  // The answer is signed and publishes at once; no summary is proposed.
+  assert.match(staffScript, /signedBy,/);
+  assert.doesNotMatch(staffScript, /publicSummary/);
+  assert.doesNotMatch(staffScript, /expectedVersion: record\.version,\n\s*commitment/);
+  assert.match(staffScript, /pilotCopy\.staff\.publishesNow\[lang\]/);
+  assert.match(staffScript, /reopenCase\(record\.id/);
+});
+
+test('pilot copy has HR default plus Italian and English and separates publication from completion', async () => {
   const source = await readFile(new URL('src/content/pilot/vrsar.ts', webRoot), 'utf8');
   assert.match(source, /PILOT_LANGS = \['hr', 'it', 'en'\]/);
   assert.match(source, /Općina Vrsar-Orsera/);
@@ -280,39 +369,42 @@ test('pilot copy has HR default plus Italian and English and separates publicati
   assert.match(source, /Ambiente di test non ufficiale/);
   assert.match(source, /Unofficial test environment/);
   assert.match(source, /Objavljena obveza nije dokaz izvršenog popravka/);
-  assert.match(source, /resolution-pending-review/);
-  assert.match(source, /resolved/);
+  assert.match(source, /disputed: localized/);
+  assert.match(source, /resolved: localized/);
+  // There is no reviewer, so no string on any pilot surface may name one.
+  assert.doesNotMatch(source, /neovisn/i);
+  assert.doesNotMatch(source, /independent/i);
+  assert.doesNotMatch(source, /reviewer/i);
 });
 
 test('workflow statuses and backend errors have HR, IT, and EN text', () => {
   for (const status of [
     'open',
+    'received',
     'assigned',
-    'commitment-pending-review',
-    'returned',
-    'published',
-    'resolution-pending-review',
+    'answered',
     'resolved',
+    'disputed',
+    'closed',
   ]) {
     for (const lang of ['hr', 'it', 'en']) assert.ok(statusLabels[status]?.[lang], `${status}:${lang}`);
   }
   for (const action of [
     'report-filed',
-    'office-assigned',
-    'commitment-filed',
-    'commitment-accepted',
-    'completion-approved',
     'record-created',
+    'text-held',
+    'text-released',
+    'label-set',
+    'label-cleared',
+    'office-assigned',
     'record-assigned',
-    'commitment-submitted',
-    'commitment-approved',
-    'commitment-returned',
-    'resolution-submitted',
-    'resolution-approved',
-    'resolution-returned',
+    'commitment-published',
+    'completion-reported',
+    'completion-disputed',
+    'case-reopened',
+    'case-resolved-standing',
     'attachment-added',
-    'published',
-    'resolved',
+    'case-closed',
   ]) {
     for (const lang of ['hr', 'it', 'en']) assert.ok(actionLabels[action]?.[lang], `${action}:${lang}`);
   }
@@ -335,7 +427,7 @@ test('workflow statuses and backend errors have HR, IT, and EN text', () => {
     'public_record_not_found',
     'rate_limited',
     'record_not_found',
-    'self_review_forbidden',
+    'dispute_limit',
     'stale_version',
     'trace_integrity_failed',
     'trace_unavailable',
@@ -349,11 +441,14 @@ test('workflow statuses and backend errors have HR, IT, and EN text', () => {
 test('current public milestone actions never fall back to generic update copy', () => {
   const currentActions = [
     'report-filed',
+    'text-held',
+    'text-released',
     'office-assigned',
-    'commitment-filed',
-    'commitment-accepted',
-    'published',
-    'completion-approved',
+    'commitment-published',
+    'completion-reported',
+    'completion-disputed',
+    'case-reopened',
+    'case-resolved-standing',
   ];
   for (const lang of ['hr', 'it', 'en']) {
     const fallback = translatedAction('__unknown-public-action__', lang);
@@ -368,14 +463,14 @@ test('current public milestone actions never fall back to generic update copy', 
 test('receipt stage selects the newest public milestone without requiring a sequence', () => {
   const published = {
     stage: 'receipt',
-    action: 'published',
-    actorRole: 'reviewer',
+    action: 'commitment-published',
+    actorRole: 'official',
     createdAt: '2026-09-05T09:00:00.000Z',
   };
   const completion = {
     stage: 'receipt',
-    action: 'completion-approved',
-    actorRole: 'reviewer',
+    action: 'case-resolved-standing',
+    actorRole: 'system',
     createdAt: '2026-09-05T10:00:00.000Z',
   };
   assert.deepEqual(latestTraceEvent([published], 'receipt'), published);
@@ -685,29 +780,19 @@ test('demo sign-in exchanges a role for a session and never takes an address or 
   assert.match(official.headers.get('set-cookie') ?? '', /polis_pilot_session=demo-session-token/);
   assert.match(official.headers.get('set-cookie') ?? '', /HttpOnly/);
 
-  const reviewer = await handlePilotProxy(proxyContext('identity/demo-login', {
-    method: 'POST',
-    body: { role: 'reviewer' },
-  }), options);
-  assert.equal(reviewer.status, 200);
-  assert.deepEqual(JSON.parse(calls[1].init.body), {
-    email: 'reviewer@vrsar.example.test',
-    passcode: 'shared-demo-passcode',
-  });
-
   const renamed = await handlePilotProxy(proxyContext('identity/demo-login', {
     method: 'POST',
     body: { role: 'official' },
   }), {
     ...options,
     demoOfficialEmail: 'sluzbenik@vrsar.example.test',
-    demoReviewerEmail: 'recenzent@vrsar.example.test',
   });
   assert.equal(renamed.status, 200);
-  assert.equal(JSON.parse(calls[2].init.body).email, 'sluzbenik@vrsar.example.test');
+  assert.equal(JSON.parse(calls[1].init.body).email, 'sluzbenik@vrsar.example.test');
 
   for (const body of [
     { role: 'resident' },
+    { role: 'reviewer' },
     { role: 'admin' },
     { role: '' },
     {},
@@ -734,7 +819,7 @@ test('demo sign-in exchanges a role for a session and never takes an address or 
 
   const wrongMethod = await handlePilotProxy(proxyContext('identity/demo-login'), options);
   assert.equal(wrongMethod.status, 404);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 2);
 });
 
 test('demo sign-in does not exist without the test instance flag or without the passcode', async () => {

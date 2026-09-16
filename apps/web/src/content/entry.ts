@@ -44,6 +44,8 @@ export const entryStrings = {
   ledgerOpen: { hr: 'Otvoreno', en: 'Open' },
   ledgerOverdue: { hr: 'Rok prekoračen', en: 'Past due' },
   ledgerClosed: { hr: 'Zatvoreno', en: 'Closed' },
+  /* Held text is not a process state, so it is counted next to the states. */
+  ledgerHeld: { hr: 'Zadržan tekst', en: 'Text held' },
   ledgerCapped: { hr: 'posljednjih 100', en: 'the latest 100' },
 
   /*
@@ -55,16 +57,20 @@ export const entryStrings = {
   ledgerStageAll: { hr: 'Sve', en: 'All' },
   ledgerStageReceived: { hr: 'Zaprimljeno', en: 'Received' },
   ledgerStageAssigned: { hr: 'Dodijeljeno', en: 'Assigned' },
-  ledgerStageInReview: { hr: 'U provjeri', en: 'In review' },
-  ledgerStagePublished: { hr: 'Objavljeno', en: 'Published' },
+  ledgerStageAnswered: { hr: 'Odgovoreno', en: 'Answered' },
   ledgerStageResolved: { hr: 'Riješeno', en: 'Resolved' },
+  ledgerStageDisputed: { hr: 'Osporeno', en: 'Disputed' },
   ledgerStageClosed: { hr: 'Zatvoreno', en: 'Closed' },
   ledgerStageEmpty: { hr: 'Nema predmeta u ovoj fazi.', en: 'No cases at this stage.' },
   ledgerStageEmptyAll: { hr: 'Prikaži sve predmete', en: 'Show every case' },
 
   /* One line under a row that has reached an answer. */
-  ledgerHintPublished: { hr: 'Ured je objavio obvezu.', en: 'The office published its commitment.' },
+  ledgerHintAnswered: { hr: 'Ured je objavio obvezu.', en: 'The office published its commitment.' },
   ledgerHintResolved: { hr: 'Riješeno', en: 'Resolved' },
+  ledgerHintDisputed: {
+    hr: 'Podnositelj je osporio dovršetak.',
+    en: 'The filer disputed the completion.',
+  },
   ledgerHintOverdue: { hr: 'Rok prekoračen', en: 'Past due' },
   ledgerSearchLabel: { hr: 'Broj predmeta', en: 'Case number' },
   ledgerSearchPlaceholder: { hr: 'VRS-123456', en: 'VRS-123456' },
@@ -77,6 +83,9 @@ export const entryStrings = {
   ledgerDue: { hr: 'Rok', en: 'Due' },
   ledgerFollowers: { hr: 'Prati', en: 'Following' },
   ledgerAlsoAffected: { hr: 'Isti problem', en: 'Same problem' },
+  ledgerNotFixed: { hr: 'Nije popravljeno', en: 'Not fixed' },
+  /* A row whose text the office is holding says so where the text would stand. */
+  ledgerTextHeld: { hr: 'Tekst je zadržan.', en: 'The text is held.' },
   ledgerEmpty: { hr: 'Još nema predmeta.', en: 'No cases yet.' },
   ledgerEmptyPurpose: {
     hr: 'Ovdje stoji svaki predmet ove općine, u svakom stanju, čim ga ured zaprimi.',
@@ -161,14 +170,14 @@ export const entryStrings = {
    * browser re-encodes the picture before it leaves the phone.
    */
   reportPhotoNote: {
-    hr: 'Jedna fotografija, neobavezno. Vidi je samo ured. Ne objavljuje se, a lokacija i podaci fotoaparata brišu se prije slanja.',
-    en: 'One photo, optional. Only the office sees it. It is never published, and the location and camera data are stripped before it is sent.',
+    hr: 'Jedna fotografija, neobavezno. Zasad je vidi samo ured i ne objavljuje se. Lokacija i podaci fotoaparata brišu se prije slanja.',
+    en: 'One photo, optional. For now only the office sees it and it is not published. The location and camera data are stripped before it is sent.',
   },
   reportSubmit: { hr: 'Pošalji prijavu', en: 'Send report' },
   reportSending: { hr: 'Šaljem…', en: 'Sending…' },
   reportPrivacyNote: {
-    hr: 'Bez računa. Vaš tekst ne objavljuje se; javno je samo broj predmeta, područje, kategorija i stanje dok ga ured ne odobri.',
-    en: 'No account. Your text is not published; only the case number, the area, the category and the state are public until the office approves it.',
+    hr: 'Bez računa. Tekst i lokacija javni su odmah, pod brojem predmeta. Ne pišite imena, brojeve telefona ni registracije drugih ljudi. Vaši kontaktni podaci ostaju privatni.',
+    en: 'No account. The text and the location are public right away, under the case number. Do not write other people’s names, phone numbers or plates. Your contact details stay private.',
   },
   reportFailed: { hr: 'Prijava nije poslana. Pokušajte ponovno.', en: 'The report was not sent. Try again.' },
   reportNoScript: {

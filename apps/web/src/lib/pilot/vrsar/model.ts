@@ -3,15 +3,14 @@
 
 import type { PilotLang } from '../../../content/pilot/vrsar';
 
-export type PilotRole = 'resident' | 'official' | 'reviewer';
+export type PilotRole = 'resident' | 'official';
+export type TraceRole = 'resident' | 'official' | 'gateway' | 'system';
 export type TraceStatus =
   | 'open'
   | 'assigned'
-  | 'commitment-pending-review'
-  | 'returned'
-  | 'published'
-  | 'resolution-pending-review'
+  | 'answered'
   | 'resolved'
+  | 'disputed'
   | 'closed';
 
 /** How the filer reached the office. The web form is one channel among three. */
@@ -35,10 +34,17 @@ export const CLOSED_REASONS: readonly ClosedReason[] = [
 export type CaseShellState =
   | 'received'
   | 'assigned'
-  | 'in-review'
-  | 'published'
+  | 'answered'
   | 'resolved'
+  | 'disputed'
   | 'closed';
+
+export type HoldReason = 'personal-data' | 'abuse' | 'off-topic' | 'other';
+export type TextStatus = 'public' | 'held' | 'redacted';
+export interface OfficialSignature {
+  name: string;
+  title: string;
+}
 
 export interface LocalizedName {
   hr?: string;
@@ -80,6 +86,8 @@ export interface PilotSession {
 export type CaseMessageDirection = 'inbound' | 'outbound';
 export type CaseMessageKind =
   | 'append'
+  | 'label-appeal'
+  | 'dispute'
   | 'answer'
   | 'question'
   | 'status-update'
@@ -87,7 +95,7 @@ export type CaseMessageKind =
   | 'transcript'
   | 'transcript-failed';
 export type CaseMessageSource = 'typed' | 'transcript' | 'system';
-export type CaseMessageAuthorKind = 'filer' | 'official' | 'reviewer' | 'system';
+export type CaseMessageAuthorKind = 'filer' | 'official' | 'system';
 export type CaseMessageDeliveryState =
   | 'pending'
   | 'handed-off'
@@ -116,7 +124,7 @@ export interface CaseMessage {
 export type AiProposalKind = 'category' | 'location' | 'duplicate-of' | 'office';
 export type AiProposalStatus = 'proposed' | 'accepted' | 'rejected' | 'superseded';
 
-/** A machine suggestion. It changes nothing until an official or reviewer decides. */
+/** A machine suggestion. It changes nothing until an official decides. */
 export interface AiProposal {
   id: string;
   recordId: string;
@@ -140,11 +148,19 @@ export interface PublicCaseShell {
   category: string;
   track: 'standard';
   state: CaseShellState;
+  text: string | null;
+  location: string | null;
+  textStatus: TextStatus;
+  holdReason: HoldReason | null;
+  textSha256: string;
+  labels: string[];
   closedPublicReason: string | null;
   filedAt: string;
   clockDueAt: string | null;
   followerCount: number;
   alsoAffectedCount: number;
+  notFixedCount: number;
+  disputeCount: number;
   shellHash: string;
   updatedAt: string;
   testEnvironment: true;
@@ -164,7 +180,7 @@ export interface TraceEvent {
   sequence?: number;
   stage: 'voice' | 'responsibility' | 'response' | 'check' | 'receipt' | string;
   action: string;
-  actorRole: PilotRole | string;
+  actorRole: TraceRole;
   note?: string;
   createdAt: string;
   previousHash?: string;
@@ -238,38 +254,117 @@ export interface PrivateTraceRecord {
   aiProposals?: AiProposal[];
 }
 
+export type PublicEvent =
+  | {
+      stage: 'voice';
+      action: 'report-filed';
+      actorRole: 'resident';
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'text-held';
+      actorRole: 'system' | 'official';
+      reason: HoldReason;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'text-released';
+      actorRole: 'official';
+      redacted: boolean;
+      createdAt: string;
+    }
+  | {
+      stage: 'voice';
+      action: 'label-set' | 'label-cleared';
+      actorRole: 'system' | 'official';
+      label: 'form-letter';
+      createdAt: string;
+    }
+  | {
+      stage: 'responsibility';
+      action: 'office-assigned';
+      actorRole: 'official';
+      createdAt: string;
+    }
+  | {
+      stage: 'response';
+      action: 'commitment-published';
+      actorRole: 'official';
+      signedBy: string;
+      createdAt: string;
+    }
+  | {
+      stage: 'check';
+      action: 'completion-reported';
+      actorRole: 'official';
+      createdAt: string;
+    }
+  | {
+      stage: 'check';
+      action: 'completion-disputed';
+      actorRole: 'resident';
+      createdAt: string;
+    }
+  | {
+      stage: 'check';
+      action: 'case-reopened';
+      actorRole: 'official';
+      createdAt: string;
+    }
+  | {
+      stage: 'receipt';
+      action: 'case-resolved-standing';
+      actorRole: 'system';
+      createdAt: string;
+    }
+  | {
+      stage: 'voice' | 'responsibility';
+      action: 'case-closed';
+      actorRole: 'official';
+      publicReason: string;
+      createdAt: string;
+    };
+
+export interface PublicDispute {
+  text: string | null;
+  textStatus: 'public' | 'held';
+  holdReason: HoldReason | null;
+  createdAt: string;
+}
+
 /** Public fields are deliberately separate from the private record type. */
 export interface PublicTraceRecord {
   id: string;
   municipalityId: string;
   category: string | PilotConfigEntity;
   office: string | PilotConfigEntity;
-  status: 'published' | 'resolved';
-  publicSummary: string;
+  status: 'answered' | 'resolved' | 'disputed';
   commitment: string;
   dueDate: string;
-  evidenceNote?: string;
-  evidenceUrls?: string[];
+  signedBy: OfficialSignature;
+  evidenceNote: string | null;
+  evidenceUrls: string[];
   publishedAt: string;
-  resolvedAt?: string;
-  events: TraceEvent[];
+  resolvedAt: string | null;
+  disputes: PublicDispute[];
+  events: PublicEvent[];
   receiptHash: string;
   testEnvironment: true;
 }
 
 export function isPilotRole(value: unknown): value is PilotRole {
-  return value === 'resident' || value === 'official' || value === 'reviewer';
+  return value === 'resident' || value === 'official';
 }
 
 export function isTraceStatus(value: unknown): value is TraceStatus {
   return (
     value === 'open' ||
     value === 'assigned' ||
-    value === 'commitment-pending-review' ||
-    value === 'returned' ||
-    value === 'published' ||
-    value === 'resolution-pending-review' ||
+    value === 'answered' ||
     value === 'resolved' ||
+    value === 'disputed' ||
     value === 'closed'
   );
 }
@@ -379,14 +474,27 @@ export function anonymousCaseFromEnvelope(value: unknown): {
 export function attentionCountsFromEnvelope(value: unknown): {
   followerCount: number;
   alsoAffectedCount: number;
+  notFixedCount: number;
 } {
   const counts = envelopeMember(value, 'counts', 'invalid_attention_response');
   if (!counts || typeof counts !== 'object') throw new Error('invalid_attention_response');
-  const shape = counts as { followerCount?: unknown; alsoAffectedCount?: unknown };
-  if (typeof shape.followerCount !== 'number' || typeof shape.alsoAffectedCount !== 'number') {
+  const shape = counts as {
+    followerCount?: unknown;
+    alsoAffectedCount?: unknown;
+    notFixedCount?: unknown;
+  };
+  if (
+    typeof shape.followerCount !== 'number' ||
+    typeof shape.alsoAffectedCount !== 'number' ||
+    typeof shape.notFixedCount !== 'number'
+  ) {
     throw new Error('invalid_attention_response');
   }
-  return { followerCount: shape.followerCount, alsoAffectedCount: shape.alsoAffectedCount };
+  return {
+    followerCount: shape.followerCount,
+    alsoAffectedCount: shape.alsoAffectedCount,
+    notFixedCount: shape.notFixedCount,
+  };
 }
 
 export function recordsFromEnvelope<T>(value: unknown): T[] {

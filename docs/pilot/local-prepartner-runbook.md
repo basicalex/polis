@@ -73,14 +73,15 @@ the explicit test marker. It creates these stable synthetic identities:
 | `trace-resident-test` | `resident@vrsar.example.test` | resident |
 | `trace-resident-other-test` | `other@vrsar.example.test` | resident |
 | `trace-official-test` | `official@vrsar.example.test` | official allowlist |
-| `trace-reviewer-test` | `reviewer@vrsar.example.test` | reviewer allowlist |
 
-The runtime sets `TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test` and
-`TRACE_REVIEWER_CITIZEN_IDS=trace-reviewer-test`. It sets
-`IDENTITY_DEV_TOKENS=false`; there is no browser bypass or role selector.
+The runtime sets `TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test`.
+`TRACE_AI_COMPLIANCE_URL` and `TRACE_HOLD_TERMS` are optional; unset values
+keep the local compliance pass active without an AI gateway or extra hold
+terms. It sets `IDENTITY_DEV_TOKENS=false`; there is no browser bypass or role
+selector.
 
 The local SMTP relay binds only to `127.0.0.1`, requires its generated SMTP
-credentials, accepts only the four listed recipient addresses, bounds message
+credentials, accepts only the three listed recipient addresses, bounds message
 size, and writes captures mode `0600`. It does not deliver mail outside the
 machine. List captures without exposing bodies:
 
@@ -104,6 +105,12 @@ synthetic identity seed, trace-owned migrations, grants to the non-superuser
 app role, SMTP, identity, trace, the bounded platform, then web. It uses the
 published `@polis/trace-service` `build`, `migrate`, and `start` commands.
 
+Trace migration `0004_public_text` refuses to run on a database that still
+holds review-era rows (statuses `commitment-pending-review`, `returned`,
+`published`, `resolution-pending-review`). Event rows are append-only and
+hash-chained, so they cannot be rewritten. Reset the synthetic database and
+re-seed before migrating; this applies to the hosted test instance too.
+
 The harness supplies the shared explicit environment, including:
 
 - `SERVICE_HOST=127.0.0.1`, `DATABASE_URL` for the non-superuser app role,
@@ -111,9 +118,12 @@ The harness supplies the shared explicit environment, including:
 - `IDENTITY_MAGIC_LINK_DELIVERY=smtp`, `PUBLIC_APP_URL`,
   `IDENTITY_ALLOW_HTTP_LOCALHOST=true`, loopback SMTP settings, and
   `IDENTITY_DEV_TOKENS=false`;
-- `TRACE_ENABLED=true`, `TRACE_INTERNAL_URL=http://127.0.0.1:8980`, the two
-  stable role allowlists, and `TRACE_INTAKE_OPEN=true`; trace loads its fixed
-  repository pilot configuration at `config/pilots/vrsar-orsera.json`;
+- `TRACE_ENABLED=true`, `TRACE_INTERNAL_URL=http://127.0.0.1:8980`,
+  `TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test`, and
+  `TRACE_INTAKE_OPEN=true`; optional `TRACE_AI_COMPLIANCE_URL` and
+  `TRACE_HOLD_TERMS` configure the gateway check and added local hold terms;
+  trace loads its fixed repository pilot configuration at
+  `config/pilots/vrsar-orsera.json`;
 - `PILOT_API_BASE=http://127.0.0.1:3000`, `PUBLIC_SITE_URL` on loopback, and
   `PUBLIC_RELEASE=0`.
 
@@ -204,15 +214,16 @@ The stub response redacts the destination number. Do not paste the command or
 shell history into shared logs because the input still contains the synthetic
 number and the environment holds the token.
 
-Look up the narrative-free public shell by its returned case number:
+Look up the public shell by its returned case number:
 
 ```sh
 curl --fail --silent --show-error \
   http://127.0.0.1:3000/api/trace/public/cases/VRS-184213
 ```
 
-This lookup returns the shell and any separately published public record. It
-does not return the phone number or private report text.
+This lookup returns the filed or redacted text, or the public hold notice, plus
+any signed public record. It never returns the phone number, contact data,
+attachments, private messages, or held original text.
 
 The recovery drill creates an encrypted local `pg_dump`, tests authenticated
 ciphertext tamper detection, restores to a newly generated owned `*_test`

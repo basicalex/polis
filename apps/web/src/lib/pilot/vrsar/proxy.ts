@@ -30,7 +30,6 @@ interface ProxyOverrides {
   /** Worker secret. Without it the demo sign-in route does not exist. */
   demoPasscode?: string | null;
   demoOfficialEmail?: string | null;
-  demoReviewerEmail?: string | null;
 }
 
 /**
@@ -41,11 +40,9 @@ interface ProxyOverrides {
 interface DemoLoginConfig {
   passcode: string;
   officialEmail: string;
-  reviewerEmail: string;
 }
 
 const DEMO_OFFICIAL_EMAIL = 'official@vrsar.example.test';
-const DEMO_REVIEWER_EMAIL = 'reviewer@vrsar.example.test';
 
 interface RouteMatch {
   upstreamPath: string;
@@ -318,6 +315,27 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       bodyKeys: ['followerKey', 'kind', 'action'],
     };
   }
+  const dispute = path.match(new RegExp(`^cases/(${CASE_SEGMENT})/dispute$`));
+  if (method === 'POST' && dispute) {
+    return {
+      upstreamPath: `/api/trace/cases/${encodeURIComponent(dispute[1])}/dispute`,
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['reopenKey', 'text'],
+    };
+  }
+  const filerMessage = path.match(new RegExp(`^cases/(${CASE_SEGMENT})/messages$`));
+  if (method === 'POST' && filerMessage) {
+    return {
+      upstreamPath: `/api/trace/cases/${encodeURIComponent(filerMessage[1])}/messages`,
+      needsSession: false,
+      idempotency: true,
+      responseKind: 'json',
+      bodyKeys: ['reopenKey', 'kind', 'body', 'inReplyTo'],
+    };
+  }
+
 
   const proposalDecision = path.match(
     new RegExp(`^records/(${ID_SEGMENT})/ai-proposals/(${ID_SEGMENT})/decision$`),
@@ -346,26 +364,32 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
 
   const action = path.match(
     new RegExp(
-      `^records/(${ID_SEGMENT})/(assign|commitment|review|resolution|resolution-review|attachments|messages|close)$`,
+      `^records/(${ID_SEGMENT})/(assign|commitment|resolution|reopen|hold|release|label|attachments|messages|close)$`,
     ),
   );
   if (method !== 'POST' || !action) return null;
   const bodyKeys: Record<string, readonly string[]> = {
     assign: ['expectedVersion'],
-    commitment: ['expectedVersion', 'publicSummary', 'commitment', 'dueDate'],
-    review: ['expectedVersion', 'decision', 'note'],
-    resolution: ['expectedVersion', 'evidenceNote', 'evidenceUrls'],
-    'resolution-review': ['expectedVersion', 'decision', 'note'],
+    commitment: ['commitment', 'dueDate', 'signedBy', 'evidenceNote', 'evidenceUrls'],
+    resolution: ['evidenceNote', 'evidenceUrls', 'signedBy'],
+    reopen: ['note'],
+    hold: ['reason', 'note'],
+    release: ['redactedText', 'note'],
+    label: ['label', 'action'],
     attachments: ['expectedVersion', 'filename', 'contentType', 'base64'],
     messages: ['expectedVersion', 'kind', 'body'],
     close: ['expectedVersion', 'reason', 'publicReason', 'note'],
   };
+  const actionName = action[2];
   return {
-    upstreamPath: `/api/trace/records/${encodeURIComponent(action[1])}/${action[2]}`,
+    upstreamPath: `/api/trace/records/${encodeURIComponent(action[1])}/${actionName}`,
     needsSession: true,
     idempotency: true,
     responseKind: 'json',
-    bodyKeys: bodyKeys[action[2]],
+    bodyKeys: bodyKeys[actionName],
+    ...(actionName === 'commitment' || actionName === 'resolution'
+      ? { objectKeys: { signedBy: ['name', 'title'] } }
+      : {}),
   };
 }
 
@@ -420,11 +444,7 @@ function demoLoginConfig(testInstance: boolean, overrides: ProxyOverrides): Demo
     (overrides.demoOfficialEmail !== undefined
       ? trimmedSetting(overrides.demoOfficialEmail)
       : metaSetting(() => import.meta.env.PILOT_DEMO_OFFICIAL_EMAIL)) ?? DEMO_OFFICIAL_EMAIL;
-  const reviewerEmail =
-    (overrides.demoReviewerEmail !== undefined
-      ? trimmedSetting(overrides.demoReviewerEmail)
-      : metaSetting(() => import.meta.env.PILOT_DEMO_REVIEWER_EMAIL)) ?? DEMO_REVIEWER_EMAIL;
-  return { passcode, officialEmail, reviewerEmail };
+  return { passcode, officialEmail };
 }
 
 /**
@@ -443,11 +463,11 @@ function demoLoginRoute(method: string, path: string, demo: DemoLoginConfig | nu
     bodyKeys: ['role'],
     upstreamBodyFrom: (body) => {
       const role = body.role;
-      if (role !== 'official' && role !== 'reviewer') {
-        return jsonError(400, 'invalid_request', 'The demo role must be official or reviewer.');
+      if (role !== 'official') {
+        return jsonError(400, 'invalid_request', 'The demo role must be official.');
       }
       return {
-        email: role === 'official' ? demo.officialEmail : demo.reviewerEmail,
+        email: demo.officialEmail,
         passcode: demo.passcode,
       };
     },

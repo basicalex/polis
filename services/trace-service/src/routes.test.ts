@@ -50,7 +50,6 @@ function config(intakeOpen = true): TraceConfig {
     databaseUrl: 'postgres://unused.test/trace',
     intakeOpen,
     officialIds: new Set(['trace-official-test']),
-    reviewerIds: new Set(['trace-reviewer-test']),
     gatewayIds: new Set(['sms-gateway']),
     pilot,
   };
@@ -68,7 +67,7 @@ function privateRecord(): PrivateRecord {
     location: 'Private location',
     contactEmail: null,
     office: 'communal-system',
-    publicSummary: null,
+    signedBy: null,
     commitment: null,
     dueDate: null,
     evidenceNote: null,
@@ -84,6 +83,8 @@ function privateRecord(): PrivateRecord {
     closedPublicReason: null,
     followerCount: 0,
     alsoAffectedCount: 0,
+    notFixedCount: 0,
+    disputeCount: 0,
     aiProposals: [],
   };
 }
@@ -95,13 +96,41 @@ function caseShell(): CaseShell {
     category: 'public-lighting',
     track: 'standard',
     state: 'received',
+    text: 'Lamp is dark.',
+    location: 'Square',
+    textStatus: 'public',
+    holdReason: null,
+    textSha256: 'd'.repeat(64),
+    labels: [],
     closedPublicReason: null,
     filedAt: '2026-09-12T10:00:00.000Z',
     clockDueAt: null,
     followerCount: 0,
     alsoAffectedCount: 0,
+    notFixedCount: 0,
+    disputeCount: 0,
     shellHash: 'a'.repeat(64),
     updatedAt: '2026-09-12T10:00:00.000Z',
+    testEnvironment: true,
+  };
+}
+function publicRecord(): PublicRecord {
+  return {
+    id: '20000000-0000-4000-8000-000000000001',
+    municipalityId: 'vrsar-orsera',
+    category: 'public-lighting',
+    office: 'communal-system',
+    status: 'answered',
+    commitment: 'Replace the lamp',
+    dueDate: '2026-10-01',
+    signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+    evidenceNote: null,
+    evidenceUrls: [],
+    publishedAt: '2026-09-12T10:00:00.000Z',
+    resolvedAt: null,
+    disputes: [],
+    events: [],
+    receiptHash: 'e'.repeat(64),
     testEnvironment: true,
   };
 }
@@ -174,9 +203,11 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     create: async () => ({ status: 201, body: { record } }),
     assign: ok,
     commitment: ok,
-    review: ok,
     resolution: ok,
-    resolutionReview: ok,
+    reopen: ok,
+    hold: ok,
+    release: ok,
+    label: ok,
     addAttachment: async () => ({ status: 201, body: { attachment: { id: record.id } } }),
     downloadAttachment: async (): Promise<AttachmentDownload> => ({
       bytes: Uint8Array.from([1, 2, 3]),
@@ -199,6 +230,7 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     markOutboxDelivery: async () => ({ message }),
     readFilerCase: async () => ({ case: filerCase }),
     appendFilerMessage: async () => ({ message }),
+    dispute: async () => ({ case: shell, record: publicRecord() }),
     listMessages: async () => ({ messages: [message] }),
     postOfficialMessage: async () => ({ message, record }),
     proposeAi: async () => ({ proposal }),
@@ -206,7 +238,9 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     closeCase: async () => ({ record, shell }),
     listPublicShells: async () => ({ cases: [shell] }),
     getPublicCase: async () => ({ case: shell, record: null }),
-    recordAttention: async () => ({ counts: { followerCount: 1, alsoAffectedCount: 0 } }),
+    recordAttention: async () => ({
+      counts: { followerCount: 1, alsoAffectedCount: 0, notFixedCount: 0 },
+    }),
     close: async () => undefined,
     ...overrides,
   };
@@ -264,9 +298,11 @@ test('route table exposes every exact internal trace path', () => {
     'GET /internal/trace/records/:id',
     'POST /internal/trace/records/:id/assign',
     'POST /internal/trace/records/:id/commitment',
-    'POST /internal/trace/records/:id/review',
     'POST /internal/trace/records/:id/resolution',
-    'POST /internal/trace/records/:id/resolution-review',
+    'POST /internal/trace/records/:id/reopen',
+    'POST /internal/trace/records/:id/hold',
+    'POST /internal/trace/records/:id/release',
+    'POST /internal/trace/records/:id/label',
     'POST /internal/trace/records/:id/attachments',
     'GET /internal/trace/records/:id/attachments/:attachmentId',
     'GET /internal/trace/public/records',
@@ -276,6 +312,7 @@ test('route table exposes every exact internal trace path', () => {
     'GET /internal/trace/channel/outbox',
     'POST /internal/trace/channel/outbox/:messageId/delivery',
     'POST /internal/trace/cases/:caseNumber/private',
+    'POST /internal/trace/cases/:caseNumber/dispute',
     'POST /internal/trace/cases/:caseNumber/messages',
     'GET /internal/trace/records/:id/messages',
     'POST /internal/trace/records/:id/messages',
@@ -609,7 +646,7 @@ test('only channel creation responses expose a reopen key', async () => {
       () =>
         fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
           method: 'POST',
-          headers: internalHeaders('trace-reviewer-test', VALID_IDEMPOTENCY_KEY),
+          headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
           body: JSON.stringify({
             expectedVersion: 0,
             reason: 'out-of-scope',
@@ -653,18 +690,18 @@ test('public cases need no actor; close and AI decisions enforce staff roles', a
       reason: 'out-of-scope',
       publicReason: 'Outside this pilot category.',
     });
+    const residentClose = await fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
+      method: 'POST',
+      headers: internalHeaders('trace-resident-test', VALID_IDEMPOTENCY_KEY),
+      body: closeBody,
+    });
+    assert.equal(residentClose.status, 403);
     const officialClose = await fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
       method: 'POST',
       headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
       body: closeBody,
     });
-    assert.equal(officialClose.status, 403);
-    const reviewerClose = await fetch(`${base}/internal/trace/records/${RECORD_ID}/close`, {
-      method: 'POST',
-      headers: internalHeaders('trace-reviewer-test', VALID_IDEMPOTENCY_KEY),
-      body: closeBody,
-    });
-    assert.equal(reviewerClose.status, 200);
+    assert.equal(officialClose.status, 200);
 
     const decisionUrl = `${base}/internal/trace/records/${RECORD_ID}/ai-proposals/${PROPOSAL_ID}/decision`;
     const decisionBody = JSON.stringify({ expectedVersion: 0, decision: 'accepted' });
@@ -674,13 +711,11 @@ test('public cases need no actor; close and AI decisions enforce staff roles', a
       body: decisionBody,
     });
     assert.equal(residentDecision.status, 403);
-    for (const actor of ['trace-official-test', 'trace-reviewer-test']) {
-      const accepted = await fetch(decisionUrl, {
-        method: 'POST',
-        headers: internalHeaders(actor, VALID_IDEMPOTENCY_KEY),
-        body: decisionBody,
-      });
-      assert.equal(accepted.status, 200);
-    }
+    const accepted = await fetch(decisionUrl, {
+      method: 'POST',
+      headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+      body: decisionBody,
+    });
+    assert.equal(accepted.status, 200);
   });
 });

@@ -7,9 +7,9 @@ import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
 
 const lang = parsePilotLang(Astro.url);
 /*
- * The hosted test instance shows the two office roles as one tap each, so a
- * visitor can see the municipality's queues without an account. The build sets
- * this; a request cannot. Every other build keeps this page as it was.
+ * The hosted test instance offers the office role as one tap, so a visitor can
+ * see the municipality's queue without an account. The build sets this; a
+ * request cannot. Every other build keeps this page as it was.
  */
 const testInstance = import.meta.env.PUBLIC_TEST_INSTANCE === '1';
 ---
@@ -36,10 +36,6 @@ const testInstance = import.meta.env.PUBLIC_TEST_INSTANCE === '1';
           <button class="pilot-demo-choice" type="button" data-demo-role="official">
             <span class="pilot-demo-choice-label">{pilotCopy.login.demoOfficial[lang]}</span>
             <span class="pilot-demo-choice-help">{pilotCopy.login.demoOfficialHelp[lang]}</span>
-          </button>
-          <button class="pilot-demo-choice" type="button" data-demo-role="reviewer">
-            <span class="pilot-demo-choice-label">{pilotCopy.login.demoReviewer[lang]}</span>
-            <span class="pilot-demo-choice-help">{pilotCopy.login.demoReviewerHelp[lang]}</span>
           </button>
         </div>
       </section>

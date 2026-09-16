@@ -16,7 +16,6 @@ interface ImportMetaEnv {
    */
   readonly PILOT_DEMO_STAFF_PASSCODE?: string;
   readonly PILOT_DEMO_OFFICIAL_EMAIL?: string;
-  readonly PILOT_DEMO_REVIEWER_EMAIL?: string;
 }
 
 interface ImportMeta {
@@ -28,6 +27,5 @@ declare module 'cloudflare:workers' {
     PILOT_API_BASE?: string;
     PILOT_DEMO_STAFF_PASSCODE?: string;
     PILOT_DEMO_OFFICIAL_EMAIL?: string;
-    PILOT_DEMO_REVIEWER_EMAIL?: string;
   };
 }

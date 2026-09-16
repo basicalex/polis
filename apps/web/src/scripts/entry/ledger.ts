@@ -16,11 +16,13 @@ import { entityName, type PilotConfig, type PublicCaseShell } from '../../lib/pi
 import {
   caseStateTone,
   caseNumberRegExp,
+  textExcerpt,
   translatedCaseState,
 } from '../../content/pilot/vrsar-public-case';
 import type { PilotLang } from '../../content/pilot/vrsar';
 import { createTextElement, formatPilotDate } from '../pilot/vrsar/shell';
 import {
+  countHeld,
   countLedgerStages,
   countOpenCases,
   countOverdueCases,
@@ -125,19 +127,32 @@ function start(ledger: HTMLElement): void {
     ].filter(Boolean);
     meta.textContent = parts.join(' · ');
 
-    const attention = createTextElement(
-      'span',
-      `${strings.followers ?? ''} ${Number(shell.followerCount) || 0} · ${strings.alsoAffected ?? ''} ${
-        Number(shell.alsoAffectedCount) || 0
-      }`,
-      'ledger-row-attention',
-    );
+    const marks = [
+      `${strings.followers ?? ''} ${Number(shell.followerCount) || 0}`,
+      `${strings.alsoAffected ?? ''} ${Number(shell.alsoAffectedCount) || 0}`,
+      Number(shell.notFixedCount) > 0 ? `${strings.notFixed ?? ''} ${Number(shell.notFixedCount)}` : '',
+    ].filter(Boolean);
+    const attention = createTextElement('span', marks.join(' · '), 'ledger-row-attention');
 
     link.append(head, meta);
 
+    // The report itself, in the first line or two of it. A held text says so
+    // here rather than leaving the row looking empty.
+    const excerpt = shell.textStatus === 'held' ? (strings.textHeld ?? '') : textExcerpt(shell.text);
+    if (excerpt) {
+      const line = createTextElement('span', excerpt, 'ledger-row-text');
+      if (shell.textStatus === 'held') line.dataset.held = 'true';
+      link.append(line);
+    }
+
     if (hint) {
       const line = createTextElement('span', hint, 'ledger-row-hint');
-      line.dataset.tone = shell.state === 'resolved' ? 'valid' : isOverdue(shell) ? 'warning' : 'trace';
+      line.dataset.tone =
+        shell.state === 'resolved'
+          ? 'valid'
+          : shell.state === 'disputed' || isOverdue(shell)
+            ? 'warning'
+            : 'trace';
       link.append(line);
     }
 
@@ -159,21 +174,26 @@ function start(ledger: HTMLElement): void {
     if (shell.state === 'resolved') {
       return `${strings.hintResolved ?? ''} ${formatPilotDate(shell.updatedAt, lang, true)}`.trim();
     }
-    if (shell.state !== 'published') return '';
+    if (shell.state === 'disputed') return strings.hintDisputed ?? '';
+    if (shell.state !== 'answered') return '';
     const due = typeof shell.clockDueAt === 'string' ? shell.clockDueAt : '';
-    if (!due) return strings.hintPublished ?? '';
+    if (!due) return strings.hintAnswered ?? '';
     const clock = isOverdue(shell)
       ? `${strings.hintOverdue ?? ''} ${formatPilotDate(due, lang, true)}`
       : `${strings.due ?? ''} ${formatPilotDate(due, lang, true)}`;
-    return `${strings.hintPublished ?? ''} ${clock.trim()}`.trim();
+    return `${strings.hintAnswered ?? ''} ${clock.trim()}`.trim();
   }
 
   // ---- counts and chips ---------------------------------------------------
 
   function countAndShow(shells: PublicCaseShell[]): void {
+    const byStage = countLedgerStages(shells);
     const counts: Record<string, number> = {
       open: countOpenCases(shells),
       overdue: countOverdueCases(shells),
+      // Held and closed are how a removal stays visible: as a number.
+      held: countHeld(shells),
+      closed: byStage.closed ?? 0,
     };
     for (const element of summary?.querySelectorAll<HTMLElement>('[data-count]') ?? []) {
       element.textContent = String(counts[element.dataset.count ?? ''] ?? 0);
@@ -181,7 +201,6 @@ function start(ledger: HTMLElement): void {
 
     // A stage nobody is in keeps its chip: the reader should see the whole path,
     // not only the parts of it this place happens to be standing in today.
-    const byStage = countLedgerStages(shells);
     stageChips.forEach((chip) => {
       const key = normalizeLedgerFilter(chip.dataset.stageChip);
       const count = byStage[key] ?? 0;

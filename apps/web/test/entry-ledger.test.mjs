@@ -8,6 +8,7 @@ import {
   LEDGER_STAGES,
   LEDGER_STAGE_PARAM,
   countLedgerStages,
+  countHeld,
   countOpenCases,
   countOverdueCases,
   filterLedgerCases,
@@ -21,16 +22,16 @@ const webRoot = new URL('../', import.meta.url);
 
 const NOW = Date.parse('2026-09-13T12:00:00Z');
 
-function shell(state, clockDueAt = null) {
-  return { state, clockDueAt };
+function shell(state, clockDueAt = null, textStatus = 'public') {
+  return { state, clockDueAt, textStatus };
 }
 
 const cases = [
   shell('received'),
   shell('received', '2026-09-01T00:00:00Z'),
   shell('assigned', '2026-09-30T00:00:00Z'),
-  shell('in-review', '2026-09-02T00:00:00Z'),
-  shell('published', '2026-09-20T00:00:00Z'),
+  shell('answered', '2026-09-02T00:00:00Z', 'held'),
+  shell('disputed', '2026-09-20T00:00:00Z'),
   shell('resolved', '2026-08-01T00:00:00Z'),
   shell('closed'),
   shell('closed'),
@@ -40,9 +41,9 @@ test('the chip row covers every public stage a case can stand in', () => {
   assert.deepEqual([...LEDGER_STAGES], [
     'received',
     'assigned',
-    'in-review',
-    'published',
+    'answered',
     'resolved',
+    'disputed',
     'closed',
   ]);
 });
@@ -52,9 +53,9 @@ test('every stage keeps a count, including the stages nobody is in', () => {
   assert.equal(counts.all, 8);
   assert.equal(counts.received, 2);
   assert.equal(counts.assigned, 1);
-  assert.equal(counts['in-review'], 1);
-  assert.equal(counts.published, 1);
+  assert.equal(counts.answered, 1);
   assert.equal(counts.resolved, 1);
+  assert.equal(counts.disputed, 1);
   assert.equal(counts.closed, 2);
 
   const emptyPlace = countLedgerStages([shell('received')]);
@@ -64,6 +65,11 @@ test('every stage keeps a count, including the stages nobody is in', () => {
   assert.equal(emptyPlace.resolved, 0);
   assert.equal(emptyPlace.all, 1);
 });
+test('held text is counted apart from process state', () => {
+  assert.equal(countHeld(cases), 1);
+  assert.equal(countHeld([shell('received'), shell('closed', null, 'held')]), 1);
+});
+
 
 test('an unknown state is counted in the total but in no stage', () => {
   const counts = countLedgerStages([shell('received'), shell('parked'), shell(undefined)]);
@@ -78,7 +84,7 @@ test('selecting a stage shows that stage and nothing else', () => {
     filterLedgerCases(cases, 'closed').map((item) => item.state),
     ['closed', 'closed'],
   );
-  assert.equal(filterLedgerCases(cases, 'published').length, 1);
+  assert.equal(filterLedgerCases(cases, 'answered').length, 1);
   assert.equal(filterLedgerCases(cases, 'resolved')[0].clockDueAt, '2026-08-01T00:00:00Z');
 });
 
@@ -99,7 +105,7 @@ test('open and overdue count the clock, never a finished case', () => {
 });
 
 test('a misspelled or missing stage falls back to all rather than an empty list', () => {
-  assert.equal(normalizeLedgerFilter('published'), 'published');
+  assert.equal(normalizeLedgerFilter('answered'), 'answered');
   assert.equal(normalizeLedgerFilter('objavljeno'), 'all');
   assert.equal(normalizeLedgerFilter(null), 'all');
   assert.equal(normalizeLedgerFilter(undefined), 'all');
@@ -107,13 +113,13 @@ test('a misspelled or missing stage falls back to all rather than an empty list'
 });
 
 test('a filtered view has its own address, and a shared address opens filtered', () => {
-  assert.equal(ledgerFilterHref('/vrsar/zapis', 'published'), `/vrsar/zapis?${LEDGER_STAGE_PARAM}=published`);
-  assert.equal(ledgerFilterHref(`/vrsar/zapis?${LEDGER_STAGE_PARAM}=published`, 'all'), '/vrsar/zapis');
+  assert.equal(ledgerFilterHref('/vrsar/zapis', 'answered'), `/vrsar/zapis?${LEDGER_STAGE_PARAM}=answered`);
+  assert.equal(ledgerFilterHref(`/vrsar/zapis?${LEDGER_STAGE_PARAM}=answered`, 'all'), '/vrsar/zapis');
   assert.equal(
-    ledgerFilterHref(`/vrsar/zapis?${LEDGER_STAGE_PARAM}=published`, 'closed'),
+    ledgerFilterHref(`/vrsar/zapis?${LEDGER_STAGE_PARAM}=answered`, 'closed'),
     `/vrsar/zapis?${LEDGER_STAGE_PARAM}=closed`,
   );
-  assert.equal(ledgerFilterFromLocation(`?${LEDGER_STAGE_PARAM}=in-review`), 'in-review');
+  assert.equal(ledgerFilterFromLocation(`?${LEDGER_STAGE_PARAM}=disputed`), 'disputed');
   assert.equal(ledgerFilterFromLocation(`https://polis.test/vrsar/zapis?${LEDGER_STAGE_PARAM}=resolved`), 'resolved');
   assert.equal(ledgerFilterFromLocation(''), 'all');
   assert.equal(ledgerFilterFromLocation('?lang=en'), 'all');
@@ -149,10 +155,28 @@ test('the ledger renders a chip per stage and the case page tells each stage as 
   assert.match(caseScript, /function stageSentence\(/);
   assert.match(caseScript, /function showPending\(/);
   assert.doesNotMatch(caseScript, /publicCaseCopy\.shell\.pendingPublicText/);
-  for (const key of ['voiceDone', 'responsibilityNext', 'checkNow', 'receiptResolved', 'closedAhead']) {
+  for (const key of [
+    'voiceDone',
+    'responsibilityNext',
+    'checkNow',
+    'checkDisputed',
+    'receiptResolved',
+    'closedAhead',
+  ]) {
     assert.ok(copy.includes(`${key}: localized(`), `the stage story is missing ${key}`);
   }
-  for (const state of ['received', 'assigned', 'in-review', 'closed']) {
-    assert.ok(copy.includes(`${state.includes('-') ? `'${state}'` : state}: localized(`), `no waiting line for ${state}`);
+  for (const state of LEDGER_STAGES) {
+    assert.ok(copy.includes(`${state}: localized(`), `no waiting line for ${state}`);
+  }
+
+  // There is no reviewer, so no resident surface may promise one.
+  for (const [name, source] of [
+    ['copy', copy],
+    ['case page', shellMarkup],
+    ['case script', caseScript],
+    ['ledger', ledgerMarkup],
+  ]) {
+    assert.doesNotMatch(source, /neovisn/i, name);
+    assert.doesNotMatch(source, /independent review/i, name);
   }
 });

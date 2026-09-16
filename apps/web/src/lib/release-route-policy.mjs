@@ -117,7 +117,6 @@ const policy = [
   { id: 'pilot-vrsar-cases', pattern: '/pilot/vrsar/cases', kind: 'restricted', inventory: 'current' },
   { id: 'pilot-vrsar-case-detail', pattern: '/pilot/vrsar/cases/:caseId', kind: 'restricted', inventory: 'current' },
   { id: 'pilot-vrsar-staff', pattern: '/pilot/vrsar/staff', kind: 'restricted', inventory: 'current' },
-  { id: 'pilot-vrsar-review', pattern: '/pilot/vrsar/review', kind: 'restricted', inventory: 'current' },
   { id: 'pilot-vrsar-api', pattern: '/pilot/vrsar/api/*path', kind: 'restricted', inventory: 'current' },
 
   { id: 'contribute-maps', pattern: '/contribute/maps', kind: 'not-live', inventory: 'current' },

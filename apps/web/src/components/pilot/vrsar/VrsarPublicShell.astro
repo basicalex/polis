@@ -4,24 +4,24 @@
 
 /**
  * The public case shell: what everyone may read about a case from the moment it
- * is received.
+ * is filed.
  *
  * The order on the page is the order a reader needs it in. First who and what:
- * the number, the state, the area. Then the municipality's answer, if there is
- * one — the approved summary, the promise, the date it is due, and for a
- * finished case what was done. Only then the path the case walked, the two
- * attention counts, and last the verification block, which is for the reader who
- * wants to check the chain rather than read the answer.
+ * the number, the state, the area. Then the report itself, published as it was
+ * written, with its location and the hash of the original text. Then the
+ * municipality's answer, signed by the official who made it, and what the office
+ * reported doing. Then the public's check on that claim — the disputes and the
+ * "not fixed" count — the path the case walked, the attention counts, and last
+ * the verification block for the reader who wants to check the chain.
  *
- * A shell is not a receipt. The approved text below appears only once an
- * independent review cleared it, and until then the page says which stage the
- * case is standing in and what has to happen before any text exists (rule S1).
+ * Nothing on this page waits for a reviewer: there is none. A text the
+ * compliance pass held says so in plain words and names what the office can
+ * still do with it.
  */
 
 import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
 import VrsarAttentionControl from './VrsarAttentionControl.astro';
-import VrsarStatusLabel from './VrsarStatusLabel.astro';
 import VrsarTraceSummary from './VrsarTraceSummary.astro';
 
 interface Props {
@@ -30,7 +30,10 @@ interface Props {
 
 const { lang } = Astro.props as Props;
 const copy = publicCaseCopy.shell;
+const report = publicCaseCopy.text;
+const chip = publicCaseCopy.label;
 const answer = publicCaseCopy.answer;
+const check = publicCaseCopy.check;
 const pending = publicCaseCopy.pending;
 const verification = publicCaseCopy.verification;
 const receipts = pilotCopy.receipts;
@@ -66,23 +69,64 @@ const receipts = pilotCopy.receipts;
   </section>
 
   <!--
-    The municipality's answer. Hidden until a reviewer independent of the
-    assigned office cleared it, and filled only from the public record.
+    The report as it was filed. Public from the first minute; held only when the
+    compliance pass found a reason, and then the reason is named here.
   -->
+  <section class="pilot-section panel" aria-labelledby="public-case-text-title" data-case-text>
+    <div class="pilot-public-case-head">
+      <h2 id="public-case-text-title">{report.heading[lang]}</h2>
+      <span class="status-label" data-style="stamp" data-tone="restricted" data-text-state hidden></span>
+    </div>
+
+    <p class="pilot-public-copy pilot-case-text" data-case-narrative hidden></p>
+
+    <div class="pilot-hold" data-case-hold hidden>
+      <h3 class="pilot-answer-subhead">{report.heldHeading[lang]}</h3>
+      <p class="pilot-hold-reason" data-case-hold-reason></p>
+      <p class="field-hint">{report.heldNext[lang]}</p>
+    </div>
+
+    <p class="field-hint" data-case-redacted hidden></p>
+
+    <dl class="pilot-meta">
+      <div>
+        <dt>{report.locationLabel[lang]}</dt>
+        <dd data-case-location></dd>
+      </div>
+      <div>
+        <dt>{report.hashLabel[lang]}</dt>
+        <dd class="pilot-hash" data-case-text-hash></dd>
+      </div>
+    </dl>
+
+    <p class="field-hint" data-case-as-filed hidden>{report.asFiled[lang]}</p>
+
+    <div class="pilot-label" data-case-label hidden>
+      <p class="pilot-label-head">
+        <span class="status-label" data-style="stamp" data-tone="unknown">{chip.formLetter[lang]}</span>
+      </p>
+      <p class="field-hint">{chip.formLetterNote[lang]}</p>
+
+      <form class="pilot-appeal entry-form" data-label-appeal hidden novalidate>
+        <label for="public-case-appeal">{chip.appealLabel[lang]}</label>
+        <textarea id="public-case-appeal" name="appeal" rows="3" maxlength="2000" data-appeal-text></textarea>
+        <p class="field-hint">{chip.appealHint[lang]}</p>
+        <button class="btn" data-variant="secondary" type="submit">{chip.appealSubmit[lang]}</button>
+        <p class="pilot-state" role="status" data-appeal-state></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- The office's answer: published at once, signed by the person who made it. -->
   <article class="pilot-receipt pilot-answer panel" data-public-receipt hidden>
     <header class="pilot-receipt-header">
       <h2>{answer.heading[lang]}</h2>
-      <VrsarStatusLabel status="unknown" lang={lang} />
-      <p class="pilot-state" data-public-status-note></p>
+      <span class="status-label" data-style="stamp" data-tone="unknown" data-public-state></span>
     </header>
 
     <div class="pilot-answer-body">
       <section class="pilot-section">
-        <h3>{receipts.publicSummary[lang]}</h3>
-        <p class="pilot-public-copy" data-public-summary></p>
-      </section>
-      <section class="pilot-section">
-        <h3>{receipts.commitment[lang]}</h3>
+        <h3>{answer.commitment[lang]}</h3>
         <p class="pilot-public-copy" data-public-commitment></p>
       </section>
     </div>
@@ -93,19 +137,19 @@ const receipts = pilotCopy.receipts;
         <dd data-public-office></dd>
       </div>
       <div>
-        <dt>{pilotCopy.common.category[lang]}</dt>
-        <dd data-public-category></dd>
+        <dt>{answer.signedBy[lang]}</dt>
+        <dd data-public-signed-by></dd>
       </div>
       <div>
-        <dt>{receipts.dueDate[lang]}</dt>
+        <dt>{answer.dueDate[lang]}</dt>
         <dd data-public-due-date></dd>
       </div>
       <div>
-        <dt>{receipts.publishedAt[lang]}</dt>
+        <dt>{answer.publishedAt[lang]}</dt>
         <dd data-public-published-at></dd>
       </div>
       <div data-public-resolved-at-row hidden>
-        <dt>{receipts.resolvedAt[lang]}</dt>
+        <dt>{answer.resolvedAt[lang]}</dt>
         <dd data-public-resolved-at></dd>
       </div>
     </dl>
@@ -113,14 +157,38 @@ const receipts = pilotCopy.receipts;
     <section class="pilot-section" data-public-evidence-section hidden>
       <h3>{answer.doneHeading[lang]}</h3>
       <p class="pilot-public-copy" data-public-evidence-note></p>
-      <h4 class="pilot-answer-subhead">{receipts.sourceLinks[lang]}</h4>
+      <h4 class="pilot-answer-subhead">{answer.evidenceLinks[lang]}</h4>
       <ul class="pilot-evidence-links" data-public-evidence-links></ul>
     </section>
 
     <p class="field-hint">{answer.note[lang]}</p>
   </article>
 
-  <!-- Before approval: which stage the case stands in, and why no text exists. -->
+  <!-- The public's check on the completion claim. -->
+  <section class="pilot-section panel" data-case-check hidden aria-labelledby="public-case-check-title">
+    <h2 id="public-case-check-title">{check.heading[lang]}</h2>
+
+    <p class="pilot-check-count">
+      <span class="pilot-check-label">{check.notFixedCount[lang]}:</span>
+      <span class="pilot-check-value" data-not-fixed-count>0</span>
+    </p>
+
+    <div data-case-disputes hidden>
+      <h3 class="pilot-answer-subhead">{check.disputesHeading[lang]}</h3>
+      <ol class="pilot-disputes" data-dispute-list></ol>
+    </div>
+
+    <form class="pilot-dispute entry-form" data-dispute-form hidden novalidate>
+      <h3 class="pilot-answer-subhead">{check.disputeHeading[lang]}</h3>
+      <p class="field-hint">{check.disputeIntro[lang]}</p>
+      <label for="public-case-dispute">{check.disputeLabel[lang]}</label>
+      <textarea id="public-case-dispute" name="dispute" rows="4" maxlength="4000" data-dispute-text></textarea>
+      <button class="btn" type="submit" data-dispute-submit>{check.disputeSubmit[lang]}</button>
+      <p class="pilot-state" role="status" data-dispute-state></p>
+    </form>
+  </section>
+
+  <!-- What the case is waiting for, in the words of the state it stands in. -->
   <section class="pilot-section panel pilot-pending" data-case-pending hidden aria-labelledby="public-case-pending-title">
     <h2 id="public-case-pending-title">{pending.heading[lang]}</h2>
     <p class="pilot-pending-line" data-case-pending-text></p>
@@ -170,5 +238,98 @@ const receipts = pilotCopy.receipts;
 
   .pilot-public-case-head h2 {
     margin: 0;
+  }
+
+  /* The report reads as written: line breaks stay, nothing is reflowed. */
+  .pilot-case-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .pilot-hold {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border-inline-start: 3px solid var(--polis-restricted);
+    background: var(--polis-surface-2);
+  }
+
+  .pilot-hold-reason {
+    margin: 0;
+    font-weight: 650;
+  }
+
+  .pilot-label {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--polis-border);
+  }
+
+  .pilot-label-head {
+    margin: 0;
+  }
+
+  .pilot-appeal,
+  .pilot-dispute {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+    margin-top: var(--space-3);
+  }
+
+  .pilot-appeal textarea,
+  .pilot-dispute textarea {
+    width: 100%;
+  }
+
+  /* The count is the fact; the label only names it (rule H3). */
+  .pilot-check-count {
+    margin: 0 0 var(--space-4);
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .pilot-check-label {
+    color: var(--polis-muted);
+    font-size: var(--type-data);
+    font-weight: 650;
+  }
+
+  .pilot-check-value {
+    font-size: var(--type-body-lg);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pilot-disputes {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+  }
+</style>
+
+<!-- One dispute is drawn by the script, so its rule cannot be scoped here. -->
+<style is:global>
+  .pilot-dispute-item {
+    display: grid;
+    gap: var(--space-1);
+    padding-inline-start: var(--space-3);
+    border-inline-start: 3px solid var(--polis-border-strong);
+  }
+
+  .pilot-dispute-text {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .pilot-dispute-date {
+    color: var(--polis-muted);
+    font-size: var(--type-meta);
   }
 </style>

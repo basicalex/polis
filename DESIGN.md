@@ -4,7 +4,7 @@ name: 'Polis production design system'
 description: 'Upstream visual and product design contract: the Trace line mechanism in a light civic world.'
 direction:
   locked: 'Trace line'
-  mechanism: 'One accountability record appends through voice, responsibility, response, independent check, and public receipt.'
+  mechanism: 'One accountability record appends through voice, responsibility, response, public check, and public receipt.'
   source: 'Reviewed generation 1 Trace line pitch, selected by the user on 2026-08-21. Visual world revised to light civic by the user on 2026-08-22; the mechanism and meaning model are unchanged. Interactive demo platform added by the user on 2026-08-22: the staged pitch moves to /presentation and the root becomes the product landing with working role demos. Demo chrome and tactile material locked by the user on 2026-08-22 from design-lab/demo-cohesion/refined (gen2): segmented role switcher, one-line boundary, ledger rows, engraved trace timeline, straight ink-stamp status marks.'
 mark:
   name: 'Ring, line, square'
@@ -117,8 +117,29 @@ components:
     typography: '{typography.label}'
     rounded: '{rounded.sm}'
     minHeight: '{layout.tapTarget}'
-  status-pending-review:
+  status-received:
+    textColor: '{colors.unknown}'
+    typography: '{typography.label}'
+  status-assigned:
+    textColor: '{colors.trace}'
+    typography: '{typography.label}'
+  status-answered:
+    textColor: '{colors.trace}'
+    typography: '{typography.label}'
+  status-resolved:
+    textColor: '{colors.success}'
+    typography: '{typography.label}'
+  status-disputed:
     textColor: '{colors.warning}'
+    typography: '{typography.label}'
+  status-closed:
+    textColor: '{colors.unknown}'
+    typography: '{typography.label}'
+  text-held:
+    textColor: '{colors.warning}'
+    typography: '{typography.label}'
+  label-form-letter:
+    textColor: '{colors.unknown}'
     typography: '{typography.label}'
   status-verified-local:
     textColor: '{colors.success}'
@@ -145,17 +166,17 @@ The product mechanism is one traceable accountability record moving through five
 
 1. **Voice:** a person raises a problem or question.
 2. **Responsibility:** the responsible public office and response obligation become inspectable.
-3. **Response:** an official files a scoped commitment; it begins `PENDING REVIEW`.
-4. **Independent check:** a distinct reviewer assesses evidence and controls publication or terminal status.
-5. **Public receipt:** the public record appends the accepted decision, status, sources, and audit linkage.
+3. **Response:** the official publishes a scoped commitment under their name and title.
+4. **Public check:** the office reports completion with evidence; the filer may dispute it and followers may mark it not fixed.
+5. **Public receipt:** the public record appends the status, signed response, public checks, sources, and audit linkage.
 
-The line is not a metaphor for progress and never decorates an unrelated layout. Every segment represents one appended public event. Every node names the stage, actor or role, action, time, and current state. Removing an event removes its segment. A dashed segment beyond a review gate means proposed history, not accepted history.
+The line is not a metaphor for progress and never decorates an unrelated layout. Every segment represents one appended public event. Every node names the stage, actor or role, action, time, and current state. Removing an event removes its segment. Holds, releases, redactions, disputes, and reopenings append visible events.
 
 ## Product experience
 
 - **Product:** Polis, the public response layer between community voice and government action.
-- **Primary audiences:** residents and community representatives, public officials and staff, independent reviewers, journalists, watchdogs, funders, and technical contributors.
-- **Primary promise:** show who owns a public response, what was promised, what evidence changed the status, who reviewed it, and what happened in the end without exposing private case material.
+- **Primary audiences:** residents and community representatives, public officials and staff, filers and followers checking completion, journalists, watchdogs, funders, and technical contributors.
+- **Primary promise:** show who owns and signed a public response, what was promised, what evidence changed the status, how the public checked it, and what happened in the end without exposing private contact or casework.
 - **Desired impression:** exact, calm, inspectable, and useful under pressure.
 - **Trust level:** high scrutiny, low spectacle. State limits beside the claim or control they qualify.
 
@@ -165,7 +186,7 @@ The current strongest path is a local demonstrator with synthetic data. There is
 
 - **Voice:** plain, evidence-linked, constructive toward the public and institutions.
 - **Mood:** a calm civic reading room — paper, ink, and one traced record as the main object.
-- **Keywords:** response, responsibility, review, source, boundary, receipt.
+- **Keywords:** response, responsibility, source, boundary, public check, receipt.
 - **Avoid:** anti-government posture, sales language, civic-tech spectacle, generic dashboards, fake authority, invented outcomes, architecture-first explanations, and cryptographic mystique.
 
 Lead with the response loop. Do not lead with AI, blockchain, services, signatures, hashes, or feature lists. Polis is not a social network, campaign platform, political ranking system, generic CRM, AI decision-maker, or production-ready service.
@@ -188,18 +209,20 @@ A trace view contains:
 - ordered nodes for `voice`, `responsibility`, `response`, `check`, and `receipt`;
 - a text stage label at every node;
 - the public actor or responsible role, action, timestamp, and status change;
+- the report text or a public hold notice, plus logged release or redaction events;
+- the official's signed answer block and any completion evidence;
+- public dispute, not-fixed count, and reopen events;
 - a visibly emphasized newest event;
 - source or audit links attached to the event they support;
-- an independent-review gate before publication and before any terminal follow-through status;
-- a receipt ledger that preserves public event order and hash linkage without exposing identity or case bytes.
+- a receipt ledger that preserves public event order and hash linkage without exposing contact data, attachments, private messages, or held original text.
 
-Use a solid trace-teal segment only for appended public history. Use a dashed trace-teal segment and explicit `AWAITING INDEPENDENT REVIEW` text for a proposed transition. Green may mark an accepted local verification result or accepted review row; it does not replace the review label. No teal flourish, divider, underline, border, or connector may look like part of the trace unless it joins real events.
+Use a solid trace-teal segment only for appended public history. A hold notice interrupts the text, not the trace: the shell, status, reason, and original-text hash stay visible. Green may mark a resolved state or accepted local verification result; it does not establish truth. No teal flourish, divider, underline, border, or connector may look like part of the trace unless it joins real events.
 
 ### Public and restricted boundary
 
-The public record may show the process, responsible office, response obligation, commitment, review decision, sources, status, and public receipt. The restricted workflow may contain identity documents, case narrative, contact details, resident files, and internal notes.
+The public record may show the filed or redacted text, location, responsible office, signed commitment, completion evidence, disputes, counts, labels, status, and public receipt. When text is held, show the shell, hold reason, and original-text hash instead. The restricted workflow may contain contact details, resident files, attachments, private messages, internal notes, and held original text.
 
-Restricted content must not be fetched, serialized into page data, placed in the DOM, printed, copied into analytics, or hidden only with CSS. A public view may show category names and masked placeholders to explain what is withheld. The private branch terminates at that boundary; private bytes never join the public trace.
+Restricted content must not be fetched into a public response, serialized into page data, placed in the DOM, printed, copied into analytics, or hidden only with CSS. The private branch terminates at that boundary; private bytes never join the public trace.
 
 Use purple, a lock icon, a hatched mask, and `PRIVATE / RESTRICTED`. Purple never means failure. Red never means private.
 
@@ -214,13 +237,13 @@ Polis has one visual system and two surface modes.
 - Keep the demonstration boundary and current capability label visible.
 - Explain sources and proof in public language before showing hashes or implementation details.
 - Presentation mode may reveal one appended node at a time, but the active record, state, labels, and evidence remain readable without narration.
-- The close is a working charter, not a sales CTA: process, owner, private boundary, public commitment or outcome, and independent reviewer.
+- The close is a working charter, not a sales CTA: process, owner, private boundary, automated compliance, signed public response, and public check.
 
 ### Task and operate surfaces
 
 - Use the same field, type, trace, status, icon, border, and panel tokens at a denser rhythm.
-- Keep a compact trace summary near queues, forms, review decisions, and record detail; do not turn every task screen into a five-beat deck.
-- Put the next permitted action, blocking gate, owner, due state, and evidence requirement before secondary metadata.
+- Keep a compact trace summary near queues, forms, official decisions, and record detail; do not turn every task screen into a five-beat deck.
+- Put the next permitted action, owner, due state, hold or release control, and evidence requirement before secondary metadata.
 - Preserve labels when space tightens. Do not reduce the interface to colored dots or icon-only controls.
 - Do not use staged pitch animation, theatrical transitions, or quiet auto-hiding controls in operational work.
 
@@ -230,14 +253,14 @@ The difference is information density and task priority, not branding. Do not cr
 
 The public release is one site with three kinds of surface (user decision, 2026-08-22):
 
-- `/` is the product landing, in six sections in this order: the opening (kicker, one `h1` saying what Polis does for residents and their municipality, one lede, one primary button to "how it works", one text link to the demonstration, and one static synthetic record beside it); who it is for, in two columns; how it works, the five stages with one sentence each; why it can be trusted — independent review, the public receipt, open source under AGPL, the privacy boundary; for municipalities, what a pilot involves; and the demonstration, the six entry rows under a real heading. It is not a marketing hero: no photo, no gradient, no slogan wall, one primary action on the page, and the synthetic record in the locked engraved trace material is the only visual.
-- `/presentation` (and `/en/presentation`) is the staged Trace line pitch, with presenter mode. It keeps its existing behavior unchanged.
-- `/demo/*` are working role surfaces over one shared synthetic dataset: citizen (`/demo/citizen`), official (`/demo/official`), independent reviewer (`/demo/review`), the public record (`/demo/record`), and the embeddable interface demonstration (`/demo/embed`).
+- `/` is the product landing, in six sections in this order: the opening (kicker, one `h1` saying what Polis does for residents and their municipality, one lede, one primary button to "how it works", one text link to the demonstration, and one static synthetic record beside it); who it is for, in two columns; how it works, the five stages with one sentence each; why it can be trusted — filing-time compliance, logged public events, the public receipt, open source under AGPL, and the privacy boundary; for municipalities, what a pilot involves; and the demonstration, the entry rows under a real heading. It is not a marketing hero: no photo, no gradient, no slogan wall, one primary action on the page, and the synthetic record in the locked engraved trace material is the only visual.
+- `/presentation` (and `/en/presentation`) is the staged Trace line pitch, with presenter mode.
+- `/demo/*` are working role surfaces over one shared synthetic dataset: citizen (`/demo/citizen`), official (`/demo/official`), the public record (`/demo/record`), and the embeddable interface demonstration (`/demo/embed`). The reviewer surface is retired.
 
 ### Demo state rules
 
 - Demo state lives only in the visitor's browser (localStorage plus in-memory fallback), seeded from committed synthetic fixtures. No network write exists. A visible reset control restores the seed.
-- Demo actions obey the real meaning model: a filed report starts a record at `voice`; an official can accept responsibility and file a commitment, which starts `PENDING REVIEW`; only the reviewer surface can publish or return it; officials never set terminal status. The demo must not contain a shortcut the real product would forbid.
+- Demo actions obey the real meaning model: filing publishes the report text after the automated pass or shows a public hold reason; an official accepts responsibility and publishes a signed commitment; completion evidence is public; the filer can dispute it and followers can mark it not fixed. Hold, release, redaction, label, dispute, and reopen actions append public events. The demo must not contain a shortcut the real product would forbid.
 - One record object serves every role surface. Role surfaces list and act; `/demo/record` is the single place a full trace renders.
 - Every demo surface states the demonstration boundary exactly once, as one thin line under the app bar (see Demo chrome below). The current role is conveyed by the role switcher, not by a separate role label or an inline "you are here" note. Records created by the visitor are labeled as their own demo input, distinct from seeded fixtures.
 - Demo surfaces use the task/operate density of this contract: same tokens, denser rhythm, no staged pitch animation.
@@ -247,7 +270,7 @@ The public release is one site with three kinds of surface (user decision, 2026-
 
 The gen2 mockups are the visual authority for `/demo/*`; the corrections below override the mockups where they conflict.
 
-- App bar: `Polis` wordmark left; a compact five-segment role switcher (Citizen · Official · Review · Record · Embed) with the active segment filled in `--polis-trace` and `--polis-on-primary` text; right side an `EN | HR` toggle and a reset control (icon button with an accessible name). On narrow viewports the switcher collapses to a role pill that opens the same five destinations.
+- App bar: `Polis` wordmark left; a compact four-segment role switcher (Citizen · Official · Record · Embed) with the active segment filled in `--polis-trace` and `--polis-on-primary` text; right side an `EN | HR` toggle and a reset control (icon button with an accessible name). On narrow viewports the switcher collapses to a role pill that opens the same four destinations.
 - Boundary line: one centered muted line directly under the app bar ("Demonstration — fictional data, stored only in this browser." / HR equivalent). No second banner, no separate browser-local note paragraph.
 - Institution anchor: demo page titles carry one quiet line `Grad Primjer — public record` / `Grad Primjer — javna evidencija` beneath them.
 - Material: the page keeps the warm paper field; panels are soft layers with a hairline `--polis-border` and one diffuse low shadow. Lists are ledger rows separated by printed hairlines, never floating cards per row; the selected row is marked by a `--polis-surface-tint` fill and a left trace-colored rule.
@@ -255,7 +278,7 @@ The gen2 mockups are the visual authority for `/demo/*`; the corrections below o
 - The trace timeline is the spine: one continuous vertical line with numbered stage dots (filled = appended, ring = active, empty = ahead), each stage one bold short line plus one muted line. No stage renders as a paragraph.
 - Status marks are straight ink-stamp chips: mono, uppercase, letter-spaced, hairline border in the status color. Never rotated, never circular seals or stars.
 - Typography on demo surfaces: serif is reserved for the wordmark, page titles, and record subjects; all other UI text is the sans body; IDs and status chips are mono.
-- Surface layouts: official and review are queues — a status-bucket rail with counts, compact ledger rows, and a detail panel carrying the trace timeline plus only the legal actions for that role. Citizen is "My reports": stepper cards plus one primary report action with category-first entry. Record renders the full trace with the same timeline anatomy. Embed keeps its emulation behavior and adopts this chrome.
+- Surface layouts: official is a queue — a status-bucket rail with counts, compact ledger rows, and a detail panel carrying the trace timeline plus only the legal actions for that role. Citizen is "My reports": stepper cards plus one primary report action with category-first entry. Record renders the full trace with the same timeline anatomy. Embed keeps its emulation behavior and adopts this chrome.
 
 ### Embed demonstration rules
 
@@ -269,19 +292,24 @@ Disclosure, workflow state, verification result, capability, and deployment boun
 
 | Meaning | Required label | Visual treatment | Exact interpretation |
 | --- | --- | --- | --- |
-| Public disclosure | `PUBLIC` / `JAVNO` | Text label plus open-document icon | The named fields are approved for public reading. It says nothing about truth, review, or deployment. |
-| Restricted disclosure | `PRIVATE / RESTRICTED` / `PRIVATNO / OGRANIČENO` | Purple label, lock icon, hatched mask | The content stays on the restricted rail. Public pages show no private values or bytes. |
-| Pending review | `PENDING REVIEW` / `ČEKA NEOVISNU PROVJERU` | Amber label plus review-clock icon; dashed trace after the gate | A commitment or resolution claim has not passed independent review. It is not published history or a terminal outcome. |
-| Review accepted | `ACCEPTED BY INDEPENDENT REVIEW` / `PRIHVAĆENO NEOVISNOM PROVJEROM` | Green label plus check icon | A distinct reviewer accepted the filing and the receipt appended. It does not make the underlying claim true. |
-| Review returned | `RETURNED BY INDEPENDENT REVIEW` / `VRAĆENO NEOVISNOM PROVJEROM` | Amber label plus return icon | The reviewer sent the filing back with a required note; nothing published. A return is not a failure result — red is not used. |
-| Verified local | `VERIFIED LOCALLY` / `LOKALNO PROVJERENO` | Green label plus check icon | A named local check completed against the stated local registry or fixture. It does not mean deployed, independently reviewed, or true. |
+| Received state | `RECEIVED` / `ZAPRIMLJENO` | Neutral ink-stamp status chip | The report is filed and no office is assigned. |
+| Assigned state | `ASSIGNED` / `DODIJELJENO` | Trace-colored ink-stamp status chip | The responsible office accepted the case. |
+| Answered state | `ANSWERED` / `ODGOVORENO` | Trace-colored ink-stamp status chip | The official published a signed commitment. |
+| Resolved state | `RESOLVED` / `RIJEŠENO` | Green ink-stamp status chip | The office reported completion with evidence. It remains open to public challenge. |
+| Disputed state | `DISPUTED` / `OSPORENO` | Amber ink-stamp status chip | The filer disputed the completion claim. |
+| Closed state | `CLOSED` / `ZATVORENO` | Neutral ink-stamp status chip | The office closed the case with a public reason. |
+| Held text | `HELD` / `ZADRŽANO` | Amber text badge beside the hold reason | The shell and original-text hash stay public while the narrative and location are withheld. |
+| Form-letter label | `FORM-LETTER` / `OBRAZAC / ŠABLONSKA PRIJAVA` | Quiet neutral soft chip with a one-line explanation | The text resembles a repeated or machine-written form. It never blocks the case. |
+| Public disclosure | `PUBLIC` / `JAVNO` | Text label plus open-document icon | The named fields are available for public reading. It says nothing about truth or deployment. |
+| Restricted disclosure | `PRIVATE / RESTRICTED` / `PRIVATNO / OGRANIČENO` | Purple label, lock icon, hatched mask | Contact data, attachments, private messages, internal notes, and held original text stay on the restricted rail. |
+| Verified local | `VERIFIED LOCALLY` / `LOKALNO PROVJERENO` | Green label plus check icon | A named local check completed against the stated local registry or fixture. It does not mean deployed or true. |
 | Pilot target | `PILOT TARGET` / `CILJ PILOT-PROJEKTA` | Amber label plus outlined target icon | A prospective scoped pilot context only. It implies no engagement, authorization, data transfer, outcome, or partner claim. |
 | Not live | `NOT LIVE` / `NIJE AKTIVNO` | Amber label plus stop-square icon | The surface or capability is demonstrator material and is not an authorized production service. |
 | Demonstration fixture | `DEMONSTRATION FIXTURE` / `DEMONSTRACIJSKI PRIMJER` | Amber label plus document-fixture icon | Frozen synthetic test material, never a real person, case, partner record, or result. |
 | Mismatch or invalid | Exact failure such as `CHANGED BYTE — NO MATCH` | Red label plus cross icon | A performed check failed. Red is reserved for actual failure, invalid input, or destructive action. |
-| Unknown or not checked | Exact label such as `NOT CHECKED` | Neutral label plus question icon | No result is available. It must not look successful or pending review. |
+| Unknown or not checked | Exact label such as `NOT CHECKED` | Neutral label plus question icon | No result is available. It must not look successful or active. |
 
-A commitment starts `PENDING REVIEW` after its charter and scope gate. It publishes only after a distinct independent review. An official cannot declare their own terminal follow-through state.
+A commitment moves the case to `ANSWERED` and publishes at once with the official's name, title, and date. A completion report moves it to `RESOLVED`; the filer may move it to `DISPUTED`, followers may mark it `NOT FIXED`, and the office may reopen it.
 
 Evidence and proof never make a claim true. A byte match means the checked bytes match the registered bytes. A signature means the stated key signed the stated bytes. A timestamp means the stated timestamp mechanism returned the stated result. The interface must say which mechanism ran, against which source, and with which result.
 
@@ -385,6 +413,8 @@ The page must have no horizontal body overflow at 320 CSS pixels, 390 × 844, 20
 - Use description lists for field/value records, lists for event trails, and native tables for comparable rows.
 - On phone layouts, preserve table header meaning with visible per-cell labels.
 - Do not make evidence resemble an authenticated civic document. Synthetic material stays a flat product panel with its fixture label attached.
+- A hold notice is one quiet tinted row with the `HELD` badge, public reason category, original-text hash, and what the official can do next. It never renders the held text or suggests the case disappeared.
+- A signed answer block keeps the commitment, official name, title, and publication date together. It uses the normal record material, not a seal, signature image, or ceremonial document treatment.
 
 ### Actions and forms
 
@@ -394,9 +424,9 @@ The page must have no horizontal body overflow at 320 CSS pixels, 390 × 844, 20
 - Every control has a persistent text label. Icon-only controls require an accessible name and are reserved for universally understood compact actions.
 - Disabled controls remain legible and state why the action is unavailable. A dashed edge and a quiet fill carry the state; opacity alone does not. `aria-disabled` reads the same as `disabled`.
 - Put instructions and validation near the field. Error text names the problem and the correction; do not blame the user.
-- A review decision must show the reviewer role, independence rule, evidence scope, and consequence before submission.
+- An official hold, release, redaction, label, close, commitment, or completion action must show its public consequence before submission.
 - Confirmation dialogs are reserved for destructive or irreversible actions. Trap focus, close on `Escape` where safe, and restore focus to the invoking control.
-- Toasts may confirm a completed action but cannot carry the only copy of an error, review state, or public receipt.
+- Toasts may confirm a completed action but cannot carry the only copy of an error, workflow state, hold reason, or public receipt.
 
 ### Navigation
 
@@ -445,13 +475,13 @@ Clamp at the first and last beats. Global shortcuts must ignore events originati
 - Set the document `lang` attribute on language change. Keep the language choice reachable by keyboard and preserve the current record and stage.
 - Allow at least 30% text expansion. Do not truncate status labels, action labels, evidence notes, or Croatian diacritics. Do not encode meaning in English abbreviations alone.
 - Dates, times, numbers, and plural forms use locale-aware formatting. Stable record IDs and hash values do not change.
-- Use the reviewed labels in the meaning table. A Croatian public-sector editor must review charter, independent-review, and public-receipt terminology before an external release.
+- Use the reviewed labels in the meaning table. A Croatian public-sector editor must review charter, public-receipt, status, hold, form-letter, not-fixed, and dispute terms before an external release.
 
 ## Fixture and provenance rules
 
 The page-level demonstration boundary — fixture material, pilot-target scope, not-live status — is stated once in a slim persistent banner at the first view, in plain sentence form, with the reviewed labels available behind or beside it. Beyond that banner, a boundary label appears only where its specific claim is read:
 
-- `PENDING REVIEW` on the commitment and proposed trace events;
+- `HELD` on a shell whose text the compliance pass withheld;
 - `PRIVATE / RESTRICTED` on the withheld-categories panel;
 - `LOCAL PROOF REGISTRY / TEST MATERIAL` on the verifier;
 - `PILOT TARGET` on the pilot worksheet;
@@ -463,7 +493,7 @@ A verifier must show the file or record checked, registered value, computed valu
 
 ## Imagery and iconography
 
-- Prefer the record, trace, public fields, masked categories, review gate, source rows, and receipt ledger over illustrative media.
+- Prefer the record, trace, public fields, hold notice, signed answer, source rows, and receipt ledger over illustrative media.
 - Do not use stock civic photography, portraits, government-building imagery, abstract network art, maps without a product need, aged-paper effects, or fabricated official documents.
 - Author simple inline SVG icons. Icons inherit semantic color, use a consistent stroke weight, and include a text label or accessible name.
 - Screenshots retain the fixture, pilot-target, not-live, language, and provenance boundaries. Never crop away a qualification.
@@ -475,7 +505,7 @@ A verifier must show the file or record checked, registered value, computed valu
 - Keep DOM order equal to reading order at every breakpoint. Do not use CSS reordering to change meaning.
 - All actions work with keyboard alone. Focus is never trapped except in an open modal dialog.
 - Use a visible `0.125rem` trace-teal focus outline with `0.125rem` offset. In forced-colors mode, use system focus colors and borders.
-- Status, disclosure, review, proof, and verifier changes expose text and suitable semantics. Announce asynchronous results with `role="status"`; use `role="alert"` only when immediate action is required.
+- Status, disclosure, hold, label, proof, and verifier changes expose text and suitable semantics. Announce asynchronous results with `role="status"`; use `role="alert"` only when immediate action is required.
 - Decorative trace segments are hidden from assistive technology; the ordered event list carries the same relationship in text.
 - Minimum target size is `2.75rem × 2.75rem`. Minimum workhorse text is `1rem`; critical labels are at least `0.875rem`, with one exception: the uppercase letter-spaced status-label style may use its specified `0.8125rem`.
 - Provide alt text for informative images, empty alt text for decoration, captions for recorded media, and transcripts for audio.
@@ -487,20 +517,20 @@ Printing produces a usable record, not a screenshot.
 
 - Use a light, high-contrast field and preserve dark text, rules, labels, icons, and patterns without depending on background printing.
 - Public and task records use A4 portrait by default with sensible US Letter fallback. Trace presentations use A4 landscape with one complete stage per page.
-- Print every public trace event, record ID, status, disclosure label, source reference, review gate, verifier meaning, receipt row, selected language, fixture boundary, pilot-target boundary, and not-live boundary.
+- Print every public trace event, record ID, status, disclosure label, hold notice, signed answer, source reference, verifier meaning, receipt row, selected language, fixture boundary, pilot-target boundary, and not-live boundary.
 - Expand collapsed public evidence needed to understand the record. Remove navigation, buttons, sticky positioning, animation, and nonessential chrome.
 - Keep restricted content absent. Print only the category and `PRIVATE / RESTRICTED` mask.
-- Avoid splitting a trace node, review decision, source item, verifier result, or receipt row across pages. Show full link text or a numbered URL reference where a destination matters.
+- Avoid splitting a trace node, hold notice, signed answer, dispute, source item, verifier result, or receipt row across pages. Show full link text or a numbered URL reference where a destination matters.
 
 ## Testable release gates
 
 A product-facing change is not ready until the affected surface passes these checks:
 
-1. **Trace:** each visible segment maps to one ordered public event; newest, gated, reviewed, and receipt states remain distinct in text.
-2. **Privacy:** restricted values and bytes are absent from public HTML, serialized page data, network responses, print, analytics, and accessible names.
-3. **State:** public, restricted, pending-review, verified-local, pilot-target, not-live, fixture, mismatch, and unknown meanings remain distinct without color.
+1. **Trace:** each visible segment maps to one ordered public event; newest, held, released, redacted, disputed, reopened, and receipt states remain distinct in text.
+2. **Privacy:** contact data, attachments, private messages, held original text, and other restricted bytes are absent from public HTML, serialized page data, network responses, print, analytics, and accessible names.
+3. **State:** received, assigned, answered, resolved, disputed, closed, held, form-letter, verified-local, pilot-target, not-live, fixture, mismatch, and unknown meanings remain distinct without color.
 4. **Phone:** at 320 CSS pixels and 390 × 844 in EN and HR, there is no body overflow, clipping, covered action, missing label, or target below `2.75rem`.
-5. **Keyboard:** all actions, stage navigation, language switching, review, verifier states, dialogs, and fullscreen fallback work with visible focus and predictable order.
+5. **Keyboard:** all actions, stage navigation, language switching, hold/release controls, dispute, verifier states, dialogs, and fullscreen fallback work with visible focus and predictable order.
 6. **Reduced motion:** the same record, boundary, gate, result, and receipt appear immediately with no animated or smooth-scrolling dependency.
 7. **Print:** the affected public record and presentation print with source, status, disclosure, language, provenance, and privacy boundaries intact.
 8. **Proof language:** a verifier match states the mechanism and local or provider scope and says that proof does not establish truth.
@@ -512,7 +542,7 @@ A product-facing change is not ready until the affected surface passes these che
 ### Do
 
 - Start with the unanswered record and follow it to a public receipt.
-- Keep responsibility, private boundaries, reviewer authority, evidence scope, and product limits visible.
+- Keep responsibility, private boundaries, signed official answers, public checks, evidence scope, and product limits visible.
 - Reuse the frontmatter tokens and established shared components before adding a pattern.
 - Preserve the trace when the layout compacts; reduce decoration and metadata density first.
 - Write exact status and error text that names what happened and what can happen next.
@@ -520,8 +550,8 @@ A product-facing change is not ready until the affected surface passes these che
 ### Don’t
 
 - Turn the trace into a decorative progress stepper, timeline wallpaper, or brand flourish.
-- Publish a private narrative, identity, resident document, or restricted audit detail.
-- Let an official self-declare publication or terminal follow-through.
+- Publish contact data, a held original, a resident document, an attachment, a private message, or a restricted audit detail.
+- Hide who signed an official answer, a public hold reason, or a dispute behind generic status text.
 - Call a byte match true, verified by default, immutable, live, deployed, approved, or partnered.
 - Use a generic hero, dashboard mosaic, stock photo, glass card, gradient glow, or monochrome terminal page as the production identity.
 

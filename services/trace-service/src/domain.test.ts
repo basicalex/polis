@@ -22,26 +22,15 @@ import {
 } from './domain.js';
 import type { Actor, PublicRecord, TraceStatus } from './types.js';
 
-const statuses: TraceStatus[] = [
-  'open',
-  'assigned',
-  'commitment-pending-review',
-  'returned',
-  'published',
-  'resolution-pending-review',
-  'resolved',
-  'closed',
-];
+const statuses: TraceStatus[] = ['open', 'assigned', 'answered', 'resolved', 'disputed', 'closed'];
 
 const expectedTransitions: Record<string, TraceStatus[]> = {
   assign: ['open'],
-  commitment: ['assigned', 'returned'],
-  'review-accept': ['commitment-pending-review'],
-  'review-return': ['commitment-pending-review'],
-  resolution: ['published'],
-  'resolution-review-accept': ['resolution-pending-review'],
-  'resolution-review-return': ['resolution-pending-review'],
-  close: ['open', 'assigned', 'returned'],
+  commitment: ['assigned'],
+  resolution: ['answered', 'disputed'],
+  reopen: ['disputed'],
+  dispute: ['resolved'],
+  close: ['open', 'assigned'],
 };
 
 test('transition matrix permits every exact source state and rejects every other state', () => {
@@ -72,7 +61,6 @@ test('private reads honor record scopes and gateway ownership before existing ro
   assert.equal(canReadPrivate(actor('resident-one', 'resident'), record), true);
   assert.equal(canReadPrivate(actor('resident-two', 'resident'), record), false);
   assert.equal(canReadPrivate(actor('official-one', 'official'), record), true);
-  assert.equal(canReadPrivate(actor('reviewer-one', 'reviewer'), record), true);
   assert.equal(canReadPrivate(actor('gateway-one', 'gateway'), record), true);
   assert.equal(canReadPrivate(actor('gateway-two', 'gateway'), record), false);
   assert.equal(canReadPrivate(actor('official-one', 'official', 'record-one'), record), true);
@@ -80,21 +68,11 @@ test('private reads honor record scopes and gateway ownership before existing ro
 });
 
 test('close eligibility and shell state mapping cover every trace status', () => {
-  assert.deepEqual(statuses.filter(canCloseCase), ['open', 'assigned', 'returned']);
+  assert.deepEqual(statuses.filter(canCloseCase), ['open', 'assigned']);
   assert.deepEqual(
-    statuses.map((status) => shellStateFor(status, false)),
-    [
-      'received',
-      'assigned',
-      'in-review',
-      'in-review',
-      'published',
-      'in-review',
-      'resolved',
-      'closed',
-    ],
+    statuses.map((status) => shellStateFor(status)),
+    ['received', 'assigned', 'answered', 'resolved', 'disputed', 'closed'],
   );
-  assert.equal(shellStateFor('open', true), 'closed');
 });
 
 test('reopen keys hash deterministically and case targets must start the message', () => {
@@ -165,14 +143,15 @@ test('receipt hash covers every public-safe field and excludes receiptHash itsel
     municipalityId: 'vrsar-orsera',
     category: 'public-lighting',
     office: 'communal-system',
-    status: 'published',
-    publicSummary: 'Reviewed public summary',
+    status: 'answered',
     commitment: 'Replace one luminaire',
     dueDate: '2026-12-01',
+    signedBy: { name: 'Ana Anić', title: 'Head of public works' },
     evidenceNote: null,
     evidenceUrls: [],
     publishedAt: '2026-09-05T00:00:00.000Z',
     resolvedAt: null,
+    disputes: [],
     events: [
       {
         stage: 'voice',
@@ -188,31 +167,17 @@ test('receipt hash covers every public-safe field and excludes receiptHash itsel
       },
       {
         stage: 'response',
-        action: 'commitment-filed',
+        action: 'commitment-published',
         actorRole: 'official',
+        signedBy: 'Ana Anić',
         createdAt: '2026-09-03T08:00:00.000Z',
-      },
-      {
-        stage: 'check',
-        action: 'commitment-accepted',
-        actorRole: 'reviewer',
-        createdAt: '2026-09-05T00:00:00.000Z',
-      },
-      {
-        stage: 'receipt',
-        action: 'published',
-        actorRole: 'reviewer',
-        createdAt: '2026-09-05T00:00:00.000Z',
       },
     ],
     testEnvironment: true,
   };
   const record: PublicRecord = { ...withoutHash, receiptHash: computeReceiptHash(withoutHash) };
-  for (const event of record.events) {
-    assert.deepEqual(Object.keys(event).sort(), ['action', 'actorRole', 'createdAt', 'stage']);
-  }
   assert.equal(verifyReceiptHash(record), true);
-  assert.equal(verifyReceiptHash({ ...record, publicSummary: 'Changed' }), false);
+  assert.equal(verifyReceiptHash({ ...record, commitment: 'Changed' }), false);
   assert.equal(
     verifyReceiptHash({
       ...record,

@@ -1,109 +1,189 @@
 # Pre-partner trace API contract
 
-Date: 2026-09-05. Implementation contract for an isolated, unofficial Vrsar example. This is not municipal authorization. Use synthetic reports and controlled test identities. The existing public-release demo stays read-only and unchanged.
+Date: 2026-09-05. Updated 2026-09-16. Implementation contract for an isolated, unofficial Vrsar example. This is not municipal authorization. Use synthetic reports and controlled test identities. The existing public-release demo stays read-only and unchanged.
+
+Policy source: docs/pilot/public-text-policy.md (2026-09-16)
 
 ## Boundary
 
-One municipality (`vrsar-orsera`), one initial category (`public-lighting`), one configured responsible office, three mutually exclusive roles: `resident`, `official`, `reviewer`. Official/reviewer assignments are operator-controlled, never supplied by a browser. Public municipal facts are configuration with cited sources, not proof of partnership. No real official's name is a test identity.
+One municipality (`vrsar-orsera`), one initial category (`public-lighting`), and one configured responsible office. Public municipal facts are configuration with cited sources, not proof of partnership. No real official's name is a test identity.
 
-The platform BFF exposes `/api/trace/*`; the new bounded trace service accepts only trusted internal requests. Reuse verified identity sessions and existing internal actor-header conventions. Authentication failure is 401, wrong role 403, inaccessible private records 404. Reject client identity/role/municipality authority fields. The configured municipality is server-owned.
+The platform BFF exposes `/api/trace/*`; the bounded trace service accepts only trusted internal requests. Reuse verified identity sessions and existing internal actor-header conventions. Authentication failure is 401, wrong role 403, inaccessible private records 404. Reject client identity, role, and municipality authority fields. The configured municipality is server-owned.
 
-Anonymous reads are config and reviewed public records only. All private responses and authentication responses are `Cache-Control: no-store`. No bearer token in query strings, analytics, public receipts, or logs.
+Anonymous reads expose config, public case shells, public records, and public events. All private and authentication responses are `Cache-Control: no-store`. No bearer token or reopen key may enter query strings, analytics, public receipts, or logs.
 
-## States
+## Roles
 
-- `open`: resident filed a private report.
-- `assigned`: the official accepted responsibility for the configured office.
-- `commitment-pending-review`: the official proposed a public summary and a measurable commitment with a due date.
-- `returned`: a reviewer returned the commitment with required private feedback; the official can revise and resubmit.
-- `published`: independent review approved the public summary and commitment. This does NOT mean the reported problem is fixed.
-- `resolution-pending-review`: the official submitted completion evidence for independent review. The public record retains the previously approved commitment/status until review.
-- `resolved`: a distinct reviewer approved the completion evidence.
-- `closed`: a reviewer ended an open case with a private reason and note plus a short `closedPublicReason` safe for the public case shell.
+`TraceRole` is `'resident' | 'official' | 'gateway' | 'system'`.
 
-Returning resolution evidence restores `published` and records required private feedback. Resubmission is allowed. No official may approve publication or resolution. A reviewer cannot review any record they filed or materially acted on as an official, even if their configured role later changes. A role mapping cannot grant official and reviewer simultaneously.
+| role | authority |
+| --- | --- |
+| `resident` | Files a report. The filer may dispute a completion claim with the reopen key. |
+| `official` | Assigns the office; publishes signed commitments and completion reports; closes cases; and holds, releases, redacts, or labels text. |
+| `gateway` | Creates channel cases and appends channel messages through the trusted internal boundary. |
+| `system` | Records the filing-time compliance hold and the standing resolved event. |
+
+There is no reviewer role, review route, or self-review check. Official assignment is operator-controlled and never supplied by a browser.
+
+## Process states
+
+`TRACE_STATUSES` is:
+
+| status | meaning | shell state |
+| --- | --- | --- |
+| `open` | filed, no office yet | `received` |
+| `assigned` | an office accepted responsibility | `assigned` |
+| `answered` | the official published a commitment | `answered` |
+| `resolved` | the office reported completion with evidence | `resolved` |
+| `disputed` | the filer disputed the completion | `disputed` |
+| `closed` | closed with a public reason | `closed` |
+
+`ShellState` is the same six shell-state words. `in-review`, `published`, `commitment-pending-review`, `returned`, and `resolution-pending-review` are removed. Migration maps `commitment-pending-review` and `returned` to `assigned`, `published` to `answered`, and `resolution-pending-review` to `answered`.
+
+Text visibility is separate from process state:
+
+| `textStatus` | shell `text` | `holdReason` |
+| --- | --- | --- |
+| `public` | narrative as filed | null |
+| `held` | null | one of `personal-data`, `abuse`, `off-topic`, `other` |
+| `redacted` | the official's redacted version | null |
+
+## Commands and transitions
+
+All commands are by `official` unless the table says otherwise.
+
+| command | from | to | notes |
+| --- | --- | --- | --- |
+| `assign` | `open` | `assigned` | unchanged |
+| `commitment` | `assigned` | `answered` | publishes the snapshot at once |
+| `resolution` | `answered`, `disputed` | `resolved` | evidence required; resolves the snapshot |
+| `reopen` | `disputed` | `answered` | office accepts the dispute and will redo |
+| `dispute` (filer, reopen key) | `resolved` | `disputed` | public text; at most 3 per case |
+| `close` | `open`, `assigned` | `closed` | existing `CloseInput` |
+| `hold` | any but `closed` | same | `textStatus` becomes `held` with reason |
+| `release` | any but `closed` | same | `textStatus` becomes `public`, or `redacted` when `redactedText` is given |
+| `label` | any | same | set or clear `form-letter` |
+
+`hold` may also be issued by the synchronous filing-time compliance pass with actor role `system`. The pass runs before insert for web and channel creation and on dispute text. A hold leaves the public shell visible with its reason and original-text hash.
 
 ## Data and transactions
 
-Use additive Postgres tables for trace records, private report material, append-only events, command idempotency, and private attachments. Do not migrate or repurpose the older complaint/claim/commitment models.
+Use additive Postgres tables for trace records, private contact material, append-only events, command idempotency, and private attachments. Do not migrate or repurpose the older complaint, claim, or commitment models.
 
-Every successful command locks its record and atomically writes state, event, and idempotency result. Events carry a per-record sequence, previous hash, and canonical event hash. Corrections append; no update/delete event API. Verification must detect changed payloads, broken links, omitted sequence entries, and record/event state mismatch where applicable. Call the trail `hash-linked`, not immutable. A separate remote audit call cannot substitute for the authoritative transactional record event.
+Every successful command locks its record and atomically writes state, event, and idempotency result. Events carry a per-record sequence, previous hash, and canonical event hash. Corrections append; no update/delete event API exists. Verification must detect changed payloads, broken links, omitted sequence entries, and record/event state mismatch where applicable. Call the trail `hash-linked`, not immutable. A separate remote audit call cannot substitute for the authoritative transactional record event.
 
 Every write accepts `Idempotency-Key` (UUID) and, except creation, `expectedVersion` (integer). Channel and filer message appends are the explicit `expectedVersion` carve-out because their ordered append semantics do not overwrite a caller-supplied record version. Same actor/key and same request returns the original result without new events; same key with different input is 409. A stale version is 409 with a stable error code. Scope replay authorization to the current authenticated actor and record access. Generate identifiers and timestamps on the server.
 
-Private fields: original subject, narrative, location detail, resident identity/contact, raw upload bytes, staff/reviewer private feedback, internal actor identifiers. They never appear in public serialization, public event descriptions, public exports, client error responses, or application logs. Authorized private views and protected backups are separate channels. A separate public summary, commitment, and public evidence note/links must be deliberately drafted and independently approved before publication. Public event history uses a strict allowlist with role labels and milestone timestamps, not copies of private event payloads.
+The report narrative and filed location are public after the synchronous compliance pass unless held. A release may restore the filed text or publish a redacted version. Resident identity, contact data, raw upload bytes, private messages, internal notes, and internal actor identifiers stay private. They never appear in public serialization, public event descriptions, public exports, client error responses, or application logs. Photos remain private in this wave.
 
-## Endpoints
+## Public shell
 
-Paths in the first table start with `/api/trace`; the second table gives exact internal paths. Handler errors use `{ "error": "stable_code", "message": "safe explanation" }`. Shared runtime and transport errors may omit `message`; clients translate the stable error code into HR/IT/EN and use a localized generic fallback for unknown codes. Lists use `{ "records": [...] }`; a record response uses `{ "record": ... }`.
+`CaseShell` gains, and `CASE_SHELL_HASH_FIELDS` includes:
+
+```ts
+text: string | null; // narrative as filed, or redacted, or null when held
+location: string | null; // filed location, with the same visibility as text
+textStatus: 'public' | 'held' | 'redacted';
+holdReason: 'personal-data' | 'abuse' | 'off-topic' | 'other' | null;
+textSha256: string; // sha256 of the narrative as filed, always present
+labels: string[]; // [] or ['form-letter']
+notFixedCount: number;
+disputeCount: number;
+```
+
+`area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`, `clockDueAt`, `followerCount`, and `alsoAffectedCount` stay. `contactEmail` and attachments stay private.
+
+Case numbers use the configured prefix and a random six-digit suffix, for example `VRS-482113`. They are not sequential. The existing `trace_case_counters` table remains only for migration compatibility.
+
+The reopen key appears only in a JSON body, never in a path or query. Only a case creation response returns it. An unknown case number and a wrong key return indistinguishable 404 responses.
+
+Attention is a count, never a vote or queue order. `follow` and `also-affected` do not change staff priority. `not-fixed` is accepted only in `resolved` or `disputed`, uses the existing follower-key deduplication, and increments `notFixedCount`.
+
+## Public record
+
+`PublicRecord` has no `publicSummary`. It carries:
+
+```ts
+commitment: string;
+dueDate: string;
+signedBy: { name: string; title: string };
+status: 'answered' | 'resolved' | 'disputed';
+evidenceNote: string | null;
+evidenceUrls: string[];
+publishedAt: string;
+resolvedAt: string | null;
+disputes: Array<{
+  text: string | null;
+  textStatus: 'public' | 'held';
+  holdReason: HoldReason | null;
+  createdAt: string;
+}>;
+events: PublicEvent[];
+receiptHash: string;
+```
+
+The snapshot is created by `commitment` and updated by `resolution`, `dispute`, and `reopen`. `trace_public_snapshots.public_summary` loses `NOT NULL` and is no longer written; `signed_by_name` and `signed_by_title` are added.
+
+`CommitmentInput` gains `signedBy: { name (1..120), title (1..120) }` and loses `publicSummary`. `ResolutionInput` gains the same `signedBy`.
+
+## Public events
+
+The five stage IDs stay. Their event allowlist is:
+
+| stage | events (action, actorRole) |
+| --- | --- |
+| `voice` | `report-filed` (resident); `text-held` (system or official, `reason`); `text-released` (official, `redacted: boolean`); `label-set` / `label-cleared` (system or official, `label`) |
+| `responsibility` | `office-assigned` (official) |
+| `response` | `commitment-published` (official, `signedBy.name`) |
+| `check` | `completion-reported` (official); `completion-disputed` (resident); `case-reopened` (official) |
+| `receipt` | `case-resolved-standing` (system), written by `resolution` and meaning "reported complete and not disputed" |
+
+`case-closed` (official, `publicReason`) may occur in `voice` or `responsibility`. `#publicMilestones` builds the trail from events that exist and requires no review event.
+
+## Routes
+
+Trace-service internal routes are:
+
+| method | path | who |
+| --- | --- | --- |
+| POST | `/internal/trace/records/:id/assign` | official |
+| POST | `/internal/trace/records/:id/commitment` | official |
+| POST | `/internal/trace/records/:id/resolution` | official |
+| POST | `/internal/trace/records/:id/reopen` | official |
+| POST | `/internal/trace/records/:id/close` | official |
+| POST | `/internal/trace/records/:id/hold` | official, body `{ reason, note? }` |
+| POST | `/internal/trace/records/:id/release` | official, body `{ redactedText?, note? }` |
+| POST | `/internal/trace/records/:id/label` | official, body `{ label: 'form-letter', action: 'set' \| 'clear' }` |
+| POST | `/internal/trace/cases/:caseNumber/dispute` | reopen key in body `{ reopenKey, text }` |
+| POST | `/internal/trace/public/cases/:caseNumber/attention` | anyone, kinds `follow`, `also-affected`, `not-fixed` |
+
+Removed: `/records/:id/review` and `/records/:id/resolution-review`. The AI proposal decision route and `GET /records/:id/messages` are official-only. Platform-api mirrors this table under `/api/trace/…`; the web BFF allowlist mirrors platform-api.
+
+Public and channel routes remain bounded:
 
 | Method | Path | Access | Request / result |
 | --- | --- | --- | --- |
-| GET | `/config` | public | `{ municipality, category, office, testEnvironment: true, intakeOpen, sources }`; configuration has HR/IT/EN display labels and official source URLs. |
-| GET | `/session` | signed in | `{ actorId, role, municipalityId }`; email may be absent or null. Role comes from server mapping, not browser claims. |
-| GET | `/records` | signed in | Resident sees their own records. Official/reviewer sees this municipality's work queue. Never cross-municipality records. |
-| POST | `/records` | resident | `{ subject, narrative, location, contactEmail? }`; category and municipality fixed server-side. Returns 201 record. |
-| GET | `/records/:id` | owner or configured staff/reviewer | Private record and private event history. |
-| POST | `/records/:id/assign` | official | `{ expectedVersion }`; assigned office is server configuration, not arbitrary client authority. |
-| POST | `/records/:id/commitment` | official | `{ expectedVersion, publicSummary, commitment, dueDate }`; only assigned/returned state. |
-| POST | `/records/:id/review` | reviewer | `{ expectedVersion, decision: "accept" | "return", note }`; required note for return. Accept explicitly attests to privacy review of the proposed public text. |
-| POST | `/records/:id/resolution` | official | `{ expectedVersion, evidenceNote, evidenceUrls }`; only published state, evidence required. URLs are HTTPS, no embedded credentials; never fetch remote URLs server-side. |
-| POST | `/records/:id/resolution-review` | reviewer | `{ expectedVersion, decision: "accept" | "return", note }`; return requires a private note. |
-| POST | `/records/:id/attachments` | owner/official | `{ expectedVersion, filename, contentType, base64 }`; private only, bounded bytes and allowed types, SHA-256 receipt. No HTML/SVG/executable uploads. |
-| GET | `/records/:id/attachments/:attachmentId` | authorized private record reader | Download only, attachment disposition, nosniff, no-store. |
-| GET | `/public/records` | public | Reviewed public projections only, no pagination-free unbounded database dump. |
-| GET | `/public/records/:id` | public | Approved summary, office, approved commitment/due date, approved evidence when resolved, public status, sanitized public events, public receipt hash. Unpublished records return 404. |
-| POST | `/public/cases` | public | `{ text, location?, photo?: null \| { contentType: "image/jpeg" \| "image/png", base64 } }`; `photo.base64` is standard base64 without a data-URL prefix and may decode to at most 2 MiB. The server fixes channel, source, and occurrence time. A supplied photo is stored as one restricted attachment visible in authorized private and reopen-key views; no attachment metadata, count, or bytes appears in the public shell, ledger, or public case projection. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
+| GET | `/api/trace/config` | public | Municipality, category, office, localized labels, sources, and intake state. |
+| GET | `/api/trace/session` | signed in | `{ actorId, role, municipalityId }`; authority comes from server mapping. |
+| POST | `/api/trace/public/cases` | public | Files `{ text, location?, photo? }`; runs compliance before insert; returns 201 `{ case, shell }`. |
+| GET | `/api/trace/public/cases/:caseNumber` | public | Returns the public shell and public record when present. |
+| POST | `/api/trace/public/cases/:caseNumber/attention` | public | Applies a deduplicated `follow`, `also-affected`, or `not-fixed` action. |
+| POST | `/api/trace/cases/:caseNumber/private` | reopen key | Returns the filer's private case view. |
+| POST | `/api/trace/cases/:caseNumber/messages` | reopen key | Appends a private filer message or label appeal. |
+| POST | `/api/trace/cases/:caseNumber/dispute` | reopen key | Files public dispute text from a `resolved` case. |
 
-Channel gateway routes use `x-polis-trace-gateway` with a configured gateway id; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Staff routes use the configured `official` and `reviewer` roles. Public case routes are anonymous behind the internal service boundary.
+Channel gateway routes use `x-polis-trace-gateway` with a configured gateway ID; a request carrying both that header and `x-polis-citizen` is rejected. Reopen routes authenticate only the key in the JSON body. Public case routes are anonymous behind the internal service boundary. Handler errors use `{ "error": "stable_code", "message": "safe explanation" }`.
 
-| Method | Internal path | Principal | Request / result |
-| --- | --- | --- | --- |
-| POST | `/internal/trace/channel/cases` | gateway | `{ channel, text: string \| null, location?, source, occurredAt, attachment?: { filename: "photo.jpg" \| "photo.png", contentType: "image/jpeg" \| "image/png", base64 } }`; the optional attachment is validated and stored atomically with the case. Returns 201 `{ case: { recordId, caseNumber, reopenKey, state }, shell }`. |
-| POST | `/internal/trace/channel/cases/:caseNumber/messages` | gateway | `{ reopenKey, channel, kind, text: string \| null, source, occurredAt }`; returns 201 `{ message }`. |
-| GET | `/internal/trace/channel/outbox?limit=` | gateway | Returns `{ messages }`. |
-| POST | `/internal/trace/channel/outbox/:messageId/delivery` | gateway | `{ state, failureCode? }`; returns `{ message }`. |
-| POST | `/internal/trace/cases/:caseNumber/private` | reopen key | `{ reopenKey }`; returns `{ case }`. |
-| POST | `/internal/trace/cases/:caseNumber/messages` | reopen key | `{ reopenKey, body, inReplyTo? }`; returns 201 `{ message }`. |
-| GET | `/internal/trace/records/:id/messages` | official or reviewer | Returns `{ messages }`. |
-| POST | `/internal/trace/records/:id/messages` | official | `{ expectedVersion, kind, body, channel? }`; returns 201 `{ message, record }`. |
-| POST | `/internal/trace/records/:id/ai-proposals` | gateway or internal service | `{ kind, proposedValue, confidence, modelId, modelVersion, promptSha256 }`; returns 201 `{ proposal }`. |
-| POST | `/internal/trace/records/:id/ai-proposals/:proposalId/decision` | official or reviewer | `{ expectedVersion, decision, note? }`; returns `{ proposal, record }`. |
-| POST | `/internal/trace/records/:id/close` | reviewer | `{ expectedVersion, reason, publicReason, note? }`; returns `{ record, shell }`. |
-| GET | `/internal/trace/public/cases?limit=` | anonymous | Returns `{ cases }`. |
-| GET | `/internal/trace/public/cases/:caseNumber` | anonymous | Returns `{ case, record }`; an unknown case is 404 `case_not_found`. |
-| POST | `/internal/trace/public/cases/:caseNumber/attention` | anonymous | `{ followerKey, kind, action }`; returns `{ counts }`. |
-
-The BFF exposes public case routes, including server-shaped web filing at `/api/trace/public/cases`, plus the two reopen routes, staff message routes, AI proposal decisions, and close. It does not expose the internal `/channel/*` namespace.
-
-## Response shape
-
-Private record fields: `id`, `municipalityId`, `category`, `status`, `version`, `subject`, `narrative`, `location`, `contactEmail`, `office`, `publicSummary` (proposal), `commitment` (proposal), `dueDate`, `evidenceNote` (proposal), `evidenceUrls` (proposal), `createdAt`, `updatedAt`, `events`, `attachments`. Actor ownership fields may be available privately for authorization but are never public.
-
-An event exposes privately: `id`, `sequence`, `stage`, `action`, `actorRole`, `note`, `createdAt`, `previousHash`, `hash`. Stages are `voice`, `responsibility`, `response`, `check`, `receipt`. Private event payloads may contain original command data for integrity verification, but public output uses a separate projection.
-
-Public fields: `id`, `municipalityId`, `category`, `office`, `status` (`published` or `resolved`), approved `publicSummary`, approved `commitment`, `dueDate`, approved `evidenceNote`/`evidenceUrls` only after resolution approval, `publishedAt`, `resolvedAt`, sanitized `events`, `receiptHash`, `testEnvironment: true`. While resolution review is pending or returned, public state stays at the last approved publication. Do not derive public fields from unapproved mutable proposal fields.
-
-Bound and validate every string, list and upload. Reject unknown authority fields. Dates must be valid date-only values, not merely strings. Service configuration must fail closed if required internal credentials or role mapping are absent or contradictory.
-
-## Case shell
-
-The public case shell exists from creation. It carries `caseNumber`, `municipalityId`, `area`, `category`, `track`, `state`, `closedPublicReason`, `filedAt`, `clockDueAt`, `followerCount`, `alsoAffectedCount`, `shellHash`, `updatedAt`, and `testEnvironment`. `shellHash` covers exactly `[caseNumber, municipalityId, area, category, track, state, closedPublicReason, filedAt, clockDueAt, followerCount, alsoAffectedCount, testEnvironment]`. It is not a public receipt; `receiptHash` material is unchanged.
-
-Case numbers use the configured prefix and a random six-digit suffix (for example, `VRS-482113`). They are not sequential, so they do not expose a publicly enumerable case count, while remaining easy to dictate by phone. The existing `trace_case_counters` table is retained for migration compatibility but is unused.
-
-The reopen key appears only in a JSON body, never in a path or query. Only a channel case creation response echoes it. The web filing route uses that creation path and returns the key once in its JSON response. An unknown case number and a wrong key return indistinguishable 404 responses.
-
-Attention is a count, never a vote and never queue order. `follow` and `also-affected` counts do not change staff priority or represent a decision.
+Bound and validate every string, list, and upload. Reject unknown authority fields. Dates must be valid date-only values. Service configuration fails closed when required internal credentials or the official role mapping are absent or contradictory.
 
 ## Public receipt hash
 
-`receiptHash` is lowercase hexadecimal SHA-256 of UTF-8 canonical JSON. Sort object keys lexicographically at every depth and preserve array order. Hash only `id`, `municipalityId`, `category`, `office`, `status`, `publicSummary`, `commitment`, `dueDate`, `evidenceNote`, `evidenceUrls`, `publishedAt`, `resolvedAt`, `events`, and `testEnvironment`; exclude `receiptHash` itself. The exported `buildReceiptHashMaterial`, `computeReceiptHash`, and `verifyReceiptHash` helpers implement this format. Matching a hash checks the supplied public record's consistency, not the truth of the report or the authenticity of a municipal decision.
+`receiptHash` is lowercase hexadecimal SHA-256 of UTF-8 canonical JSON. Sort object keys lexicographically at every depth and preserve array order. Hash the current public-record fields and sanitized events, excluding `receiptHash` itself. Matching a hash checks the supplied public record's consistency, not the truth of the report or the authenticity of a municipal decision.
 
 ## Isolated operation
 
-A dedicated launcher uses a new loopback PostgreSQL database and explicit environment, with Bun automatic `.env` loading disabled. Never use the repository's existing `.env` or a production database by default. The test runtime may use locally captured SMTP delivery and a local OIDC acceptance fixture; neither is an actual municipal identity provider. The browser receives no magic token bypass or arbitrary role selector.
+A dedicated launcher uses a new loopback PostgreSQL database and explicit environment, with Bun automatic `.env` loading disabled. Never use the repository's existing `.env` or a production database by default. The test runtime may use locally captured SMTP delivery and a local OIDC acceptance fixture; neither is an actual municipal identity provider. The browser receives no magic-token bypass or arbitrary role selector.
 
-Intake can be closed through operator configuration: new reports are rejected with 503 `intake_closed`, while private reads, authorized follow-up, and published receipts remain available. Health/readiness checks must reflect database availability. Structured operational logging must omit tokens, report content, and contact information.
+Intake can be closed through operator configuration: new reports are rejected with 503 `intake_closed`, while reads and authorized follow-up remain available. Health and readiness checks reflect database availability. Structured operational logging omits tokens, report content, and contact information.
 
-Recovery drills use only newly created test resources, verify ownership before cleanup, and compare full record/event/attachment state after restore. Do not call a local restore off-host evidence. No public deployment, DNS change, production SMTP/OIDC action, municipal outreach, or real resident intake is authorized by this contract.
+Recovery drills use only newly created test resources, verify ownership before cleanup, and compare full record, event, and attachment state after restore. Do not call a local restore off-host evidence. No public deployment, DNS change, production SMTP/OIDC action, municipal outreach, or real resident intake is authorized by this contract.

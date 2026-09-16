@@ -596,6 +596,21 @@
 }
 
 /*
+ * The report as far as a row can carry it. It is the reason the row exists, so
+ * it reads as body text; a held text says so in the muted voice instead.
+ */
+.ledger-row-text {
+  color: var(--polis-text);
+  font-size: var(--type-data);
+  overflow-wrap: anywhere;
+}
+
+.ledger-row-text[data-held='true'] {
+  color: var(--polis-muted);
+  font-style: italic;
+}
+
+/*
  * The one line a case with an answer earns on the list: the office's promise
  * with its date, or the day the work was accepted as done.
  */

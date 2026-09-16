@@ -22,6 +22,7 @@ import {
 } from './auth.js';
 import { parseInternalFetchTimeoutMs } from './config.js';
 import { upstreamFailure } from './proxy.js';
+import { createFixedWindowPerIpLimiter } from './public-edge.js';
 
 const TRACE_PREFIX = '/api/trace';
 const INTERNAL_TRACE_PREFIX = '/internal/trace';
@@ -31,8 +32,9 @@ const IDEMPOTENCY_KEY_PATTERN =
 const ATTACHMENT_UPLOAD_MAX_BODY_BYTES = 2_900_000;
 const MAX_WEB_PHOTO_BYTES = 2 * 1024 * 1024;
 const MAX_WEB_PHOTO_BASE64_BYTES = Math.ceil(MAX_WEB_PHOTO_BYTES / 3) * 4;
-const STANDARD_BASE64 =
-  /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const STANDARD_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const MINUTE_MS = 60_000;
+const TEN_MINUTES_MS = 10 * MINUTE_MS;
 const AUTHORITY_FIELDS = [
   'actorId',
   'citizenId',
@@ -58,8 +60,7 @@ const AUTHORITY_FIELDS = [
 ] as const;
 
 type TraceBodyShapeResult =
-  | { body: Record<string, unknown>; error?: never }
-  | { body?: never; error: HttpResult };
+  { body: Record<string, unknown>; error?: never } | { body?: never; error: HttpResult };
 
 type TraceRouteSpec = {
   method: 'GET' | 'POST';
@@ -71,6 +72,7 @@ type TraceRouteSpec = {
   listQuery?: true;
   write?: true;
   maxBodyBytes?: number;
+  rateLimit?: Readonly<{ limit: number; windowMs: number }>;
 };
 
 const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
@@ -81,14 +83,11 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
   { method: 'GET', path: '/records/:id', access: 'private' },
   { method: 'POST', path: '/records/:id/assign', access: 'private', write: true },
   { method: 'POST', path: '/records/:id/commitment', access: 'private', write: true },
-  { method: 'POST', path: '/records/:id/review', access: 'private', write: true },
   { method: 'POST', path: '/records/:id/resolution', access: 'private', write: true },
-  {
-    method: 'POST',
-    path: '/records/:id/resolution-review',
-    access: 'private',
-    write: true,
-  },
+  { method: 'POST', path: '/records/:id/reopen', access: 'private', write: true },
+  { method: 'POST', path: '/records/:id/hold', access: 'private', write: true },
+  { method: 'POST', path: '/records/:id/release', access: 'private', write: true },
+  { method: 'POST', path: '/records/:id/label', access: 'private', write: true },
   {
     method: 'POST',
     path: '/records/:id/attachments',
@@ -113,6 +112,7 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
     shapeBody: shapeWebCaseBody,
     write: true,
     maxBodyBytes: ATTACHMENT_UPLOAD_MAX_BODY_BYTES,
+    rateLimit: { limit: 5, windowMs: TEN_MINUTES_MS },
   },
   { method: 'GET', path: '/public/cases/:caseNumber', access: 'public' },
   {
@@ -120,6 +120,14 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
     path: '/public/cases/:caseNumber/attention',
     access: 'public',
     write: true,
+    rateLimit: { limit: 30, windowMs: MINUTE_MS },
+  },
+  {
+    method: 'POST',
+    path: '/cases/:caseNumber/dispute',
+    access: 'public',
+    write: true,
+    rateLimit: { limit: 5, windowMs: TEN_MINUTES_MS },
   },
   { method: 'POST', path: '/cases/:caseNumber/private', access: 'public' },
   {
@@ -171,6 +179,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   invalid_request: 'The request body is invalid.',
   invalid_idempotency_key: 'Idempotency-Key must be a UUID.',
   trace_unavailable: 'Trace service is unavailable.',
+  rate_limited: 'Too many requests.',
   trusted_headers_forbidden: 'Trusted identity headers are not accepted from clients.',
   unauthenticated: 'Sign in is required.',
   upstream_error: 'Trace service returned an invalid response.',
@@ -340,62 +349,68 @@ async function proxyTrace(
 export function traceRoutes(): Route[] {
   if (process.env.TRACE_ENABLED !== 'true') return [];
 
-  return TRACE_ROUTE_SPECS.map((spec) => ({
-    method: spec.method,
-    path: TRACE_PREFIX + spec.path,
-    ...(spec.maxBodyBytes ? { maxBodyBytes: spec.maxBodyBytes } : {}),
-    handler: async (
-      req: IncomingMessage,
-      body: unknown,
-      params: Record<string, string>,
-    ): Promise<unknown> => {
-      if (hasTrustedEdgeHeaders(req)) {
-        return traceError(400, 'trusted_headers_forbidden');
-      }
+  return TRACE_ROUTE_SPECS.map((spec) => {
+    const allowRequest = spec.rateLimit
+      ? createFixedWindowPerIpLimiter(spec.rateLimit.limit, spec.rateLimit.windowMs)
+      : null;
+    return {
+      method: spec.method,
+      path: TRACE_PREFIX + spec.path,
+      ...(spec.maxBodyBytes ? { maxBodyBytes: spec.maxBodyBytes } : {}),
+      handler: async (
+        req: IncomingMessage,
+        body: unknown,
+        params: Record<string, string>,
+      ): Promise<unknown> => {
+        if (hasTrustedEdgeHeaders(req)) {
+          return traceError(400, 'trusted_headers_forbidden');
+        }
 
-      let actor: AuthenticatedActor | null = null;
-      if (spec.access === 'private') {
-        const verified = await requireCitizenResult(req);
-        if (!isAuthenticatedActor(verified)) return normalizeAuthError(verified);
-        actor = verified;
-      }
+        let actor: AuthenticatedActor | null = null;
+        if (spec.access === 'private') {
+          const verified = await requireCitizenResult(req);
+          if (!isAuthenticatedActor(verified)) return normalizeAuthError(verified);
+          actor = verified;
+        }
 
-      if (spec.method === 'POST' && hasAuthorityFields(body, AUTHORITY_FIELDS)) {
-        return traceError(400, 'authority_fields_forbidden');
-      }
+        if (spec.method === 'POST' && hasAuthorityFields(body, AUTHORITY_FIELDS)) {
+          return traceError(400, 'authority_fields_forbidden');
+        }
 
-      let proxyBody = body;
-      if (spec.shapeBody) {
-        const shaped = spec.shapeBody(body);
-        if (shaped.error) return shaped.error;
-        proxyBody = shaped.body;
-      }
+        let proxyBody = body;
+        if (spec.shapeBody) {
+          const shaped = spec.shapeBody(body);
+          if (shaped.error) return shaped.error;
+          proxyBody = shaped.body;
+        }
 
-      let gatewayPrincipal: string | null = null;
-      if (spec.gatewayPrincipalEnv) {
-        gatewayPrincipal = process.env[spec.gatewayPrincipalEnv]?.trim() || null;
-        if (!gatewayPrincipal) return traceError(503, 'trace_unavailable');
-      }
+        let gatewayPrincipal: string | null = null;
+        if (spec.gatewayPrincipalEnv) {
+          gatewayPrincipal = process.env[spec.gatewayPrincipalEnv]?.trim() || null;
+          if (!gatewayPrincipal) return traceError(503, 'trace_unavailable');
+        }
 
-      let idempotencyKey: string | null = null;
-      if (spec.write) {
-        const parsed = readIdempotencyKey(req);
-        if (typeof parsed !== 'string') return parsed;
-        idempotencyKey = parsed;
-      }
+        let idempotencyKey: string | null = null;
+        if (spec.write) {
+          const parsed = readIdempotencyKey(req);
+          if (typeof parsed !== 'string') return parsed;
+          idempotencyKey = parsed;
+        }
+        if (allowRequest && !allowRequest(req)) return traceError(429, 'rate_limited');
 
-      const base = configuredTraceBase();
-      if (!base) return traceError(503, 'trace_unavailable');
-      return proxyTrace(
-        base,
-        spec,
-        req,
-        params,
-        actor,
-        proxyBody,
-        idempotencyKey,
-        gatewayPrincipal,
-      );
-    },
-  }));
+        const base = configuredTraceBase();
+        if (!base) return traceError(503, 'trace_unavailable');
+        return proxyTrace(
+          base,
+          spec,
+          req,
+          params,
+          actor,
+          proxyBody,
+          idempotencyKey,
+          gatewayPrincipal,
+        );
+      },
+    };
+  });
 }

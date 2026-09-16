@@ -53,7 +53,6 @@ export const pilotCopy = Object.freeze({
     file: localized('Nova prijava', 'Nuova segnalazione', 'New report'),
     cases: localized('Moji predmeti', 'I miei casi', 'My cases'),
     staff: localized('Radni red ureda', "Coda dell'ufficio", 'Office queue'),
-    review: localized('Neovisna provjera', 'Revisione indipendente', 'Independent review'),
     receipts: localized('Javne potvrde', 'Ricevute pubbliche', 'Public receipts'),
     login: localized('Prijava', 'Accedi', 'Sign in'),
     logout: localized('Odjava', 'Esci', 'Sign out'),
@@ -108,9 +107,9 @@ export const pilotCopy = Object.freeze({
       'Follow the response to a synthetic public-lighting report',
     ),
     intro: localized(
-      'Stanovnik podnosi privatnu prijavu. Konfigurirani odsjek preuzima odgovornost i predlaže javnu obvezu. Neovisni provjeritelj odlučuje smije li se obveza objaviti, a zasebno provjerava i tvrdnju da je popravak dovršen.',
-      "Il residente presenta una segnalazione privata. L'ufficio configurato assume la responsabilità e propone un impegno pubblico. Un revisore indipendente decide se l'impegno può essere pubblicato e, separatamente, verifica l'eventuale completamento del lavoro.",
-      'A resident files a private report. The configured office accepts responsibility and proposes a public commitment. An independent reviewer decides whether that commitment may publish and separately reviews any claim that the repair is complete.',
+      'Stanovnik podnosi prijavu i tekst je javan odmah. Konfigurirani odsjek preuzima odgovornost i objavljuje obvezu pod imenom i funkcijom odgovorne osobe. Dovršetak provjerava javnost: podnositelj ga može osporiti.',
+      "Il residente presenta una segnalazione e il testo è pubblico subito. L'ufficio configurato assume la responsabilità e pubblica l'impegno con il nome e la funzione della persona responsabile. Il completamento lo verifica il pubblico: chi ha segnalato può contestarlo.",
+      'A resident files a report and the text is public at once. The configured office accepts responsibility and publishes a commitment under the name and title of the responsible person. The public checks completion: the filer can dispute it.',
     ),
     sessionChecking: localized('Provjera prijavljene uloge…', 'Verifica del ruolo assegnato…', 'Checking the signed-in role…'),
     signedOut: localized(
@@ -125,9 +124,9 @@ export const pilotCopy = Object.freeze({
       'New reports are closed. Existing cases and public receipts remain available.',
     ),
     publicationRule: localized(
-      'Objavljena obveza nije dokaz izvršenog popravka. Status „riješeno” nastaje tek nakon zasebnih dokaza i neovisne provjere.',
-      'Un impegno pubblicato non dimostra che la riparazione sia completata. Lo stato “risolto” richiede prove separate e una revisione indipendente.',
-      'A published commitment does not prove the repair is complete. “Resolved” requires separate evidence and independent review.',
+      'Objavljena obveza nije dokaz izvršenog popravka. Ured prijavljuje dovršetak uz dokaze, a podnositelj ga može osporiti.',
+      'Un impegno pubblicato non dimostra che la riparazione sia completata. L’ufficio segnala il completamento con prove e chi ha segnalato può contestarlo.',
+      'A published commitment does not prove the repair is complete. The office reports completion with evidence and the filer can dispute it.',
     ),
     runtimeDownTitle: localized(
       'Testni poslužitelj se ne javlja',
@@ -165,19 +164,9 @@ export const pilotCopy = Object.freeze({
     ),
     demoOfficial: localized('Uđi kao službenik', 'Entra come funzionario', 'Enter as the official'),
     demoOfficialHelp: localized(
-      'Službenik preuzima predmet, dodjeljuje ga odsjeku i upisuje javnu obvezu s rokom.',
-      "Il funzionario prende in carico il caso, lo assegna all'ufficio e scrive l'impegno pubblico con una scadenza.",
-      'The official takes the case, assigns it to an office, and writes the public commitment with a due date.',
-    ),
-    demoReviewer: localized(
-      'Uđi kao neovisni recenzent',
-      'Entra come revisore indipendente',
-      'Enter as the independent reviewer',
-    ),
-    demoReviewerHelp: localized(
-      'Recenzent je neovisan o službeniku i odobrava obvezu prije nego išta postane javno.',
-      "Il revisore è indipendente dal funzionario e approva l'impegno prima che qualcosa diventi pubblico.",
-      'The reviewer is independent of the official and approves the commitment before anything becomes public.',
+      'Službenik preuzima predmet, objavljuje obvezu s rokom pod svojim imenom i prijavljuje dovršetak s dokazima.',
+      "Il funzionario prende in carico il caso, pubblica l'impegno con una scadenza a proprio nome e segnala il completamento con prove.",
+      'The official takes the case, publishes a commitment with a due date under their own name, and reports completion with evidence.',
     ),
     demoOtherHeading: localized('Ostali načini prijave', 'Altri modi per accedere', 'Other ways to sign in'),
     emailHeading: localized('Prijava poveznicom e-pošte', 'Accesso con link e-mail', 'Sign in with an email link'),
@@ -201,9 +190,9 @@ export const pilotCopy = Object.freeze({
       'Continue to the test identity provider',
     ),
     oidcHelp: localized(
-      'Službene i provjeriteljske testne uloge dolaze iz konfiguriranog testnog pružatelja identiteta.',
-      'I ruoli di test per il personale e i revisori provengono dal provider di identità di test configurato.',
-      'Official and reviewer test roles come from the configured test identity provider.',
+      'Testne uloge osoblja dolaze iz konfiguriranog testnog pružatelja identiteta.',
+      'I ruoli di test del personale provengono dal provider di identità di test configurato.',
+      'Staff test roles come from the configured test identity provider.',
     ),
     signingIn: localized('Dovršavanje prijave…', 'Completamento dell’accesso…', 'Completing sign-in…'),
     signedIn: localized('Prijava je dovršena.', 'Accesso completato.', 'Sign-in complete.'),
@@ -259,9 +248,9 @@ export const pilotCopy = Object.freeze({
       'File a synthetic report; it appears here as soon as it is recorded.',
     ),
     emptyTipTwo: localized(
-      'Predmet ostaje privatan sve dok neovisna provjera ne odobri objavu.',
-      'Il caso resta privato finché la revisione indipendente non ne autorizza la pubblicazione.',
-      'A case stays private until independent review clears it for publication.',
+      'Tekst prijave javan je od trenutka podnošenja; kontakt i privitci ostaju privatni.',
+      'Il testo della segnalazione è pubblico dal momento dell’invio; contatto e allegati restano privati.',
+      'The report text is public from the moment it is filed; the contact and attachments stay private.',
     ),
     loadError: localized('Predmeti se nisu mogli učitati.', 'Impossibile caricare i casi.', 'Cases could not be loaded.'),
   },
@@ -283,57 +272,97 @@ export const pilotCopy = Object.freeze({
   staff: {
     heading: localized('Radni red odgovornog odsjeka', "Coda dell'ufficio responsabile", 'Responsible office queue'),
     intro: localized(
-      'Odsjek može preuzeti odgovornost, predložiti javni sažetak i obvezu te poslati dokaze o završetku. Ne može objaviti vlastitu obvezu ni označiti popravak riješenim.',
-      'L’ufficio può assumere la responsabilità, proporre un riepilogo pubblico e un impegno, e presentare prove di completamento. Non può pubblicare il proprio impegno né dichiarare risolta la riparazione.',
-      'The office may accept responsibility, propose a public summary and commitment, and submit completion evidence. It cannot publish its own commitment or mark the repair resolved.',
+      'Ured odgovara pod svojim imenom: preuzima odgovornost, objavljuje obvezu s rokom i prijavljuje dovršetak s dokazima. Dovršetak provjerava javnost.',
+      'L’ufficio risponde a proprio nome: assume la responsabilità, pubblica l’impegno con una scadenza e segnala il completamento con prove. Il completamento lo verifica il pubblico.',
+      'The office answers under its own name: it accepts responsibility, publishes a commitment with a due date, and reports completion with evidence. The public checks completion.',
     ),
     assign: localized('Preuzmi odgovornost', 'Assumi la responsabilità', 'Accept responsibility'),
     assigning: localized('Preuzimanje odgovornosti…', 'Assunzione della responsabilità…', 'Accepting responsibility…'),
-    commitmentHeading: localized('Predloži javnu obvezu', 'Proponi un impegno pubblico', 'Propose public commitment'),
-    publicSummary: localized('Predloženi javni sažetak', 'Riepilogo pubblico proposto', 'Proposed public summary'),
+    commitmentHeading: localized('Objavi obvezu', 'Pubblica l’impegno', 'Publish the commitment'),
     commitment: localized('Mjerljiva obveza', 'Impegno misurabile', 'Measurable commitment'),
     dueDate: localized('Rok', 'Scadenza', 'Due date'),
-    fileCommitment: localized('Pošalji obvezu na neovisnu provjeru', 'Invia l’impegno alla revisione indipendente', 'Submit commitment for independent review'),
-    filingCommitment: localized('Slanje obveze…', 'Invio dell’impegno…', 'Submitting commitment…'),
-    resolutionHeading: localized('Pošalji dokaze o završetku', 'Invia prove di completamento', 'Submit completion evidence'),
+    signedByName: localized('Ime i prezime potpisnika', 'Nome e cognome del firmatario', 'Name of the signing person'),
+    signedByTitle: localized('Funkcija potpisnika', 'Funzione del firmatario', 'Title of the signing person'),
+    signedByHint: localized(
+      'Ime i funkcija stoje uz obvezu na javnom zapisu.',
+      'Il nome e la funzione compaiono accanto all’impegno nel record pubblico.',
+      'The name and title stand next to the commitment on the public record.',
+    ),
+    publishesNow: localized(
+      'Objavljuje se odmah pod vašim imenom.',
+      'Viene pubblicato subito a tuo nome.',
+      'This publishes at once under your name.',
+    ),
+    fileCommitment: localized('Objavi obvezu', 'Pubblica l’impegno', 'Publish commitment'),
+    filingCommitment: localized('Objava obveze…', 'Pubblicazione dell’impegno…', 'Publishing the commitment…'),
+    resolutionHeading: localized('Prijavi dovršetak s dokazima', 'Segnala il completamento con prove', 'Report completion with evidence'),
     evidenceNote: localized('Javna bilješka o dokazima', 'Nota pubblica sulle prove', 'Public evidence note'),
     evidenceUrls: localized('Javne HTTPS poveznice na dokaze', 'Link HTTPS pubblici alle prove', 'Public HTTPS evidence links'),
     evidenceUrlsHint: localized('Jedna HTTPS poveznica po retku.', 'Un link HTTPS per riga.', 'One HTTPS link per line.'),
-    submitResolution: localized('Pošalji dokaze na neovisnu provjeru', 'Invia le prove alla revisione indipendente', 'Submit evidence for independent review'),
-    submittingResolution: localized('Slanje dokaza…', 'Invio delle prove…', 'Submitting evidence…'),
+    evidenceOptional: localized('Dokazi (neobvezno)', 'Prove (facoltative)', 'Evidence (optional)'),
+    submitResolution: localized('Prijavi dovršetak', 'Segnala il completamento', 'Report completion'),
+    submittingResolution: localized('Prijava dovršetka…', 'Invio del completamento…', 'Reporting completion…'),
+    reopenHeading: localized('Prihvati osporavanje', 'Accetta la contestazione', 'Accept the dispute'),
+    reopenIntro: localized(
+      'Predmet se vraća u „odgovoreno”. Rok i obveza ostaju na javnom zapisu.',
+      'Il caso torna a “risposto”. La scadenza e l’impegno restano nel record pubblico.',
+      'The case goes back to “answered”. The due date and the commitment stay on the public record.',
+    ),
+    reopenNote: localized('Bilješka za javni trag (neobvezno)', 'Nota per la cronologia pubblica (facoltativa)', 'Note for the public trail (optional)'),
+    reopen: localized('Ponovno otvori predmet', 'Riapri il caso', 'Reopen the case'),
+    reopening: localized('Ponovno otvaranje…', 'Riapertura…', 'Reopening…'),
     noAction: localized('Za ovaj status nema dopuštene radnje ureda.', 'Nessuna azione dell’ufficio è consentita per questo stato.', 'No office action is allowed for this status.'),
-    privateFeedback: localized('Privatna povratna informacija provjere', 'Feedback privato della revisione', 'Private review feedback'),
     attachmentHeading: localized('Dodaj privatni privitak', 'Aggiungi un allegato privato', 'Add a private attachment'),
     attachmentSubmit: localized('Priloži datoteku', 'Allega il file', 'Attach file'),
   },
-  review: {
-    heading: localized('Red za neovisnu provjeru', 'Coda di revisione indipendente', 'Independent review queue'),
+  publicText: {
+    heading: localized('Javni tekst', 'Testo pubblico', 'Public text'),
     intro: localized(
-      'Provjeritelj uspoređuje predloženi javni tekst s privatnim predmetom, odlučuje o objavi i zasebno provjerava dokaze o dovršetku. Prihvaćanje obveze ne znači da je popravak završen.',
-      'Il revisore confronta il testo pubblico proposto con il caso privato, decide sulla pubblicazione e valuta separatamente le prove di completamento. Accettare l’impegno non significa che la riparazione sia conclusa.',
-      'The reviewer compares proposed public text with the private case, decides publication, and separately reviews completion evidence. Accepting a commitment does not mean the repair is complete.',
+      'Tekst prijave javan je od podnošenja. Ured ga može zadržati, objaviti kakav jest ili objaviti skraćenu verziju. Svaka radnja upisuje se u javni trag.',
+      'Il testo della segnalazione è pubblico dall’invio. L’ufficio può trattenerlo, pubblicarlo così com’è o pubblicarne una versione ridotta. Ogni azione entra nella cronologia pubblica.',
+      'The report text is public from filing. The office can hold it, release it as filed, or release a shortened version. Every action enters the public trail.',
     ),
-    commitmentHeading: localized('Odluka o objavi obveze', 'Decisione sulla pubblicazione dell’impegno', 'Commitment publication decision'),
-    resolutionHeading: localized('Odluka o završetku', 'Decisione sul completamento', 'Completion decision'),
-    note: localized('Privatna bilješka odluke', 'Nota privata della decisione', 'Private decision note'),
-    noteHint: localized('Bilješka je obvezna pri vraćanju i nikad se ne objavljuje.', 'La nota è obbligatoria per la restituzione e non viene mai pubblicata.', 'A note is required when returning and never publishes.'),
-    privacyCheck: localized(
-      'Potvrđujem da predloženi javni tekst ne sadrži privatni predmet, opis, kontakt, lokaciju, privitke ni interne identifikatore.',
-      'Confermo che il testo pubblico proposto non contiene oggetto privato, descrizione, contatto, luogo, allegati o identificativi interni.',
-      'I confirm the proposed public text excludes the private subject, narrative, contact, location, attachments, and internal identifiers.',
+    status: localized('Vidljivost teksta', 'Visibilità del testo', 'Text visibility'),
+    text: localized('Tekst na javnom zapisu', 'Testo nel record pubblico', 'Text on the public record'),
+    heldNotice: localized('Tekst je zadržan. Javni zapis pokazuje samo razlog.', 'Il testo è trattenuto. Il record pubblico mostra solo il motivo.', 'The text is held. The public record shows only the reason.'),
+    holdReason: localized('Razlog zadržavanja', 'Motivo del trattenimento', 'Hold reason'),
+    labels: localized('Oznake', 'Etichette', 'Labels'),
+    noLabels: localized('Nema oznaka.', 'Nessuna etichetta.', 'No labels.'),
+    unavailable: localized(
+      'Javni zapis se ne može učitati, pa radnje nad tekstom nisu dostupne.',
+      'Il record pubblico non può essere caricato, quindi le azioni sul testo non sono disponibili.',
+      'The public record cannot be loaded, so the text actions are unavailable.',
     ),
-    acceptCommitment: localized('Prihvati i objavi obvezu', 'Accetta e pubblica l’impegno', 'Accept and publish commitment'),
-    returnCommitment: localized('Vrati obvezu uredu', 'Restituisci l’impegno all’ufficio', 'Return commitment to office'),
-    acceptResolution: localized('Prihvati dovršetak', 'Accetta il completamento', 'Accept completion'),
-    returnResolution: localized('Vrati dokaze uredu', 'Restituisci le prove all’ufficio', 'Return evidence to office'),
-    deciding: localized('Spremanje odluke…', 'Salvataggio della decisione…', 'Saving decision…'),
-    noAction: localized('Ovaj zapis trenutačno ne čeka odluku provjeritelja.', 'Questo record non è in attesa di una decisione del revisore.', 'This record is not awaiting a reviewer decision.'),
-    returnNeedsNote: localized('Za vraćanje upišite privatnu bilješku.', 'Per restituire il record, inserisci una nota privata.', 'Add a private note before returning the record.'),
-    acceptNeedsCheck: localized('Prije objave potvrdite provjeru privatnosti.', 'Prima della pubblicazione, conferma la verifica della privacy.', 'Confirm the privacy review before publishing.'),
-    decisionPermanent: localized(
-      'Odluka se trajno upisuje u hash-povezani slijed i ne može se poništiti.',
-      'La decisione viene scritta in modo permanente nella cronologia collegata tramite hash e non può essere annullata.',
-      'The decision is written permanently into the hash-linked trail and cannot be undone.',
+    holdHeading: localized('Zadrži tekst', 'Trattieni il testo', 'Hold the text'),
+    holdNote: localized('Interna bilješka (neobvezno)', 'Nota interna (facoltativa)', 'Internal note (optional)'),
+    hold: localized('Zadrži tekst', 'Trattieni il testo', 'Hold the text'),
+    holding: localized('Zadržavanje teksta…', 'Trattenimento del testo…', 'Holding the text…'),
+    held: localized('Tekst je zadržan.', 'Il testo è trattenuto.', 'The text is held.'),
+    releaseHeading: localized('Objavi tekst', 'Pubblica il testo', 'Release the text'),
+    releaseAsFiled: localized('Objavi kako je podneseno', 'Pubblica come presentato', 'Release as filed'),
+    releaseRedacted: localized('Objavi skraćenu verziju', 'Pubblica una versione ridotta', 'Release a shortened version'),
+    redactedText: localized('Skraćeni tekst', 'Testo ridotto', 'Shortened text'),
+    redactedHint: localized(
+      'Uklonite samo ono što mora otići. Skraćivanje je javan događaj.',
+      'Togli solo ciò che deve sparire. La riduzione è un evento pubblico.',
+      'Remove only what must go. A shortened release is a public event.',
+    ),
+    releasing: localized('Objava teksta…', 'Pubblicazione del testo…', 'Releasing the text…'),
+    released: localized('Tekst je objavljen.', 'Il testo è pubblicato.', 'The text is released.'),
+    labelHeading: localized('Oznaka šablonske prijave', 'Etichetta segnalazione modello', 'Form-letter label'),
+    labelExplanation: localized(
+      'Oznaka ništa ne blokira i ništa ne ističe. Podnositelj je može osporiti porukom uredu.',
+      'L’etichetta non blocca e non evidenzia nulla. Chi ha segnalato può contestarla con un messaggio all’ufficio.',
+      'The label blocks nothing and highlights nothing. The filer can appeal it with a message to the office.',
+    ),
+    setLabel: localized('Postavi oznaku', 'Imposta l’etichetta', 'Set the label'),
+    clearLabel: localized('Ukloni oznaku', 'Rimuovi l’etichetta', 'Clear the label'),
+    labelling: localized('Spremanje oznake…', 'Salvataggio dell’etichetta…', 'Saving the label…'),
+    labelled: localized('Oznaka je spremljena.', 'L’etichetta è salvata.', 'The label is saved.'),
+    closedNoAction: localized(
+      'Predmet je zatvoren. Tekst se više ne mijenja.',
+      'Il caso è chiuso. Il testo non cambia più.',
+      'The case is closed. The text no longer changes.',
     ),
   },
   channel: {
@@ -394,6 +423,8 @@ export const pilotCopy = Object.freeze({
     ),
     inbound: localized('Podnositelj', 'Segnalante', 'Filer'),
     outbound: localized('Ured', 'Ufficio', 'Office'),
+    labelAppeal: localized('Osporavanje oznake', 'Contestazione dell’etichetta', 'Label appeal'),
+    dispute: localized('Osporavanje dovršetka', 'Contestazione del completamento', 'Completion dispute'),
     formHeading: localized('Pošalji pitanje podnositelju', 'Invia una domanda al segnalante', 'Send a question to the filer'),
     body: localized('Tekst pitanja', 'Testo della domanda', 'Question text'),
     bodyHint: localized(
@@ -448,45 +479,51 @@ export const pilotCopy = Object.freeze({
     heading: localized('Javne potvrde', 'Ricevute pubbliche', 'Public receipts'),
     singular: localized('Javna potvrda', 'Ricevuta pubblica', 'Public receipt'),
     intro: localized(
-      'Ovdje su samo sažeci, obveze i dokazi koje je prihvatila neovisna provjera. Privatni predmet, opis, kontakt, oznaka lokacije i privitci nisu dio javnog odgovora.',
-      'Qui compaiono solo riepiloghi, impegni e prove accettati dalla revisione indipendente. Oggetto privato, descrizione, contatto, riferimento del luogo e allegati non fanno parte della risposta pubblica.',
-      'Only summaries, commitments, and evidence accepted by independent review appear here. Private subject, narrative, contact, location reference, and attachments are not part of the public response.',
+      'Ovdje su obveze ureda i dokazi o dovršetku, potpisani imenom i funkcijom. Kontakt podnositelja i privitci nisu dio javnog odgovora.',
+      'Qui ci sono gli impegni dell’ufficio e le prove di completamento, firmati con nome e funzione. Il contatto del segnalante e gli allegati non fanno parte della risposta pubblica.',
+      'Here are the office commitments and the completion evidence, signed with a name and a title. The filer’s contact and the attachments are not part of the public response.',
     ),
     emptyTitle: localized('Još nema javnih potvrda', 'Nessuna ricevuta pubblica', 'No public receipts yet'),
     empty: localized('Nema objavljenih sintetičkih potvrda.', 'Nessuna ricevuta sintetica pubblicata.', 'No synthetic public receipts have been published.'),
     emptyTipOne: localized(
-      'Potvrda nastaje tek kad neovisna provjera odobri obvezu ureda.',
-      'Una ricevuta nasce solo quando la revisione indipendente approva l’impegno dell’ufficio.',
-      'A receipt appears only after independent review approves an office commitment.',
+      'Potvrda nastaje kad ured objavi obvezu na predmetu.',
+      'Una ricevuta nasce quando l’ufficio pubblica un impegno su un caso.',
+      'A receipt appears when the office publishes a commitment on a case.',
     ),
     emptyTipTwo: localized(
-      'Do tada su svi zapisi privatni i vidljivi samo sudionicima predmeta.',
-      'Fino ad allora ogni record resta privato e visibile solo alle parti del caso.',
-      'Until then every record stays private and visible only to the people on the case.',
+      'Do tada predmet ima javni zapis sa stanjem, ali bez odgovora ureda.',
+      'Fino ad allora il caso ha un record pubblico con lo stato, ma senza risposta dell’ufficio.',
+      'Until then the case has a public record with its state but no office answer.',
     ),
     loadError: localized('Javne potvrde se nisu mogle učitati.', 'Impossibile caricare le ricevute pubbliche.', 'Public receipts could not be loaded.'),
-    publicSummary: localized('Odobreni javni sažetak', 'Riepilogo pubblico approvato', 'Approved public summary'),
-    commitment: localized('Odobrena obveza', 'Impegno approvato', 'Approved commitment'),
+    publicSummary: localized('Obveza ureda', 'Impegno dell’ufficio', 'Office commitment'),
+    signedBy: localized('Potpisuje', 'Firmato da', 'Signed by'),
+    commitment: localized('Obveza', 'Impegno', 'Commitment'),
     dueDate: localized('Rok obveze', 'Scadenza dell’impegno', 'Commitment due date'),
-    evidence: localized('Odobreni dokazi o završetku', 'Prove di completamento approvate', 'Approved completion evidence'),
+    evidence: localized('Dokazi o dovršetku', 'Prove di completamento', 'Completion evidence'),
     publicationStatus: localized('Status javne potvrde', 'Stato della ricevuta pubblica', 'Public receipt status'),
     interfaceLanguage: localized('Jezik sučelja', 'Lingua dell’interfaccia', 'Interface language'),
     approvedTextNote: localized(
-      'Tekst u nastavku prikazan je točno onako kako ga je prihvatila neovisna provjera.',
-      'Il testo seguente è mostrato esattamente come approvato dalla revisione indipendente.',
-      'The wording below is shown exactly as accepted by independent review.',
+      'Tekst u nastavku prikazan je točno onako kako ga je ured objavio.',
+      'Il testo seguente è mostrato esattamente come l’ufficio lo ha pubblicato.',
+      'The wording below is shown exactly as the office published it.',
     ),
     publishedAt: localized('Objavljeno', 'Pubblicato', 'Published'),
-    resolvedAt: localized('Dovršetak prihvaćen', 'Completamento accettato', 'Completion accepted'),
+    resolvedAt: localized('Dovršetak prijavljen', 'Completamento segnalato', 'Completion reported'),
     publishedNotResolved: localized(
-      'Obveza je objavljena nakon neovisne provjere. Ovaj status ne tvrdi da je popravak dovršen.',
-      'L’impegno è stato pubblicato dopo una revisione indipendente. Questo stato non dichiara conclusa la riparazione.',
-      'The commitment was published after independent review. This status does not claim the repair is complete.',
+      'Ured je objavio obvezu pod svojim imenom. Ovaj status ne tvrdi da je popravak dovršen.',
+      'L’ufficio ha pubblicato l’impegno a proprio nome. Questo stato non dichiara conclusa la riparazione.',
+      'The office published the commitment under its own name. This status does not claim the repair is complete.',
     ),
     resolved: localized(
-      'Dokazi o dovršetku prihvaćeni su u zasebnoj neovisnoj provjeri.',
-      'Le prove di completamento sono state accettate in una revisione indipendente separata.',
-      'Completion evidence was accepted in a separate independent review.',
+      'Ured je prijavio dovršetak s dokazima. Podnositelj ga može osporiti.',
+      'L’ufficio ha segnalato il completamento con prove. Chi ha segnalato può contestarlo.',
+      'The office reported completion with evidence. The filer can dispute it.',
+    ),
+    disputed: localized(
+      'Podnositelj je osporio dovršetak. Ured mora ponovno odgovoriti.',
+      'Chi ha segnalato ha contestato il completamento. L’ufficio deve rispondere di nuovo.',
+      'The filer disputed the completion. The office has to answer again.',
     ),
     events: localized('Javni slijed događaja', 'Cronologia pubblica degli eventi', 'Public event trail'),
     receiptHash: localized('Hash javne potvrde', 'Hash della ricevuta pubblica', 'Public receipt hash'),
@@ -502,22 +539,42 @@ export const pilotCopy = Object.freeze({
 
 export const statusLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   open: localized('ZAPRIMLJENO', 'RICEVUTO', 'RECEIVED'),
+  received: localized('ZAPRIMLJENO', 'RICEVUTO', 'RECEIVED'),
   assigned: localized('Odgovornost preuzeta', 'Responsabilità assunta', 'Responsibility assigned'),
-  'commitment-pending-review': localized('ČEKA NEOVISNU PROVJERU', 'IN ATTESA DI REVISIONE INDIPENDENTE', 'PENDING REVIEW'),
-  returned: localized('Vraćeno iz neovisne provjere', 'Restituito dalla revisione indipendente', 'Returned by independent review'),
-  published: localized('Obveza objavljena', 'Impegno pubblicato', 'Commitment published'),
-  'resolution-pending-review': localized('Dovršetak čeka neovisnu provjeru', 'Completamento in revisione indipendente', 'Completion pending independent review'),
-  resolved: localized('Dovršetak neovisno prihvaćen', 'Completamento accettato indipendentemente', 'Completion independently accepted'),
+  answered: localized('ODGOVORENO', 'RISPOSTO', 'ANSWERED'),
+  resolved: localized('Dovršetak prijavljen', 'Completamento segnalato', 'Completion reported'),
+  disputed: localized('OSPORENO', 'CONTESTATO', 'DISPUTED'),
   closed: localized('ZATVORENO', 'CHIUSO', 'CLOSED'),
   unknown: localized('Status nije poznat', 'Stato sconosciuto', 'Status unknown'),
 });
 
+/** How much of the filed text the public record carries right now. */
+export const textStatusLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  public: localized('JAVNO', 'PUBBLICO', 'PUBLIC'),
+  held: localized('ZADRŽANO', 'TRATTENUTO', 'HELD'),
+  redacted: localized('SKRAĆENO', 'RIDOTTO', 'SHORTENED'),
+  unknown: localized('VIDLJIVOST NIJE POZNATA', 'VISIBILITÀ SCONOSCIUTA', 'VISIBILITY UNKNOWN'),
+});
+
+export const holdReasonLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  'personal-data': localized('Osobni podaci', 'Dati personali', 'Personal data'),
+  abuse: localized('Uvredljiv sadržaj', 'Contenuto offensivo', 'Abusive content'),
+  'off-topic': localized('Izvan teme', 'Fuori tema', 'Off topic'),
+  other: localized('Drugi razlog', 'Altro motivo', 'Other reason'),
+  unknown: localized('Razlog nije poznat', 'Motivo sconosciuto', 'Reason unknown'),
+});
+
+export const caseLabelLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  'form-letter': localized('Šablonska prijava', 'Segnalazione modello', 'Form letter'),
+  unknown: localized('Oznaka', 'Etichetta', 'Label'),
+});
+
 /**
  * Origin, AI, delivery, and closing labels. Croatian first; the terms new in
- * this wave (kanal prijave, prijedlog AI pripreme, predano na dostavu, javni
- * razlog zatvaranja) are not yet in the FLAGGED glossary rows in
+ * this wave (odgovoreno, osporeno, zadržano, šablonska prijava, skraćeni tekst)
+ * are not yet in the FLAGGED glossary rows in
  * docs/communication/hr-terminology-glossary.md and still need the native
- * public-sector editor's yes/no.
+ * public-sector editor's yes/no (open item O4).
  */
 export const originLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   web: pilotCopy.channel.web,
@@ -564,38 +621,37 @@ export const closedReasonLabels: Readonly<Record<string, LocalizedText>> = Objec
 export const roleLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   resident: localized('Stanovnik', 'Residente', 'Resident'),
   official: localized('Odgovorni odsjek', 'Ufficio responsabile', 'Responsible office'),
-  reviewer: localized('Neovisni provjeritelj', 'Revisore indipendente', 'Independent reviewer'),
+  gateway: localized('Kanal prijave', 'Canale della segnalazione', 'Report channel'),
+  system: localized('Sustav', 'Sistema', 'System'),
 });
 
 export const stageLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   voice: localized('Prijava', 'Segnalazione', 'Voice'),
   responsibility: localized('Odgovornost', 'Responsabilità', 'Responsibility'),
   response: localized('Odgovor', 'Risposta', 'Response'),
-  check: localized('Neovisna provjera', 'Revisione indipendente', 'Independent check'),
+  check: localized('Provjera javnosti', 'Verifica del pubblico', 'Public check'),
   receipt: localized('Javna potvrda', 'Ricevuta pubblica', 'Public receipt'),
 });
 
 export const actionLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
-  'report-filed': localized('Sintetička prijava zaprimljena', 'Segnalazione sintetica ricevuta', 'Synthetic report received'),
+  'report-filed': localized('Prijava zaprimljena', 'Segnalazione ricevuta', 'Report received'),
+  'record-created': localized('Prijava podnesena', 'Segnalazione presentata', 'Report filed'),
+  'text-held': localized('Javni tekst zadržan', 'Testo pubblico trattenuto', 'Public text held'),
+  'text-released': localized('Javni tekst objavljen', 'Testo pubblico pubblicato', 'Public text released'),
+  'label-set': localized('Oznaka postavljena', 'Etichetta impostata', 'Label set'),
+  'label-cleared': localized('Oznaka uklonjena', 'Etichetta rimossa', 'Label cleared'),
   'office-assigned': localized('Nadležni odsjek preuzeo odgovornost', 'L’ufficio responsabile ha assunto la responsabilità', 'Responsible office accepted responsibility'),
-  'commitment-filed': localized('Obveza poslana na neovisnu provjeru', 'Impegno inviato alla revisione indipendente', 'Commitment submitted for independent review'),
-  'commitment-accepted': localized('Neovisna provjera prihvatila obvezu', 'La revisione indipendente ha accettato l’impegno', 'Independent review accepted the commitment'),
-  'completion-approved': localized('Dovršetak prihvaćen nakon zasebne neovisne provjere', 'Completamento accettato dopo una revisione indipendente separata', 'Completion accepted after separate independent review'),
-  'record-created': localized('Privatna prijava podnesena', 'Segnalazione privata presentata', 'Private report filed'),
   'record-assigned': localized('Odgovornost preuzeta', 'Responsabilità assunta', 'Responsibility accepted'),
-  'commitment-submitted': localized('Obveza poslana na neovisnu provjeru', 'Impegno inviato alla revisione indipendente', 'Commitment submitted for independent review'),
-  'commitment-approved': localized('Neovisna provjera prihvatila obvezu', 'La revisione indipendente ha accettato l’impegno', 'Independent review accepted the commitment'),
-  'commitment-returned': localized('Neovisna provjera vratila obvezu', 'La revisione indipendente ha restituito l’impegno', 'Independent review returned the commitment'),
-  'resolution-submitted': localized('Dokazi o dovršetku poslani na neovisnu provjeru', 'Prove di completamento inviate alla revisione indipendente', 'Completion evidence submitted for independent review'),
-  'resolution-approved': localized('Neovisna provjera prihvatila dovršetak', 'La revisione indipendente ha accettato il completamento', 'Independent review accepted completion'),
-  'resolution-returned': localized('Neovisna provjera vratila dokaze', 'La revisione indipendente ha restituito le prove', 'Independent review returned the evidence'),
+  'commitment-published': localized('Obveza objavljena pod imenom službene osobe', 'Impegno pubblicato a nome della persona responsabile', 'Commitment published under the official’s name'),
+  'completion-reported': localized('Ured prijavio dovršetak s dokazima', 'L’ufficio ha segnalato il completamento con prove', 'The office reported completion with evidence'),
+  'completion-disputed': localized('Podnositelj osporio dovršetak', 'Chi ha segnalato ha contestato il completamento', 'The filer disputed the completion'),
+  'case-reopened': localized('Predmet ponovno otvoren', 'Caso riaperto', 'Case reopened'),
+  'case-resolved-standing': localized('Dovršetak prijavljen i neosporen', 'Completamento segnalato e non contestato', 'Completion reported and not disputed'),
   'attachment-added': localized('Privatni privitak dodan', 'Allegato privato aggiunto', 'Private attachment added'),
   'message-appended': localized('Poruka upisana u predmet', 'Messaggio registrato nel caso', 'Message recorded on the case'),
   'ai-proposal-accepted': localized('Službena osoba prihvatila prijedlog AI pripreme', 'Il personale ha accettato la proposta di preparazione AI', 'Staff accepted the AI intake proposal'),
   'ai-proposal-rejected': localized('Službena osoba odbacila prijedlog AI pripreme', 'Il personale ha rifiutato la proposta di preparazione AI', 'Staff rejected the AI intake proposal'),
   'case-closed': localized('Predmet zatvoren uz navedeni razlog', 'Caso chiuso con la motivazione indicata', 'Case closed with a stated reason'),
-  published: localized('Obveza objavljena nakon neovisne provjere', 'Impegno pubblicato dopo la revisione indipendente', 'Commitment published after independent review'),
-  resolved: localized('Dovršetak objavljen nakon zasebne neovisne provjere', 'Completamento pubblicato dopo una revisione indipendente separata', 'Completion published after separate independent review'),
 });
 
 export const errorMessages: Readonly<Record<string, LocalizedText>> = Object.freeze({
@@ -609,7 +665,16 @@ export const errorMessages: Readonly<Record<string, LocalizedText>> = Object.fre
   stale_version: localized('Zapis je u međuvremenu promijenjen. Ponovno ga učitajte prije nastavka.', 'Il record è cambiato. Ricaricalo prima di continuare.', 'The record changed. Reload it before continuing.'),
   idempotency_conflict: localized('Ovaj je zahtjev već upotrijebljen za drugu radnju. Ponovno učitajte zapis.', 'Questa richiesta è già stata usata per un’altra azione. Ricarica il record.', 'This request was already used for another action. Reload the record.'),
   invalid_state: localized('Radnja nije dopuštena u trenutačnom statusu. Ponovno učitajte zapis.', 'L’azione non è consentita nello stato attuale. Ricarica il record.', 'That action is not allowed in the current status. Reload the record.'),
-  self_review_forbidden: localized('Ne možete provjeravati zapis na kojem ste djelovali kao službena osoba.', 'Non puoi revisionare un record sul quale hai agito come responsabile.', 'You cannot review a record you acted on as an official.'),
+  dispute_limit: localized(
+    'Ovaj je predmet već osporen najviše dopušteni broj puta.',
+    'Questo caso è già stato contestato il numero massimo di volte.',
+    'This case has already been disputed the maximum number of times.',
+  ),
+  text_held: localized(
+    'Tekst ove prijave je zadržan, pa ta radnja nije moguća.',
+    'Il testo di questa segnalazione è trattenuto, quindi questa azione non è possibile.',
+    'The text of this report is held, so that action is not possible.',
+  ),
   invalid_request: localized('Provjerite unesene podatke i pokušajte ponovno.', 'Controlla i dati inseriti e riprova.', 'Check the entered information and try again.'),
   validation_error: localized('Provjerite označena polja i pokušajte ponovno.', 'Controlla i campi indicati e riprova.', 'Check the marked fields and try again.'),
   attachment_too_large: pilotCopy.filing.attachmentTooLarge,
@@ -673,13 +738,20 @@ export const errorMessages: Readonly<Record<string, LocalizedText>> = Object.fre
  */
 export const statusTones: Readonly<Record<string, string>> = Object.freeze({
   open: 'trace',
+  received: 'trace',
   assigned: 'warning',
-  'commitment-pending-review': 'warning',
-  returned: 'warning',
-  'resolution-pending-review': 'warning',
-  published: 'valid',
+  answered: 'valid',
   resolved: 'valid',
+  disputed: 'warning',
   closed: 'unknown',
+  unknown: 'unknown',
+});
+
+/** Held text is a caution, not a failure: the shell and the hash stay public. */
+export const textStatusTones: Readonly<Record<string, string>> = Object.freeze({
+  public: 'valid',
+  held: 'warning',
+  redacted: 'warning',
   unknown: 'unknown',
 });
 
@@ -722,6 +794,26 @@ export function translatedAiKind(kind: unknown, lang: PilotLang): string {
 export function translatedDelivery(state: unknown, lang: PilotLang): string {
   const key = typeof state === 'string' ? state : 'unknown';
   return (deliveryLabels[key] ?? deliveryLabels.unknown)[lang];
+}
+
+export function textStatusTone(status: unknown): string {
+  const key = typeof status === 'string' ? status : 'unknown';
+  return textStatusTones[key] ?? 'unknown';
+}
+
+export function translatedTextStatus(status: unknown, lang: PilotLang): string {
+  const key = typeof status === 'string' ? status : 'unknown';
+  return (textStatusLabels[key] ?? textStatusLabels.unknown)[lang];
+}
+
+export function translatedHoldReason(reason: unknown, lang: PilotLang): string {
+  const key = typeof reason === 'string' ? reason : 'unknown';
+  return (holdReasonLabels[key] ?? holdReasonLabels.unknown)[lang];
+}
+
+export function translatedCaseLabel(label: unknown, lang: PilotLang): string {
+  const key = typeof label === 'string' ? label : 'unknown';
+  return (caseLabelLabels[key] ?? caseLabelLabels.unknown)[lang];
 }
 
 export function translatedClosedReason(reason: unknown, lang: PilotLang): string {

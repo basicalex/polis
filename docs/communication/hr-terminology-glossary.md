@@ -4,8 +4,8 @@
 review.** It was assembled by a non-native reader working from the strings currently in the code,
 so treat every row as a proposal with a stated reason, not as a settled decision. DESIGN.md (§
 "Croatian public-sector terminology review") and `design-lab/pitch/notes.md` both hold external
-presentation behind that native review; nothing here lifts that gate. The three terms flagged there
-— charter, independent review, public receipt — are marked **FLAGGED** below and need an explicit
+presentation behind that native review; nothing here lifts that gate. Charter, public receipt,
+and the new case-state and public-check terms are marked **FLAGGED** below and need an explicit
 yes/no from the editor.
 
 Scope: `apps/web/src/content/demo-strings.mjs`, `apps/web/src/content/public-release.ts`,
@@ -27,11 +27,12 @@ Scope: `apps/web/src/content/demo-strings.mjs`, `apps/web/src/content/public-rel
 | commitment | obveza | everywhere | Correct and consistent. Rejected "obećanje" (a promise, not an obligation) and "mjera". |
 | response obligation | obveza odgovora | public-release | Consistent. |
 | due date | rok | everywhere | Consistent. |
-| independent review (FLAGGED) | neovisna provjera | everywhere | Held consistently; no drift to "nezavisna revizija" anywhere in the audited files. Deliberately *not* "revizija", which in Croatian means a formal financial/legal audit under a different legal regime. Editor to confirm "provjera" carries enough weight for a municipal counterparty, and that "neovisna" (not "nezavisna") is the preferred adjective. |
-| independent reviewer (FLAGGED) | neovisni provjeritelj | demo-strings, review, record, landing | "Provjeritelj" is attested (provjeritelj činjenica) but is not standard JLS vocabulary. Alternatives considered: "neovisni ocjenjivač", "neovisna provjeriteljska strana", "vanjski provjeritelj". Editor decides. |
-| to accept (a commitment) | prihvatiti | review, record | Consistent. |
-| to return (a commitment) | vratiti | review, official, record | Consistent. |
-| returned by independent review | (two forms in code) | official, review, record | `VRAĆENO NEOVISNOM PROVJEROM` (instrumental agent, a calque) vs `VRAĆENO S NEOVISNE PROVJERE`. Recommend the second, with `PRIHVAĆENO U NEOVISNOJ PROVJERI` as its pair. Editor to confirm. |
+| answered (FLAGGED) | odgovoreno | pilot case state, status chip | **FLAGGED.** The official has published a signed commitment. Editor to confirm the neutral status form. |
+| disputed (FLAGGED) | osporeno | pilot case state, status chip | **FLAGGED.** The filer challenged the completion claim. Editor to confirm the administrative tone. |
+| held (FLAGGED) | zadržano | public text badge and hold notice | **FLAGGED.** The public shell remains visible while the text is withheld. Editor to confirm this does not imply final refusal. |
+| form letter (FLAGGED) | obrazac / šablonska prijava | soft public label | **FLAGGED.** One non-blocking label for repeated campaign or machine-written text. Editor to choose between the formal and common term. |
+| not fixed (FLAGGED) | nije popravljeno | follower action and count | **FLAGGED.** A deduplicated public signal, not a vote or decision. Editor to confirm the plain form. |
+| dispute (FLAGGED) | osporavanje | filer action and public event | **FLAGGED.** A public challenge to a completion claim. Editor to confirm this noun for the action and trail. |
 | public receipt (FLAGGED) | javna potvrda | demo-strings, public-release, record, review, landing | "Potvrda" alone reads as a certificate issued to a person (potvrda o prebivalištu). The Polis receipt is a hash-linked record that a process was carried out. Alternatives considered: "javna potvrda o postupanju" (clearest, long), "javni upisnik postupanja", "javna evidencija ishoda". Recommendation for the editor: keep "javna potvrda" as the short stage label, and expand once per surface to "javna potvrda o postupanju". |
 | public record | javni zapis | everywhere | Consistent. |
 | public ledger (the place's node in the Trace graph; presentation) | Javni zapis | presentation graph node, place ledger page | User decision 2026-09-11. Same word as the per-case public record: the ledger is the place's set of javni zapisi, public in every state. Rejected "javna knjiga" and "glavna knjiga" (accounting ledger) and "javni registar" (a register of entities, not of proceedings). |
@@ -81,8 +82,7 @@ sit beside Vi prose everywhere else in the same file).
 of the "da + present" purpose construction, which the Croatian standard disfavours.
 
 **Clitic order.** Keep the enclitic in second position ("Emulirana je stranica…", "Zapis {id}
-objavljen je…"). Where the accusative clitic *je* would collide with the auxiliary *je*, use *ju*
-("neovisni provjeritelj ju provjerava").
+objavljen je…"). Where the accusative clitic *je* would collide with the auxiliary *je*, use *ju*.
 
 **Negated verbs take the genitive.** "nema nadležnog ureda", not "nema nadležni ured".
 
@@ -127,7 +127,7 @@ convention changes with language.
 | I have the same problem / follow (FLAGGED) | imam isti problem / prati | public case shell | **FLAGGED.** These are attention signals and never a vote. Keep the two actions distinct. |
 | closed with reason (FLAGGED) | zatvoreno uz razlog | case shell | **FLAGGED.** Closure must show a public reason; editor to confirm the status phrasing. |
 | AI proposal (FLAGGED) | prijedlog (AI) | staff case review | **FLAGGED.** A draft for human review, never an AI decision or published fact. |
-| public case shell (FLAGGED) | javni okvir predmeta | public case lookup | **FLAGGED.** Means the narrative-free public state record, not the private case file. |
+| public case shell (FLAGGED) | javni okvir predmeta | public case lookup | **FLAGGED.** The public state record carries filed or redacted text, or a hold reason when the text is withheld; it is not the private case file. |
 | received stamp (FLAGGED) | ZAPRIMLJENO | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
 | in progress stamp (FLAGGED) | U OBRADI | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |
 | closed stamp (FLAGGED) | ZATVORENO | channel status stamp | **FLAGGED.** Native editor must approve the fixed uppercase stamp. |

@@ -15,13 +15,17 @@ import {
   normalizeCommitment,
   normalizeCreate,
   normalizeDelivery,
+  normalizeDispute,
   normalizeFilerMessage,
   normalizeGatewayCreate,
   normalizeGatewayMessage,
+  normalizeHold,
+  normalizeLabel,
   normalizeOfficialMessage,
+  normalizeRelease,
+  normalizeReopen,
   normalizeReopenRead,
   normalizeResolution,
-  normalizeReview,
   parseListLimit,
   validateCaseNumber,
   validateDateOnly,
@@ -86,48 +90,89 @@ test('evidence URLs are bounded HTTPS-only values without credentials', () => {
     expectedVersion: 2,
     evidenceNote: 'Completed',
     evidenceUrls: ['https://example.test/proof'],
+    signedBy: { name: 'Ana Anić', title: 'Head of public works' },
   });
   assert.deepEqual(valid.evidenceUrls, ['https://example.test/proof']);
   for (const url of ['http://example.test', 'https://user:pass@example.test', 'not-a-url']) {
     assert.equal(
       code(() =>
-        normalizeResolution({ expectedVersion: 2, evidenceNote: 'Completed', evidenceUrls: [url] }),
+        normalizeResolution({
+          expectedVersion: 2,
+          evidenceNote: 'Completed',
+          evidenceUrls: [url],
+          signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+        }),
       ),
       'invalid_evidence_urls',
     );
   }
   assert.equal(
     code(() =>
-      normalizeResolution({ expectedVersion: 2, evidenceNote: 'Completed', evidenceUrls: [] }),
+      normalizeResolution({
+        expectedVersion: 2,
+        evidenceNote: 'Completed',
+        evidenceUrls: [],
+        signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+      }),
     ),
     'invalid_evidence_urls',
   );
 });
 
-test('review notes and optimistic versions are strict', () => {
-  assert.equal(
-    code(() => normalizeReview({ expectedVersion: 0, decision: 'return', note: '' })),
-    'review_note_required',
+test('signed commands and public text policy inputs are strict and normalized', () => {
+  assert.deepEqual(
+    normalizeCommitment({
+      expectedVersion: 1,
+      commitment: '  Replace the lamp  ',
+      dueDate: '2026-10-01',
+      signedBy: { name: '  Ana Anić ', title: ' Head of public works ' },
+    }),
+    {
+      expectedVersion: 1,
+      commitment: 'Replace the lamp',
+      dueDate: '2026-10-01',
+      signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+    },
   );
-  assert.equal(
-    code(() => normalizeReview({ expectedVersion: -1, decision: 'accept', note: null })),
-    'invalid_expected_version',
-  );
-  assert.deepEqual(normalizeReview({ expectedVersion: 1, decision: 'accept', note: null }), {
-    expectedVersion: 1,
-    decision: 'accept',
-    note: null,
-  });
   assert.equal(
     code(() =>
       normalizeCommitment({
         expectedVersion: 1.5,
-        publicSummary: 's',
         commitment: 'c',
         dueDate: '2026-10-01',
+        signedBy: { name: 'Ana', title: 'Official' },
       }),
     ),
     'invalid_expected_version',
+  );
+  assert.deepEqual(normalizeHold({ reason: 'abuse', note: '  policy term ' }), {
+    reason: 'abuse',
+    note: 'policy term',
+  });
+  assert.deepEqual(normalizeRelease({ redactedText: '  safe text ', note: null }), {
+    redactedText: 'safe text',
+    note: null,
+  });
+  assert.deepEqual(normalizeLabel({ label: 'form-letter', action: 'clear' }), {
+    label: 'form-letter',
+    action: 'clear',
+  });
+  assert.deepEqual(normalizeReopen({ note: '  repair again ' }), { note: 'repair again' });
+  assert.deepEqual(normalizeDispute({ reopenKey: 'Abcdefghijklmnop_1234', text: ' Still dark ' }), {
+    reopenKey: 'Abcdefghijklmnop_1234',
+    text: 'Still dark',
+  });
+  assert.equal(
+    code(() => normalizeHold({ reason: 'secret' })),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() => normalizeRelease({ redactedText: '' })),
+    'invalid_request',
+  );
+  assert.equal(
+    code(() => normalizeLabel({ label: 'urgent', action: 'set' })),
+    'invalid_request',
   );
 });
 
@@ -491,7 +536,15 @@ test('filer and official messages enforce bodies, references, versions, and chan
       body: 'Molim odgovor.',
       inReplyTo: VALID_ID,
     }),
-    { reopenKey: VALID_REOPEN_KEY, body: 'Molim odgovor.', inReplyTo: VALID_ID },
+    { reopenKey: VALID_REOPEN_KEY, kind: 'append', body: 'Molim odgovor.', inReplyTo: VALID_ID },
+  );
+  assert.equal(
+    normalizeFilerMessage({
+      reopenKey: VALID_REOPEN_KEY,
+      kind: 'label-appeal',
+      body: 'This is not a form letter.',
+    }).kind,
+    'label-appeal',
   );
   assert.deepEqual(
     normalizeOfficialMessage({
@@ -609,6 +662,14 @@ test('attention and delivery inputs enforce idempotent public actions and delive
       action: 'remove',
     }),
     { followerKey: 'follower_key_1234', kind: 'also-affected', action: 'remove' },
+  );
+  assert.equal(
+    normalizeAttention({
+      followerKey: 'follower_key_1234',
+      kind: 'not-fixed',
+      action: 'add',
+    }).kind,
+    'not-fixed',
   );
   assert.deepEqual(normalizeDelivery({ state: 'failed', failureCode: 'provider_rejected' }), {
     state: 'failed',

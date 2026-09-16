@@ -78,6 +78,14 @@ function parseOptionalHttpUrl(raw: string | undefined, key: string): string | nu
   return parsed.href;
 }
 
+function parseHoldTerms(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function localized(value: unknown, field: string): LocalizedText {
   if (!value || typeof value !== 'object') throw new Error(`invalid pilot ${field}`);
   const record = value as Record<string, unknown>;
@@ -217,16 +225,10 @@ export function parseTraceConfig(
     throw new Error('DATABASE_URL must be an explicit PostgreSQL URL with a database name');
   }
   const officialIds = parseActorIds(env.TRACE_OFFICIAL_CITIZEN_IDS, 'TRACE_OFFICIAL_CITIZEN_IDS');
-  const reviewerIds = parseActorIds(env.TRACE_REVIEWER_CITIZEN_IDS, 'TRACE_REVIEWER_CITIZEN_IDS');
   const gatewayIds = parseActorIds(env.TRACE_GATEWAY_ACTOR_IDS, 'TRACE_GATEWAY_ACTOR_IDS');
   for (const id of officialIds) {
-    if (reviewerIds.has(id) || gatewayIds.has(id)) {
-      throw new Error('trace official, reviewer, and gateway mappings must be disjoint');
-    }
-  }
-  for (const id of reviewerIds) {
     if (gatewayIds.has(id)) {
-      throw new Error('trace official, reviewer, and gateway mappings must be disjoint');
+      throw new Error('trace official and gateway mappings must be disjoint');
     }
   }
   const attentionPepper = requiredSecret(env, 'TRACE_ATTENTION_PEPPER');
@@ -244,10 +246,11 @@ export function parseTraceConfig(
     databaseUrl,
     intakeOpen: parseIntakeOpen(env.TRACE_INTAKE_OPEN),
     officialIds,
-    reviewerIds,
     gatewayIds,
     attentionPepper,
     aiIntakeUrl: parseOptionalHttpUrl(env.TRACE_AI_INTAKE_URL, 'TRACE_AI_INTAKE_URL'),
+    aiComplianceUrl: parseOptionalHttpUrl(env.TRACE_AI_COMPLIANCE_URL, 'TRACE_AI_COMPLIANCE_URL'),
+    holdTerms: parseHoldTerms(env.TRACE_HOLD_TERMS),
     caseNumberPrefix: pilotCaseNumber.prefix,
     pilot: parsedPilot,
   };

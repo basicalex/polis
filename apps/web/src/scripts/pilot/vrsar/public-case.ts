@@ -1,21 +1,29 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { getPilotConfig, getPublicCase, PilotApiError, recordCaseAttention } from '../../../lib/pilot/vrsar/api';
+import {
+  disputeCase,
+  getPilotConfig,
+  getPublicCase,
+  PilotApiError,
+  recordCaseAttention,
+} from '../../../lib/pilot/vrsar/api';
 import {
   entityName,
   safeStringList,
   type PilotConfig,
   type PublicCaseShell,
+  type PublicDispute,
   type PublicTraceRecord,
 } from '../../../lib/pilot/vrsar/model';
-import { pilotCopy, stageLabels, statusTone, translatedStatus, type PilotLang } from '../../../content/pilot/vrsar';
+import { pilotCopy, stageLabels, type PilotLang } from '../../../content/pilot/vrsar';
 import {
   caseStateTone,
   isCaseNumber,
   publicCaseCopy,
   publicCaseHref,
   translatedCaseState,
+  translatedHoldReason,
 } from '../../../content/pilot/vrsar-public-case';
 import {
   apiErrorMessage,
@@ -79,13 +87,16 @@ export function initVrsarCaseLookup(): void {
 
 const TRACE_STAGES = ['voice', 'responsibility', 'response', 'check', 'receipt'] as const;
 
+/** At most three disputes ride on one case; the fourth is refused upstream. */
+const MAX_DISPUTES = 3;
+
 /** Where a shell state sits on the five-stage path shown to the public. */
 const ACTIVE_STAGE: Readonly<Record<string, string>> = Object.freeze({
   received: 'voice',
   assigned: 'responsibility',
-  'in-review': 'check',
-  published: 'receipt',
+  answered: 'response',
   resolved: 'receipt',
+  disputed: 'check',
   closed: 'voice',
 });
 
@@ -138,9 +149,27 @@ function daysPhrase(count: number, lang: PilotLang): string {
   return `${count} ${word}`;
 }
 
+/**
+ * The key the filer carries in the fragment of their own link. A fragment is
+ * never part of a request, so it is read here and kept in memory only: nothing
+ * writes it to storage, to a query, or to the address bar.
+ */
+function reopenKeyFromFragment(): string {
+  const fragment = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+  if (!fragment) return '';
+  const value = new URLSearchParams(fragment).get('k') ?? '';
+  return value.length <= 256 ? value : '';
+}
+
 /* ---- attention marks kept in this browser -------------------------------- */
 
 const ATTENTION_STORAGE_KEY = 'polis.pilot.attention';
+type AttentionKind = 'follow' | 'also-affected' | 'not-fixed';
+const ATTENTION_KINDS: readonly AttentionKind[] = ['follow', 'also-affected', 'not-fixed'];
+
+function attentionKind(value: unknown): AttentionKind {
+  return ATTENTION_KINDS.includes(value as AttentionKind) ? (value as AttentionKind) : 'also-affected';
+}
 
 interface AttentionStore {
   followerKey: string;
@@ -207,13 +236,23 @@ export function initVrsarPublicCase(): void {
   const verification = document.querySelector<HTMLElement>('[data-public-verification]');
   const pending = document.querySelector<HTMLElement>('[data-case-pending]');
   const pendingText = document.querySelector<HTMLElement>('[data-case-pending-text]');
+  const checkSection = document.querySelector<HTMLElement>('[data-case-check]');
   const attention = document.querySelector<HTMLElement>('[data-attention]');
   const attentionError = document.querySelector<HTMLElement>('[data-attention-error]');
   const caseNumber = caseNumberFromPath();
+  // The filer is whoever arrived on their own link. The key stays in memory.
+  const reopenKey = reopenKeyFromFragment();
+  const isFiler = reopenKey !== '';
+  /** The date the office released a redacted text, read off the public trail. */
+  let releasedAtFromEvents = '';
 
   function setText(selector: string, value: string, root: ParentNode = document): void {
     const element = root.querySelector<HTMLElement>(selector);
     if (element) element.textContent = value;
+  }
+
+  function show(element: Element | null, visible: boolean): void {
+    if (element instanceof HTMLElement) element.hidden = !visible;
   }
 
   /**
@@ -228,7 +267,8 @@ export function initVrsarPublicCase(): void {
     if (state_ === 'closed' && index > activeIndex) {
       return index === activeIndex + 1 ? story.closedAhead[lang] : '';
     }
-    if (index === activeIndex && state_ === 'in-review' && stage === 'check') return story.checkNow[lang];
+    if (stage === 'check' && state_ === 'disputed') return story.checkDisputed[lang];
+    if (stage === 'check' && state_ === 'resolved') return story.checkNow[lang];
     if (index <= activeIndex) {
       if (stage === 'receipt' && state_ === 'resolved') return story.receiptResolved[lang];
       return STAGE_DONE[stage]?.[lang] ?? '';
@@ -249,7 +289,7 @@ export function initVrsarPublicCase(): void {
       const reached = state_ === 'resolved' ? index <= activeIndex : index < activeIndex;
       stage.hidden = false;
       stage.dataset.state = reached ? 'appended' : index === activeIndex ? 'active' : 'ahead';
-      stage.dataset.proposed = state_ === 'in-review' && name === 'check' ? 'true' : 'false';
+      stage.dataset.proposed = 'false';
       const title = stage.querySelector<HTMLElement>('[data-trace-title]');
       if (title) {
         // The stamp belongs on the stage the case is standing in, not on all five.
@@ -259,6 +299,68 @@ export function initVrsarPublicCase(): void {
       const note = stage.querySelector<HTMLElement>('[data-trace-note]');
       if (note) note.textContent = stageSentence(name, index, activeIndex, state_);
     });
+  }
+
+  /**
+   * The report as it was filed, or the notice that says why it is not on the
+   * page. Either way the hash of the original text is published, so a held text
+   * can still be checked against a copy once it is released.
+   */
+  function renderText(shell: PublicCaseShell): void {
+    const status = typeof shell.textStatus === 'string' ? shell.textStatus : 'public';
+    const body = typeof shell.text === 'string' ? shell.text.trim() : '';
+    const held = status === 'held' || !body;
+
+    const narrative = document.querySelector<HTMLElement>('[data-case-narrative]');
+    if (narrative) {
+      narrative.textContent = held ? '' : body;
+      narrative.hidden = held;
+    }
+
+    const hold = document.querySelector<HTMLElement>('[data-case-hold]');
+    show(hold, held);
+    if (held) setText('[data-case-hold-reason]', translatedHoldReason(shell.holdReason, lang));
+
+    const stamp = document.querySelector<HTMLElement>('[data-text-state]');
+    if (stamp) {
+      const word = publicCaseCopy.textState[held ? 'held' : status === 'redacted' ? 'redacted' : '']?.[lang] ?? '';
+      stamp.textContent = word;
+      stamp.hidden = !word;
+    }
+
+    const redacted = document.querySelector<HTMLElement>('[data-case-redacted]');
+    if (redacted) {
+      const releasedAt = releasedAtFromEvents;
+      redacted.textContent =
+        status === 'redacted'
+          ? [publicCaseCopy.text.redacted[lang], releasedAt ? `${publicCaseCopy.text.redactedOn[lang]}: ${releasedAt}` : '']
+              .filter(Boolean)
+              .join(' ')
+          : '';
+      redacted.hidden = status !== 'redacted';
+    }
+
+    show(document.querySelector('[data-case-as-filed]'), !held && status !== 'redacted');
+
+    const location_ = typeof shell.location === 'string' ? shell.location.trim() : '';
+    setText('[data-case-location]', held || !location_ ? publicCaseCopy.text.locationMissing[lang] : location_);
+    setText('[data-case-text-hash]', typeof shell.textSha256 === 'string' ? shell.textSha256 : '');
+
+    renderLabel(shell);
+  }
+
+  /**
+   * One soft label, one explanation, and — for the filer — a short form that
+   * sends the office a private objection. The label blocks nothing either way.
+   */
+  function renderLabel(shell: PublicCaseShell): void {
+    const box = document.querySelector<HTMLElement>('[data-case-label]');
+    if (!box) return;
+    const labels = safeStringList(shell.labels);
+    const labelled = labels.includes('form-letter');
+    box.hidden = !labelled;
+    const form = box.querySelector<HTMLFormElement>('[data-label-appeal]');
+    if (form) form.hidden = !labelled || !isFiler;
   }
 
   function renderShell(shell: PublicCaseShell, config: PilotConfig | null): void {
@@ -293,27 +395,29 @@ export function initVrsarPublicCase(): void {
       closed.hidden = !reason;
     }
 
+    renderText(shell);
     renderShellTrace(String(shell.state ?? ''));
   }
 
   /**
-   * A shell is not a receipt. The approved public text exists only after a
-   * reviewer cleared it, so anything short of that renders the waiting note.
+   * The office's answer. It exists from the moment the responsible official
+   * published it, under their own name: there is nothing else to wait for.
    */
-  function renderReceipt(
+  function renderAnswer(
     shell: PublicCaseShell,
     record: PublicTraceRecord | null,
     config: PilotConfig | null,
   ): void {
-    const approved =
+    const answered =
       record !== null &&
       record.testEnvironment === true &&
-      (record.status === 'published' || record.status === 'resolved') &&
+      (record.status === 'answered' || record.status === 'resolved' || record.status === 'disputed') &&
       typeof record.receiptHash === 'string';
 
-    if (!approved || !receipt) {
+    if (!answered || !receipt) {
       if (receipt) receipt.hidden = true;
       if (verification) verification.hidden = true;
+      renderCheck(shell, null);
       showPending(String(shell.state ?? ''));
       return;
     }
@@ -321,26 +425,20 @@ export function initVrsarPublicCase(): void {
     if (pendingText) pendingText.textContent = '';
 
     setText('[data-receipt-id]', record.id, verification ?? receipt);
-    const status = receipt.querySelector<HTMLElement>('.pilot-receipt-header .status-label');
-    if (status) {
-      status.dataset.status = record.status;
-      status.dataset.tone = statusTone(record.status);
-      status.textContent = translatedStatus(record.status, lang);
+    const stamp = receipt.querySelector<HTMLElement>('[data-public-state]');
+    if (stamp) {
+      stamp.dataset.status = record.status;
+      stamp.dataset.tone = caseStateTone(record.status);
+      stamp.textContent = translatedCaseState(record.status, lang);
     }
-    setText(
-      '[data-public-status-note]',
-      record.status === 'resolved' ? pilotCopy.receipts.resolved[lang] : pilotCopy.receipts.publishedNotResolved[lang],
-      receipt,
-    );
     setText('[data-public-office]', entityName(config ? config.office : record.office, lang), receipt);
-    setText('[data-public-category]', entityName(config ? config.category : record.category, lang), receipt);
+    setText('[data-public-signed-by]', signature(record), receipt);
     setText('[data-public-due-date]', formatPilotDate(record.dueDate, lang, true), receipt);
     setText('[data-public-published-at]', formatPilotDate(record.publishedAt, lang), receipt);
-    setText('[data-public-summary]', record.publicSummary, receipt);
     setText('[data-public-commitment]', record.commitment, receipt);
 
     const resolvedRow = receipt.querySelector<HTMLElement>('[data-public-resolved-at-row]');
-    if (record.status === 'resolved' && record.resolvedAt) {
+    if (record.resolvedAt) {
       setText('[data-public-resolved-at]', formatPilotDate(record.resolvedAt, lang), receipt);
       if (resolvedRow) resolvedRow.hidden = false;
     } else if (resolvedRow) {
@@ -348,31 +446,18 @@ export function initVrsarPublicCase(): void {
     }
 
     const evidence = receipt.querySelector<HTMLElement>('[data-public-evidence-section]');
-    if (record.status === 'resolved') {
+    if (record.status === 'resolved' || record.status === 'disputed') {
       setText('[data-public-evidence-note]', record.evidenceNote ?? '', receipt);
       const links = receipt.querySelector<HTMLElement>('[data-public-evidence-links]');
-      const rows = safeStringList(record.evidenceUrls).flatMap((value) => {
-        let url: URL;
-        try {
-          url = new URL(value);
-        } catch {
-          return [];
-        }
-        if (url.protocol !== 'https:' || url.username || url.password) return [];
-        const item = document.createElement('li');
-        const link = createTextElement('a', url.toString());
-        link.href = url.toString();
-        link.rel = 'noreferrer';
-        item.append(link);
-        return [item];
-      });
-      links?.replaceChildren(...rows);
+      links?.replaceChildren(...evidenceRows(record.evidenceUrls));
       if (evidence) evidence.hidden = false;
     } else if (evidence) {
       evidence.hidden = true;
     }
 
     receipt.hidden = false;
+    renderCheck(shell, record);
+    showPending(String(shell.state ?? ''));
 
     if (verification) {
       setText('[data-public-hash]', record.receiptHash, verification);
@@ -381,15 +466,93 @@ export function initVrsarPublicCase(): void {
     }
   }
 
+  /** Only https links, and only the ones the browser can parse. */
+  function evidenceRows(urls: unknown): HTMLLIElement[] {
+    return safeStringList(urls).flatMap((value) => {
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        return [];
+      }
+      if (url.protocol !== 'https:' || url.username || url.password) return [];
+      const item = document.createElement('li');
+      const link = createTextElement('a', url.toString());
+      link.href = url.toString();
+      link.rel = 'noreferrer';
+      item.append(link);
+      return [item];
+    });
+  }
+
+  function signature(record: PublicTraceRecord): string {
+    const name = typeof record.signedBy?.name === 'string' ? record.signedBy.name.trim() : '';
+    const title = typeof record.signedBy?.title === 'string' ? record.signedBy.title.trim() : '';
+    if (!name) return pilotCopy.common.notAvailable[lang];
+    return title ? `${name}, ${title}` : name;
+  }
+
   /**
-   * Before approval the page says which stage the case is standing in and why no
-   * public text exists yet, rather than only that it does not.
+   * The public half of the completion check: how many people say it is not
+   * fixed, what the disputes say, and — for the filer — the form that files one.
    */
+  function renderCheck(shell: PublicCaseShell, record: PublicTraceRecord | null): void {
+    if (!checkSection) return;
+    const state_ = String(shell.state ?? '');
+    const open = state_ === 'resolved' || state_ === 'disputed';
+    checkSection.hidden = !open;
+    if (!open) return;
+
+    setText('[data-not-fixed-count]', String(Number(shell.notFixedCount) || 0), checkSection);
+
+    const disputes = Array.isArray(record?.disputes) ? (record?.disputes as PublicDispute[]) : [];
+    const box = checkSection.querySelector<HTMLElement>('[data-case-disputes]');
+    const list = checkSection.querySelector<HTMLElement>('[data-dispute-list]');
+    if (list) list.replaceChildren(...disputes.map((dispute) => disputeRow(dispute)));
+    show(box, disputes.length > 0);
+
+    const form = checkSection.querySelector<HTMLFormElement>('[data-dispute-form]');
+    if (!form) return;
+    const used = Number(shell.disputeCount) || disputes.length;
+    const allowed = isFiler && state_ === 'resolved';
+    form.hidden = !allowed;
+    const submit = form.querySelector<HTMLButtonElement>('[data-dispute-submit]');
+    const field = form.querySelector<HTMLTextAreaElement>('[data-dispute-text]');
+    if (used >= MAX_DISPUTES) {
+      if (submit) submit.disabled = true;
+      if (field) field.disabled = true;
+      setText('[data-dispute-state]', publicCaseCopy.check.disputeLimit[lang], form);
+    } else if (submit) {
+      submit.disabled = false;
+      if (field) field.disabled = false;
+    }
+  }
+
+  /** One dispute, as written, or the notice that its text is held. */
+  function disputeRow(dispute: PublicDispute): HTMLLIElement {
+    const item = document.createElement('li');
+    item.className = 'pilot-dispute-item';
+    const held = dispute?.textStatus === 'held' || typeof dispute?.text !== 'string';
+    const body = createTextElement(
+      'p',
+      held ? publicCaseCopy.check.disputeHeld[lang] : String(dispute.text),
+      'pilot-dispute-text',
+    );
+    item.append(body, createTextElement('span', formatPilotDate(dispute?.createdAt, lang), 'pilot-dispute-date'));
+    return item;
+  }
+
+  function pendingKey(state_: string): keyof typeof publicCaseCopy.pending {
+    const copy = publicCaseCopy.pending;
+    return state_ in copy && state_ !== 'heading'
+      ? (state_ as keyof typeof copy)
+      : 'fallback';
+  }
+
+  /** What the case waits for, said in the words of the state it stands in. */
   function showPending(state_: string): void {
     if (!pendingText) return;
-    const copy = publicCaseCopy.pending;
-    const line = (copy as Record<string, Record<string, string>>)[state_]?.[lang] ?? copy.fallback[lang];
-    pendingText.textContent = line;
+    pendingText.textContent = publicCaseCopy.pending[pendingKey(state_)][lang];
     if (pending) pending.hidden = false;
   }
 
@@ -412,38 +575,54 @@ export function initVrsarPublicCase(): void {
     });
   }
 
+  /** The release date the redaction note carries, taken from the public trail. */
+  function readReleaseDate(record: PublicTraceRecord | null): void {
+    releasedAtFromEvents = '';
+    const events = Array.isArray(record?.events) ? record?.events ?? [] : [];
+    for (const event of events) {
+      if (event?.action === 'text-released') releasedAtFromEvents = formatPilotDate(event.createdAt, lang);
+    }
+  }
+
   /* ---- attention --------------------------------------------------------- */
 
   function renderAttention(shell: PublicCaseShell): void {
     if (!attention) return;
     const store = readAttentionStore();
-    const counts: Record<string, number> = {
+    const state_ = String(shell.state ?? '');
+    const checkable = state_ === 'resolved' || state_ === 'disputed';
+    const counts: Record<AttentionKind, number> = {
       follow: Number(shell.followerCount) || 0,
       'also-affected': Number(shell.alsoAffectedCount) || 0,
+      'not-fixed': Number(shell.notFixedCount) || 0,
+    };
+    const add: Record<AttentionKind, string> = {
+      follow: publicCaseCopy.attention.followAdd[lang],
+      'also-affected': publicCaseCopy.attention.alsoAffectedAdd[lang],
+      'not-fixed': publicCaseCopy.attention.notFixedAdd[lang],
     };
 
     attention.querySelectorAll<HTMLElement>('[data-attention-item]').forEach((item) => {
-      const kind = item.dataset.attentionItem === 'follow' ? 'follow' : 'also-affected';
+      const kind = attentionKind(item.dataset.attentionItem);
+      // "Not fixed" is a claim about a completion, so it exists only once one does.
+      if (kind === 'not-fixed') item.hidden = !checkable;
       const count = item.querySelector<HTMLElement>('[data-attention-count]');
-      if (count) count.textContent = String(counts[kind] ?? 0);
+      if (count) count.textContent = String(counts[kind]);
 
       const button = item.querySelector<HTMLButtonElement>('[data-attention-button]');
       if (!button) return;
       const added = store.marks[markKey(shell.caseNumber, kind)] === true;
-      button.textContent = added
-        ? publicCaseCopy.attention.withdraw[lang]
-        : kind === 'follow'
-          ? publicCaseCopy.attention.followAdd[lang]
-          : publicCaseCopy.attention.alsoAffectedAdd[lang];
+      button.textContent = added ? publicCaseCopy.attention.withdraw[lang] : add[kind];
       button.setAttribute('aria-pressed', added ? 'true' : 'false');
       button.disabled = false;
     });
+    show(attention.querySelector('[data-not-fixed-note]'), checkable);
   }
 
   function bindAttention(shell: PublicCaseShell): void {
     if (!attention) return;
     attention.querySelectorAll<HTMLElement>('[data-attention-item]').forEach((item) => {
-      const kind = item.dataset.attentionItem === 'follow' ? 'follow' : 'also-affected';
+      const kind = attentionKind(item.dataset.attentionItem);
       const button = item.querySelector<HTMLButtonElement>('[data-attention-button]');
       if (!button || button.dataset.bound === 'true') return;
       button.dataset.bound = 'true';
@@ -455,7 +634,7 @@ export function initVrsarPublicCase(): void {
 
   async function toggleAttention(
     shell: PublicCaseShell,
-    kind: 'follow' | 'also-affected',
+    kind: AttentionKind,
     button: HTMLButtonElement,
   ): Promise<void> {
     const store = readAttentionStore();
@@ -474,13 +653,109 @@ export function initVrsarPublicCase(): void {
       writeAttentionStore();
       shell.followerCount = counts.followerCount;
       shell.alsoAffectedCount = counts.alsoAffectedCount;
+      shell.notFixedCount = counts.notFixedCount;
       renderAttention(shell);
+      if (checkSection && !checkSection.hidden) {
+        setText('[data-not-fixed-count]', String(counts.notFixedCount), checkSection);
+      }
     } catch (error) {
       if (attentionError) {
         attentionError.textContent = `${publicCaseCopy.attention.failed[lang]} ${apiErrorMessage(error, lang)}`;
       }
       button.disabled = false;
     }
+  }
+
+  /* ---- the filer's two actions ------------------------------------------- */
+
+  /**
+   * The dispute is public text on a public case, so it goes through the same
+   * public route the page reads from, carrying the key the filer already holds.
+   */
+  function bindDispute(config: PilotConfig | null): void {
+    const form = checkSection?.querySelector<HTMLFormElement>('[data-dispute-form]');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const field = form.querySelector<HTMLTextAreaElement>('[data-dispute-text]');
+      const body = field?.value.trim() ?? '';
+      if (!body) {
+        setText('[data-dispute-state]', publicCaseCopy.check.disputeRequired[lang], form);
+        field?.focus();
+        return;
+      }
+      const submit = form.querySelector<HTMLButtonElement>('[data-dispute-submit]');
+      if (submit) submit.disabled = true;
+      setText('[data-dispute-state]', pilotCopy.common.loading[lang], form);
+      void disputeCase(caseNumber, { reopenKey, text: body })
+        .then((result) => {
+          if (field) field.value = '';
+          setText('[data-dispute-state]', publicCaseCopy.check.disputeSent[lang], form);
+          readReleaseDate(result.record);
+          renderShell(result.case, config);
+          renderAttention(result.case);
+          renderAnswer(result.case, result.record, config);
+        })
+        .catch((error) => {
+          const message =
+            error instanceof PilotApiError && error.code === 'dispute_limit'
+              ? publicCaseCopy.check.disputeLimit[lang]
+              : `${publicCaseCopy.check.disputeFailed[lang]} ${apiErrorMessage(error, lang)}`;
+          setText('[data-dispute-state]', message, form);
+          if (submit) submit.disabled = false;
+        });
+    });
+  }
+
+  /**
+   * The label appeal is a private message to the office, not public text, so it
+   * goes to the case-message route with the same key and nothing else.
+   */
+  function bindLabelAppeal(): void {
+    const form = document.querySelector<HTMLFormElement>('[data-label-appeal]');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const field = form.querySelector<HTMLTextAreaElement>('[data-appeal-text]');
+      const body = field?.value.trim() ?? '';
+      if (!body) {
+        field?.focus();
+        return;
+      }
+      const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (submit) submit.disabled = true;
+      setText('[data-appeal-state]', pilotCopy.common.loading[lang], form);
+      void sendLabelAppeal(caseNumber, body)
+        .then(() => {
+          if (field) field.value = '';
+          setText('[data-appeal-state]', publicCaseCopy.label.appealSent[lang], form);
+        })
+        .catch(() => {
+          setText('[data-appeal-state]', publicCaseCopy.label.appealFailed[lang], form);
+          if (submit) submit.disabled = false;
+        });
+    });
+  }
+
+  /**
+   * One message on the case, by the key its filer holds. The BFF owns the route
+   * and the backend owns the wording of the refusal; this only posts the shape
+   * the case-message route takes.
+   */
+  async function sendLabelAppeal(number: string, body: string): Promise<void> {
+    const response = await fetch(`/pilot/vrsar/api/cases/${encodeURIComponent(number)}/messages`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'idempotency-key': crypto.randomUUID(),
+      },
+      body: JSON.stringify({ reopenKey, kind: 'label-appeal', body }),
+    });
+    if (!response.ok) throw new Error('label_appeal_failed');
   }
 
   /* ---- load -------------------------------------------------------------- */
@@ -510,10 +785,13 @@ export function initVrsarPublicCase(): void {
       ]);
       const shell = result.case;
       if (!shell || typeof shell.caseNumber !== 'string') throw new Error('invalid_public_case_response');
+      readReleaseDate(result.record);
       renderShell(shell, config);
       renderAttention(shell);
       bindAttention(shell);
-      renderReceipt(shell, result.record, config);
+      renderAnswer(shell, result.record, config);
+      bindDispute(config);
+      bindLabelAppeal();
       if (shellRoot) shellRoot.hidden = false;
       clearState(state);
       document.title = `${shell.caseNumber} — ${publicCaseCopy.page.heading[lang]} — Polis`;

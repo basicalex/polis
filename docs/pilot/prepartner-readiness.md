@@ -10,7 +10,7 @@ This record tracks controlled, synthetic pre-partner engineering evidence. It co
 Two decisions remain separate:
 
 1. **Controlled automated software validation.** The bounded synthetic runtime and automated checks passed as recorded in the [evidence ledger](prepartner-evidence-2026-09-05.md).
-2. **Human and authorized real-municipality acceptance.** This still needs a named partner, signed and approved charter and scope, legal, privacy, and security decisions, named human owners, independent release review, and explicit approval.
+2. **Human and authorized real-municipality acceptance.** This still needs a named partner, signed and approved charter and scope, legal, privacy, and security decisions, named human owners, external release review, and explicit approval.
 
 The real-municipality decision remains **blocked / NO-GO** under [`GO_LIVE_READINESS.md`](../../GO_LIVE_READINESS.md). Automated pre-partner validation does not amend it or claim a signed charter or public-launch authorization.
 
@@ -22,17 +22,23 @@ The real-municipality decision remains **blocked / NO-GO** under [`GO_LIVE_READI
 | Category | `public-lighting` — `Javna rasvjeta` / `Illuminazione pubblica` / `Public lighting` |
 | Responsible office configuration | `communal-system` — `Jedinstveni upravni odjel / Odsjek za komunalni sustav` / `Ufficio amministrativo unico / Sezione per il sistema comunale` / `Unified Administrative Department / Communal System Section` |
 | Routing status | `inferred-test-only` |
-| Independent reviewer | Unassigned human owner; test role must remain distinct from the office role |
-| Data and accounts | Synthetic only; four controlled test identities |
+| Public-text controls | Synchronous automated compliance; official hold, release, redaction, and label commands |
+| Data and accounts | Synthetic only; three controlled test identities |
 | Content languages | Croatian (HR), Italian (IT), and English (EN) test UI |
 
 The Vrsar-Orsera configuration and its official-source basis are recorded in [Vrsar-Orsera research notes](vrsar-source-notes.md). The [local pre-partner runbook](local-prepartner-runbook.md) defines the controlled runtime. The [source manifest](prepartner-source-manifest-2026-09-05.json) records the uncommitted source set. These records establish public context and controlled software scope only; they do not establish participation, approval, routing, a service commitment, or a delivery destination.
 
 ## Privacy and approval boundary
 
-The original report subject, narrative, contact data, and attachments stay restricted. A public record may contain only separately drafted, independently approved public material. Redaction does not make the original narrative public.
+Report text and location are public at filing after the automated compliance
+pass. A held report keeps its public shell, hold reason, and original-text
+hash; an official may release it as filed or publish a redacted version.
+Contact data and attachments stay restricted.
 
-Publishing a commitment does not resolve a record. `resolved` needs separate evidence and independent review. Office staff cannot approve their own commitment, evidence, publication, or terminal resolution. The state rules and resolution-return behavior follow the [trace API contract](trace-api-contract.md).
+The official publishes a commitment under their name and title. Publishing a
+commitment does not resolve a record. The office reports completion with
+evidence; the filer may dispute it and followers may mark it not fixed. The
+state rules follow the [trace API contract](trace-api-contract.md).
 
 Local captured SMTP is not external delivery evidence. The automated authentication scope validates TLS-sourced OIDC claims; it does not verify ID-token signatures.
 
@@ -46,7 +52,7 @@ Local captured SMTP is not external delivery evidence. The automated authenticat
 | Concurrency | E4 and E11 record targeted and final whole-workspace test results. | Passed — controlled automated validation |
 | Idempotency | E4 and E11 record targeted and final whole-workspace test results. | Passed — controlled automated validation |
 | Privacy boundary | E5 and E6 record automated review and browser checks. | Passed — controlled automated validation; human legal/privacy decision unrun |
-| Role separation | E2, E5, and E6 record controlled roles and automated review. | Passed — controlled automated validation |
+| Official role binding | E2, E5, and E6 record controlled roles and automated checks. | Passed — controlled automated validation |
 | Backup and recovery | E7 records fresh local encrypted recovery and tamper detection. | Passed — automated, local; off-host recovery unrun |
 | Mail delivery | E2 and E6 record controlled local captured SMTP. | Passed — automated, local; external provider acceptance unrun |
 | Login | E6 and E8 record browser authentication, session, and logout checks. | Passed — automated, local |
@@ -66,7 +72,7 @@ E11 records final whole-workspace build and typecheck exit 0, 425 workspace test
 | Controlled-run operator | Unassigned | Unassigned |
 | Security and privacy decision | Unassigned | Unassigned |
 | Backup and recovery | Unassigned | Unassigned |
-| Independent acceptance review | Unassigned | Unassigned |
+| External acceptance review | Unassigned | Unassigned |
 | Real-municipality release approval | Unassigned | Unassigned |
 
-Human usability validation, native HR and IT editorial approval, legal and privacy decisions, off-host recovery, external provider acceptance, contracts, real owners, signed charter and scope, municipal agreement, and independent real-release approval remain unrun. This record supplies no real-release evidence.
+Human usability validation, native HR and IT editorial approval, legal and privacy decisions, off-host recovery, external provider acceptance, contracts, real owners, signed charter and scope, municipal agreement, and external real-release approval remain unrun. This record supplies no real-release evidence.

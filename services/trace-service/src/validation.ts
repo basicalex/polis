@@ -220,26 +220,22 @@ export function normalizeAssign(value: unknown): Record<string, unknown> {
   return { expectedVersion: expectedVersion(body.expectedVersion) };
 }
 
-export function normalizeCommitment(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion', 'publicSummary', 'commitment', 'dueDate']);
+function signedBy(value: unknown): { name: string; title: string } {
+  const body = exactBody(value, ['name', 'title']);
   return {
-    expectedVersion: expectedVersion(body.expectedVersion),
-    publicSummary: text(body.publicSummary, 'publicSummary', 2_000),
-    commitment: text(body.commitment, 'commitment', 2_000),
-    dueDate: validateDateOnly(body.dueDate),
+    name: text(body.name, 'signedBy.name', 120),
+    title: text(body.title, 'signedBy.title', 120),
   };
 }
 
-export function normalizeReview(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion', 'decision', 'note']);
-  if (body.decision !== 'accept' && body.decision !== 'return') {
-    throw new InputError('invalid_decision', 'decision must be accept or return.');
-  }
-  const note = optionalText(body.note, 'note', 5_000);
-  if (body.decision === 'return' && !note) {
-    throw new InputError('review_note_required', 'A private note is required when returning work.');
-  }
-  return { expectedVersion: expectedVersion(body.expectedVersion), decision: body.decision, note };
+export function normalizeCommitment(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['expectedVersion', 'commitment', 'dueDate', 'signedBy']);
+  return {
+    expectedVersion: expectedVersion(body.expectedVersion),
+    commitment: text(body.commitment, 'commitment', 2_000),
+    dueDate: validateDateOnly(body.dueDate),
+    signedBy: signedBy(body.signedBy),
+  };
 }
 
 function evidenceUrls(value: unknown): string[] {
@@ -268,11 +264,12 @@ function evidenceUrls(value: unknown): string[] {
 }
 
 export function normalizeResolution(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion', 'evidenceNote', 'evidenceUrls']);
+  const body = exactBody(value, ['expectedVersion', 'evidenceNote', 'evidenceUrls', 'signedBy']);
   return {
     expectedVersion: expectedVersion(body.expectedVersion),
     evidenceNote: text(body.evidenceNote, 'evidenceNote', 5_000),
     evidenceUrls: evidenceUrls(body.evidenceUrls),
+    signedBy: signedBy(body.signedBy),
   };
 }
 
@@ -448,9 +445,13 @@ export function normalizeReopenRead(value: unknown): Record<string, unknown> {
 }
 
 export function normalizeFilerMessage(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['reopenKey', 'body', 'inReplyTo']);
+  const body = exactBody(value, ['reopenKey', 'kind', 'body', 'inReplyTo']);
   return {
     reopenKey: reopenKey(body.reopenKey),
+    kind:
+      body.kind === undefined
+        ? 'append'
+        : oneOf(body.kind, 'kind', ['append', 'label-appeal'] as const),
     body: text(body.body, 'body', 4_000),
     inReplyTo: optionalUuid(body.inReplyTo, 'inReplyTo'),
   };
@@ -564,6 +565,46 @@ export function normalizeClose(value: unknown): Record<string, unknown> {
   };
 }
 
+export function normalizeHold(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['reason', 'note']);
+  return {
+    reason: oneOf(body.reason, 'reason', ['personal-data', 'abuse', 'off-topic', 'other'] as const),
+    note: optionalBoundedText(body.note, 'note', 5_000),
+  };
+}
+
+export function normalizeRelease(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['redactedText', 'note']);
+  return {
+    redactedText:
+      body.redactedText === undefined || body.redactedText === null
+        ? null
+        : text(body.redactedText, 'redactedText', 4_000),
+    note: optionalBoundedText(body.note, 'note', 5_000),
+  };
+}
+
+export function normalizeLabel(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['label', 'action']);
+  return {
+    label: oneOf(body.label, 'label', ['form-letter'] as const),
+    action: oneOf(body.action, 'action', ['set', 'clear'] as const),
+  };
+}
+
+export function normalizeReopen(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['note']);
+  return { note: optionalBoundedText(body.note, 'note', 5_000) };
+}
+
+export function normalizeDispute(value: unknown): Record<string, unknown> {
+  const body = exactBody(value, ['reopenKey', 'text']);
+  return {
+    reopenKey: reopenKey(body.reopenKey),
+    text: text(body.text, 'text', 4_000),
+  };
+}
+
 export function normalizeAttention(value: unknown): Record<string, unknown> {
   const body = exactBody(value, ['followerKey', 'kind', 'action']);
   if (typeof body.followerKey !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(body.followerKey)) {
@@ -571,7 +612,7 @@ export function normalizeAttention(value: unknown): Record<string, unknown> {
   }
   return {
     followerKey: body.followerKey,
-    kind: oneOf(body.kind, 'kind', ['follow', 'also-affected'] as const),
+    kind: oneOf(body.kind, 'kind', ['follow', 'also-affected', 'not-fixed'] as const),
     action: oneOf(body.action, 'action', ['add', 'remove'] as const),
   };
 }

@@ -64,9 +64,9 @@ The design keeps three records apart: **number ≠ identity ≠ case**.
 - The gateway decrypts the number in one place for outbound delivery.
 - The identity service holds legal or account identity. Channel intake does not send it a phone number or join a caller to an account.
 - `trace-service`, the case record, the public shell, and municipal staff never receive the phone number. Staff can read the typed report or voice transcript and the case workflow needed to handle it.
-- The public receives only the narrative-free case shell unless a separate reviewed publication flow creates a public record.
+- The public receives the narrative and filed location after the synchronous compliance pass. A held case instead shows its shell, hold reason, and original-text hash until an official releases it as filed or publishes a redacted version.
 
-AI intake may propose category, location, responsible office, and a possible duplicate. The proposal stays unpublished. An official or reviewer decides it, and that decision is audited. The AI trace stores the report text only as a SHA-256 hash, not as raw prompt text.
+AI intake may propose category, location, responsible office, and a possible duplicate. The proposal stays unpublished. An official decides it, and that decision is audited. The AI trace stores the report text only as a SHA-256 hash, not as raw prompt text.
 
 ### Disclosure
 
@@ -84,10 +84,10 @@ for case content. The L1 agreement must record these separate roles. A plain
 processor agreement would misdescribe the phone path. Counsel must confirm this
 legal position before go-live.
 
-A caller who says their name or a texter who signs has chosen to be named. The
-name stays in the private transcript or message and reaches the municipality.
-Polis neither removes nor adds it. The public page still shows only the summary
-approved by a reviewer.
+A caller who says their name or a texter who signs has chosen to put that name
+in the report text. The filing-time compliance pass may hold the text; an
+official may then release it as filed or publish a redacted version. Polis
+never adds a name or links the public case to the phone number.
 
 The target copy for the phone channel help block and spoken prompt is:
 
@@ -103,7 +103,7 @@ code.
 - The gateway deletes Infobip recordings and transcripts after processing. Set the Infobip account retention to the minimum.
 - The gateway zeroes the in-memory original after transcription and distortion. It never stores original audio.
 - The default audio sink retains no distorted audio after transcription. Any non-default sink needs a written purpose, access rule, and shorter explicit retention period before use.
-- Voice transcripts and SMS reports remain private case messages under the municipality's case-retention schedule. Public shells contain no narrative.
+- Voice transcripts and SMS reports become public case text after the compliance pass unless held or later redacted. The phone number and private case messages stay under their own retention rules.
 - Keep public case shells only under the pilot charter's public archive decision.
 
 ## Provider configuration

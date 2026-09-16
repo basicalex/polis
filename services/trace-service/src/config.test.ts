@@ -36,24 +36,34 @@ const env = {
   DATABASE_URL: 'postgres://trace.test/trace',
   TRACE_INTAKE_OPEN: 'true',
   TRACE_OFFICIAL_CITIZEN_IDS: 'trace-official-test',
-  TRACE_REVIEWER_CITIZEN_IDS: 'trace-reviewer-test',
   TRACE_GATEWAY_ACTOR_IDS: 'trace-gateway-test',
   TRACE_ATTENTION_PEPPER: 'attention-pepper-secret-32-bytes!!',
   TRACE_AI_INTAKE_URL: 'https://ai.test/intake',
+  TRACE_AI_COMPLIANCE_URL: 'https://ai.test/compliance',
+  TRACE_HOLD_TERMS: '  BAD term,Another  ',
 };
 
-test('trace config maps disjoint roles and public facts from the injected pilot loader', () => {
+test('trace config maps roles and public text policy settings from the injected pilot loader', () => {
   const config = parseTraceConfig(env, () => pilot);
   assert.equal(config.officialIds.has('trace-official-test'), true);
-  assert.equal(config.reviewerIds.has('trace-reviewer-test'), true);
   assert.equal(config.gatewayIds.has('trace-gateway-test'), true);
   assert.equal(config.attentionPepper, env.TRACE_ATTENTION_PEPPER);
   assert.equal(config.aiIntakeUrl, 'https://ai.test/intake');
+  assert.equal(config.aiComplianceUrl, 'https://ai.test/compliance');
+  assert.deepEqual(config.holdTerms, ['bad term', 'another']);
   assert.equal(config.caseNumberPrefix, 'VRS');
-  assert.equal(
-    parseTraceConfig({ ...env, TRACE_AI_INTAKE_URL: undefined }, () => pilot).aiIntakeUrl,
-    null,
+  const optional = parseTraceConfig(
+    {
+      ...env,
+      TRACE_AI_INTAKE_URL: undefined,
+      TRACE_AI_COMPLIANCE_URL: undefined,
+      TRACE_HOLD_TERMS: ' , ',
+    },
+    () => pilot,
   );
+  assert.equal(optional.aiIntakeUrl, null);
+  assert.equal(optional.aiComplianceUrl, null);
+  assert.deepEqual(optional.holdTerms, []);
   assert.deepEqual(publicTraceConfig(config), {
     municipality: pilot.municipality,
     category: pilot.category,
@@ -73,17 +83,17 @@ test('trace config fails closed on credentials, database, intake, and role mappi
     { TRACE_INTAKE_OPEN: undefined },
     { TRACE_INTAKE_OPEN: 'yes' },
     { TRACE_OFFICIAL_CITIZEN_IDS: '' },
-    { TRACE_REVIEWER_CITIZEN_IDS: '' },
     { TRACE_GATEWAY_ACTOR_IDS: '' },
-    { TRACE_OFFICIAL_CITIZEN_IDS: 'same', TRACE_REVIEWER_CITIZEN_IDS: 'same' },
     { TRACE_OFFICIAL_CITIZEN_IDS: 'same', TRACE_GATEWAY_ACTOR_IDS: 'same' },
-    { TRACE_REVIEWER_CITIZEN_IDS: 'same', TRACE_GATEWAY_ACTOR_IDS: 'same' },
     { TRACE_OFFICIAL_CITIZEN_IDS: 'duplicate,duplicate' },
     { TRACE_ATTENTION_PEPPER: '' },
     { TRACE_ATTENTION_PEPPER: 'too-short' },
     { TRACE_AI_INTAKE_URL: '/relative' },
     { TRACE_AI_INTAKE_URL: 'ftp://ai.test/intake' },
     { TRACE_AI_INTAKE_URL: 'https://user:secret@ai.test/intake' },
+    { TRACE_AI_COMPLIANCE_URL: '/relative' },
+    { TRACE_AI_COMPLIANCE_URL: 'ftp://ai.test/compliance' },
+    { TRACE_AI_COMPLIANCE_URL: 'https://user:secret@ai.test/compliance' },
   ];
   for (const override of invalid) {
     const candidate = { ...env, ...override } as NodeJS.ProcessEnv;

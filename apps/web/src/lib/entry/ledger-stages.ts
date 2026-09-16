@@ -14,9 +14,9 @@
 export const LEDGER_STAGES = [
   'received',
   'assigned',
-  'in-review',
-  'published',
+  'answered',
   'resolved',
+  'disputed',
   'closed',
 ] as const;
 
@@ -32,6 +32,7 @@ export const LEDGER_STAGE_PARAM = 'stage';
 export interface LedgerCaseLike {
   state?: unknown;
   clockDueAt?: unknown;
+  textStatus?: unknown;
 }
 
 export function isLedgerStage(value: unknown): value is LedgerStage {
@@ -68,6 +69,15 @@ export function countLedgerStages(cases: readonly LedgerCaseLike[]): Record<Ledg
   }
   return counts;
 }
+/** Held text stays visible as a count even though process state does not change. */
+export function countHeld(cases: readonly LedgerCaseLike[]): number {
+  let held = 0;
+  for (const item of cases) {
+    if (item?.textStatus === 'held') held += 1;
+  }
+  return held;
+}
+
 
 /** Cases still with the office: anything that has not been resolved or closed. */
 export function countOpenCases(cases: readonly LedgerCaseLike[]): number {

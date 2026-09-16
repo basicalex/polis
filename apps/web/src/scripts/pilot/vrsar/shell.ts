@@ -180,13 +180,13 @@ export function renderTrace(
 ): void {
   const lang = currentPilotLang();
   const events = Array.isArray(eventsValue) ? (eventsValue as TraceEvent[]) : [];
+  // One stage per state, in the order the contract lays them out.
   const activeStage: Record<string, string> = {
     open: 'voice',
+    received: 'voice',
     assigned: 'responsibility',
-    'commitment-pending-review': 'check',
-    returned: 'response',
-    published: 'receipt',
-    'resolution-pending-review': 'check',
+    answered: 'response',
+    disputed: 'check',
     resolved: 'receipt',
   };
   const active = activeStage[typeof status === 'string' ? status : ''] ?? 'voice';
@@ -197,10 +197,8 @@ export function renderTrace(
     stage.hidden = Boolean(options.hideMissingStages && !event);
     stage.dataset.state = event ? 'appended' : stageName === active ? 'active' : 'ahead';
     if (stageName === active && !event) stage.dataset.state = 'active';
-    stage.dataset.proposed =
-      (status === 'commitment-pending-review' || status === 'resolution-pending-review') && stageName === 'check'
-        ? 'true'
-        : 'false';
+    // Nothing waits on a gate any more: no stage is ever drawn as proposed.
+    stage.dataset.proposed = 'false';
     const note = stage.querySelector<HTMLElement>('[data-trace-note]');
     if (!note) return;
     if (!event) {
@@ -237,8 +235,6 @@ function renderNavigation(session: PilotSession | null): void {
     );
   } else if (session?.role === 'official') {
     nodes.push(navLink('/pilot/vrsar/staff', pilotCopy.nav.staff[lang], ['staff'], lang));
-  } else if (session?.role === 'reviewer') {
-    nodes.push(navLink('/pilot/vrsar/review', pilotCopy.nav.review[lang], ['review'], lang));
   }
   nodes.push(
     navLink('/pilot/vrsar/receipts', pilotCopy.nav.receipts[lang], ['receipts', 'receipt-detail'], lang),

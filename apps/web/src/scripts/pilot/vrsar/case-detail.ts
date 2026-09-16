@@ -5,28 +5,38 @@ import {
   closeCase,
   decideAiProposal,
   getPrivateRecord,
+  getPublicCase,
+  holdCase,
+  labelCase,
   listCaseMessages,
   privateAttachmentHref,
+  releaseCase,
   sendCaseMessage,
 } from '../../../lib/pilot/vrsar/api';
 import type {
   AiProposal,
   CaseMessage,
+  HoldReason,
   PilotRole,
   PrivateTraceRecord,
+  PublicCaseShell,
   TraceAttachment,
   TraceEvent,
 } from '../../../lib/pilot/vrsar/model';
 import { CLOSED_REASONS } from '../../../lib/pilot/vrsar/model';
 import {
   pilotCopy,
+  textStatusTone,
   translatedAction,
   translatedAiKind,
   translatedAiStatus,
+  translatedCaseLabel,
   translatedClosedReason,
   translatedDelivery,
+  translatedHoldReason,
   translatedOrigin,
   translatedRole,
+  translatedTextStatus,
 } from '../../../content/pilot/vrsar';
 import {
   apiErrorMessage,
@@ -39,6 +49,7 @@ import {
   recordIdFromPath,
   renderTrace,
   requirePilotRole,
+  setFieldError,
   setState,
 } from './shell';
 
@@ -46,7 +57,8 @@ import {
 const MAX_MESSAGE_CHARS = 480;
 /** Below this the model's own confidence is worth stating as a caution. */
 const LOW_CONFIDENCE = 0.5;
-const STAFF_ROLES: readonly PilotRole[] = ['official', 'reviewer'];
+const STAFF_ROLES: readonly PilotRole[] = ['official'];
+const HOLD_REASONS: readonly HoldReason[] = ['personal-data', 'abuse', 'off-topic', 'other'];
 
 let started = false;
 
@@ -95,6 +107,10 @@ export function initVrsarCaseDetail(): void {
   const closeSection = document.querySelector<HTMLElement>('[data-close-section]');
   const closeForm = document.querySelector<HTMLElement>('[data-close-form]');
   const closedNotice = document.querySelector<HTMLElement>('[data-closed-notice]');
+  const textSection = document.querySelector<HTMLElement>('[data-public-text-section]');
+  const textPanel = document.querySelector<HTMLElement>('[data-public-text-panel]');
+  const textActions = document.querySelector<HTMLElement>('[data-public-text-actions]');
+  const textState = document.querySelector<HTMLElement>('[data-public-text-state]');
   // Each section keeps one state line outside the parts a re-render replaces,
   // so a confirmation or an error survives the refresh it triggered.
   const aiState = document.querySelector<HTMLElement>('[data-ai-state]');
@@ -102,9 +118,12 @@ export function initVrsarCaseDetail(): void {
   const closeState = document.querySelector<HTMLElement>('[data-close-state]');
 
   let record: PrivateTraceRecord | null = null;
+  let shell: PublicCaseShell | null = null;
   let role: PilotRole = 'resident';
   let messageFormBuilt = false;
   let closeFormState: 'none' | 'form' | 'blocked' = 'none';
+  let textActionsState: 'none' | 'form' | 'blocked' = 'none';
+  let labelRow: HTMLElement | null = null;
 
   function isStaff(): boolean {
     return STAFF_ROLES.includes(role);
@@ -265,8 +284,14 @@ export function initVrsarCaseDetail(): void {
     const author = message.direction === 'inbound'
       ? pilotCopy.messages.inbound[lang]
       : pilotCopy.messages.outbound[lang];
+    // An appeal or a dispute is named, so it never reads as an ordinary reply.
+    const kind = message.kind === 'label-appeal'
+      ? pilotCopy.messages.labelAppeal[lang]
+      : message.kind === 'dispute'
+        ? pilotCopy.messages.dispute[lang]
+        : '';
     main.append(
-      createTextElement('strong', author),
+      createTextElement('strong', kind ? `${author} · ${kind}` : author),
       createTextElement('p', message.body),
       createTextElement(
         'span',
@@ -304,7 +329,7 @@ export function initVrsarCaseDetail(): void {
     }
   }
 
-  /** Officials write questions; residents and reviewers never post here. */
+  /** Officials write questions; residents never post here. */
   function renderMessageForm(): void {
     if (!messageForm) return;
     messageForm.hidden = role !== 'official';
@@ -374,12 +399,242 @@ export function initVrsarCaseDetail(): void {
     messageForm.replaceChildren(section);
   }
 
-  /** Reviewers only, and only while the case can still be closed. */
+  /**
+   * The public shell is the only place the text, its visibility and its labels
+   * live, so the office reads its own case exactly as the public does.
+   */
+  async function loadShell(): Promise<void> {
+    const caseNumber = record?.caseNumber;
+    if (!caseNumber || !isStaff()) {
+      shell = null;
+      return;
+    }
+    try {
+      shell = (await getPublicCase(caseNumber)).case;
+    } catch {
+      shell = null;
+    }
+  }
+
+  async function runTextCommand(
+    button: HTMLButtonElement,
+    pending: string,
+    done: string,
+    operation: () => Promise<PrivateTraceRecord>,
+  ): Promise<void> {
+    button.disabled = true;
+    const label = button.textContent ?? '';
+    button.textContent = pending;
+    setState(textState, pending);
+    try {
+      record = await operation();
+      await loadShell();
+      setState(textState, done, 'success');
+      renderRecord(record);
+    } catch (error) {
+      await reportCommandError(error, textState);
+    } finally {
+      button.disabled = false;
+      button.textContent = label;
+    }
+  }
+
+  function renderPublicTextPanel(): void {
+    if (!textPanel) return;
+    if (!shell) {
+      textPanel.replaceChildren(createTextElement('p', pilotCopy.publicText.unavailable[lang], 'pilot-state'));
+      return;
+    }
+    const marks = document.createElement('p');
+    marks.className = 'pilot-ledger-meta';
+    const visibility = stamp(translatedTextStatus(shell.textStatus, lang), textStatusTone(shell.textStatus), {
+      textStatus: String(shell.textStatus),
+    });
+    visibility.setAttribute('aria-label', `${pilotCopy.publicText.status[lang]}: ${translatedTextStatus(shell.textStatus, lang)}`);
+    marks.append(visibility);
+    for (const label of Array.isArray(shell.labels) ? shell.labels : []) {
+      // A soft label never highlights: the chip stays in the neutral tone (rule P4).
+      marks.append(stamp(translatedCaseLabel(label, lang), 'unknown', { caseLabel: label }));
+    }
+
+    const body: Node[] = [marks];
+    if (shell.textStatus === 'held') {
+      body.push(
+        createTextElement('p', pilotCopy.publicText.heldNotice[lang], 'pilot-state'),
+        createTextElement(
+          'p',
+          `${pilotCopy.publicText.holdReason[lang]}: ${translatedHoldReason(shell.holdReason, lang)}`,
+          'pilot-event-meta',
+        ),
+      );
+    } else {
+      body.push(createTextElement('p', shell.text ?? pilotCopy.common.notAvailable[lang], 'pilot-public-copy'));
+    }
+    if ((shell.labels ?? []).includes('form-letter')) {
+      body.push(createTextElement('p', pilotCopy.publicText.labelExplanation[lang], 'pilot-event-meta'));
+    }
+    textPanel.replaceChildren(...body);
+  }
+
+  function holdSection(): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'panel pilot-section';
+    section.append(createTextElement('h3', pilotCopy.publicText.holdHeading[lang]));
+    const form = document.createElement('form');
+    form.className = 'pilot-form';
+    const reason = document.createElement('select');
+    reason.id = 'case-hold-reason';
+    reason.required = true;
+    for (const value of HOLD_REASONS) {
+      const option = createTextElement('option', translatedHoldReason(value, lang));
+      option.value = value;
+      reason.append(option);
+    }
+    const reasonField = createField(reason, pilotCopy.publicText.holdReason[lang]);
+    const note = document.createElement('textarea');
+    note.id = 'case-hold-note';
+    note.rows = 2;
+    note.maxLength = 2000;
+    const noteField = createField(note, pilotCopy.publicText.holdNote[lang]);
+    const row = document.createElement('div');
+    row.className = 'pilot-actions';
+    const submit = createTextElement('button', pilotCopy.publicText.hold[lang], 'btn');
+    submit.type = 'submit';
+    submit.dataset.variant = 'secondary';
+    row.append(submit);
+    form.append(reasonField.field, noteField.field, row);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!form.reportValidity() || !record) return;
+      const trimmed = note.value.trim();
+      void runTextCommand(
+        submit,
+        pilotCopy.publicText.holding[lang],
+        pilotCopy.publicText.held[lang],
+        () => holdCase(record!.id, {
+          reason: reason.value as HoldReason,
+          ...(trimmed ? { note: trimmed } : {}),
+        }),
+      );
+    });
+    section.append(form);
+    return section;
+  }
+
+  function releaseSection(): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'panel pilot-section';
+    section.append(createTextElement('h3', pilotCopy.publicText.releaseHeading[lang]));
+    const form = document.createElement('form');
+    form.className = 'pilot-form';
+    const redacted = document.createElement('textarea');
+    redacted.id = 'case-release-redacted';
+    redacted.rows = 4;
+    redacted.maxLength = 4000;
+    // The original as filed is what a shortened version starts from.
+    redacted.value = record?.narrative ?? shell?.text ?? '';
+    const redactedField = createField(redacted, pilotCopy.publicText.redactedText[lang], {
+      hint: pilotCopy.publicText.redactedHint[lang],
+    });
+    const row = document.createElement('div');
+    row.className = 'pilot-actions';
+    const asFiled = createTextElement('button', pilotCopy.publicText.releaseAsFiled[lang], 'btn');
+    asFiled.type = 'button';
+    asFiled.dataset.variant = 'primary';
+    const withRedaction = createTextElement('button', pilotCopy.publicText.releaseRedacted[lang], 'btn');
+    withRedaction.type = 'button';
+    withRedaction.dataset.variant = 'secondary';
+    row.append(asFiled, withRedaction);
+    form.append(redactedField.field, row);
+
+    asFiled.addEventListener('click', () => {
+      if (!record) return;
+      void runTextCommand(
+        asFiled,
+        pilotCopy.publicText.releasing[lang],
+        pilotCopy.publicText.released[lang],
+        () => releaseCase(record!.id, {}),
+      );
+    });
+    withRedaction.addEventListener('click', () => {
+      if (!record || !form.reportValidity()) return;
+      const text = redacted.value.trim();
+      if (!text) {
+        setFieldError(redactedField, redacted, pilotCopy.filing.required[lang]);
+        return;
+      }
+      setFieldError(redactedField, redacted, '');
+      void runTextCommand(
+        withRedaction,
+        pilotCopy.publicText.releasing[lang],
+        pilotCopy.publicText.released[lang],
+        () => releaseCase(record!.id, { redactedText: text }),
+      );
+    });
+    section.append(form);
+    return section;
+  }
+
+  function renderLabelRow(): void {
+    if (!labelRow) return;
+    const labelled = (shell?.labels ?? []).includes('form-letter');
+    const button = createTextElement(
+      'button',
+      labelled ? pilotCopy.publicText.clearLabel[lang] : pilotCopy.publicText.setLabel[lang],
+      'btn',
+    );
+    button.type = 'button';
+    button.dataset.variant = 'secondary';
+    button.disabled = !shell;
+    button.addEventListener('click', () => {
+      if (!record) return;
+      void runTextCommand(
+        button,
+        pilotCopy.publicText.labelling[lang],
+        pilotCopy.publicText.labelled[lang],
+        () => labelCase(record!.id, { label: 'form-letter', action: labelled ? 'clear' : 'set' }),
+      );
+    });
+    const row = document.createElement('div');
+    row.className = 'pilot-actions';
+    row.append(button);
+    labelRow.replaceChildren(
+      createTextElement('h3', pilotCopy.publicText.labelHeading[lang]),
+      createTextElement('p', pilotCopy.publicText.labelExplanation[lang], 'field-hint'),
+      row,
+    );
+  }
+
+  /**
+   * Hold and release stop at a closed case; the soft label stays available in
+   * every state, as the transition table says.
+   */
+  function renderPublicText(current: PrivateTraceRecord): void {
+    if (!textSection || !textActions) return;
+    textSection.hidden = !isStaff();
+    if (!isStaff()) return;
+    renderPublicTextPanel();
+    const mode = current.status === 'closed' ? 'blocked' : 'form';
+    if (textActionsState !== mode) {
+      textActionsState = mode;
+      labelRow = document.createElement('section');
+      labelRow.className = 'panel pilot-section';
+      textActions.replaceChildren(
+        ...(mode === 'blocked'
+          ? [createTextElement('p', pilotCopy.publicText.closedNoAction[lang], 'pilot-state')]
+          : [holdSection(), releaseSection()]),
+        labelRow,
+      );
+    }
+    renderLabelRow();
+  }
+
+  /** The office closes the case, and only while it can still be closed. */
   function renderCloseForm(current: PrivateTraceRecord): void {
     if (!closeSection || !closeForm) return;
-    const closable = current.status === 'open' || current.status === 'assigned' || current.status === 'returned';
-    closeSection.hidden = role !== 'reviewer';
-    if (role !== 'reviewer') return;
+    const closable = current.status === 'open' || current.status === 'assigned';
+    closeSection.hidden = role !== 'official';
+    if (role !== 'official') return;
     if (!closable) {
       if (closeFormState === 'blocked') return;
       closeFormState = 'blocked';
@@ -549,6 +804,7 @@ export function initVrsarCaseDetail(): void {
     renderProposals(current);
     if (messageSection) messageSection.hidden = !isStaff();
     renderMessageForm();
+    renderPublicText(current);
     renderCloseForm(current);
     if (root) root.hidden = false;
   }
@@ -556,7 +812,7 @@ export function initVrsarCaseDetail(): void {
   async function load(): Promise<void> {
     if (retry) retry.hidden = true;
     setState(state, pilotCopy.common.loading[lang]);
-    const session = await requirePilotRole(['resident', 'official', 'reviewer']);
+    const session = await requirePilotRole(['resident', 'official']);
     if (!session) return;
     role = session.role;
     if (!id) {
@@ -565,6 +821,7 @@ export function initVrsarCaseDetail(): void {
     }
     try {
       record = await getPrivateRecord(id);
+      await loadShell();
       renderRecord(record);
       clearState(state);
       await loadMessages();

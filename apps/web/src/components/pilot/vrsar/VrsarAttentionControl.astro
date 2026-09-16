@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /**
- * Attention on a public case: two independent marks, each with its own count.
+ * Attention on a public case: three independent marks, each with its own count.
  * The count is a count, never a vote and never queue order, so the line under
  * the controls says so (rule C2). State lives in the browser: the script fills
  * the counts and swaps a button to the withdraw label once this browser's key
  * has been counted.
+ *
+ * "Nije popravljeno" is the public's half of the completion check, so the script
+ * shows it only while the office holds the case complete.
  */
 
 import type { PilotLang } from '../../../content/pilot/vrsar';
@@ -20,8 +23,9 @@ interface Props {
 const { lang } = Astro.props as Props;
 const copy = publicCaseCopy.attention;
 const items = [
-  { kind: 'also-affected', label: copy.alsoAffectedCount[lang], action: copy.alsoAffectedAdd[lang] },
-  { kind: 'follow', label: copy.followCount[lang], action: copy.followAdd[lang] },
+  { kind: 'also-affected', label: copy.alsoAffectedCount[lang], action: copy.alsoAffectedAdd[lang], gated: false },
+  { kind: 'follow', label: copy.followCount[lang], action: copy.followAdd[lang], gated: false },
+  { kind: 'not-fixed', label: copy.notFixedCount[lang], action: copy.notFixedAdd[lang], gated: true },
 ] as const;
 ---
 
@@ -30,7 +34,7 @@ const items = [
 
   <div class="pilot-attention">
     {items.map((item) => (
-      <div class="pilot-attention-item" data-attention-item={item.kind}>
+      <div class="pilot-attention-item" data-attention-item={item.kind} hidden={item.gated}>
         <p class="pilot-attention-count" role="status" aria-live="polite">
           <span class="pilot-attention-label">{item.label}:</span>
           <span class="pilot-attention-value" data-attention-count>—</span>
@@ -48,6 +52,7 @@ const items = [
     ))}
   </div>
 
+  <p class="field-hint" data-not-fixed-note hidden>{copy.notFixedWhen[lang]}</p>
   <p class="field-hint">{copy.notAVote[lang]}</p>
   <p class="field-error" role="alert" data-attention-error></p>
 </section>

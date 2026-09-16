@@ -14,6 +14,7 @@ import type {
   CaseMessageDeliveryState,
   CloseInput,
   CommandContext,
+  DisputeInput,
   FilerMessageInput,
   GatewayCreateInput,
   GatewayMessageInput,
@@ -32,13 +33,17 @@ import {
   normalizeCommitment,
   normalizeCreate,
   normalizeDelivery,
+  normalizeDispute,
   normalizeFilerMessage,
   normalizeGatewayCreate,
   normalizeGatewayMessage,
+  normalizeHold,
+  normalizeLabel,
   normalizeOfficialMessage,
+  normalizeRelease,
+  normalizeReopen,
   normalizeReopenRead,
   normalizeResolution,
-  normalizeReview,
   parseListLimit,
   validateCaseNumber,
   validateIdempotencyKey,
@@ -111,12 +116,6 @@ function aiActorFromRequest(request: IncomingMessage, config: TraceConfig): Acto
     return gatewayActorFromRequest(request, config);
   }
   return { id: 'internal:service', email: null, role: 'gateway' };
-}
-
-function requireOfficialOrReviewer(actor: Actor): void {
-  if (actor.role !== 'official' && actor.role !== 'reviewer') {
-    throw new DomainError(403, 'forbidden', 'This role cannot perform the requested action.');
-  }
 }
 
 function readContext(
@@ -272,23 +271,6 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     },
     {
       method: 'POST',
-      path: '/internal/trace/records/:id/review',
-      maxBodyBytes: 10_000,
-      handler: safe(async (request, body, params) => {
-        const actor = actorFromRequest(request, config);
-        const id = validateRecordId(params.id ?? '');
-        const ctx = commandContext(
-          request,
-          actor,
-          recordPath(id, '/review'),
-          normalizeReview(body),
-        );
-        const output = await store.review(ctx, id);
-        return result(output.status, output.body);
-      }),
-    },
-    {
-      method: 'POST',
       path: '/internal/trace/records/:id/resolution',
       maxBodyBytes: 40_000,
       handler: safe(async (request, body, params) => {
@@ -306,7 +288,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     },
     {
       method: 'POST',
-      path: '/internal/trace/records/:id/resolution-review',
+      path: '/internal/trace/records/:id/reopen',
       maxBodyBytes: 10_000,
       handler: safe(async (request, body, params) => {
         const actor = actorFromRequest(request, config);
@@ -314,10 +296,51 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
         const ctx = commandContext(
           request,
           actor,
-          recordPath(id, '/resolution-review'),
-          normalizeReview(body),
+          recordPath(id, '/reopen'),
+          normalizeReopen(body),
         );
-        const output = await store.resolutionReview(ctx, id);
+        const output = await store.reopen(ctx, id);
+        return result(output.status, output.body);
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/hold',
+      maxBodyBytes: 10_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        const id = validateRecordId(params.id ?? '');
+        const ctx = commandContext(request, actor, recordPath(id, '/hold'), normalizeHold(body));
+        const output = await store.hold(ctx, id);
+        return result(output.status, output.body);
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/release',
+      maxBodyBytes: 10_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        const id = validateRecordId(params.id ?? '');
+        const ctx = commandContext(
+          request,
+          actor,
+          recordPath(id, '/release'),
+          normalizeRelease(body),
+        );
+        const output = await store.release(ctx, id);
+        return result(output.status, output.body);
+      }),
+    },
+    {
+      method: 'POST',
+      path: '/internal/trace/records/:id/label',
+      maxBodyBytes: 2_000,
+      handler: safe(async (request, body, params) => {
+        const actor = actorFromRequest(request, config);
+        const id = validateRecordId(params.id ?? '');
+        const ctx = commandContext(request, actor, recordPath(id, '/label'), normalizeLabel(body));
+        const output = await store.label(ctx, id);
         return result(output.status, output.body);
       }),
     },
@@ -458,6 +481,16 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     },
     {
       method: 'POST',
+      path: '/internal/trace/cases/:caseNumber/dispute',
+      maxBodyBytes: 20_000,
+      handler: safe(async (_request, body, params) => {
+        const caseNumber = validateCaseNumber(params.caseNumber ?? '');
+        const normalized = normalizeDispute(body);
+        return store.dispute(caseNumber, normalized as unknown as DisputeInput);
+      }),
+    },
+    {
+      method: 'POST',
       path: '/internal/trace/cases/:caseNumber/messages',
       maxBodyBytes: 20_000,
       handler: safe(async (request, body, params) => {
@@ -480,7 +513,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
       path: '/internal/trace/records/:id/messages',
       handler: safe(async (request, _body, params) => {
         const actor = actorFromRequest(request, config);
-        requireOfficialOrReviewer(actor);
+        requireRole(actor, 'official');
         const id = validateRecordId(params.id ?? '');
         return store.listMessages(readContext(actor, recordPath(id, '/messages')), id);
       }),
@@ -528,7 +561,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
       maxBodyBytes: 10_000,
       handler: safe(async (request, body, params) => {
         const actor = actorFromRequest(request, config);
-        requireOfficialOrReviewer(actor);
+        requireRole(actor, 'official');
         const id = validateRecordId(params.id ?? '');
         const proposalId = validateRecordId(params.proposalId ?? '');
         const normalized = normalizeAiDecision(body);
@@ -548,7 +581,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
       maxBodyBytes: 10_000,
       handler: safe(async (request, body, params) => {
         const actor = actorFromRequest(request, config);
-        requireRole(actor, 'reviewer');
+        requireRole(actor, 'official');
         const id = validateRecordId(params.id ?? '');
         const normalized = normalizeClose(body);
         const ctx = commandContext(

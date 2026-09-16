@@ -5,17 +5,17 @@ import {
   assignRecord,
   getPrivateRecord,
   listPrivateRecords,
+  reopenCase,
   submitCommitment,
   submitResolution,
   uploadPrivateAttachment,
 } from '../../../lib/pilot/vrsar/api';
-import type { PrivateTraceRecord, TraceEvent } from '../../../lib/pilot/vrsar/model';
+import type { OfficialSignature, PrivateTraceRecord } from '../../../lib/pilot/vrsar/model';
 import {
   pilotCopy,
   pilotHref,
   translatedClosedReason,
   translatedOrigin,
-  translatedRole,
 } from '../../../content/pilot/vrsar';
 import {
   apiErrorMessage,
@@ -33,9 +33,38 @@ import {
 
 const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'application/pdf', 'text/plain']);
+/**
+ * The signing name and title are typed on every answer, so the last pair is
+ * kept as a convenience. It is the only thing this workspace writes to Web
+ * Storage: no session, no token, and nothing about the filer.
+ */
+const SIGNATURE_KEY = 'polis.pilot.vrsar.signature';
 let started = false;
 let records: PrivateTraceRecord[] = [];
 let selectedId = '';
+
+function rememberedSignature(): OfficialSignature {
+  try {
+    const stored = window.localStorage.getItem(SIGNATURE_KEY);
+    if (!stored) return { name: '', title: '' };
+    const parsed = JSON.parse(stored) as Partial<OfficialSignature>;
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      title: typeof parsed.title === 'string' ? parsed.title : '',
+    };
+  } catch {
+    // Private browsing, blocked storage, or a stale value: the fields start empty.
+    return { name: '', title: '' };
+  }
+}
+
+function rememberSignature(signature: OfficialSignature): void {
+  try {
+    window.localStorage.setItem(SIGNATURE_KEY, JSON.stringify(signature));
+  } catch {
+    // Storage is a convenience; the answer is already on its way.
+  }
+}
 
 async function fileBase64(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -154,7 +183,6 @@ export function initVrsarStaff(): void {
       fieldRow(pilotCopy.detail.narrative[lang], record.narrative),
       fieldRow(pilotCopy.detail.location[lang], record.location),
       fieldRow(pilotCopy.detail.contact[lang], record.contactEmail || pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.staff.publicSummary[lang], record.publicSummary || pilotCopy.common.notAvailable[lang]),
       fieldRow(pilotCopy.staff.commitment[lang], record.commitment || pilotCopy.common.notAvailable[lang]),
       fieldRow(pilotCopy.staff.dueDate[lang], record.dueDate ? formatPilotDate(record.dueDate, lang, true) : pilotCopy.common.notAvailable[lang]),
       fieldRow(pilotCopy.staff.evidenceNote[lang], record.evidenceNote || pilotCopy.common.notAvailable[lang]),
@@ -178,19 +206,58 @@ export function initVrsarStaff(): void {
     openRow.className = 'pilot-actions';
     openRow.append(open);
     panel.append(openRow);
-    const feedback = [...(Array.isArray(record.events) ? record.events : [])]
-      .reverse()
-      .find((event: TraceEvent) => event.note && (event.action?.toLowerCase().includes('return') || event.action?.toLowerCase().includes('vrat')));
-    if (feedback?.note) {
-      panel.append(
-        createTextElement('h3', pilotCopy.staff.privateFeedback[lang]),
-        createTextElement('p', feedback.note),
-        createTextElement('p', `${translatedRole(feedback.actorRole, lang)} · ${formatPilotDate(feedback.createdAt, lang)}`, 'pilot-event-meta'),
-      );
-    }
     detail.replaceChildren(panel);
     if (traceSection) traceSection.hidden = false;
     renderTrace(document, record.status, record.events);
+  }
+
+  /**
+   * Name and title travel with every answer and stand on the public record,
+   * so they are one pair of required fields, prefilled from the last answer.
+   */
+  function signatureFields(record: PrivateTraceRecord): {
+    fields: HTMLElement[];
+    read: () => OfficialSignature;
+  } {
+    const remembered = rememberedSignature();
+    const name = document.createElement('input');
+    name.id = `staff-signed-name-${record.id}`;
+    name.type = 'text';
+    name.required = true;
+    name.maxLength = 120;
+    name.autocomplete = 'name';
+    name.value = remembered.name;
+    const nameField = createField(name, pilotCopy.staff.signedByName[lang], {
+      hint: pilotCopy.staff.signedByHint[lang],
+    });
+
+    const title = document.createElement('input');
+    title.id = `staff-signed-title-${record.id}`;
+    title.type = 'text';
+    title.required = true;
+    title.maxLength = 120;
+    title.setAttribute('autocomplete', 'organization-title');
+    title.value = remembered.title;
+    const titleField = createField(title, pilotCopy.staff.signedByTitle[lang]);
+
+    return {
+      fields: [nameField.field, titleField.field],
+      read: () => ({ name: name.value.trim(), title: title.value.trim() }),
+    };
+  }
+
+  /** One HTTPS link per line; an empty list is allowed where evidence is optional. */
+  function readEvidenceUrls(value: string): string[] | null {
+    const urls = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const valid = urls.every((entry) => {
+      try {
+        const parsed = new URL(entry);
+        return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
+      } catch {
+        return false;
+      }
+    });
+    return valid ? urls : null;
   }
 
   function commitmentForm(record: PrivateTraceRecord): HTMLElement {
@@ -199,13 +266,6 @@ export function initVrsarStaff(): void {
     section.append(createTextElement('h3', pilotCopy.staff.commitmentHeading[lang]));
     const form = document.createElement('form');
     form.className = 'pilot-form';
-
-    const summary = document.createElement('textarea');
-    summary.id = `staff-summary-${record.id}`;
-    summary.required = true;
-    summary.maxLength = 1000;
-    summary.value = record.publicSummary ?? '';
-    const summaryField = createField(summary, pilotCopy.staff.publicSummary[lang]);
 
     const commitment = document.createElement('textarea');
     commitment.id = `staff-commitment-${record.id}`;
@@ -221,6 +281,14 @@ export function initVrsarStaff(): void {
     due.value = record.dueDate ?? '';
     const dueField = createField(due, pilotCopy.staff.dueDate[lang], { width: 'date' });
 
+    const signature = signatureFields(record);
+
+    const evidence = document.createElement('textarea');
+    evidence.id = `staff-commitment-evidence-${record.id}`;
+    evidence.rows = 2;
+    evidence.maxLength = 2000;
+    const evidenceField = createField(evidence, pilotCopy.staff.evidenceOptional[lang]);
+
     const actions = document.createElement('div');
     actions.className = 'pilot-actions';
     const button = createTextElement('button', pilotCopy.staff.fileCommitment[lang], 'btn');
@@ -228,19 +296,33 @@ export function initVrsarStaff(): void {
     button.type = 'submit';
     actions.append(button);
     const message = actionState(section);
-    form.append(summaryField.field, commitmentField.field, dueField.field, actions);
+    // The publication rule sits above the button it governs (rule I3).
+    form.append(
+      commitmentField.field,
+      dueField.field,
+      ...signature.fields,
+      evidenceField.field,
+      createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
+      actions,
+    );
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
+      const signedBy = signature.read();
+      const note = evidence.value.trim();
       void runAction(
         button,
         pilotCopy.staff.filingCommitment[lang],
-        () => submitCommitment(record.id, {
-          expectedVersion: record.version,
-          publicSummary: summary.value.trim(),
-          commitment: commitment.value.trim(),
-          dueDate: due.value,
-        }),
+        async () => {
+          const updated = await submitCommitment(record.id, {
+            commitment: commitment.value.trim(),
+            dueDate: due.value,
+            signedBy,
+            ...(note ? { evidenceNote: note } : {}),
+          });
+          rememberSignature(signedBy);
+          return updated;
+        },
         message,
       );
     });
@@ -272,6 +354,8 @@ export function initVrsarStaff(): void {
       hint: pilotCopy.staff.evidenceUrlsHint[lang],
     });
 
+    const signature = signatureFields(record);
+
     const actions = document.createElement('div');
     actions.className = 'pilot-actions';
     const button = createTextElement('button', pilotCopy.staff.submitResolution[lang], 'btn');
@@ -279,32 +363,73 @@ export function initVrsarStaff(): void {
     button.type = 'submit';
     actions.append(button);
     const message = actionState(section);
-    form.append(noteField.field, urlsField.field, actions);
+    form.append(
+      noteField.field,
+      urlsField.field,
+      ...signature.fields,
+      createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
+      actions,
+    );
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
-      const evidenceUrls = urls.value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
-      const validUrls = evidenceUrls.length > 0 && evidenceUrls.every((value) => {
-        try {
-          const parsed = new URL(value);
-          return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
-        } catch {
-          return false;
-        }
-      });
-      if (!validUrls) {
+      const evidenceUrls = readEvidenceUrls(urls.value);
+      if (!evidenceUrls || evidenceUrls.length === 0) {
         setFieldError(urlsField, urls, pilotCopy.staff.evidenceUrlsHint[lang]);
         return;
       }
       setFieldError(urlsField, urls, '');
+      const signedBy = signature.read();
       void runAction(
         button,
         pilotCopy.staff.submittingResolution[lang],
-        () => submitResolution(record.id, {
-          expectedVersion: record.version,
-          evidenceNote: note.value.trim(),
-          evidenceUrls,
-        }),
+        async () => {
+          const updated = await submitResolution(record.id, {
+            evidenceNote: note.value.trim(),
+            evidenceUrls,
+            signedBy,
+          });
+          rememberSignature(signedBy);
+          return updated;
+        },
+        message,
+      );
+    });
+    section.insertBefore(form, message);
+    return section;
+  }
+
+  /** From `disputed`: the office accepts the dispute and answers again. */
+  function reopenForm(record: PrivateTraceRecord): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'panel pilot-section';
+    section.append(
+      createTextElement('h3', pilotCopy.staff.reopenHeading[lang]),
+      createTextElement('p', pilotCopy.staff.reopenIntro[lang], 'pilot-lead'),
+    );
+    const form = document.createElement('form');
+    form.className = 'pilot-form';
+    const note = document.createElement('textarea');
+    note.id = `staff-reopen-note-${record.id}`;
+    note.rows = 2;
+    note.maxLength = 2000;
+    const noteField = createField(note, pilotCopy.staff.reopenNote[lang]);
+    const actions = document.createElement('div');
+    actions.className = 'pilot-actions';
+    const button = createTextElement('button', pilotCopy.staff.reopen[lang], 'btn');
+    button.dataset.variant = 'secondary';
+    button.type = 'submit';
+    actions.append(button);
+    const message = actionState(section);
+    form.append(noteField.field, actions);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const trimmed = note.value.trim();
+      void runAction(
+        button,
+        pilotCopy.staff.reopening[lang],
+        () => reopenCase(record.id, trimmed ? { note: trimmed } : {}),
         message,
       );
     });
@@ -383,10 +508,13 @@ export function initVrsarStaff(): void {
         message,
       ));
       rows.push(section);
-    } else if (record.status === 'assigned' || record.status === 'returned') {
+    } else if (record.status === 'assigned') {
       rows.push(commitmentForm(record));
-    } else if (record.status === 'published') {
+    } else if (record.status === 'answered') {
       rows.push(resolutionForm(record));
+    } else if (record.status === 'disputed') {
+      // A dispute leaves two honest answers: report completion again, or take it back.
+      rows.push(resolutionForm(record), reopenForm(record));
     } else {
       rows.push(createTextElement('p', pilotCopy.staff.noAction[lang], 'pilot-state'));
     }

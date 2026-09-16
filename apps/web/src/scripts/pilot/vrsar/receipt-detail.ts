@@ -33,7 +33,8 @@ export function initVrsarReceiptDetail(): void {
   }
 
   function render(record: PublicTraceRecord, config: PilotConfig): void {
-    if (record.testEnvironment !== true || (record.status !== 'published' && record.status !== 'resolved')) {
+    const published = record.status === 'answered' || record.status === 'resolved' || record.status === 'disputed';
+    if (record.testEnvironment !== true || !published) {
       throw new Error('invalid_public_record_response');
     }
     setText('[data-receipt-id]', record.id);
@@ -43,7 +44,12 @@ export function initVrsarReceiptDetail(): void {
       status.dataset.tone = statusTone(record.status);
       status.textContent = translatedStatus(record.status, lang);
     }
-    setText('[data-public-status-note]', record.status === 'resolved' ? pilotCopy.receipts.resolved[lang] : pilotCopy.receipts.publishedNotResolved[lang]);
+    const statusNote = record.status === 'resolved'
+      ? pilotCopy.receipts.resolved[lang]
+      : record.status === 'disputed'
+        ? pilotCopy.receipts.disputed[lang]
+        : pilotCopy.receipts.publishedNotResolved[lang];
+    setText('[data-public-status-note]', statusNote);
     setText('[data-public-office]', entityName(config.office, lang));
     setText('[data-public-category]', entityName(config.category, lang));
     setText('[data-public-due-date]', formatPilotDate(record.dueDate, lang, true));
@@ -56,8 +62,10 @@ export function initVrsarReceiptDetail(): void {
       resolvedAtRow.hidden = true;
     }
     setText('[data-public-hash]', record.receiptHash);
-    setText('[data-public-summary]', record.publicSummary);
     setText('[data-public-commitment]', record.commitment);
+    // The signature is the answer's authority; the slot is optional so the
+    // receipt component can carry it wherever it reads best.
+    setText('[data-public-signed-by]', `${record.signedBy.name} · ${record.signedBy.title}`);
 
     const evidenceSection = document.querySelector<HTMLElement>('[data-public-evidence-section]');
     if (record.status === 'resolved') {

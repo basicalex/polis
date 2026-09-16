@@ -7,7 +7,8 @@
  *
  * Every case of the place, in every state, newest activity first, with the
  * counts and the clock in one strip above and the case-number search under it
- * (entry-flow R8). It is a ledger, not a dashboard: attention is shown as two
+ * (entry-flow R8). Each row carries the report itself, or says the office is
+ * holding the text. It is a ledger, not a dashboard: attention is shown as
  * counts and the line under the list says a count is not a vote.
  */
 
@@ -31,21 +32,32 @@ const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
 const strings = {
   open: label('ledgerOpen'),
   overdue: label('ledgerOverdue'),
+  held: label('ledgerHeld'),
+  closed: label('ledgerClosed'),
   capped: label('ledgerCapped'),
   searchInvalid: label('ledgerSearchInvalid'),
   filed: label('ledgerFiled'),
   due: label('ledgerDue'),
   followers: label('ledgerFollowers'),
   alsoAffected: label('ledgerAlsoAffected'),
-  hintPublished: label('ledgerHintPublished'),
+  notFixed: label('ledgerNotFixed'),
+  textHeld: label('ledgerTextHeld'),
+  hintAnswered: label('ledgerHintAnswered'),
   hintResolved: label('ledgerHintResolved'),
+  hintDisputed: label('ledgerHintDisputed'),
   hintOverdue: label('ledgerHintOverdue'),
 };
-/* Two clock facts the chips cannot say: how many are still with the office, and
-   how many of those have run out of time. */
+/*
+ * Four facts the chips cannot say: how many cases are still with the office, how
+ * many of those have run out of time, how many texts the office is holding, and
+ * how many cases it closed. A removal shows up here as a number on the office's
+ * own page.
+ */
 const summary = [
   { key: 'open', label: strings.open },
   { key: 'overdue', label: strings.overdue },
+  { key: 'held', label: strings.held },
+  { key: 'closed', label: strings.closed },
 ] as const;
 
 /*
@@ -60,9 +72,9 @@ const stages = [
   { key: 'all', label: label('ledgerStageAll') },
   { key: 'received', label: label('ledgerStageReceived') },
   { key: 'assigned', label: label('ledgerStageAssigned') },
-  { key: 'in-review', label: label('ledgerStageInReview') },
-  { key: 'published', label: label('ledgerStagePublished') },
+  { key: 'answered', label: label('ledgerStageAnswered') },
   { key: 'resolved', label: label('ledgerStageResolved') },
+  { key: 'disputed', label: label('ledgerStageDisputed') },
   { key: 'closed', label: label('ledgerStageClosed') },
 ] as const satisfies readonly { key: LedgerFilter; label: string }[];
 ---

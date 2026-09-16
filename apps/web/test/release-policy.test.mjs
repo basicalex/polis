@@ -90,7 +90,6 @@ const expectedCurrentByKind = {
     '/pilot/vrsar/cases',
     '/pilot/vrsar/cases/:caseId',
     '/pilot/vrsar/staff',
-    '/pilot/vrsar/review',
     '/pilot/vrsar/api/*path',
   ],
   'not-live': ['/contribute/maps', '/contribute/review'],

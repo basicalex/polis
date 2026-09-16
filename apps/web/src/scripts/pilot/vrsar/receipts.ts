@@ -26,10 +26,14 @@ export function initVrsarReceipts(): void {
   const retry = document.querySelector<HTMLButtonElement>('[data-retry]');
   const empty = document.querySelector<HTMLElement>('[data-empty-state]');
 
+  /** A receipt exists from the moment the office answers, in all three states. */
+  function isPublished(record: PublicTraceRecord): boolean {
+    return record.testEnvironment === true
+      && (record.status === 'answered' || record.status === 'resolved' || record.status === 'disputed');
+  }
+
   function render(records: PublicTraceRecord[], config: PilotConfig): void {
-    const safeRecords = records.filter(
-      (record) => record.testEnvironment === true && (record.status === 'published' || record.status === 'resolved'),
-    );
+    const safeRecords = records.filter(isPublished);
     const rows = safeRecords.map((record) => {
       const item = document.createElement('li');
       const link = document.createElement('a');
@@ -38,11 +42,11 @@ export function initVrsarReceipts(): void {
       const main = document.createElement('span');
       main.className = 'pilot-ledger-main';
       main.append(
-        createTextElement('span', record.publicSummary, 'pilot-ledger-title'),
+        createTextElement('span', record.commitment, 'pilot-ledger-title'),
         createTextElement('span', record.id, 'pilot-ledger-id'),
         createTextElement(
           'span',
-          `${entityName(config.category, lang)} · ${entityName(config.office, lang)} · ${formatPilotDate(record.publishedAt, lang)}`,
+          `${entityName(config.category, lang)} · ${entityName(config.office, lang)} · ${record.signedBy?.name ?? ''} · ${formatPilotDate(record.publishedAt, lang)}`,
           'pilot-ledger-meta',
         ),
       );
@@ -59,9 +63,7 @@ export function initVrsarReceipts(): void {
     setState(state, pilotCopy.common.loading[lang]);
     try {
       const [records, config] = await Promise.all([listPublicRecords(), getPilotConfig()]);
-      const safe = records.filter(
-        (record) => record.testEnvironment === true && (record.status === 'published' || record.status === 'resolved'),
-      );
+      const safe = records.filter(isPublished);
       render(safe, config);
       // An empty ledger is a state with a purpose and one action, not a message.
       if (empty) empty.hidden = safe.length > 0;
