@@ -194,6 +194,18 @@ pepper and passes the shared internal token without printing them. The platform
 gets `CHANNEL_ENABLED=true` and
 `CHANNEL_INTERNAL_URL=http://127.0.0.1:8990`.
 
+Two optional gateway settings shape follow-up texts and cleanup.
+`CHANNEL_APPEND_WINDOW_HOURS` (default 72, range 1 to 720): a text from a
+known number appends to its open case only within this window; `NOVA` in
+capitals as the first word forces a new case; a leading case number targets
+that case at any time. `CHANNEL_CLOSED_RETENTION_DAYS` (default 30, range 1 to
+365): the relay link and vault material are purged this many days after the
+case is resolved or closed; `CHANNEL_VAULT_TTL_DAYS` stays the ceiling.
+
+Gateway migration `0003_channel_links_closed_at` must run (`bun run migrate`
+in `services/channel-gateway`) before the new build starts; startup verifies
+the migration ledger.
+
 Run the full stub flow against an owned running runtime:
 
 ```sh
