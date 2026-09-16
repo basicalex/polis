@@ -76,6 +76,35 @@ export async function verifyTraceMigrations(
   }
 }
 
+const REVIEW_ERA_STATUSES = [
+  'commitment-pending-review',
+  'returned',
+  'published',
+  'resolution-pending-review',
+];
+
+/**
+ * Migration 0004 rewrites statuses and event hashes, which only makes sense on a
+ * synthetic database. Refuse when review-era rows exist; reset and re-seed instead.
+ */
+async function assertNoReviewEraRows(tx: postgres.TransactionSql): Promise<void> {
+  const rows = await tx<{ present: boolean }[]>`
+    SELECT (
+      EXISTS (SELECT 1 FROM trace_records WHERE status IN ${tx(REVIEW_ERA_STATUSES)})
+      OR EXISTS (
+        SELECT 1 FROM trace_events
+        WHERE resulting_status IN ${tx(REVIEW_ERA_STATUSES)} OR actor_role = 'reviewer'
+      )
+      OR EXISTS (SELECT 1 FROM trace_public_snapshots WHERE public_status = 'published')
+    ) AS present
+  `;
+  if (rows[0]?.present) {
+    throw new Error(
+      'trace migration 0004 refused: review-era rows present; reset this synthetic database and re-seed before migrating',
+    );
+  }
+}
+
 export async function runTraceMigrations(
   databaseUrl: string | undefined,
   folder = migrationsFolder,
@@ -112,6 +141,7 @@ export async function runTraceMigrations(
         }
       }
       for (const migration of migrations.slice(applied.length)) {
+        if (migration.version.startsWith('0004')) await assertNoReviewEraRows(tx);
         await tx.unsafe(migration.sql);
         await tx`
           INSERT INTO trace_schema_migrations (version, sha256, applied_at)

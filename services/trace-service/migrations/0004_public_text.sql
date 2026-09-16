@@ -1,24 +1,6 @@
 -- SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 
--- Event rows are append-only and hash-chained; the rewrite below only makes
--- sense on a synthetic database. Refuse when review-era rows exist.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM trace_records
-    WHERE status IN ('commitment-pending-review', 'returned', 'published', 'resolution-pending-review')
-  ) OR EXISTS (
-    SELECT 1 FROM trace_events
-    WHERE resulting_status IN ('commitment-pending-review', 'returned', 'published', 'resolution-pending-review')
-       OR actor_role = 'reviewer'
-  ) OR EXISTS (
-    SELECT 1 FROM trace_public_snapshots WHERE public_status = 'published'
-  ) THEN
-    RAISE EXCEPTION 'migration 0004: review-era rows present; reset this synthetic database and re-seed before migrating';
-  END IF;
-END;
-$$;
 ALTER TABLE trace_records
   ADD COLUMN text_status text NOT NULL DEFAULT 'public'
     CHECK (text_status IN ('public', 'held', 'redacted')),
