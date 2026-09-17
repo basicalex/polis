@@ -15,6 +15,14 @@ html[data-pilot='vrsar'] body {
 }
 
 html[data-pilot='vrsar'] body {
+  --pilot-measure: 80rem;
+  /* One gutter for topbar, boundary, nav, main and footer: the viewport gutter
+     on narrow screens, the centred 80rem column's edge on wide ones, so every
+     row of the shell shares the same left and right edges. */
+  --pilot-gutter: max(
+    clamp(1.25rem, 3vw, 2.5rem),
+    calc((100% - var(--pilot-measure)) / 2 + 2.5rem)
+  );
   margin: 0;
   overflow-x: clip;
   font-family: var(--body);
@@ -40,7 +48,7 @@ html[data-pilot='vrsar'] [hidden] {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-sm) var(--space-md);
-  padding: var(--space-sm) clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-sm) var(--pilot-gutter);
   border-bottom: 1px solid var(--polis-border);
 }
 
@@ -110,7 +118,7 @@ html[data-pilot='vrsar'] .pilot-boundary {
   max-width: none;
   max-height: 2rem;
   margin: 0;
-  padding: var(--space-1) clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-1) var(--pilot-gutter);
   border-top: 0;
   border-bottom: 1px solid var(--polis-border);
   background: var(--polis-surface-tint);
@@ -151,7 +159,7 @@ html[data-pilot='vrsar'] .skip-link:focus {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-xs) clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-xs) var(--pilot-gutter);
   border-bottom: 1px solid var(--polis-border);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -210,14 +218,12 @@ html[data-pilot='vrsar'] .skip-link:focus {
 }
 
 .pilot-main {
-  width: min(80rem, 100%);
   min-width: 0;
-  margin-inline: auto;
-  padding: clamp(1.25rem, 3vw, 2.5rem);
+  padding: clamp(1.25rem, 3vw, 2.5rem) var(--pilot-gutter);
 }
 
 .pilot-footer {
-  padding: var(--space-sm) clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-sm) var(--pilot-gutter);
   border-top: 1px solid var(--polis-border);
   color: var(--polis-muted);
   font-size: var(--type-data);
