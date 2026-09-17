@@ -266,7 +266,7 @@ test('entry chrome uses the approved full Polis lockup once', async () => {
   assert.doesNotMatch(base, /class="entry-wordmark"[^>]*>Polis<\/a>/);
   assert.match(styles, /\.entry-wordmark \{[^}]*min-height: var\(--tap-target\)/s);
   assert.match(styles, /width: clamp\(7rem, 20vw, 8\.25rem\)/);
-  assert.match(lockup, /viewBox="0 0 224\.27 44"/);
+  assert.match(lockup, /viewBox="0 0 200\.96 44"/);
 });
 
 test('the report map bundles Leaflet only on the filing surface', async () => {
@@ -363,10 +363,11 @@ test('release styles carry the locked phone, focus, motion, print, and font cont
     new URL('../../../packages/ui/src/styles/base.css', import.meta.url),
     'utf8',
   );
-  // One display face in both worlds; Barlow Condensed is retired.
-  assert.match(styles, /SourceSerif4-SemiBold-latin\.woff2/);
+  // One display face in both worlds; Source Serif 4 and Barlow Condensed are retired.
+  assert.match(styles, /FacultyGlyphic-Regular-latin\.woff2/);
   assert.doesNotMatch(styles, /BarlowCondensed/);
-  assert.match(base, /--display: 'Source Serif 4'/);
+  assert.doesNotMatch(styles, /SourceSerif4/);
+  assert.match(base, /--display:\s+'Faculty Glyphic'/);
   // Tokens live in @polis/ui only; the app redefines none of them.
   assert.match(base, /--tap-target: 2\.75rem/);
   assert.doesNotMatch(styles, /^\s*--(polis|trust|space|radius|shadow|type|tap-target|display|body|mono)-?[a-z0-9-]*:/m);
@@ -676,10 +677,11 @@ test('the case-number screen asks the public shell what happened to the text', a
 });
 
 test('filing asks for no identity and sends an optional WGS84 point', async () => {
-  const [component, script, mapScript] = await Promise.all([
+  const [component, script, mapScript, strings] = await Promise.all([
     readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/scripts/entry/report.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/scripts/entry/report-map.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
   ]);
 
   // No name, no contact, no category (entry-flow R9). The one photo is the
@@ -690,9 +692,9 @@ test('filing asks for no identity and sends an optional WGS84 point', async () =
   assert.match(component, /<noscript>/);
 
   // The camera seed is not a pin. A point only appears after map, keyboard or
-  // explicit geolocation input, and clearing it restores text-only filing.
+  // explicit geolocation input, and removing it restores text-only filing.
   assert.doesNotMatch(component, /data-layer="pin"|class="report-pin"/);
-  assert.match(component, /data-clear-location hidden/);
+  assert.match(component, /data-remove-location hidden/);
   assert.match(mapScript, /map\.on\('click'/);
   assert.match(mapScript, /marker\.on\('dragend'/);
   assert.match(mapScript, /event\.key !== 'Enter' && event\.key !== ' '/);
@@ -703,7 +705,7 @@ test('filing asks for no identity and sends an optional WGS84 point', async () =
   assert.match(mapScript, /enableHighAccuracy: true/);
 
   // The compact thumbnail is a picture, not a scroll trap, and the point the
-  // form submits moves on confirm, on "Moja lokacija" and on a clear — never
+  // form submits moves on confirm, on "Moja lokacija" and on a remove — never
   // while the marker is still being dragged around the open map.
   assert.match(mapScript, /if \(expanded\) handler\.enable\(\);/);
   assert.match(mapScript, /else handler\.disable\(\);/);
@@ -712,6 +714,21 @@ test('filing asks for no identity and sends an optional WGS84 point', async () =
   assert.match(mapScript, /map\.invalidateSize/);
   assert.match(component, /data-map-open/);
   assert.match(component, /data-map-confirm hidden/);
+
+  // The open map offers remove or confirm while a point is on it, and a plain
+  // close while there is none; the compact pill removes without opening.
+  assert.match(component, /data-map-remove hidden/);
+  assert.match(component, /label\('reportMapRemove'\)/);
+  assert.match(component, /label\('reportMapRemoveShort'\)/);
+  assert.doesNotMatch(component, /reportMapClear'|data-clear-location/);
+  assert.doesNotMatch(strings, /reportMapClear\b/);
+  assert.match(strings, /reportMapRemove: \{ hr: 'Izbriši lokaciju'/);
+  assert.match(strings, /reportMapRemoveShort: \{ hr: 'Izbriši'/);
+  assert.match(mapScript, /removeButton\.hidden = !chosen;/);
+  assert.match(mapScript, /closeButton\.hidden = chosen;/);
+  assert.match(mapScript, /removePill\.hidden = !coordinates;/);
+  assert.match(mapScript, /removeButton\.addEventListener\('click'/);
+  assert.match(mapScript, /removePill\.addEventListener\('click'/);
 
   // Map startup is isolated from the form; coordinates stay WGS84 latitude,
   // longitude at five decimals and precede any free-text location detail.

@@ -119,8 +119,9 @@
   margin: 0;
   color: var(--polis-text);
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.25;
 }
 
@@ -170,8 +171,9 @@
 .landing-place-name {
   color: var(--polis-text);
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.25;
 }
 

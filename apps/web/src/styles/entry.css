@@ -373,6 +373,7 @@
 .intent-name {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-lg);
   line-height: 1.05;
 }
@@ -434,6 +435,7 @@
 .ledger-title {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-md);
   line-height: 1.05;
 }
@@ -719,6 +721,7 @@
 .report-title {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-md);
   line-height: 1.05;
 }
@@ -771,14 +774,6 @@
   display: none;
 }
 
-.report-map-copy-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  align-items: center;
-  justify-content: space-between;
-}
-
 .report-map-copy .entry-map-attribution {
   position: static;
   padding: 0;
@@ -826,21 +821,28 @@
   outline-offset: -0.25rem;
 }
 
+/*
+ * Both pills stay on the bottom edge of the thumbnail, in one row. They never
+ * stack: a second row would sit in the middle of a small thumbnail and cover
+ * the tiles the person is trying to tap.
+ */
 .report-map .entry-map-actions {
-  inset-block: auto var(--space-2);
-  inset-inline: var(--space-2);
+  inset-block: auto var(--space-1);
+  inset-inline: var(--space-1);
   flex-direction: row;
   justify-content: center;
   align-items: center;
+  gap: var(--space-1);
   z-index: 900;
 }
 
-.report-map-locate {
+.report-map-locate,
+.report-map-remove {
   max-width: 100%;
   min-width: 0;
   min-height: var(--tap-target);
   gap: var(--space-1);
-  padding-inline: var(--space-3);
+  padding-inline: var(--space-2);
   border-color: var(--polis-border);
   border-radius: var(--radius-pill);
   background: var(--polis-surface);
@@ -848,15 +850,43 @@
   font-size: var(--type-meta);
 }
 
+/* The open map has room again: full padding, and the pin is not crowding. */
 .report-map-block[data-expanded] .report-map-locate {
   gap: var(--space-2);
+  padding-inline: var(--space-3);
   font-size: var(--type-data);
 }
 
-.report-map-locate span {
+/* "Izbriši" keeps its whole word; "Moja lokacija" gives way if room runs out. */
+.report-map-remove {
+  flex: none;
+}
+
+.report-map-locate span,
+.report-map-remove span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The open map has "Izbriši lokaciju" under it; the pill would only repeat it. */
+.report-map-block[data-expanded] .report-map-remove {
+  display: none;
+}
+
+/*
+ * On a phone the thumbnail is too narrow for both labels, and half a word in
+ * each pill helps nobody. The location pill falls back to its pin, which is
+ * what it already reads as; the button keeps its name for a screen reader.
+ */
+@media (max-width: 40rem) {
+  .report-map-block:not([data-expanded]) .report-map-remove:not([hidden]) ~ .report-map-locate {
+    min-width: var(--tap-target);
+  }
+
+  .report-map-block:not([data-expanded]) .report-map-remove:not([hidden]) ~ .report-map-locate span {
+    display: none;
+  }
 }
 
 .report-map-pin {
@@ -866,7 +896,10 @@
   color: var(--polis-trace);
 }
 
-/* Confirm keeps the point, close puts the last confirmed one back. */
+/*
+ * Remove takes the point away, confirm keeps it; with no point the one button
+ * left is close, which puts the last confirmed point back.
+ */
 .report-map-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1098,13 +1131,16 @@
   line-height: 1.2;
 }
 
+/*
+ * The hint wraps rather than truncating: "Iz galerije uređaja" cut to "Iz
+ * galerije uređ…" says less than two short lines. Both cards share the row
+ * height, so a second line moves nothing.
+ */
 .report-photo-hint {
   color: var(--polis-muted);
   font-size: var(--type-meta);
   line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 .report-photo-picked {
@@ -1308,6 +1344,7 @@
 .privacy-notice-title {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-md);
   line-height: 1.05;
 }

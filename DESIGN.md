@@ -10,9 +10,9 @@ mark:
   name: 'Ring, line, square'
   meaning: 'Open ring is the voice, the line is the trace, the filled square is the filed public record: the ledger stepper compressed to its first and last node.'
   locked: '2026-09-13 by the user from design-lab/brand/refined'
-  assets: 'apps/web/public/brand/ (mark teal/ink/paper, app icon, lockups) and apps/web/public/favicon.svg; wordmark is Source Serif 4 SemiBold outlined'
+  assets: 'apps/web/public/brand/ (mark teal/ink/paper, app icon, lockups) and apps/web/public/favicon.svg; wordmark is Faculty Glyphic Regular outlined'
   geometry: '88x40 box: ring diameter 36 at (20,20), stroke 4.5, line x36-60, square 26 at x58-84; favicon uses stroke 6'
-  rule: 'One mark only. The serif P is the wordmark initial, never a second logo. Never redraw the timeline as the logo.'
+  rule: 'One mark only. The Faculty Glyphic P is the wordmark initial, never a second logo. Never redraw the timeline as the logo.'
 colors:
   bg: '#FAF8F5'
   surface: '#FFFFFF'
@@ -32,9 +32,9 @@ colors:
   on-danger: '#FFFFFF'
 typography:
   display:
-    fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
-    fontWeight: '600'
-    source: 'Local self-hosted files only'
+    fontFamily: "'Faculty Glyphic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    fontWeight: '400'
+    source: 'Local self-hosted files only; one weight'
   body:
     fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
     fontSize: '1rem'
@@ -52,19 +52,19 @@ typography:
     letterSpacing: '0.06em'
     lineHeight: '1.4'
   heading-sm:
-    fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
+    fontFamily: "'Faculty Glyphic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
     fontSize: 'clamp(1.375rem, 1.15rem + 1vw, 1.875rem)'
-    fontWeight: '600'
+    fontWeight: '400'
     lineHeight: '1.2'
   heading-md:
-    fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
+    fontFamily: "'Faculty Glyphic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
     fontSize: 'clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem)'
-    fontWeight: '600'
+    fontWeight: '400'
     lineHeight: '1.15'
   heading-lg:
-    fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif"
+    fontFamily: "'Faculty Glyphic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
     fontSize: 'clamp(2.25rem, 1.5rem + 3vw, 3.75rem)'
-    fontWeight: '600'
+    fontWeight: '400'
     lineHeight: '1.05'
 rounded:
   sm: '0.25rem'
@@ -277,7 +277,7 @@ The gen2 mockups are the visual authority for `/demo/*`; the corrections below o
 - Buttons stay flat: solid `--polis-trace` fill or hairline outline, one soft shadow at most. No glossy bevels, no gradients, no inner highlights.
 - The trace timeline is the spine: one continuous vertical line with numbered stage dots (filled = appended, ring = active, empty = ahead), each stage one bold short line plus one muted line. No stage renders as a paragraph.
 - Status marks are straight ink-stamp chips: mono, uppercase, letter-spaced, hairline border in the status color. Never rotated, never circular seals or stars.
-- Typography on demo surfaces: serif is reserved for the wordmark, page titles, and record subjects; all other UI text is the sans body; IDs and status chips are mono.
+- Typography on demo surfaces: the display face is reserved for the wordmark, page titles, and record subjects; all other UI text is the sans body; IDs and status chips are mono.
 - Surface layouts: official is a queue — a status-bucket rail with counts, compact ledger rows, and a detail panel carrying the trace timeline plus only the legal actions for that role. Citizen is "My reports": stepper cards plus one primary report action with category-first entry. Record renders the full trace with the same timeline anatomy. Embed keeps its emulation behavior and adopts this chrome.
 
 ### Embed demonstration rules
@@ -354,8 +354,9 @@ Shadows tint toward the ink color in the light world and toward black in the dar
 
 ### Font policy
 
-- Self-host Source Serif 4 weight 600 (regular and, where needed, italic) for display headings. Store font files in the product build; make no external font request. Use `font-display: swap`. The former Barlow Condensed display face is retired from product surfaces.
-- Use the system sans stack in frontmatter as the workhorse body, form, navigation, control, and status-label face. The product must remain stable when Source Serif 4 is unavailable; Georgia is the fallback.
+- Self-host Faculty Glyphic Regular, latin and latin-ext subsets, for display headings. One weight only: weight 400, no bold and no italic. Store font files in the product build; make no external font request. Use `font-display: swap`. Source Serif 4 and Barlow Condensed are retired from product surfaces.
+- Headings are weight 400. Hierarchy comes from size and colour, never from weight; set `font-synthesis-weight: none` wherever the display face is used so no browser fakes a bold.
+- Use the system sans stack in frontmatter as the workhorse body, form, navigation, control, and status-label face. The product must remain stable when Faculty Glyphic is unavailable; the system sans is the fallback.
 - Use the mono stack only for record IDs, hashes, and code. Dates, statuses, capability values, and disclosure values are set in the sans label style, not monospace. Do not set page body, prose, buttons, or headings in monospace.
 - Status labels use the sans label face: `0.8125rem`, weight 600, `0.06em` letter spacing, uppercase where the reviewed label is uppercase. Never boxed, never filled, never monospace.
 - Do not use more than these three families.

@@ -51,8 +51,9 @@
   background: var(--polis-surface-tint);
   color: var(--polis-text);
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--pilot-type-group);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
   line-height: 1.3;
   text-transform: none;

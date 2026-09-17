@@ -98,6 +98,7 @@ html[data-release='public'] .release-boundary-banner p {
   display: inline-flex;
   align-items: center;
   font-family: var(--display);
+  font-synthesis-weight: none;
 }
 
 /* ---------------------------------------------------------------------------
@@ -328,8 +329,9 @@ html[data-release='public'] .release-boundary-banner p {
 .footer-wordmark {
   color: var(--polis-text);
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.2;
 }
 

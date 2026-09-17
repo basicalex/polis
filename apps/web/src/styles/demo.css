@@ -51,8 +51,9 @@
   align-items: center;
   color: var(--polis-text);
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1;
   text-decoration: none;
 }
@@ -91,7 +92,7 @@
   border-left: 1px solid var(--polis-border-strong);
   color: var(--polis-text);
   font-family: var(--body);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -139,7 +140,7 @@
   background: var(--polis-trace);
   color: var(--polis-on-primary);
   font-family: var(--body);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 600;
   list-style: none;
   cursor: pointer;
@@ -189,7 +190,7 @@
   border-top: 1px solid var(--polis-border);
   color: var(--polis-text);
   font-family: var(--body);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -227,7 +228,7 @@
   min-width: var(--tap-target);
   padding-inline: var(--space-2);
   color: var(--polis-muted);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 400;
   letter-spacing: 0.04em;
 }
@@ -523,6 +524,7 @@
 .demo-shell .queue-title {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
   line-height: 1.15;
 }
@@ -644,7 +646,7 @@
   background: var(--polis-surface);
   color: var(--polis-text);
   font-family: var(--body);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 600;
   text-align: start;
   cursor: pointer;
@@ -688,8 +690,9 @@
 .demo-shell .queue-detail-subject {
   margin: 0;
   font-family: var(--display);
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-synthesis-weight: none;
+  font-size: var(--type-body-lg);
+  font-weight: 400;
   line-height: 1.2;
 }
 
@@ -922,6 +925,7 @@
 .demo-shell .citizen h1 {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-lg);
 }
 
@@ -1031,8 +1035,9 @@
 
 .demo-shell .report-subject {
   font-family: var(--display);
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-synthesis-weight: none;
+  font-size: var(--type-body-lg);
+  font-weight: 400;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -1323,6 +1328,7 @@
   max-width: 42ch;
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
 }
 
@@ -1370,7 +1376,7 @@
   max-width: 42ch;
   margin: 0;
   font-family: var(--body);
-  font-size: 1.0625rem;
+  font-size: var(--type-body-lg);
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.25;
@@ -1572,7 +1578,7 @@ html[data-theme='dark'] .demo-shell .muni {
 }
 
 .demo-shell .muni-name {
-  font-size: 1.25rem;
+  font-size: var(--type-body-lg);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -1618,7 +1624,7 @@ html[data-theme='dark'] .demo-shell .muni {
   margin: 0;
   color: var(--muni-ink);
   font-family: var(--body);
-  font-size: 1.125rem;
+  font-size: var(--type-body-lg);
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.3;
@@ -1670,8 +1676,9 @@ html[data-theme='dark'] .demo-shell .muni {
 
 .demo-shell .pw-brand {
   font-family: var(--display);
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-synthesis-weight: none;
+  font-size: var(--type-body-lg);
+  font-weight: 400;
 }
 
 .demo-shell .pw-note,
@@ -1782,7 +1789,7 @@ html[data-theme='dark'] .demo-shell .muni {
   display: inline-flex;
   align-items: center;
   color: var(--polis-trace);
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   text-decoration: underline;
   text-underline-offset: 0.25em;
 }

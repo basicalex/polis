@@ -93,16 +93,18 @@ html[data-theme='light'] {
   --shadow-soft: var(--shadow-1);
 
   /* ---- type ---- */
-  --type-meta: 0.75rem;
-  --type-label: 0.8125rem;
-  --type-data: 0.875rem;
-  --type-body: 1rem;
-  --type-body-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --type-meta: 0.875rem;
+  --type-label: 0.9375rem;
+  --type-data: 1rem;
+  --type-body: clamp(1.125rem, 1.05rem + 0.3vw, 1.1875rem);
+  --type-body-lg: clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem);
   --type-heading-sm: clamp(1.375rem, 1.15rem + 1vw, 1.875rem);
   --type-heading-md: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
   --type-heading-lg: clamp(2.25rem, 1.5rem + 3vw, 3.75rem);
 
-  --display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --display:
+    'Faculty Glyphic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
   --body:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
@@ -214,6 +216,8 @@ h1,
 h2,
 h3 {
   font-family: var(--display);
+  font-synthesis-weight: none;
+  font-weight: 400;
   margin: 0 0 var(--space-3);
 }
 
@@ -277,7 +281,7 @@ dl {
 
 .site-brand {
   color: var(--polis-text);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -911,7 +915,7 @@ button {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 1.25rem;
+  font-size: var(--type-body-lg);
   font-weight: 700;
   margin: 0;
 }

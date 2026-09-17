@@ -38,7 +38,7 @@ html[data-pilot='vrsar'] body {
    */
   --pilot-type-title: var(--type-heading-md);
   --pilot-type-section: clamp(1.25rem, 1.15rem + 0.45vw, 1.5rem);
-  --pilot-type-group: 1.125rem;
+  --pilot-type-group: 1.25rem;
   --pilot-type-row: var(--type-body);
   --pilot-type-lead: var(--type-body);
   --pilot-type-meta: var(--type-data);
@@ -47,7 +47,7 @@ html[data-pilot='vrsar'] body {
   margin: 0;
   overflow-x: clip;
   font-family: var(--body);
-  font-size: 1rem;
+  font-size: var(--type-body);
   line-height: 1.55;
 }
 
@@ -79,8 +79,9 @@ html[data-pilot='vrsar'] [hidden] {
   align-items: center;
   color: var(--polis-text);
   font-family: var(--display);
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-synthesis-weight: none;
+  font-size: var(--pilot-type-section);
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -212,7 +213,7 @@ html[data-pilot='vrsar'] .skip-link:focus {
   background: transparent;
   color: var(--polis-text);
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--type-data);
   font-weight: 650;
   text-decoration: none;
   white-space: nowrap;
@@ -272,8 +273,9 @@ html[data-pilot='vrsar'] .skip-link:focus {
   max-width: 42ch;
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--pilot-type-title);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.12;
   letter-spacing: -0.012em;
 }
@@ -298,8 +300,9 @@ html[data-pilot='vrsar'] .skip-link:focus {
 .pilot-section > header h2 {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--pilot-type-section);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.25;
 }
 
@@ -724,8 +727,9 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
 
 .pilot-stat-value {
   font-family: var(--display);
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-synthesis-weight: none;
+  font-size: var(--pilot-type-section);
+  font-weight: 400;
   line-height: 1.1;
 }
 
@@ -1132,8 +1136,9 @@ a.pilot-ledger-row:hover,
   max-width: 32ch;
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-heading-sm);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.2;
 }
 

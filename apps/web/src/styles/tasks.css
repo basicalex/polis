@@ -105,6 +105,7 @@
 .ledger-title {
   margin: 0;
   font-family: var(--display);
+  font-synthesis-weight: none;
   font-size: var(--type-body-lg);
   line-height: 1.25;
 }
@@ -600,7 +601,7 @@ ol.citations {
 
 .graph-edges text {
   fill: var(--polis-muted);
-  font-size: 0.625rem;
+  font-size: var(--type-meta);
   paint-order: stroke;
   stroke: var(--polis-bg);
   stroke-width: 4px;
@@ -643,13 +644,13 @@ ol.citations {
 
 .graph-node-label {
   fill: var(--polis-text);
-  font-size: 0.75rem;
+  font-size: var(--type-meta);
   font-weight: 700;
 }
 
 .graph-node-type {
   fill: var(--polis-muted);
-  font-size: 0.625rem;
+  font-size: var(--type-meta);
   text-transform: uppercase;
 }
 
