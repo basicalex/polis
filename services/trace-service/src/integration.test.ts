@@ -432,12 +432,19 @@ test(
       const answered = await repository.getPublic(primary.id);
       assert.ok(answered);
       assert.equal(answered.status, 'answered');
+      assert.equal(answered.caseNumber, primary.caseNumber);
       assert.deepEqual(answered.signedBy, SIGNED_BY);
       assert.equal(verifyReceiptHash(answered), true);
       assert.deepEqual(
         answered.events.map((event) => event.action),
         ['report-filed', 'office-assigned', 'commitment-published'],
       );
+      const listed = await repository.listPublic(10);
+      assert.equal(
+        listed.find((record) => record.id === primary.id)?.caseNumber,
+        primary.caseNumber,
+      );
+      await assertValidChain(sql, primary.id);
 
       primary = recordFrom(
         (

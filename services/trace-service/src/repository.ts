@@ -127,6 +127,7 @@ interface IdempotencyRow {
 
 interface PublicSnapshotRow {
   record_id: string;
+  case_number: string;
   municipality_id: string;
   category: string;
   office: string;
@@ -303,6 +304,7 @@ function publicRecord(row: PublicSnapshotRow): PublicRecord {
   if (!row.signed_by_name || !row.signed_by_title) throw integrityError();
   return {
     id: row.record_id,
+    caseNumber: row.case_number,
     municipalityId: row.municipality_id,
     category: row.category,
     office: row.office,
@@ -474,14 +476,22 @@ export class TraceRepository implements TraceStore {
 
   async listPublic(limit: number): Promise<PublicRecord[]> {
     const rows = await this.#sql<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots ORDER BY updated_at DESC LIMIT ${limit}
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      ORDER BY trace_public_snapshots.updated_at DESC
+      LIMIT ${limit}
     `;
     return rows.map(verifiedPublicRecord);
   }
 
   async getPublic(id: string): Promise<PublicRecord | null> {
     const rows = await this.#sql<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${id} LIMIT 1
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${id}
+      LIMIT 1
     `;
     return rows[0] ? verifiedPublicRecord(rows[0]) : null;
   }
@@ -979,7 +989,11 @@ export class TraceRepository implements TraceStore {
     const shell = shells[0];
     if (!shell) return null;
     const snapshots = await this.#sql<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${shell.record_id} LIMIT 1
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${shell.record_id}
+      LIMIT 1
     `;
     return {
       case: caseShell(shell),
@@ -2411,7 +2425,11 @@ export class TraceRepository implements TraceStore {
     now: string,
   ): Promise<{ record: RecordRow; shell: CaseShell }> {
     const priorRows = await tx<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${record.id}
+      FOR UPDATE OF trace_public_snapshots
     `;
     const prior = priorRows[0] ? verifiedPublicRecord(priorRows[0]) : null;
     const next = (
@@ -2436,7 +2454,7 @@ export class TraceRepository implements TraceStore {
         holdReason: null,
       }));
       const events = await this.#publicMilestones(tx, next);
-      const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+      const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
         ...prior,
         disputes,
         events,
@@ -2456,13 +2474,17 @@ export class TraceRepository implements TraceStore {
 
   async #refreshSnapshotEvents(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${record.id}
+      FOR UPDATE OF trace_public_snapshots
     `;
     const prior = rows[0];
     if (!prior) return;
     const current = verifiedPublicRecord(prior);
     const events = await this.#publicMilestones(tx, record);
-    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...current,
       events,
     };
@@ -2486,7 +2508,7 @@ export class TraceRepository implements TraceStore {
       throw new Error('answered record is missing publication fields');
     }
     const events = await this.#publicMilestones(tx, record);
-    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       id: record.id,
       municipalityId: record.municipality_id,
       category: record.category,
@@ -2534,7 +2556,11 @@ export class TraceRepository implements TraceStore {
 
   async #resolveSnapshot(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${record.id}
+      FOR UPDATE OF trace_public_snapshots
     `;
     const prior = rows[0];
     if (!prior || !record.evidence_note || !record.signed_by_name || !record.signed_by_title) {
@@ -2542,7 +2568,7 @@ export class TraceRepository implements TraceStore {
     }
     const answered = verifiedPublicRecord(prior);
     const events = await this.#publicMilestones(tx, record);
-    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...answered,
       status: 'resolved',
       signedBy: { name: record.signed_by_name, title: record.signed_by_title },
@@ -2569,13 +2595,17 @@ export class TraceRepository implements TraceStore {
 
   async #reopenSnapshot(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${record.id}
+      FOR UPDATE OF trace_public_snapshots
     `;
     const prior = rows[0];
     if (!prior) throw new Error('reopen is missing a public record');
     const current = verifiedPublicRecord(prior);
     const events = await this.#publicMilestones(tx, record);
-    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...current,
       status: 'answered',
       resolvedAt: null,
@@ -2600,14 +2630,18 @@ export class TraceRepository implements TraceStore {
     now: string,
   ): Promise<PublicRecord> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT * FROM trace_public_snapshots WHERE record_id = ${record.id} FOR UPDATE
+      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      FROM trace_public_snapshots
+      JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
+      WHERE trace_public_snapshots.record_id = ${record.id}
+      FOR UPDATE OF trace_public_snapshots
     `;
     const prior = rows[0];
     if (!prior) throw new Error('dispute is missing a resolved public record');
     const current = verifiedPublicRecord(prior);
     const events = await this.#publicMilestones(tx, record);
     const disputes = [...current.disputes, dispute];
-    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash'> = {
+    const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...current,
       status: 'disputed',
       disputes,
@@ -2623,7 +2657,7 @@ export class TraceRepository implements TraceStore {
         updated_at = ${now}
       WHERE record_id = ${record.id}
     `;
-    return { ...snapshotWithoutHash, receiptHash };
+    return { ...snapshotWithoutHash, caseNumber: current.caseNumber, receiptHash };
   }
 
   async #loadPrivate(sql: QuerySql, record: RecordRow): Promise<PrivateRecord> {

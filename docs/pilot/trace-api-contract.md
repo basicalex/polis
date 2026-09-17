@@ -133,6 +133,7 @@ Attention is a count, never a vote or queue order. `follow` and `also-affected` 
 `PublicRecord` has no `publicSummary`. It carries:
 
 ```ts
+caseNumber: string;
 commitment: string;
 dueDate: string;
 signedBy: { name: string; title: string };
@@ -227,7 +228,7 @@ Bound and validate every string, list, and upload. Reject unknown authority fiel
 
 ## Public receipt hash
 
-`receiptHash` is lowercase hexadecimal SHA-256 of UTF-8 canonical JSON. Sort object keys lexicographically at every depth and preserve array order. Hash the current public-record fields and sanitized events, excluding `receiptHash` itself. Matching a hash checks the supplied public record's consistency, not the truth of the report or the authenticity of a municipal decision.
+`receiptHash` is lowercase hexadecimal SHA-256 of UTF-8 canonical JSON. Sort object keys lexicographically at every depth and preserve array order. Hash the current public-record fields and sanitized events, excluding `receiptHash` itself. `caseNumber` is not part of the hashed fields, so existing receipt hashes remain valid. Matching a hash checks the supplied public record's consistency, not the truth of the report or the authenticity of a municipal decision.
 
 ## Isolated operation
 

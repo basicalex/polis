@@ -121,6 +121,7 @@ function caseShell(): CaseShell {
 function publicRecord(): PublicRecord {
   return {
     id: '20000000-0000-4000-8000-000000000001',
+    caseNumber: 'VRS-1842',
     municipalityId: 'vrsar-orsera',
     category: 'public-lighting',
     office: 'communal-system',
@@ -447,6 +448,33 @@ test('integrity failures return a safe 503 instead of a normal record', async ()
       error: 'trace_integrity_failed',
       message: 'Trace integrity verification failed.',
     });
+  });
+});
+
+test('public receipt routes expose the case number', async () => {
+  const record = publicRecord();
+  const store = fakeStore({
+    listPublic: async () => [record],
+    getPublic: async () => record,
+  });
+  await withServer(store, config(), async (base) => {
+    const list = await fetch(`${base}/internal/trace/public/records`, {
+      headers: internalHeaders(),
+    });
+    assert.equal(list.status, 200);
+    assert.equal(
+      ((await list.json()) as { records: PublicRecord[] }).records[0]?.caseNumber,
+      'VRS-1842',
+    );
+
+    const detail = await fetch(`${base}/internal/trace/public/records/${RECORD_ID}`, {
+      headers: internalHeaders(),
+    });
+    assert.equal(detail.status, 200);
+    assert.equal(
+      ((await detail.json()) as { record: PublicRecord }).record.caseNumber,
+      'VRS-1842',
+    );
   });
 });
 

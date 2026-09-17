@@ -235,6 +235,7 @@ export interface PrivateRecord {
 
 export interface PublicRecord {
   id: string;
+  caseNumber: string;
   municipalityId: string;
   category: string;
   office: string;

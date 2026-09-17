@@ -161,8 +161,8 @@ test('event verification detects payload, link, sequence, hash, omission, duplic
   });
 });
 
-test('receipt hash covers every public-safe field and excludes receiptHash itself', () => {
-  const withoutHash: Omit<PublicRecord, 'receiptHash'> = {
+test('receipt hash covers public-safe fields and excludes receiptHash and caseNumber', () => {
+  const withoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
     id: '20000000-0000-4000-8000-000000000001',
     municipalityId: 'vrsar-orsera',
     category: 'public-lighting',
@@ -199,8 +199,16 @@ test('receipt hash covers every public-safe field and excludes receiptHash itsel
     ],
     testEnvironment: true,
   };
-  const record: PublicRecord = { ...withoutHash, receiptHash: computeReceiptHash(withoutHash) };
+  const receiptHash = computeReceiptHash(withoutHash);
+  const record: PublicRecord = {
+    ...withoutHash,
+    caseNumber: 'VRS-482113',
+    receiptHash,
+  };
+  assert.equal(computeReceiptHash(record), receiptHash);
   assert.equal(verifyReceiptHash(record), true);
+  assert.equal(verifyReceiptHash({ ...record, caseNumber: 'VRS-999999' }), true);
+  assert.equal(verifyReceiptHash({ ...withoutHash, receiptHash }), true);
   assert.equal(verifyReceiptHash({ ...record, commitment: 'Changed' }), false);
   assert.equal(
     verifyReceiptHash({

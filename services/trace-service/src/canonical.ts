@@ -135,7 +135,7 @@ export type ReceiptHashField = (typeof RECEIPT_HASH_FIELDS)[number];
 export type ReceiptHashMaterial = Pick<PublicRecord, ReceiptHashField>;
 
 export function buildReceiptHashMaterial(
-  record: Omit<PublicRecord, 'receiptHash'> | PublicRecord,
+  record: Omit<PublicRecord, 'receiptHash' | 'caseNumber'>,
 ): ReceiptHashMaterial {
   return {
     id: record.id,
@@ -157,12 +157,14 @@ export function buildReceiptHashMaterial(
 }
 
 export function computeReceiptHash(
-  record: Omit<PublicRecord, 'receiptHash'> | PublicRecord,
+  record: Omit<PublicRecord, 'receiptHash' | 'caseNumber'>,
 ): string {
   return sha256(canonicalJson(buildReceiptHashMaterial(record)));
 }
 
-export function verifyReceiptHash(record: PublicRecord): boolean {
+export function verifyReceiptHash(
+  record: PublicRecord | Omit<PublicRecord, 'caseNumber'>,
+): boolean {
   return computeReceiptHash(record) === record.receiptHash;
 }
 

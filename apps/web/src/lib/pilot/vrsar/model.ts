@@ -367,6 +367,7 @@ export interface PublicDispute {
 /** Public fields are deliberately separate from the private record type. */
 export interface PublicTraceRecord {
   id: string;
+  caseNumber?: string;
   municipalityId: string;
   category: string | PilotConfigEntity;
   office: string | PilotConfigEntity;
@@ -428,10 +429,17 @@ export function recordFromEnvelope(value: unknown): PrivateTraceRecord {
 }
 
 export function publicRecordFromEnvelope(value: unknown): PublicTraceRecord {
-  if (!value || typeof value !== 'object' || !('record' in value)) throw new Error('invalid_public_record_response');
-  const record = (value as { record?: unknown }).record;
+  if (!value || typeof value !== 'object' || !('record' in value))
+    throw new Error('invalid_public_record_response');
+  const record = value.record;
   if (!record || typeof record !== 'object') throw new Error('invalid_public_record_response');
-  return record as PublicTraceRecord;
+  const caseNumber =
+    'caseNumber' in record &&
+    typeof record.caseNumber === 'string' &&
+    record.caseNumber.trim().length > 0
+      ? record.caseNumber
+      : undefined;
+  return { ...(record as PublicTraceRecord), caseNumber };
 }
 
 function envelopeMember(value: unknown, key: string, error: string): unknown {
