@@ -23,6 +23,27 @@ html[data-pilot='vrsar'] body {
     clamp(1.25rem, 3vw, 2.5rem),
     calc((100% - var(--pilot-measure)) / 2 + 2.5rem)
   );
+  /*
+   * One type scale for every pilot page. Six steps, largest to smallest, so a
+   * reader ranks a screen by size before reading a word:
+   *
+   *   title    page title; a tool name, not an article headline
+   *   section  h2 of a section or a panel
+   *   group    the head of a group of rows in a list
+   *   row      the title of one row; regular weight, never bolder than group
+   *   lead     the sentence under the title, and running prose
+   *   meta     identifiers, dates, counts, statuses
+   *
+   * Pages set these, never their own sizes.
+   */
+  --pilot-type-title: var(--type-heading-md);
+  --pilot-type-section: clamp(1.25rem, 1.15rem + 0.45vw, 1.5rem);
+  --pilot-type-group: 1.125rem;
+  --pilot-type-row: var(--type-body);
+  --pilot-type-lead: var(--type-body);
+  --pilot-type-meta: var(--type-data);
+  /* One width for every status stamp column, so stamps align down a list. */
+  --pilot-stamp-column: 13rem;
   margin: 0;
   overflow-x: clip;
   font-family: var(--body);
@@ -241,13 +262,18 @@ html[data-pilot='vrsar'] .skip-link:focus {
   gap: var(--space-xs);
 }
 
+/*
+ * A page title names the tool. It never repeats what the navigation already
+ * says at a larger size than the work under it, so it takes the title step of
+ * the scale and a measure wide enough to keep an office title on one line.
+ */
 .pilot-page-header h1 {
-  max-width: 24ch;
+  max-width: 42ch;
   margin: 0;
   font-family: var(--display);
-  font-size: var(--type-heading-lg);
+  font-size: var(--pilot-type-title);
   font-weight: 600;
-  line-height: 1.08;
+  line-height: 1.12;
   letter-spacing: -0.012em;
 }
 
@@ -258,7 +284,7 @@ html[data-pilot='vrsar'] .skip-link:focus {
 
 .pilot-lead {
   color: var(--polis-muted);
-  font-size: var(--type-body-lg);
+  font-size: var(--pilot-type-lead);
 }
 
 .pilot-section {
@@ -271,9 +297,9 @@ html[data-pilot='vrsar'] .skip-link:focus {
 .pilot-section > header h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: var(--type-heading-sm);
+  font-size: var(--pilot-type-section);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 /* Panels use the shared `.panel` recipe from @polis/ui/styles/base.css. */
@@ -404,6 +430,75 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
 }
 
 /* Buttons use `.btn[data-variant]` from @polis/ui/styles/base.css. */
+
+/*
+ * The case-number form is one field, its two messages, and one button, so the
+ * messages sit close to the input they belong to rather than a group apart.
+ */
+.pilot-form[data-case-lookup] {
+  gap: var(--space-2);
+}
+
+.pilot-form[data-case-lookup] > .pilot-actions {
+  margin-top: var(--space-2);
+}
+
+/*
+ * Compact case lookup: label, input and button on one line, with the hint and
+ * the error under them. The section heading says nothing the field label does
+ * not, so on this form it stays for a screen reader and leaves the page.
+ */
+.pilot-section[data-lookup='compact'] > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pilot-section[data-lookup='compact'] .pilot-form {
+  grid-template-columns: minmax(0, 20rem) auto;
+  justify-content: start;
+  align-items: end;
+  gap: var(--space-2) var(--space-4);
+}
+
+.pilot-section[data-lookup='compact'] .pilot-form > .field {
+  grid-area: 1 / 1 / 2 / 2;
+}
+
+.pilot-section[data-lookup='compact'] .pilot-form > .pilot-actions {
+  grid-area: 1 / 2 / 2 / 3;
+  margin-top: 0;
+}
+
+.pilot-section[data-lookup='compact'] .pilot-form > .field-hint {
+  grid-area: 2 / 1 / 3 / -1;
+  margin: 0;
+  font-size: var(--type-meta);
+}
+
+.pilot-section[data-lookup='compact'] .pilot-form > .field-error {
+  grid-area: 3 / 1 / 4 / -1;
+  margin: 0;
+}
+
+@media (max-width: 30rem) {
+  .pilot-section[data-lookup='compact'] .pilot-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pilot-section[data-lookup='compact'] .pilot-form > .field,
+  .pilot-section[data-lookup='compact'] .pilot-form > .pilot-actions {
+    grid-area: auto;
+  }
+
+  .pilot-section[data-lookup='compact'] .pilot-form > .field-hint,
+  .pilot-section[data-lookup='compact'] .pilot-form > .field-error {
+    grid-area: auto;
+  }
+}
 
 /*
  * Test instance only. The two office roles are the first thing on the sign-in
@@ -565,6 +660,108 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
   overflow-wrap: anywhere;
 }
 
+/*
+ * The scope of the workflow is reference, not reading: for the office it
+ * collapses to label and value on one line per row.
+ */
+.pilot-meta[data-compact] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.pilot-meta[data-compact] > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+  gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-2) 0;
+}
+
+.pilot-meta[data-compact] dd {
+  margin: 0;
+  font-size: var(--pilot-type-meta);
+}
+
+/*
+ * The office home. The signed-in official gets the same blocks as a resident
+ * in the order the work needs them: who they are and the queue, then a case by
+ * number, then the scope. The public explanation stays, one step quieter.
+ */
+.pilot-page[data-role='official'] > .pilot-page-header {
+  order: 1;
+}
+
+.pilot-page[data-role='official'] > [data-entry-role] {
+  order: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.pilot-page[data-role='official'] > [data-entry-role] > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pilot-page[data-role='official'] > [data-entry-lookup] {
+  order: 3;
+}
+
+.pilot-page[data-role='official'] > [data-entry-scope] {
+  order: 4;
+}
+
+/* The statute links are reference for the office, not reading. */
+.pilot-page[data-role='official'] > [data-entry-scope] .pilot-source-list {
+  gap: var(--space-2);
+  font-size: var(--pilot-type-meta);
+}
+
+.pilot-page[data-role='official'] > [data-entry-aside] {
+  order: 5;
+}
+
+/* Secondary: the public explanation an official already knows. */
+.pilot-entry-aside {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.pilot-page[data-role='official'] .pilot-entry-aside {
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-size: var(--pilot-type-meta);
+}
+
+.pilot-page[data-role='official'] .pilot-entry-aside .pilot-section > h2 {
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pilot-page[data-role='official'] .pilot-entry-aside .panel {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.pilot-page[data-role='official'] .pilot-entry-aside .pilot-trace {
+  gap: var(--space-sm);
+}
+
+.pilot-page[data-role='official'] .pilot-entry-aside .pilot-trace-title,
+.pilot-page[data-role='official'] .pilot-entry-aside .pilot-channel-value {
+  font-size: var(--pilot-type-meta);
+}
+
 .pilot-ledger {
   min-width: 0;
   display: grid;
@@ -615,11 +812,13 @@ a.pilot-ledger-row:hover,
   gap: 0.125rem;
 }
 
+/* A row title is read after the group it sits in, so it stays at the row step
+   and at regular weight: the group head above it keeps the rank. */
 .pilot-ledger-title {
-  font-family: var(--display);
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.3;
+  font-family: var(--body);
+  font-size: var(--pilot-type-row);
+  font-weight: 400;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -627,7 +826,7 @@ a.pilot-ledger-row:hover,
 .pilot-hash {
   color: var(--polis-muted);
   font-family: var(--mono);
-  font-size: var(--type-data);
+  font-size: var(--pilot-type-meta);
   overflow-wrap: anywhere;
 }
 
@@ -636,22 +835,27 @@ a.pilot-ledger-row:hover,
   flex-wrap: wrap;
   gap: var(--space-xs) var(--space-sm);
   color: var(--polis-muted);
-  font-size: var(--type-data);
+  font-size: var(--pilot-type-meta);
 }
 
 /*
  * A receipt row is the case number, the commitment cut at two lines with the
  * status stamp beside it, and who signed it when. The office and the category
  * are the page's context, already in the top bar, so they stay out of the row.
+ * The stamp sits in a fixed column so the stamps line up down the page.
  */
 .pilot-ledger[data-list='receipts'] .pilot-ledger-row {
+  grid-template-columns: minmax(0, 1fr) var(--pilot-stamp-column);
   align-items: start;
+}
+
+.pilot-ledger[data-list='receipts'] .pilot-ledger-row > .status-label {
+  justify-self: end;
 }
 
 .pilot-ledger[data-list='receipts'] .pilot-ledger-title {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 1.0625rem;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -972,7 +1176,6 @@ a.pilot-ledger-row:hover,
 
   .pilot-page-header h1 {
     max-width: 100%;
-    font-size: clamp(1.8rem, 1.45rem + 4vw, 2.5rem);
   }
 
   html[data-pilot='vrsar'] .panel,
@@ -984,12 +1187,18 @@ a.pilot-ledger-row:hover,
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .pilot-ledger-row {
+  .pilot-ledger-row,
+  .pilot-ledger[data-list='receipts'] .pilot-ledger-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .pilot-ledger-row > .status-label {
+  .pilot-ledger-row > .status-label,
+  .pilot-ledger[data-list='receipts'] .pilot-ledger-row > .status-label {
     justify-self: start;
+  }
+
+  .pilot-meta[data-compact] > div {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* The lock and the word share the first line; the sentence sits under it. */

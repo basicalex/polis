@@ -27,8 +27,36 @@ export function initVrsarEntry(): void {
   const intake = document.querySelector<HTMLElement>('[data-intake-state]');
   const pageState = document.querySelector<HTMLElement>('[data-page-state]');
   const actions = document.querySelector<HTMLElement>('[data-entry-actions]');
+  const page = document.querySelector<HTMLElement>('[data-entry-page]');
+  const heading = document.querySelector<HTMLElement>('[data-entry-heading]');
+  const lead = document.querySelector<HTMLElement>('[data-entry-lead]');
+  const lookupSection = document.querySelector<HTMLElement>('[data-entry-lookup]');
+  const scopeList = document.querySelector<HTMLElement>('[data-config-details]');
 
   let runtimeDown = false;
+  let isOfficial = false;
+  let municipalityName = '';
+
+  /**
+   * The office sees the same blocks as a resident, in the order the work needs
+   * them and with the public explanation one step quieter. Nothing is removed:
+   * a resident signed out, or signed in, keeps the page as it is.
+   */
+  function applyOfficeLayout(): void {
+    if (!isOfficial || !page) return;
+    page.dataset.role = 'official';
+    if (heading) {
+      heading.textContent = [pilotCopy.entry.staffHeading[lang], municipalityName]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    if (lead) lead.textContent = pilotCopy.entry.staffLead[lang];
+    if (lookupSection) {
+      lookupSection.classList.remove('panel');
+      lookupSection.dataset.lookup = 'compact';
+    }
+    if (scopeList) scopeList.dataset.compact = 'true';
+  }
 
   /**
    * While the runtime is unreachable, retrying is the only action that can
@@ -70,6 +98,8 @@ export function initVrsarEntry(): void {
       const municipalityValue = document.querySelector<HTMLElement>('[data-config-municipality]');
       const categoryValue = document.querySelector<HTMLElement>('[data-config-category]');
       const officeValue = document.querySelector<HTMLElement>('[data-config-office]');
+      municipalityName = municipality;
+      applyOfficeLayout();
       if (municipalityValue) municipalityValue.textContent = municipality;
       if (categoryValue) categoryValue.textContent = category;
       if (officeValue) officeValue.textContent = office;
@@ -112,6 +142,8 @@ export function initVrsarEntry(): void {
   async function loadSession(): Promise<void> {
     try {
       const session = await getPilotSession();
+      isOfficial = session.role === 'official';
+      applyOfficeLayout();
       setState(pageState, `${pilotCopy.common.role[lang]}: ${translatedRole(session.role, lang)}`, 'success');
       let path = '/pilot/vrsar';
       let label = pilotCopy.nav.home[lang];

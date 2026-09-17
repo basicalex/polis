@@ -18,13 +18,13 @@ const lookup = publicCaseCopy.lookup;
   title={`${pilotCopy.appTitle[lang]} — Polis`}
   description={pilotCopy.entry.intro[lang]}
 >
-  <article class="pilot-page">
+  <article class="pilot-page" data-entry-page>
     <header class="pilot-page-header">
-      <h1>{pilotCopy.entry.heading[lang]}</h1>
-      <p class="pilot-lead">{pilotCopy.entry.intro[lang]}</p>
+      <h1 data-entry-heading>{pilotCopy.entry.heading[lang]}</h1>
+      <p class="pilot-lead" data-entry-lead>{pilotCopy.entry.intro[lang]}</p>
     </header>
 
-    <section class="pilot-section panel" aria-labelledby="pilot-lookup-title">
+    <section class="pilot-section panel" aria-labelledby="pilot-lookup-title" data-entry-lookup>
       <h2 id="pilot-lookup-title">{lookup.heading[lang]}</h2>
       <form class="pilot-form" data-case-lookup novalidate>
         <div class="field" data-width="code">
@@ -41,16 +41,16 @@ const lookup = publicCaseCopy.lookup;
             placeholder="VRS-1842"
             aria-describedby="pilot-case-number-hint pilot-case-number-error"
           />
-          <p class="field-hint" id="pilot-case-number-hint">{lookup.hint[lang]}</p>
-          <p class="field-error" id="pilot-case-number-error" data-case-lookup-error></p>
         </div>
+        <p class="field-hint" id="pilot-case-number-hint">{lookup.hint[lang]}</p>
+        <p class="field-error" id="pilot-case-number-error" data-case-lookup-error></p>
         <div class="pilot-actions">
           <button class="btn" data-variant="secondary" type="submit">{lookup.submit[lang]}</button>
         </div>
       </form>
     </section>
 
-    <section class="pilot-section" aria-labelledby="pilot-config-title">
+    <section class="pilot-section" aria-labelledby="pilot-config-title" data-entry-scope>
       <h2 id="pilot-config-title">{pilotCopy.entry.contextHeading[lang]}</h2>
       <p class="pilot-state" tabindex="-1" data-config-state>{pilotCopy.common.loading[lang]}</p>
       <dl class="pilot-meta" data-config-details hidden>
@@ -71,15 +71,17 @@ const lookup = publicCaseCopy.lookup;
       </div>
     </section>
 
-    <section class="pilot-section" aria-labelledby="pilot-path-title">
-      <h2 id="pilot-path-title">{pilotCopy.receipts.events[lang]}</h2>
-      <VrsarTraceSummary lang={lang} />
-      <p>{pilotCopy.entry.publicationRule[lang]}</p>
-    </section>
+    <div class="pilot-entry-aside" data-entry-aside>
+      <section class="pilot-section" aria-labelledby="pilot-path-title">
+        <h2 id="pilot-path-title">{pilotCopy.receipts.events[lang]}</h2>
+        <VrsarTraceSummary lang={lang} />
+        <p>{pilotCopy.entry.publicationRule[lang]}</p>
+      </section>
 
-    <VrsarChannelHelp lang={lang} />
+      <VrsarChannelHelp lang={lang} />
+    </div>
 
-    <section class="pilot-section panel" aria-labelledby="pilot-session-title">
+    <section class="pilot-section panel" aria-labelledby="pilot-session-title" data-entry-role>
       <h2 id="pilot-session-title">{pilotCopy.common.role[lang]}</h2>
       <p class="pilot-state" tabindex="-1" data-page-state>{pilotCopy.entry.sessionChecking[lang]}</p>
       <div class="pilot-actions" data-entry-actions></div>

@@ -17,7 +17,7 @@ const lookup = publicCaseCopy.lookup;
       <h1>{pilotCopy.receipts.heading[lang]}</h1>
       <p class="pilot-lead">{pilotCopy.receipts.intro[lang]}</p>
     </header>
-    <section class="pilot-section panel" aria-labelledby="receipts-lookup-title">
+    <section class="pilot-section" aria-labelledby="receipts-lookup-title" data-lookup="compact">
       <h2 id="receipts-lookup-title">{lookup.heading[lang]}</h2>
       <form class="pilot-form" data-case-lookup novalidate>
         <div class="field" data-width="code">
@@ -34,11 +34,11 @@ const lookup = publicCaseCopy.lookup;
             placeholder="VRS-1842"
             aria-describedby="receipts-case-number-hint receipts-case-number-error"
           />
-          <p class="field-hint" id="receipts-case-number-hint">{lookup.hint[lang]}</p>
-          <p class="field-error" id="receipts-case-number-error" data-case-lookup-error></p>
         </div>
+        <p class="field-hint" id="receipts-case-number-hint">{lookup.hint[lang]}</p>
+        <p class="field-error" id="receipts-case-number-error" data-case-lookup-error></p>
         <div class="pilot-actions">
-          <button class="btn" data-variant="primary" type="submit">{lookup.submit[lang]}</button>
+          <button class="btn" data-variant="secondary" type="submit">{lookup.submit[lang]}</button>
         </div>
       </form>
     </section>

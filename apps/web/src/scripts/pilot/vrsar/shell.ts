@@ -270,11 +270,11 @@ export function initPilotShell(): void {
 
   Promise.allSettled([getPilotConfig(), getSession()]).then(([configResult, sessionResult]) => {
     if (configResult.status === 'fulfilled' && context) {
-      const config = configResult.value;
-      const municipality = entityName(config.municipality, lang);
-      const category = entityName(config.category, lang);
-      const office = entityName(config.office, lang);
-      context.textContent = [municipality, category, office].filter(Boolean).join(' · ') || pilotCopy.appTitle[lang];
+      // One level of scope beside the brand: whose office this is. The
+      // category and the department are on the home scope block and on the
+      // case page, where a reader is looking for them.
+      const municipality = entityName(configResult.value.municipality, lang);
+      context.textContent = municipality || pilotCopy.appTitle[lang];
     }
     renderNavigation(sessionResult.status === 'fulfilled' ? sessionResult.value : null);
   });

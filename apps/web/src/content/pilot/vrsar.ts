@@ -159,6 +159,22 @@ export const pilotCopy = Object.freeze({
       'Ambito di questo flusso di test',
       'Scope of this test workflow',
     ),
+    /*
+     * The signed-in official lands on the same page as a resident, so the
+     * title stops explaining the service and names the workspace instead.
+     * The municipality is appended from the runtime configuration.
+     */
+    // HR draft: native editor review
+    staffHeading: localized(
+      'Radni prostor ureda',
+      "Spazio di lavoro dell'ufficio",
+      'Office workspace',
+    ),
+    staffLead: localized(
+      'Otvorite radni red, pronađite predmet po broju ili provjerite opseg ovog tijeka.',
+      "Apri la coda, cerca un caso per numero o controlla l'ambito di questo flusso.",
+      'Open the queue, find a case by number, or check the scope of this workflow.',
+    ),
   },
   login: {
     heading: localized('Prijava u testno okruženje', "Accesso all'ambiente di test", 'Sign in to the test environment'),

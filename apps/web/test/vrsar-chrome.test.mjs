@@ -85,3 +85,65 @@ test('every pilot copy string carries Croatian, Italian and English', () => {
   };
   walk(pilotCopy, 'pilotCopy');
 });
+
+test('the top bar names one level of scope beside the brand', async () => {
+  const shell = await readFile(new URL('src/scripts/pilot/vrsar/shell.ts', webRoot), 'utf8');
+  const line = shell.slice(shell.indexOf('data-pilot-context-slot'));
+  // The category and the department belong to the home scope block and the
+  // case page, so the context line carries the municipality and nothing else.
+  assert.match(line, /entityName\(configResult\.value\.municipality, lang\)/);
+  assert.doesNotMatch(line, /entityName\(config\.category/);
+  assert.doesNotMatch(line, /entityName\(config\.office/);
+  const markup = await readFile(
+    new URL('src/components/pilot/vrsar/VrsarPilotShell.astro', webRoot),
+    'utf8',
+  );
+  // The navigation keeps an accessible name even though the line is shorter.
+  assert.match(markup, /<nav class="pilot-nav" aria-label=\{pilotCopy\.appTitle\[lang\]\}/);
+});
+
+test('one type scale is declared once and the office pages spend it', async () => {
+  const styles = await readFile(new URL('src/styles/pilot/vrsar.css', webRoot), 'utf8');
+  const steps = [
+    '--pilot-type-title',
+    '--pilot-type-section',
+    '--pilot-type-group',
+    '--pilot-type-row',
+    '--pilot-type-lead',
+    '--pilot-type-meta',
+  ];
+  for (const step of steps) {
+    const declarations = styles.split('\n').filter((line) => line.trim().startsWith(`${step}:`));
+    assert.equal(declarations.length, 1, `${step} is declared ${declarations.length} times`);
+  }
+  // A page title is a tool name, not a presentation title.
+  assert.match(styles, /\.pilot-page-header h1 \{[\s\S]*?font-size: var\(--pilot-type-title\);/);
+  assert.doesNotMatch(styles, /font-size: var\(--type-heading-lg\)/);
+  // A row title never outweighs the group head above it.
+  assert.match(styles, /\.pilot-ledger-title \{[\s\S]*?font-size: var\(--pilot-type-row\);[\s\S]*?font-weight: 400;/);
+  const worklist = await readFile(new URL('src/styles/pilot/vrsar-worklist.css', webRoot), 'utf8');
+  assert.match(worklist, /\.worklist-group-head \{[\s\S]*?font-size: var\(--pilot-type-group\);/);
+  assert.match(worklist, /\.worklist-subject \{[\s\S]*?font-size: var\(--pilot-type-row\);[\s\S]*?font-weight: 400;/);
+  // Stamps line up down both lists because they share one column width.
+  assert.match(worklist, /\.worklist-row-head \{[\s\S]*?var\(--pilot-stamp-column\)/);
+  assert.match(styles, /\.pilot-ledger\[data-list='receipts'\] \.pilot-ledger-row \{[\s\S]*?var\(--pilot-stamp-column\)/);
+});
+
+test('the office home reorders the shared blocks instead of dropping them', async () => {
+  const page = await readFile(new URL('src/pages/pilot/vrsar/index.astro', webRoot), 'utf8');
+  for (const hook of ['data-entry-page', 'data-entry-role', 'data-entry-lookup', 'data-entry-scope', 'data-entry-aside']) {
+    assert.match(page, new RegExp(hook), hook);
+  }
+  const script = await readFile(new URL('src/scripts/pilot/vrsar/index.ts', webRoot), 'utf8');
+  assert.match(script, /session\.role === 'official'/);
+  assert.match(script, /page\.dataset\.role = 'official'/);
+  assert.match(script, /lookupSection\.dataset\.lookup = 'compact'/);
+  const styles = await readFile(new URL('src/styles/pilot/vrsar.css', webRoot), 'utf8');
+  // The resident view is untouched: every rule hangs off the official role.
+  for (const block of ['[data-entry-role]', '[data-entry-lookup]', '[data-entry-scope]', '[data-entry-aside]']) {
+    assert.ok(
+      styles.includes(`.pilot-page[data-role='official'] > ${block}`),
+      `${block} is styled outside the official role`,
+    );
+  }
+});

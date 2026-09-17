@@ -60,7 +60,7 @@
 
 .worklist-stat-label {
   color: var(--polis-muted);
-  font-size: var(--type-data);
+  font-size: var(--pilot-type-meta);
   line-height: 1.4;
 }
 
@@ -96,15 +96,19 @@
 .worklist-groups {
   min-width: 0;
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-8);
 }
 
 .worklist-group {
   min-width: 0;
 }
 
-/* The rule under the group name is the ledger's top edge, so it runs the full
-   width of the queue: the 68ch heading measure in styles.css does not apply. */
+/*
+ * The group head is the section the rows belong to, so it reads as one: a
+ * tinted band the full width of the queue, the name in the group step of the
+ * scale and in the page's ink, the count beside it in muted data type. The
+ * 68ch heading measure in styles.css does not apply to it.
+ */
 .worklist-group-head {
   min-width: 0;
   max-width: none;
@@ -112,27 +116,34 @@
   flex-wrap: nowrap;
   gap: var(--space-2);
   align-items: baseline;
-  margin: 0 0 var(--space-1);
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--polis-border);
-  color: var(--polis-muted);
-  font-family: var(--body);
-  font-size: var(--type-data);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 1.4;
-  text-transform: uppercase;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--polis-border-strong);
+  background: var(--polis-surface-tint);
+  color: var(--polis-text);
+  font-family: var(--display);
+  font-size: var(--pilot-type-group);
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.3;
+  text-transform: none;
   text-wrap: initial;
 }
 
 /* Name and count stay on one line down to 390 px: the name gives up the room. */
 .worklist-group-name {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .worklist-group-count {
   flex: none;
-  font-weight: 600;
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--pilot-type-meta);
+  font-weight: 400;
   letter-spacing: normal;
 }
 
@@ -170,10 +181,11 @@
   box-shadow: inset 0.1875rem 0 0 var(--polis-trace);
 }
 
+/* The stamp keeps a column of its own so the stamps line up down the page. */
 .worklist-row-head {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) var(--pilot-stamp-column);
   gap: 0 var(--space-3);
   align-items: baseline;
 }
@@ -181,23 +193,24 @@
 .worklist-case {
   color: var(--polis-muted);
   font-family: var(--mono);
-  font-size: var(--type-data);
+  font-size: var(--pilot-type-meta);
   white-space: nowrap;
 }
 
+/* One line, regular weight: the group head above the row keeps the rank. */
 .worklist-subject {
   min-width: 0;
-  font-family: var(--display);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-family: var(--body);
+  font-size: var(--pilot-type-row);
+  font-weight: 400;
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .worklist-row-head > .status-label {
-  justify-self: end;
+  justify-self: start;
 }
 
 .worklist-row-meta {
@@ -207,7 +220,7 @@
   gap: 0 var(--space-2);
   align-items: baseline;
   color: var(--polis-muted);
-  font-size: var(--type-data);
+  font-size: var(--pilot-type-meta);
   line-height: 1.4;
 }
 
