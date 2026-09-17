@@ -235,12 +235,6 @@ html[data-pilot='vrsar'] .skip-link:focus {
   gap: var(--space-lg);
 }
 
-/* The shell's topbar, banner and nav all start at the left gutter, so a narrow
-   page keeps its width limit but stays on that line instead of centring. */
-html[data-pilot='vrsar'] .pilot-page.form-narrow {
-  margin-inline: 0;
-}
-
 .pilot-page-header {
   min-width: 0;
   display: grid;
