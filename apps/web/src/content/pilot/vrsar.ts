@@ -36,7 +36,18 @@ export const pilotCopy = Object.freeze({
     'Flusso di test non ufficiale per Vrsar-Orsera',
     'Unofficial Vrsar-Orsera test workflow',
   ),
+  /*
+   * The band above the navigation is one line on a 390 px screen, so it says
+   * only what the reader must know at a glance. The full sentence, with the
+   * municipality disclaimer, stays reachable in the band's `title`.
+   */
+  // HR draft: native editor review
   boundary: localized(
+    'Testno okruženje · samo sintetičke prijave',
+    'Ambiente di test · solo segnalazioni sintetiche',
+    'Test environment · synthetic reports only',
+  ),
+  boundaryFull: localized(
     'Neslužbeno testno okruženje. Prihvaća samo sintetičke prijave. Općina Vrsar-Orsera nije odobrila ovu uslugu.',
     'Ambiente di test non ufficiale. Accetta solo segnalazioni sintetiche. Il Comune di Vrsar-Orsera non ha autorizzato questo servizio.',
     'Unofficial test environment. Synthetic reports only. The Municipality of Vrsar-Orsera has not authorized this service.',

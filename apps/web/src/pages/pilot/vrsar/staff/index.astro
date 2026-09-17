@@ -3,34 +3,44 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
-import VrsarPrivateBoundary from '../../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
-import VrsarTraceSummary from '../../../../components/pilot/vrsar/VrsarTraceSummary.astro';
 import { parsePilotLang, pilotCopy } from '../../../../content/pilot/vrsar';
+import { worklistCopy } from '../../../../content/pilot/vrsar-worklist';
+import '../../../../styles/pilot/vrsar-worklist.css';
 
 const lang = parsePilotLang(Astro.url);
 ---
 
-<VrsarPilotShell lang={lang} page="staff" title={`${pilotCopy.staff.heading[lang]} — Polis`} description={pilotCopy.staff.intro[lang]}>
+<VrsarPilotShell
+  lang={lang}
+  page="staff"
+  title={`${pilotCopy.staff.heading[lang]} — Polis`}
+  description={worklistCopy.lead[lang]}
+>
   <article class="pilot-page">
-    <header class="pilot-page-header"><h1>{pilotCopy.staff.heading[lang]}</h1><p class="pilot-lead">{pilotCopy.staff.intro[lang]}</p></header>
-    <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
-    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
-    <div class="pilot-queue" data-staff-workspace hidden>
-      <section class="pilot-queue-list" aria-labelledby="staff-list-title">
-        <h2 id="staff-list-title">{pilotCopy.staff.heading[lang]}</h2>
-        <ul class="pilot-ledger" data-record-list></ul>
-        <button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button>
+    <header class="pilot-page-header">
+      <h1>{pilotCopy.staff.heading[lang]}</h1>
+      <p class="pilot-lead">{worklistCopy.lead[lang]}</p>
+    </header>
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>
+      {pilotCopy.common.loading[lang]}
+    </p>
+    <div class="pilot-state-actions">
+      <button class="btn" data-variant="secondary" type="button" data-retry hidden>
+        {pilotCopy.common.retry[lang]}
+      </button>
+    </div>
+    <div class="worklist" data-staff-workspace hidden>
+      <section class="worklist-overview" aria-labelledby="worklist-overview-title">
+        <h2 class="visually-hidden" id="worklist-overview-title">
+          {worklistCopy.overviewHeading[lang]}
+        </h2>
+        <div class="worklist-stats" data-worklist-stats></div>
+        <button class="btn" data-variant="tertiary" type="button" aria-pressed="false" data-closed-toggle hidden></button>
       </section>
-      <section class="pilot-queue-detail" aria-labelledby="staff-detail-title">
-        <h2 id="staff-detail-title">{pilotCopy.detail.heading[lang]}</h2>
-        <div class="pilot-section" data-record-detail>
-          <p class="pilot-state">{pilotCopy.common.noResults[lang]}</p>
-        </div>
-        <section class="pilot-section" data-trace-section hidden>
-          <h3>{pilotCopy.detail.events[lang]}</h3>
-          <VrsarTraceSummary lang={lang} />
-        </section>
-        <div class="pilot-section" data-staff-actions></div>
+      <section aria-labelledby="worklist-queue-title">
+        <h2 class="visually-hidden" id="worklist-queue-title">{worklistCopy.queueHeading[lang]}</h2>
+        <div class="worklist-groups" data-worklist-groups></div>
+        <p class="pilot-state" data-worklist-empty hidden></p>
       </section>
     </div>
   </article>

@@ -240,7 +240,9 @@ function renderNavigation(session: PilotSession | null): void {
     navLink('/pilot/vrsar/receipts', pilotCopy.nav.receipts[lang], ['receipts', 'receipt-detail'], lang),
   );
   if (session) {
-    const role = createTextElement('span', translatedRole(session.role, lang), 'pilot-context');
+    // The role is a state, so it reads as a stamp in the row, not as prose.
+    const role = createTextElement('span', translatedRole(session.role, lang), 'status-label');
+    role.dataset.tone = 'restricted';
     role.setAttribute('aria-label', `${pilotCopy.common.role[lang]}: ${translatedRole(session.role, lang)}`);
     const logout = createTextElement('button', pilotCopy.nav.logout[lang]);
     logout.type = 'button';

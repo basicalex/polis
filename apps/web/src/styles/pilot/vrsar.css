@@ -101,22 +101,49 @@ html[data-pilot='vrsar'] [hidden] {
 }
 
 /*
- * The banner is a full-width strip. `apps/web/src/styles.css` caps every `p`
- * at 68ch and gives its own `.pilot-boundary` a top border, so both are undone
- * here or the banner wraps into a narrow box at the left edge.
+ * The band is a full-width strip and one line tall on every screen: the short
+ * sentence truncates rather than wrapping, and the band's `title` carries the
+ * full one. `apps/web/src/styles.css` caps every `p` at 68ch and gives its own
+ * `.pilot-boundary` a top border, so both are undone here.
  */
 html[data-pilot='vrsar'] .pilot-boundary {
   max-width: none;
+  max-height: 2rem;
   margin: 0;
-  padding: var(--space-2) clamp(1rem, 4vw, 2.5rem);
+  padding: var(--space-1) clamp(1rem, 4vw, 2.5rem);
   border-top: 0;
   border-bottom: 1px solid var(--polis-border);
+  background: var(--polis-surface-tint);
   color: var(--polis-warning);
   font-size: var(--type-data);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.45;
   text-align: center;
-  text-wrap: balance;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Paper has room for the whole sentence; the screen shows the short one. */
+.pilot-boundary-full {
+  display: none;
+}
+
+/*
+ * The shared skip link parks itself above the viewport with a transform and
+ * nothing clips it, so any renderer that paints outside the viewport — a
+ * full-page screenshot, a scrolled capture — draws it in the middle of the
+ * page. Clipping hides it for good; unlike `visibility` it leaves the link
+ * focusable, so the keyboard path is untouched.
+ */
+html[data-pilot='vrsar'] .skip-link {
+  clip-path: inset(50%);
+  pointer-events: none;
+}
+
+html[data-pilot='vrsar'] .skip-link:focus {
+  clip-path: none;
+  pointer-events: auto;
 }
 
 .pilot-nav-wrap {
@@ -128,6 +155,13 @@ html[data-pilot='vrsar'] .pilot-boundary {
   border-bottom: 1px solid var(--polis-border);
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* The row scrolls sideways on a phone instead of wrapping onto a second
+     line; the bar itself would eat one of the 32 px the nav has to spare. */
+  scrollbar-width: none;
+}
+
+.pilot-nav-wrap::-webkit-scrollbar {
+  display: none;
 }
 
 .pilot-nav {
@@ -158,6 +192,13 @@ html[data-pilot='vrsar'] .pilot-boundary {
 .pilot-nav a:hover,
 .pilot-nav button:hover {
   background: var(--polis-surface-tint);
+}
+
+/* The role stamp is a state mark in the row, not a link: no target, no wrap. */
+.pilot-nav .status-label {
+  padding-inline: var(--space-2);
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .pilot-nav a[aria-current='page'] {
@@ -304,6 +345,33 @@ html[data-pilot='vrsar'] .pilot-page.form-narrow {
   margin: 0.125rem 0 0;
   color: var(--polis-muted);
   font-size: var(--type-data);
+}
+
+/*
+ * The default form of the notice: one hairline-ruled line, no box. It states
+ * the boundary where the work happens instead of banner-ing every page.
+ */
+.pilot-private-boundary[data-variant='line'] {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-width: 1px 0;
+  border-style: solid;
+  border-color: var(--polis-border);
+  border-radius: 0;
+  background: none;
+}
+
+.pilot-private-boundary[data-variant='line'] svg {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0;
+}
+
+.pilot-private-boundary[data-variant='line'] p {
+  min-width: 0;
+  margin: 0;
 }
 
 .pilot-form {
@@ -569,6 +637,24 @@ a.pilot-ledger-row:hover,
   gap: var(--space-xs) var(--space-sm);
   color: var(--polis-muted);
   font-size: var(--type-data);
+}
+
+/*
+ * A receipt row is the case number, the commitment cut at two lines with the
+ * status stamp beside it, and who signed it when. The office and the category
+ * are the page's context, already in the top bar, so they stay out of the row.
+ */
+.pilot-ledger[data-list='receipts'] .pilot-ledger-row {
+  align-items: start;
+}
+
+.pilot-ledger[data-list='receipts'] .pilot-ledger-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 1.0625rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .pilot-queue {
@@ -906,6 +992,16 @@ a.pilot-ledger-row:hover,
     justify-self: start;
   }
 
+  /* The lock and the word share the first line; the sentence sits under it. */
+  .pilot-private-boundary[data-variant='line'] {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .pilot-private-boundary[data-variant='line'] p {
+    grid-column: 2;
+  }
+
   .pilot-actions > * {
     flex: 1 1 100%;
   }
@@ -956,10 +1052,24 @@ a.pilot-ledger-row:hover,
     display: none !important;
   }
 
-  .pilot-boundary {
+  /* On paper the band has room for the whole sentence, so it wraps again. */
+  .pilot-boundary,
+  html[data-pilot='vrsar'] .pilot-boundary {
+    max-height: none;
     padding: 0 0 0.5rem;
+    background: none;
     color: #000 !important;
     text-align: start;
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .pilot-boundary-short {
+    display: none;
+  }
+
+  .pilot-boundary-full {
+    display: inline;
   }
 
   .pilot-main {
@@ -969,7 +1079,8 @@ a.pilot-ledger-row:hover,
 
   .panel,
   .pilot-alert,
-  .pilot-private-boundary {
+  .pilot-private-boundary,
+  .pilot-private-boundary[data-variant='line'] {
     border-color: #000;
     background: #fff;
     box-shadow: none;

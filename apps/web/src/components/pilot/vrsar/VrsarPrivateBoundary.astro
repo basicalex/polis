@@ -7,18 +7,31 @@ import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 interface Props {
   lang: PilotLang;
   text: string;
+  /**
+   * `line` is the boundary at the point of action: one hairline-ruled row that
+   * names the boundary and gets out of the way. `panel` is the old box, kept
+   * for a page that has no other structure to attach the notice to.
+   */
+  variant?: 'line' | 'panel';
 }
 
-const { lang, text } = Astro.props as Props;
+const { lang, text, variant = 'line' } = Astro.props as Props;
 ---
 
-<aside class="pilot-private-boundary" aria-label={pilotCopy.common.private[lang]}>
+<aside class="pilot-private-boundary" data-variant={variant} aria-label={pilotCopy.common.private[lang]}>
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="4" y="10" width="16" height="10" rx="2"></rect>
     <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
   </svg>
-  <div>
-    <strong>{pilotCopy.common.private[lang]}</strong>
-    <p>{text}</p>
-  </div>
+  {variant === 'panel' ? (
+    <div>
+      <strong>{pilotCopy.common.private[lang]}</strong>
+      <p>{text}</p>
+    </div>
+  ) : (
+    <>
+      <strong>{pilotCopy.common.private[lang]}</strong>
+      <p>{text}</p>
+    </>
+  )}
 </aside>

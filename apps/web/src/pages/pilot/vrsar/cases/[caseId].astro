@@ -2,78 +2,112 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import VrsarOriginBadge from '../../../../components/pilot/vrsar/VrsarOriginBadge.astro';
 import VrsarPilotShell from '../../../../components/pilot/vrsar/VrsarPilotShell.astro';
-import VrsarPrivateBoundary from '../../../../components/pilot/vrsar/VrsarPrivateBoundary.astro';
-import VrsarTraceSummary from '../../../../components/pilot/vrsar/VrsarTraceSummary.astro';
 import { parsePilotLang, pilotCopy, pilotHref } from '../../../../content/pilot/vrsar';
+import { workspaceCopy } from '../../../../content/pilot/vrsar-workspace';
+import '../../../../styles/pilot/vrsar-workspace.css';
 
 const lang = parsePilotLang(Astro.url);
 ---
 
-<VrsarPilotShell lang={lang} page="case-detail" title={`${pilotCopy.detail.heading[lang]} — Polis`} description={pilotCopy.filing.privacy[lang]}>
-  <article class="pilot-page">
-    <div class="pilot-actions">
-      <a class="btn" data-variant="secondary" href={pilotHref('/pilot/vrsar/cases', lang)}>{pilotCopy.common.back[lang]}</a>
-    </div>
-    <header class="pilot-page-header">
-      <h1>{pilotCopy.detail.heading[lang]}</h1>
-      <p class="pilot-ledger-id" data-record-id></p>
-      <p class="pilot-ledger-meta" data-record-origin><VrsarOriginBadge origin="unknown" lang={lang} /></p>
+<VrsarPilotShell lang={lang} page="case-detail" title={`${pilotCopy.detail.heading[lang]} — Polis`} description={workspaceCopy.privacyLine[lang]}>
+  <article class="case-workspace">
+    {/* The header band: where the case came from, what it is, and the one
+        action its current state allows (rule P3). */}
+    <header class="case-header">
+      <div class="case-header-main">
+        <a class="case-back" href={pilotHref('/pilot/vrsar/cases', lang)} data-case-back>{pilotCopy.common.back[lang]}</a>
+        <h1 class="case-number" data-record-id>{pilotCopy.detail.heading[lang]}</h1>
+        <p class="case-marks">
+          <span class="status-label" data-tone="unknown" data-record-status data-status="unknown"></span>
+          <span data-record-origin></span>
+        </p>
+        <p class="case-subject" data-case-subject></p>
+      </div>
+      <div class="case-header-action">
+        <div class="case-primary" data-primary-action hidden></div>
+        <div class="case-secondary" data-secondary-action hidden></div>
+        <p class="case-state-sentence" data-state-sentence hidden></p>
+      </div>
     </header>
-    <VrsarPrivateBoundary lang={lang} text={pilotCopy.filing.privacy[lang]} />
+
+    {/* One line where the banner used to be: what stays private, what publishes. */}
+    <p class="case-disclosure">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="10" width="16" height="10" rx="2"></rect>
+        <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+      </svg>
+      <span>{workspaceCopy.privacyLine[lang]}</span>
+    </p>
+
+    <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-action-state hidden></p>
+
+    {/* One form at a time, opened by a header or properties action. */}
+    <section class="case-action-panel panel" aria-labelledby="case-action-title" data-action-panel hidden>
+      <div class="case-action-panel-head">
+        <h2 id="case-action-title" tabindex="-1" data-action-title></h2>
+        <button class="btn" data-variant="tertiary" type="button" data-action-close>{pilotCopy.common.cancel[lang]}</button>
+      </div>
+      <div data-action-body></div>
+    </section>
+
     <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
-    <div class="pilot-page" data-private-record hidden>
-      <section class="pilot-section panel" data-closed-notice hidden></section>
-      <section class="pilot-section panel">
-        <span class="status-label" data-tone="unknown" data-record-status data-status="unknown"></span>
-        <dl class="pilot-meta" data-private-fields></dl>
-      </section>
 
-      {/* The office side of the public record: what the text says, and what the office may do to it. */}
-      <section class="pilot-section" aria-labelledby="case-public-text-title" data-public-text-section hidden>
-        <h2 id="case-public-text-title">{pilotCopy.publicText.heading[lang]}</h2>
-        <p class="pilot-disclosure">{pilotCopy.publicText.intro[lang]}</p>
-        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-public-text-state hidden></p>
-        <div class="pilot-section" data-public-text-panel></div>
-        <div class="pilot-section" data-public-text-actions></div>
-      </section>
+    <div class="case-grid" data-private-record hidden>
+      <div class="case-main">
+        <section class="case-section" aria-labelledby="case-report-title" data-report-section>
+          <div class="case-section-head">
+            <h2 id="case-report-title">{workspaceCopy.reportHeading[lang]}</h2>
+            <span class="status-label" data-tone="restricted">{workspaceCopy.privateStamp[lang]}</span>
+          </div>
+          <p class="case-report-narrative" data-report-narrative></p>
+          <dl class="case-fields" data-report-fields></dl>
+        </section>
 
-      {/* Machine suggestions. Staff decide; nothing here changes the case on its own. */}
-      <section class="pilot-section" aria-labelledby="case-ai-title" data-ai-section hidden>
-        <h2 id="case-ai-title">{pilotCopy.ai.heading[lang]}</h2>
-        <p class="pilot-disclosure">{pilotCopy.ai.rule[lang]}</p>
-        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-ai-state hidden></p>
-        <ul class="pilot-ledger" data-ai-list></ul>
-      </section>
+        {/* The office side of the public record: what the text says, and what
+            the office may do to it. */}
+        <section class="case-section" aria-labelledby="case-public-text-title" data-public-text-section hidden>
+          <div class="case-section-head">
+            <h2 id="case-public-text-title">{pilotCopy.publicText.heading[lang]}</h2>
+            <span class="status-label" data-tone="valid" data-public-stamp>{pilotCopy.common.public[lang]}</span>
+          </div>
+          <div data-public-text-panel></div>
+          <div class="case-text-actions" data-public-text-actions></div>
+        </section>
 
-      <section class="pilot-section" aria-labelledby="case-messages-title" data-messages-section hidden>
-        <h2 id="case-messages-title">{pilotCopy.messages.heading[lang]}</h2>
-        <p class="pilot-disclosure">{pilotCopy.messages.noPhone[lang]}</p>
-        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-messages-state hidden></p>
-        <ul class="pilot-ledger" data-messages-list></ul>
-        <div class="pilot-section" data-message-form hidden></div>
-      </section>
+        {/* Events and messages in one chronological list, composer at the
+            bottom (rule P4). */}
+        <section class="case-section" aria-labelledby="case-activity-title" data-activity-section>
+          <div class="case-section-head">
+            <h2 id="case-activity-title">{workspaceCopy.activityHeading[lang]}</h2>
+          </div>
+          <ol class="case-activity" data-activity-list></ol>
+          <p class="pilot-disclosure">{pilotCopy.detail.hashLinked[lang]}</p>
+          <div class="case-composer" data-composer hidden></div>
+        </section>
+      </div>
 
-      <section class="pilot-section" aria-labelledby="case-trace-title">
-        <h2 id="case-trace-title">{pilotCopy.detail.events[lang]}</h2>
-        <VrsarTraceSummary lang={lang} />
-        <ol class="pilot-event-list" data-private-events></ol>
-        <p class="pilot-disclosure">{pilotCopy.detail.hashLinked[lang]}</p>
-      </section>
+      <aside class="case-properties" aria-labelledby="case-properties-title" data-properties-column>
+        <h2 class="case-properties-title" id="case-properties-title">{workspaceCopy.propertiesHeading[lang]}</h2>
+        <dl class="case-properties-list" data-properties></dl>
 
-      <section class="pilot-section" aria-labelledby="case-attachments-title">
-        <h2 id="case-attachments-title">{pilotCopy.detail.attachments[lang]}</h2>
-        <ul class="pilot-ledger" data-private-attachments></ul>
-      </section>
+        <section class="case-properties-group" aria-labelledby="case-attachments-title">
+          <h3 class="case-properties-title" id="case-attachments-title">{workspaceCopy.properties.attachments[lang]}</h3>
+          <ul class="pilot-ledger" data-private-attachments></ul>
+          <div data-attachment-upload hidden></div>
+        </section>
 
-      {/* Office-only, and only while the case is still open to closing. */}
-      <section class="pilot-section" aria-labelledby="case-close-title" data-close-section hidden>
-        <h2 id="case-close-title">{pilotCopy.close.heading[lang]}</h2>
-        <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-close-state hidden></p>
-        <div data-close-form></div>
-      </section>
+        {/* Machine suggestions. Staff decide; the section exists only when a
+            proposal does. */}
+        <div data-ai-mount></div>
+
+        <section class="case-properties-group" aria-labelledby="case-close-title" data-close-section hidden>
+          <h3 class="case-properties-title" id="case-close-title">{pilotCopy.close.submit[lang]}</h3>
+          <div data-close-action></div>
+        </section>
+      </aside>
     </div>
+
     <div class="pilot-state-actions"><button class="btn" data-variant="secondary" type="button" data-retry hidden>{pilotCopy.common.retry[lang]}</button></div>
   </article>
   <script>

@@ -32,12 +32,46 @@ export function initVrsarReceiptDetail(): void {
     if (element) element.textContent = value;
   }
 
+  /**
+   * The number the filer and the office quote leads the receipt. The public
+   * snapshot does not carry it yet (`PublicRecord` in services/trace-service),
+   * so the line stays out until the field lands rather than showing the UUID.
+   */
+  function caseNumberOf(record: PublicTraceRecord): string {
+    const value = (record as PublicTraceRecord & { caseNumber?: unknown }).caseNumber;
+    return typeof value === 'string' ? value : '';
+  }
+
+  /** The UUID is machine data: one labelled row, never the heading. */
+  function setRecordIdRow(value: string): void {
+    const meta = document.querySelector<HTMLElement>('[data-public-receipt] .pilot-meta');
+    if (!meta) return;
+    let row = meta.querySelector<HTMLElement>('[data-public-record-id-row]');
+    if (!row) {
+      row = document.createElement('div');
+      row.dataset.publicRecordIdRow = '';
+      row.append(
+        createTextElement('dt', pilotCopy.common.recordId[lang]),
+        createTextElement('dd', '', 'pilot-hash'),
+      );
+      meta.append(row);
+    }
+    const cell = row.querySelector('dd');
+    if (cell) cell.textContent = value;
+  }
+
   function render(record: PublicTraceRecord, config: PilotConfig): void {
     const published = record.status === 'answered' || record.status === 'resolved' || record.status === 'disputed';
     if (record.testEnvironment !== true || !published) {
       throw new Error('invalid_public_record_response');
     }
-    setText('[data-receipt-id]', record.id);
+    const caseNumber = caseNumberOf(record);
+    const heading = document.querySelector<HTMLElement>('[data-receipt-id]');
+    if (heading) {
+      heading.textContent = caseNumber;
+      heading.hidden = !caseNumber;
+    }
+    setRecordIdRow(record.id);
     const status = document.querySelector<HTMLElement>('.pilot-receipt-header .status-label');
     if (status) {
       status.dataset.status = record.status;

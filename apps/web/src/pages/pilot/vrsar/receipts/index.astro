@@ -44,7 +44,7 @@ const lookup = publicCaseCopy.lookup;
     </section>
 
     <p class="pilot-state" tabindex="-1" role="status" aria-live="polite" data-page-state>{pilotCopy.common.loading[lang]}</p>
-    <ul class="pilot-ledger" data-public-list></ul>
+    <ul class="pilot-ledger" data-list="receipts" data-public-list></ul>
     <div data-empty-state hidden>
       <EmptyState
         title={pilotCopy.receipts.emptyTitle[lang]}

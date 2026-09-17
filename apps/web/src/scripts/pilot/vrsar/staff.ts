@@ -1,97 +1,295 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import {
-  assignRecord,
-  getPrivateRecord,
-  listPrivateRecords,
-  reopenCase,
-  submitCommitment,
-  submitResolution,
-  uploadPrivateAttachment,
-} from '../../../lib/pilot/vrsar/api';
-import type { OfficialSignature, PrivateTraceRecord } from '../../../lib/pilot/vrsar/model';
+import { listPrivateRecords, listPublicCases } from '../../../lib/pilot/vrsar/api';
+import type { PrivateTraceRecord, PublicCaseShell } from '../../../lib/pilot/vrsar/model';
 import {
   pilotCopy,
   pilotHref,
-  translatedClosedReason,
+  translatedHoldReason,
   translatedOrigin,
+  type PilotLang,
 } from '../../../content/pilot/vrsar';
+import { worklistCopy, worklistText } from '../../../content/pilot/vrsar-worklist';
 import {
   apiErrorMessage,
   clearState,
-  createField,
   createStatus,
   createTextElement,
   currentPilotLang,
   formatPilotDate,
-  renderTrace,
   requirePilotRole,
-  setFieldError,
   setState,
 } from './shell';
 
-const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'application/pdf', 'text/plain']);
-/**
- * The signing name and title are typed on every answer, so the last pair is
- * kept as a convenience. It is the only thing this workspace writes to Web
- * Storage: no session, no token, and nothing about the filer.
- */
-const SIGNATURE_KEY = 'polis.pilot.vrsar.signature';
+/** The seven buckets of the queue, in the order the office works them. */
+export type WorklistGroupKey =
+  'toAssign' | 'needsCommitment' | 'overdue' | 'onTime' | 'disputed' | 'resolved' | 'closed';
+
+/** What the overview strip filters the queue down to. */
+export type WorklistFilter = 'none' | 'open' | 'overdue' | 'held' | 'disputed';
+
+export interface WorklistGroup {
+  key: WorklistGroupKey;
+  records: PrivateTraceRecord[];
+}
+
+export interface WorklistCounts {
+  open: number;
+  overdue: number;
+  held: number;
+  disputed: number;
+  closed: number;
+}
+
+export const WORKLIST_GROUP_ORDER: readonly WorklistGroupKey[] = [
+  'toAssign',
+  'needsCommitment',
+  'overdue',
+  'onTime',
+  'disputed',
+  'resolved',
+  'closed',
+];
+
+/** Statuses the office still owes something on. */
+const OPEN_STATUSES = new Set(['open', 'assigned', 'answered', 'disputed']);
+
 let started = false;
-let records: PrivateTraceRecord[] = [];
-let selectedId = '';
 
-function rememberedSignature(): OfficialSignature {
-  try {
-    const stored = window.localStorage.getItem(SIGNATURE_KEY);
-    if (!stored) return { name: '', title: '' };
-    const parsed = JSON.parse(stored) as Partial<OfficialSignature>;
-    return {
-      name: typeof parsed.name === 'string' ? parsed.name : '',
-      title: typeof parsed.title === 'string' ? parsed.title : '',
-    };
-  } catch {
-    // Private browsing, blocked storage, or a stale value: the fields start empty.
-    return { name: '', title: '' };
+/** Dates arrive as `YYYY-MM-DD` or as a timestamp; only the day matters here. */
+function dayKey(value: unknown): string {
+  return typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : '';
+}
+
+export function todayKey(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** Overdue is a promise the office has not kept yet, so only answers count. */
+export function isOverdue(record: PrivateTraceRecord, today: string): boolean {
+  if (record.status !== 'answered' && record.status !== 'disputed') return false;
+  const due = dayKey(record.dueDate);
+  return Boolean(due) && due < dayKey(today);
+}
+
+function heldCaseNumbers(shells: readonly PublicCaseShell[]): Set<string> {
+  const held = new Set<string>();
+  for (const shell of shells) {
+    if (shell && shell.textStatus === 'held' && shell.caseNumber) held.add(shell.caseNumber);
+  }
+  return held;
+}
+
+function groupKeyFor(record: PrivateTraceRecord, today: string): WorklistGroupKey {
+  switch (record.status) {
+    case 'assigned':
+      return 'needsCommitment';
+    case 'answered':
+      return isOverdue(record, today) ? 'overdue' : 'onTime';
+    case 'disputed':
+      return isOverdue(record, today) ? 'overdue' : 'disputed';
+    case 'resolved':
+      return 'resolved';
+    case 'closed':
+      return 'closed';
+    default:
+      // `open`, and anything the backend adds later: it needs a person first.
+      return 'toAssign';
   }
 }
 
-function rememberSignature(signature: OfficialSignature): void {
-  try {
-    window.localStorage.setItem(SIGNATURE_KEY, JSON.stringify(signature));
-  } catch {
-    // Storage is a convenience; the answer is already on its way.
+function keepsRecord(
+  record: PrivateTraceRecord,
+  filter: WorklistFilter,
+  held: Set<string>,
+  today: string,
+): boolean {
+  switch (filter) {
+    case 'open':
+      return OPEN_STATUSES.has(record.status);
+    case 'overdue':
+      return isOverdue(record, today);
+    case 'held':
+      return Boolean(record.caseNumber) && held.has(record.caseNumber as string);
+    case 'disputed':
+      return record.status === 'disputed';
+    default:
+      return true;
   }
 }
 
-async function fileBase64(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = '';
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
+/** A due date is the pressure, so dated rows lead; the rest by last change. */
+function compareRecords(a: PrivateTraceRecord, b: PrivateTraceRecord): number {
+  const dueA = dayKey(a.dueDate);
+  const dueB = dayKey(b.dueDate);
+  if (dueA && dueB && dueA !== dueB) return dueA < dueB ? -1 : 1;
+  if (dueA && !dueB) return -1;
+  if (!dueA && dueB) return 1;
+  return String(b.updatedAt).localeCompare(String(a.updatedAt));
 }
 
 /**
- * The channel a case arrived by, in the shared stamp recipe at its neutral
- * tone. It states a fact about the case and never competes with the status.
+ * Group the queue by what the office must do next. Empty groups drop out and
+ * closed cases stay out until the office asks for them.
  */
-function originBadge(origin: unknown, lang: ReturnType<typeof currentPilotLang>): HTMLSpanElement {
-  const value = typeof origin === 'string' ? origin : 'unknown';
-  const badge = createTextElement('span', translatedOrigin(value, lang), 'status-label');
-  badge.dataset.tone = 'unknown';
-  badge.dataset.origin = value;
-  badge.setAttribute('aria-label', `${pilotCopy.channel.label[lang]}: ${translatedOrigin(value, lang)}`);
-  return badge;
+export function groupRecords(
+  records: readonly PrivateTraceRecord[],
+  shells: readonly PublicCaseShell[],
+  today: string,
+  options: { filter?: WorklistFilter; includeClosed?: boolean } = {},
+): WorklistGroup[] {
+  const filter = options.filter ?? 'none';
+  const includeClosed = options.includeClosed ?? false;
+  const held = heldCaseNumbers(shells);
+  const buckets = new Map<WorklistGroupKey, PrivateTraceRecord[]>();
+  for (const record of records) {
+    if (!record) continue;
+    if (!keepsRecord(record, filter, held, today)) continue;
+    const key = groupKeyFor(record, today);
+    if (key === 'closed' && !includeClosed) continue;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(record);
+    else buckets.set(key, [record]);
+  }
+  return WORKLIST_GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({
+    key,
+    records: [...(buckets.get(key) as PrivateTraceRecord[])].sort(compareRecords),
+  }));
 }
 
-function fieldRow(term: string, value: string): HTMLDivElement {
-  const row = document.createElement('div');
-  row.append(createTextElement('dt', term), createTextElement('dd', value));
-  return row;
+export function worklistCounts(
+  records: readonly PrivateTraceRecord[],
+  shells: readonly PublicCaseShell[],
+  today: string,
+): WorklistCounts {
+  const held = heldCaseNumbers(shells);
+  const counts: WorklistCounts = { open: 0, overdue: 0, held: 0, disputed: 0, closed: 0 };
+  for (const record of records) {
+    if (!record) continue;
+    if (OPEN_STATUSES.has(record.status)) counts.open += 1;
+    if (isOverdue(record, today)) counts.overdue += 1;
+    if (record.caseNumber && held.has(record.caseNumber)) counts.held += 1;
+    if (record.status === 'disputed') counts.disputed += 1;
+    if (record.status === 'closed') counts.closed += 1;
+  }
+  return counts;
+}
+
+export function shellIndex(shells: readonly PublicCaseShell[]): Map<string, PublicCaseShell> {
+  const index = new Map<string, PublicCaseShell>();
+  for (const shell of shells) {
+    if (shell && shell.caseNumber) index.set(shell.caseNumber, shell);
+  }
+  return index;
+}
+
+/** A missed due date gets a glyph as well as the colour and the word. */
+function clockIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const dial = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dial.setAttribute('cx', '8');
+  dial.setAttribute('cy', '8');
+  dial.setAttribute('r', '6.25');
+  dial.setAttribute('fill', 'none');
+  dial.setAttribute('stroke', 'currentColor');
+  dial.setAttribute('stroke-width', '1.5');
+  const hands = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  hands.setAttribute('d', 'M8 4.25V8.25l2.75 1.6');
+  hands.setAttribute('fill', 'none');
+  hands.setAttribute('stroke', 'currentColor');
+  hands.setAttribute('stroke-width', '1.5');
+  hands.setAttribute('stroke-linecap', 'round');
+  hands.setAttribute('stroke-linejoin', 'round');
+  svg.append(dial, hands);
+  return svg;
+}
+
+function mark(text: string, tone?: 'danger' | 'warning'): HTMLSpanElement {
+  const element = createTextElement('span', text, 'worklist-mark');
+  if (tone) element.dataset.tone = tone;
+  return element;
+}
+
+function overdueMark(text: string, lang: PilotLang): HTMLSpanElement {
+  const element = mark('', 'danger');
+  const label = createTextElement('span', text);
+  label.title = worklistCopy.overdueMark[lang];
+  element.append(clockIcon(), label);
+  return element;
+}
+
+/**
+ * The second line of a row: where, when, what is due, and what the public
+ * record says about the text. Nothing private leaves the private rail.
+ */
+function metaLine(
+  record: PrivateTraceRecord,
+  shell: PublicCaseShell | undefined,
+  today: string,
+  lang: PilotLang,
+): HTMLElement {
+  const line = document.createElement('span');
+  line.className = 'worklist-row-meta';
+  const parts: HTMLElement[] = [];
+  if (record.location) parts.push(mark(record.location));
+  parts.push(mark(formatPilotDate(record.createdAt, lang, true)));
+  if (record.dueDate) {
+    const due = `${pilotCopy.staff.dueDate[lang]}: ${formatPilotDate(record.dueDate, lang, true)}`;
+    parts.push(isOverdue(record, today) ? overdueMark(due, lang) : mark(due));
+  }
+  if (shell?.textStatus === 'held') {
+    const reason = translatedHoldReason(shell.holdReason, lang);
+    parts.push(mark(`${worklistCopy.textHeld[lang]}: ${reason}`, 'warning'));
+  } else if (shell?.textStatus === 'removed') {
+    parts.push(mark(worklistCopy.textRemoved[lang]));
+  }
+  if (shell && shell.noticeCount > 0) {
+    parts.push(mark(`${worklistCopy.notices[lang]}: ${shell.noticeCount}`, 'warning'));
+  }
+  if (record.origin && record.origin !== 'web') {
+    parts.push(mark(translatedOrigin(record.origin, lang)));
+  }
+  parts.forEach((part, index) => {
+    if (index > 0) {
+      const separator = createTextElement('span', '·', 'worklist-sep');
+      separator.setAttribute('aria-hidden', 'true');
+      line.append(separator);
+    }
+    line.append(part);
+  });
+  return line;
+}
+
+/** One case, one line: the number, the subject, the stamp, then the facts. */
+function renderRow(
+  record: PrivateTraceRecord,
+  shell: PublicCaseShell | undefined,
+  today: string,
+  lang: PilotLang,
+  selectedId: string,
+): HTMLLIElement {
+  const item = document.createElement('li');
+  const link = document.createElement('a');
+  link.className = 'worklist-row';
+  link.href = pilotHref(`/pilot/vrsar/cases/${encodeURIComponent(record.id)}`, lang);
+  if (record.id === selectedId) link.setAttribute('aria-current', 'true');
+  const head = document.createElement('span');
+  head.className = 'worklist-row-head';
+  // The case number is the identifier the filer and the public quote; the
+  // UUID stays in the address, never on screen.
+  head.append(createTextElement('span', record.caseNumber || record.id, 'worklist-case'));
+  const subject = createTextElement('span', record.subject, 'worklist-subject');
+  if (record.subject) subject.title = record.subject;
+  head.append(subject, createStatus(record.status, lang));
+  link.append(head, metaLine(record, shell, today, lang));
+  item.append(link);
+  return item;
 }
 
 export function initVrsarStaff(): void {
@@ -100,470 +298,119 @@ export function initVrsarStaff(): void {
   const lang = currentPilotLang();
   const state = document.querySelector<HTMLElement>('[data-page-state]');
   const workspace = document.querySelector<HTMLElement>('[data-staff-workspace]');
-  const list = document.querySelector<HTMLElement>('[data-record-list]');
-  const detail = document.querySelector<HTMLElement>('[data-record-detail]');
-  const traceSection = document.querySelector<HTMLElement>('[data-trace-section]');
-  const actions = document.querySelector<HTMLElement>('[data-staff-actions]');
+  const stats = document.querySelector<HTMLElement>('[data-worklist-stats]');
+  const groupsRoot = document.querySelector<HTMLElement>('[data-worklist-groups]');
+  const empty = document.querySelector<HTMLElement>('[data-worklist-empty]');
+  const closedToggle = document.querySelector<HTMLButtonElement>('[data-closed-toggle]');
   const retry = document.querySelector<HTMLButtonElement>('[data-retry]');
 
-  function actionState(container: HTMLElement): HTMLParagraphElement {
-    const element = createTextElement('p', '', 'pilot-state');
-    element.tabIndex = -1;
-    element.setAttribute('role', 'status');
-    element.setAttribute('aria-live', 'polite');
-    container.append(element);
-    return element;
-  }
+  let records: PrivateTraceRecord[] = [];
+  let shells: PublicCaseShell[] = [];
+  let filter: WorklistFilter = 'open';
+  let showClosed = false;
+  const today = todayKey();
+  const selectedId = new URL(location.href).searchParams.get('case') ?? '';
 
-  async function runAction(
-    button: HTMLButtonElement,
-    pending: string,
-    operation: () => Promise<PrivateTraceRecord | void>,
-    message: HTMLElement,
-  ): Promise<void> {
-    button.disabled = true;
-    const label = button.textContent ?? '';
-    button.textContent = pending;
-    setState(message, pending);
-    try {
-      await operation();
-      await loadRecords(selectedId);
-    } catch (error) {
-      setState(message, apiErrorMessage(error, lang), 'error');
-    } finally {
-      button.disabled = false;
-      button.textContent = label;
-    }
-  }
+  const cells: { key: Exclude<WorklistFilter, 'none'>; label: string }[] = [
+    { key: 'open', label: worklistCopy.counts.open[lang] },
+    { key: 'overdue', label: worklistCopy.counts.overdue[lang] },
+    { key: 'held', label: worklistCopy.counts.held[lang] },
+    { key: 'disputed', label: worklistCopy.counts.disputed[lang] },
+  ];
 
-  function renderRecordList(): void {
-    const rows = records.map((record) => {
-      const item = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'pilot-ledger-row';
-      button.dataset.recordId = record.id;
-      if (record.id === selectedId) button.setAttribute('aria-current', 'true');
-      const main = document.createElement('span');
-      main.className = 'pilot-ledger-main';
-      main.append(
-        createTextElement('span', record.subject || record.caseNumber || record.id, 'pilot-ledger-title'),
-        createTextElement('span', record.caseNumber || record.id, 'pilot-ledger-id'),
-        createTextElement('span', formatPilotDate(record.updatedAt, lang), 'pilot-ledger-meta'),
-      );
-      const marks = document.createElement('span');
-      marks.className = 'pilot-ledger-meta';
-      marks.append(createStatus(record.status, lang), originBadge(record.origin, lang));
-      button.append(main, marks);
-      button.addEventListener('click', () => void selectRecord(record.id));
-      item.append(button);
-      return item;
-    });
-    list?.replaceChildren(...rows);
-  }
-
-  function renderPrivateDetail(record: PrivateTraceRecord): void {
-    if (!detail) return;
-    const panel = document.createElement('section');
-    panel.className = 'panel pilot-section';
-    const marks = document.createElement('p');
-    marks.className = 'pilot-ledger-meta';
-    marks.append(createStatus(record.status, lang), originBadge(record.origin, lang));
-    panel.append(
-      createTextElement('h3', record.caseNumber || record.id),
-      marks,
-    );
-    const fields = document.createElement('dl');
-    fields.className = 'pilot-meta';
-    fields.append(
-      fieldRow(pilotCopy.common.caseNumber[lang], record.caseNumber || pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.channel.label[lang], translatedOrigin(record.origin, lang)),
-      fieldRow(pilotCopy.common.recordId[lang], record.id),
-      fieldRow(pilotCopy.detail.subject[lang], record.subject),
-      fieldRow(pilotCopy.detail.narrative[lang], record.narrative),
-      fieldRow(pilotCopy.detail.location[lang], record.location),
-      fieldRow(pilotCopy.detail.contact[lang], record.contactEmail || pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.staff.commitment[lang], record.commitment || pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.staff.dueDate[lang], record.dueDate ? formatPilotDate(record.dueDate, lang, true) : pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.staff.evidenceNote[lang], record.evidenceNote || pilotCopy.common.notAvailable[lang]),
-      fieldRow(pilotCopy.common.version[lang], String(record.version)),
-    );
-    if (record.status === 'closed') {
-      fields.append(
-        fieldRow(pilotCopy.close.reason[lang], translatedClosedReason(record.closedReason, lang)),
-        fieldRow(
-          pilotCopy.close.closedPublicReason[lang],
-          record.closedPublicReason || pilotCopy.common.notAvailable[lang],
-        ),
-      );
-    }
-    panel.append(fields);
-    // Messages, AI proposals, and the closing action live on the case page.
-    const open = createTextElement('a', pilotCopy.common.details[lang], 'btn');
-    open.dataset.variant = 'secondary';
-    open.href = pilotHref(`/pilot/vrsar/cases/${encodeURIComponent(record.id)}`, lang);
-    const openRow = document.createElement('div');
-    openRow.className = 'pilot-actions';
-    openRow.append(open);
-    panel.append(openRow);
-    detail.replaceChildren(panel);
-    if (traceSection) traceSection.hidden = false;
-    renderTrace(document, record.status, record.events);
-  }
-
-  /**
-   * Name and title travel with every answer and stand on the public record,
-   * so they are one pair of required fields, prefilled from the last answer.
-   */
-  function signatureFields(record: PrivateTraceRecord): {
-    fields: HTMLElement[];
-    read: () => OfficialSignature;
-  } {
-    const remembered = rememberedSignature();
-    const name = document.createElement('input');
-    name.id = `staff-signed-name-${record.id}`;
-    name.type = 'text';
-    name.required = true;
-    name.maxLength = 120;
-    name.autocomplete = 'name';
-    name.value = remembered.name;
-    const nameField = createField(name, pilotCopy.staff.signedByName[lang], {
-      hint: pilotCopy.staff.signedByHint[lang],
-    });
-
-    const title = document.createElement('input');
-    title.id = `staff-signed-title-${record.id}`;
-    title.type = 'text';
-    title.required = true;
-    title.maxLength = 120;
-    title.setAttribute('autocomplete', 'organization-title');
-    title.value = remembered.title;
-    const titleField = createField(title, pilotCopy.staff.signedByTitle[lang]);
-
-    return {
-      fields: [nameField.field, titleField.field],
-      read: () => ({ name: name.value.trim(), title: title.value.trim() }),
-    };
-  }
-
-  /** One HTTPS link per line; an empty list is allowed where evidence is optional. */
-  function readEvidenceUrls(value: string): string[] | null {
-    const urls = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const valid = urls.every((entry) => {
-      try {
-        const parsed = new URL(entry);
-        return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
-      } catch {
-        return false;
-      }
-    });
-    return valid ? urls : null;
-  }
-
-  function commitmentForm(record: PrivateTraceRecord): HTMLElement {
-    const section = document.createElement('section');
-    section.className = 'panel pilot-section';
-    section.append(createTextElement('h3', pilotCopy.staff.commitmentHeading[lang]));
-    const form = document.createElement('form');
-    form.className = 'pilot-form';
-
-    const commitment = document.createElement('textarea');
-    commitment.id = `staff-commitment-${record.id}`;
-    commitment.required = true;
-    commitment.maxLength = 2000;
-    commitment.value = record.commitment ?? '';
-    const commitmentField = createField(commitment, pilotCopy.staff.commitment[lang]);
-
-    const due = document.createElement('input');
-    due.id = `staff-due-${record.id}`;
-    due.type = 'date';
-    due.required = true;
-    due.value = record.dueDate ?? '';
-    const dueField = createField(due, pilotCopy.staff.dueDate[lang], { width: 'date' });
-
-    const signature = signatureFields(record);
-
-    const evidence = document.createElement('textarea');
-    evidence.id = `staff-commitment-evidence-${record.id}`;
-    evidence.rows = 2;
-    evidence.maxLength = 2000;
-    const evidenceField = createField(evidence, pilotCopy.staff.evidenceOptional[lang]);
-
-    const actions = document.createElement('div');
-    actions.className = 'pilot-actions';
-    const button = createTextElement('button', pilotCopy.staff.fileCommitment[lang], 'btn');
-    button.dataset.variant = 'primary';
-    button.type = 'submit';
-    actions.append(button);
-    const message = actionState(section);
-    // The publication rule sits above the button it governs (rule I3).
-    form.append(
-      commitmentField.field,
-      dueField.field,
-      ...signature.fields,
-      evidenceField.field,
-      createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
-      actions,
-    );
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!form.reportValidity()) return;
-      const signedBy = signature.read();
-      const note = evidence.value.trim();
-      void runAction(
-        button,
-        pilotCopy.staff.filingCommitment[lang],
-        async () => {
-          const updated = await submitCommitment(record.id, {
-            commitment: commitment.value.trim(),
-            dueDate: due.value,
-            signedBy,
-            ...(note ? { evidenceNote: note } : {}),
-          });
-          rememberSignature(signedBy);
-          return updated;
-        },
-        message,
-      );
-    });
-    section.insertBefore(form, message);
-    return section;
-  }
-
-  function resolutionForm(record: PrivateTraceRecord): HTMLElement {
-    const section = document.createElement('section');
-    section.className = 'panel pilot-section';
-    section.append(
-      createTextElement('h3', pilotCopy.staff.resolutionHeading[lang]),
-      createTextElement('p', pilotCopy.entry.publicationRule[lang], 'field-hint'),
-    );
-    const form = document.createElement('form');
-    form.className = 'pilot-form';
-
-    const note = document.createElement('textarea');
-    note.id = `staff-evidence-${record.id}`;
-    note.required = true;
-    note.maxLength = 2000;
-    const noteField = createField(note, pilotCopy.staff.evidenceNote[lang]);
-
-    const urls = document.createElement('textarea');
-    urls.id = `staff-evidence-urls-${record.id}`;
-    urls.required = true;
-    urls.maxLength = 4000;
-    const urlsField = createField(urls, pilotCopy.staff.evidenceUrls[lang], {
-      hint: pilotCopy.staff.evidenceUrlsHint[lang],
-    });
-
-    const signature = signatureFields(record);
-
-    const actions = document.createElement('div');
-    actions.className = 'pilot-actions';
-    const button = createTextElement('button', pilotCopy.staff.submitResolution[lang], 'btn');
-    button.dataset.variant = 'primary';
-    button.type = 'submit';
-    actions.append(button);
-    const message = actionState(section);
-    form.append(
-      noteField.field,
-      urlsField.field,
-      ...signature.fields,
-      createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
-      actions,
-    );
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!form.reportValidity()) return;
-      const evidenceUrls = readEvidenceUrls(urls.value);
-      if (!evidenceUrls || evidenceUrls.length === 0) {
-        setFieldError(urlsField, urls, pilotCopy.staff.evidenceUrlsHint[lang]);
-        return;
-      }
-      setFieldError(urlsField, urls, '');
-      const signedBy = signature.read();
-      void runAction(
-        button,
-        pilotCopy.staff.submittingResolution[lang],
-        async () => {
-          const updated = await submitResolution(record.id, {
-            evidenceNote: note.value.trim(),
-            evidenceUrls,
-            signedBy,
-          });
-          rememberSignature(signedBy);
-          return updated;
-        },
-        message,
-      );
-    });
-    section.insertBefore(form, message);
-    return section;
-  }
-
-  /** From `disputed`: the office accepts the dispute and answers again. */
-  function reopenForm(record: PrivateTraceRecord): HTMLElement {
-    const section = document.createElement('section');
-    section.className = 'panel pilot-section';
-    section.append(
-      createTextElement('h3', pilotCopy.staff.reopenHeading[lang]),
-      createTextElement('p', pilotCopy.staff.reopenIntro[lang], 'pilot-lead'),
-    );
-    const form = document.createElement('form');
-    form.className = 'pilot-form';
-    const note = document.createElement('textarea');
-    note.id = `staff-reopen-note-${record.id}`;
-    note.rows = 2;
-    note.maxLength = 2000;
-    const noteField = createField(note, pilotCopy.staff.reopenNote[lang]);
-    const actions = document.createElement('div');
-    actions.className = 'pilot-actions';
-    const button = createTextElement('button', pilotCopy.staff.reopen[lang], 'btn');
-    button.dataset.variant = 'secondary';
-    button.type = 'submit';
-    actions.append(button);
-    const message = actionState(section);
-    form.append(noteField.field, actions);
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!form.reportValidity()) return;
-      const trimmed = note.value.trim();
-      void runAction(
-        button,
-        pilotCopy.staff.reopening[lang],
-        () => reopenCase(record.id, trimmed ? { note: trimmed } : {}),
-        message,
-      );
-    });
-    section.insertBefore(form, message);
-    return section;
-  }
-
-  function attachmentForm(record: PrivateTraceRecord): HTMLElement {
-    const section = document.createElement('section');
-    section.className = 'panel pilot-section';
-    section.append(createTextElement('h3', pilotCopy.staff.attachmentHeading[lang]));
-    const form = document.createElement('form');
-    form.className = 'pilot-form';
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.id = `staff-attachment-${record.id}`;
-    input.accept = 'image/png,image/jpeg,application/pdf,text/plain';
-    const attachmentField = createField(input, pilotCopy.filing.attachments[lang], {
-      hint: pilotCopy.filing.attachmentHint[lang],
-    });
-    const actions = document.createElement('div');
-    actions.className = 'pilot-actions';
-    const button = createTextElement('button', pilotCopy.staff.attachmentSubmit[lang], 'btn');
-    button.dataset.variant = 'secondary';
-    button.type = 'submit';
-    actions.append(button);
-    const message = actionState(section);
-    form.append(attachmentField.field, actions);
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const file = input.files?.[0];
-      if (!file || file.size > MAX_ATTACHMENT_BYTES || !ALLOWED_TYPES.has(file.type)) {
-        setFieldError(
-          attachmentField,
-          input,
-          file && file.size > MAX_ATTACHMENT_BYTES
-            ? pilotCopy.filing.attachmentTooLarge[lang]
-            : pilotCopy.filing.attachmentHint[lang],
+  function renderOverview(): void {
+    if (!stats) return;
+    const counts = worklistCounts(records, shells, today);
+    stats.replaceChildren(
+      ...cells.map((cell) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'worklist-stat';
+        button.dataset.filter = cell.key;
+        button.setAttribute('aria-pressed', String(filter === cell.key));
+        if (cell.key === 'overdue' && counts.overdue > 0) button.dataset.tone = 'danger';
+        button.append(
+          createTextElement('span', counts[cell.key], 'worklist-stat-value'),
+          createTextElement('span', cell.label, 'worklist-stat-label'),
         );
-        return;
-      }
-      setFieldError(attachmentField, input, '');
-      void runAction(
-        button,
-        pilotCopy.filing.uploading[lang],
-        async () => {
-          await uploadPrivateAttachment(record.id, {
-            expectedVersion: record.version,
-            filename: file.name,
-            contentType: file.type,
-            base64: await fileBase64(file),
-          });
-        },
-        message,
-      );
-    });
-    section.insertBefore(form, message);
-    return section;
-  }
-
-  function renderActions(record: PrivateTraceRecord): void {
-    if (!actions) return;
-    const rows: Node[] = [];
-    if (record.status === 'open') {
-      const section = document.createElement('section');
-      section.className = 'panel pilot-section';
-      const button = createTextElement('button', pilotCopy.staff.assign[lang], 'btn');
-      button.dataset.variant = 'primary';
-      button.type = 'button';
-      const message = actionState(section);
-      section.insertBefore(button, message);
-      button.addEventListener('click', () => void runAction(
-        button,
-        pilotCopy.staff.assigning[lang],
-        () => assignRecord(record.id, record.version),
-        message,
-      ));
-      rows.push(section);
-    } else if (record.status === 'assigned') {
-      rows.push(commitmentForm(record));
-    } else if (record.status === 'answered') {
-      rows.push(resolutionForm(record));
-    } else if (record.status === 'disputed') {
-      // A dispute leaves two honest answers: report completion again, or take it back.
-      rows.push(resolutionForm(record), reopenForm(record));
-    } else {
-      rows.push(createTextElement('p', pilotCopy.staff.noAction[lang], 'pilot-state'));
-    }
-    rows.push(attachmentForm(record));
-    actions.replaceChildren(...rows);
-  }
-
-  async function selectRecord(id: string): Promise<void> {
-    selectedId = id;
-    renderRecordList();
-    if (detail) detail.replaceChildren(createTextElement('p', pilotCopy.common.loading[lang], 'pilot-state'));
-    if (actions) actions.replaceChildren();
-    try {
-      const record = await getPrivateRecord(id);
-      const index = records.findIndex((item) => item.id === record.id);
-      if (index >= 0) records[index] = record;
-      renderPrivateDetail(record);
-      renderActions(record);
-    } catch (error) {
-      detail?.replaceChildren(createTextElement('p', apiErrorMessage(error, lang), 'pilot-state'));
-      if (retry) retry.hidden = false;
+        button.addEventListener('click', () => {
+          filter = filter === cell.key ? 'none' : cell.key;
+          renderOverview();
+          renderQueue();
+        });
+        return button;
+      }),
+    );
+    if (closedToggle) {
+      closedToggle.textContent = showClosed
+        ? worklistCopy.hideClosed[lang]
+        : worklistText(worklistCopy.showClosed[lang], counts.closed);
+      closedToggle.setAttribute('aria-pressed', String(showClosed));
+      closedToggle.hidden = counts.closed === 0 && !showClosed;
     }
   }
 
-  async function loadRecords(preferredId = ''): Promise<void> {
+  function renderQueue(): void {
+    if (!groupsRoot) return;
+    const index = shellIndex(shells);
+    const groups = groupRecords(records, shells, today, { filter, includeClosed: showClosed });
+    groupsRoot.replaceChildren(
+      ...groups.map((group) => {
+        const section = document.createElement('section');
+        section.className = 'worklist-group';
+        section.dataset.group = group.key;
+        const head = createTextElement('h3', '', 'worklist-group-head');
+        head.append(
+          createTextElement('span', worklistCopy.groups[group.key][lang], 'worklist-group-name'),
+          createTextElement('span', group.records.length, 'worklist-group-count'),
+        );
+        const rows = document.createElement('ul');
+        rows.className = 'worklist-rows';
+        rows.append(
+          ...group.records.map((record) =>
+            renderRow(record, index.get(record.caseNumber ?? ''), today, lang, selectedId),
+          ),
+        );
+        section.append(head, rows);
+        return section;
+      }),
+    );
+    if (empty) {
+      const message = records.length === 0 ? worklistCopy.emptyQueue : worklistCopy.emptyFilter;
+      empty.textContent = groups.length === 0 ? message[lang] : '';
+      empty.hidden = groups.length > 0;
+    }
+  }
+
+  async function load(): Promise<void> {
     if (retry) retry.hidden = true;
     setState(state, pilotCopy.common.loading[lang]);
     const session = await requirePilotRole(['official']);
     if (!session) return;
     try {
-      records = (await listPrivateRecords()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      // The public shell carries the text status, the reader reports, and the
+      // public clock. A missing shell only costs the row those marks.
+      const [privateRecords, publicCases] = await Promise.all([
+        listPrivateRecords(),
+        listPublicCases(100).catch(() => [] as PublicCaseShell[]),
+      ]);
+      records = privateRecords;
+      shells = publicCases;
       if (workspace) workspace.hidden = false;
       clearState(state);
-      selectedId = preferredId && records.some((record) => record.id === preferredId)
-        ? preferredId
-        : records[0]?.id ?? '';
-      renderRecordList();
-      if (selectedId) await selectRecord(selectedId);
-      else {
-        detail?.replaceChildren(createTextElement('p', pilotCopy.common.noResults[lang], 'pilot-state'));
-        actions?.replaceChildren();
-        if (traceSection) traceSection.hidden = true;
-      }
+      renderOverview();
+      renderQueue();
     } catch (error) {
       setState(state, apiErrorMessage(error, lang), 'error');
       if (retry) retry.hidden = false;
     }
   }
 
-  retry?.addEventListener('click', () => void loadRecords(selectedId));
-  void loadRecords();
+  closedToggle?.addEventListener('click', () => {
+    showClosed = !showClosed;
+    renderOverview();
+    renderQueue();
+  });
+  retry?.addEventListener('click', () => void load());
+  void load();
 }

@@ -1,0 +1,286 @@
+/* SPDX-FileCopyrightText: 2026 Intrface j.d.o.o. */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/*
+ * Office worklist: an overview strip of counts, then one line per case.
+ * Tokens come from @polis/ui/styles/base.css; this file defines none of its
+ * own. It is loaded only by /pilot/vrsar/staff.
+ */
+
+.worklist {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.worklist-overview {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+/* Hairline cells, no card and no shadow: the numbers carry the weight. */
+.worklist-stats {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  border-top: 1px solid var(--polis-border);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+.worklist-stat {
+  min-width: 0;
+  min-height: var(--tap-target);
+  display: grid;
+  gap: 0.125rem;
+  align-content: center;
+  justify-items: start;
+  padding: var(--space-3);
+  border: 0;
+  border-left: 1px solid var(--polis-border);
+  background: transparent;
+  color: var(--polis-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.worklist-stat:first-child {
+  border-left: 0;
+}
+
+.worklist-stat-value {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.worklist-stat-label {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.4;
+}
+
+.worklist-stat[data-tone='danger'] .worklist-stat-value {
+  color: var(--polis-danger);
+}
+
+.worklist-stat:hover {
+  background: var(--polis-surface-tint);
+}
+
+/* The chosen view is marked by the tint, the trace colour, and the underline
+   under its label: never by colour alone. */
+.worklist-stat[aria-pressed='true'] {
+  background: var(--polis-surface-tint);
+}
+
+.worklist-stat[aria-pressed='true'] .worklist-stat-value {
+  color: var(--polis-trace);
+}
+
+.worklist-stat[aria-pressed='true'] .worklist-stat-label {
+  color: var(--polis-text);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.worklist-stat:focus-visible {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: -0.125rem;
+}
+
+.worklist-groups {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-6);
+}
+
+.worklist-group {
+  min-width: 0;
+}
+
+/* The rule under the group name is the ledger's top edge, so it runs the full
+   width of the queue: the 68ch heading measure in styles.css does not apply. */
+.worklist-group-head {
+  min-width: 0;
+  max-width: none;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0 0 var(--space-1);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--polis-border);
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-data);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  text-wrap: initial;
+}
+
+/* Name and count stay on one line down to 390 px: the name gives up the room. */
+.worklist-group-name {
+  min-width: 0;
+}
+
+.worklist-group-count {
+  flex: none;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.worklist-rows {
+  min-width: 0;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.worklist-row {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+  min-height: var(--tap-target);
+  align-content: center;
+  padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--polis-border);
+  color: var(--polis-text);
+  text-decoration: none;
+}
+
+.worklist-rows > li:first-child .worklist-row {
+  border-top: 0;
+}
+
+.worklist-row:hover {
+  background: var(--polis-surface-tint);
+}
+
+/* The case the workspace came back from keeps its place in the queue. */
+.worklist-row[aria-current='true'] {
+  background: var(--polis-surface-tint);
+  box-shadow: inset 0.1875rem 0 0 var(--polis-trace);
+}
+
+.worklist-row-head {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+  align-items: baseline;
+}
+
+.worklist-case {
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-data);
+  white-space: nowrap;
+}
+
+.worklist-subject {
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.worklist-row-head > .status-label {
+  justify-self: end;
+}
+
+.worklist-row-meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  line-height: 1.4;
+}
+
+.worklist-mark {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+.worklist-mark[data-tone='danger'] {
+  color: var(--polis-danger);
+  font-weight: 650;
+}
+
+.worklist-mark[data-tone='warning'] {
+  color: var(--polis-warning);
+}
+
+.worklist-mark > svg {
+  flex: none;
+  width: 0.9em;
+  height: 0.9em;
+  align-self: center;
+}
+
+.worklist-sep {
+  color: var(--polis-border-strong);
+}
+
+@media (max-width: 40rem) {
+  .worklist-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .worklist-stat:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .worklist-stat:nth-child(n + 3) {
+    border-top: 1px solid var(--polis-border);
+  }
+
+  /* The stamp drops under the title and keeps the row one link. */
+  .worklist-row-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .worklist-row-head > .status-label {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (forced-colors: active) {
+  .worklist-stat[aria-pressed='true'],
+  .worklist-row[aria-current='true'] {
+    outline: 0.125rem solid CanvasText;
+    outline-offset: -0.125rem;
+  }
+}
+
+@media print {
+  .worklist-overview {
+    display: none;
+  }
+
+  .worklist-row {
+    break-inside: avoid;
+  }
+
+  /* The case number already prints; the record address adds nothing. */
+  .worklist-row[href]::after {
+    content: none;
+  }
+}

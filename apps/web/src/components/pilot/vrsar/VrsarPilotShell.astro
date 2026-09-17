@@ -50,7 +50,10 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
         </nav>
       </header>
 
-      <p class="pilot-boundary">{pilotCopy.boundary[lang]}</p>
+      <p class="pilot-boundary" title={pilotCopy.boundaryFull[lang]}>
+        <span class="pilot-boundary-short">{pilotCopy.boundary[lang]}</span>
+        <span class="pilot-boundary-full">{pilotCopy.boundaryFull[lang]}</span>
+      </p>
 
       <div class="pilot-nav-wrap">
         <nav class="pilot-nav" aria-label={pilotCopy.appTitle[lang]} data-pilot-nav>

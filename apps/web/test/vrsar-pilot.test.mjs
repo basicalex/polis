@@ -134,6 +134,7 @@ test('browser pilot code keeps bearer sessions out of Web Storage and uses only 
     'src/scripts/pilot/vrsar/cases.ts',
     'src/scripts/pilot/vrsar/case-detail.ts',
     'src/scripts/pilot/vrsar/staff.ts',
+    'src/scripts/pilot/vrsar/office-actions.ts',
     'src/scripts/pilot/vrsar/receipts.ts',
     'src/scripts/pilot/vrsar/receipt-detail.ts',
   ];
@@ -144,7 +145,7 @@ test('browser pilot code keeps bearer sessions out of Web Storage and uses only 
     assert.doesNotMatch(source, /api\/v1\/trace-records|window\.__API_URL/, file);
     // The office queue keeps the signing name and title between answers. That
     // one key is the only Web Storage in the pilot, and it holds no session.
-    if (file === 'src/scripts/pilot/vrsar/staff.ts') {
+    if (file === 'src/scripts/pilot/vrsar/office-actions.ts') {
       assert.equal((source.match(/localStorage/g) ?? []).length, 2, file);
       assert.match(source, /const SIGNATURE_KEY = 'polis\.pilot\.vrsar\.signature'/);
       assert.doesNotMatch(source, /localStorage[\s\S]{0,120}(token|session|passcode)/i, file);
@@ -399,9 +400,8 @@ test('public receipt keeps one truthful trail and leads with approved wording', 
   assert.match(detail, /Promise\.all\(\[getPublicRecord\(id\), getPilotConfig\(\)\]\)/);
   assert.match(detail, /entityName\(config\.office, lang\)/);
   assert.match(detail, /entityName\(config\.category, lang\)/);
-  assert.match(list, /Promise\.all\(\[listPublicRecords\(\), getPilotConfig\(\)\]\)/);
-  assert.match(list, /entityName\(config\.office, lang\)/);
-  assert.match(list, /entityName\(config\.category, lang\)/);
+  assert.match(list, /await listPublicRecords\(\)/);
+  assert.doesNotMatch(list, /entityName/);
   assert.match(content, /interfaceLanguage: localized\('Jezik sučelja', 'Lingua dell’interfaccia', 'Interface language'\)/);
   assert.match(content, /shown exactly as the office published it/);
   assert.match(astroConfig, /const pilotRuntime = Boolean\(process\.env\.PILOT_RUNTIME_DIR\?\.trim\(\)\)/);
@@ -425,9 +425,10 @@ test('the office surfaces carry the text actions and the signed answer, and the 
   await assert.rejects(exists(join('review', 'index.astro')));
   await assert.rejects(access(new URL('src/scripts/pilot/vrsar/review.ts', webRoot)));
 
-  const [caseScript, casePage, staffScript, shellScript, loginPage, shellComponent] = await Promise.all([
+  const [caseScript, casePage, officeScript, staffScript, shellScript, loginPage, shellComponent] = await Promise.all([
     readFile(new URL('src/scripts/pilot/vrsar/case-detail.ts', webRoot), 'utf8'),
     readFile(new URL('src/pages/pilot/vrsar/cases/[caseId].astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/office-actions.ts', webRoot), 'utf8'),
     readFile(new URL('src/scripts/pilot/vrsar/staff.ts', webRoot), 'utf8'),
     readFile(new URL('src/scripts/pilot/vrsar/shell.ts', webRoot), 'utf8'),
     readFile(new URL('src/pages/pilot/vrsar/login.astro', webRoot), 'utf8'),
@@ -435,7 +436,7 @@ test('the office surfaces carry the text actions and the signed answer, and the 
   ]);
 
   // Nothing routes to a reviewer any more: no role, no nav entry, no demo tap.
-  for (const source of [caseScript, staffScript, shellScript, loginPage, shellComponent]) {
+  for (const source of [caseScript, officeScript, staffScript, shellScript, loginPage, shellComponent]) {
     assert.doesNotMatch(source, /reviewer/i);
     assert.doesNotMatch(source, /\/pilot\/vrsar\/review/);
   }
@@ -453,12 +454,13 @@ test('the office surfaces carry the text actions and the signed answer, and the 
   assert.match(caseScript, /closeSection\.hidden = role !== 'official'/);
   assert.match(caseScript, /current\.status === 'open' \|\| current\.status === 'assigned'/);
 
-  // The answer is signed and publishes at once; no summary is proposed.
-  assert.match(staffScript, /signedBy,/);
-  assert.doesNotMatch(staffScript, /publicSummary/);
-  assert.doesNotMatch(staffScript, /expectedVersion: record\.version,\n\s*commitment/);
-  assert.match(staffScript, /pilotCopy\.staff\.publishesNow\[lang\]/);
-  assert.match(staffScript, /reopenCase\(record\.id/);
+  // The answer is signed and publishes at once; no summary is proposed. The
+  // forms moved off the worklist panel into the case workspace.
+  assert.match(officeScript, /signedBy,/);
+  assert.doesNotMatch(officeScript, /publicSummary/);
+  assert.doesNotMatch(officeScript, /expectedVersion: record\.version,\n\s*commitment/);
+  assert.match(officeScript, /pilotCopy\.staff\.publishesNow\[lang\]/);
+  assert.match(officeScript, /reopenCase\(record\.id/);
 });
 
 test('pilot copy has HR default plus Italian and English and separates publication from completion', async () => {
