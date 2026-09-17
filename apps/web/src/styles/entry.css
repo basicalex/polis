@@ -884,7 +884,10 @@
     min-width: var(--tap-target);
   }
 
-  .report-map-block:not([data-expanded]) .report-map-remove:not([hidden]) ~ .report-map-locate span {
+  .report-map-block:not([data-expanded])
+    .report-map-remove:not([hidden])
+    ~ .report-map-locate
+    span {
     display: none;
   }
 }

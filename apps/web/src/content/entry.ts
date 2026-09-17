@@ -140,11 +140,14 @@ export const entryStrings = {
     hr: '© OpenStreetMap suradnici',
     en: '© OpenStreetMap contributors',
   },
-  reportMapClear: { hr: 'Ukloni lokaciju', en: 'Clear location' },
   // HR draft: native editor review
   reportMapOpen: { hr: 'Otvori kartu', en: 'Open the map' },
   reportMapConfirm: { hr: 'Potvrdi lokaciju', en: 'Confirm location' },
   reportMapClose: { hr: 'Zatvori', en: 'Close' },
+  // HR draft: native editor review
+  reportMapRemove: { hr: 'Izbriši lokaciju', en: 'Remove location' },
+  // HR draft: native editor review
+  reportMapRemoveShort: { hr: 'Izbriši', en: 'Remove' },
   reportMapAccuracy: { hr: 'Točnost oko {metres} m.', en: 'Accuracy about {metres} m.' },
   reportMapInsecure: {
     hr: 'Lokacija radi samo preko sigurne veze. Odaberite točku na karti ili opišite mjesto.',

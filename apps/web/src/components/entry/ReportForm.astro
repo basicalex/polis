@@ -113,7 +113,7 @@ const strings = {
       with every Leaflet handler off, so it can never trap a scroll; tapping it
       opens the full-size picker, and "Moja lokacija" drops a point without
       opening anything. The hidden coordinates change only on confirm, on
-      "Moja lokacija" from the compact row, and on "Ukloni lokaciju".
+      "Moja lokacija" from the compact row, and on "Izbriši".
     */}
     <div
       class="report-map-block"
@@ -141,7 +141,18 @@ const strings = {
               data-map-open
               hidden></button>
             <div class="entry-map-actions">
-              <button class="btn report-map-locate" type="button" data-locate>
+              {/*
+                The pill only appears once a point is confirmed, and it takes
+                the point away without opening the map.
+              */}
+              <button class="btn report-map-remove" type="button" data-remove-location hidden>
+                <span>{label('reportMapRemoveShort')}</span>
+              </button>
+              {/*
+                The label is also the button's name, so the pill can drop to
+                its pin on a narrow thumbnail and still say what it does.
+              */}
+              <button class="btn report-map-locate" type="button" aria-label={label('locate')} data-locate>
                 <svg class="report-map-pin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path
                     d="M12 21.5c4.2-4.6 6.3-8 6.3-10.4a6.3 6.3 0 1 0-12.6 0c0 2.4 2.1 5.8 6.3 10.4Z"
@@ -156,7 +167,14 @@ const strings = {
               </button>
             </div>
           </div>
+          {/*
+            With a point on the map the choice is remove or confirm; with no
+            point there is nothing to remove, so one button closes the picker.
+          */}
           <div class="report-map-bar" data-map-bar hidden>
+            <button class="btn" type="button" data-variant="secondary" data-map-remove hidden>
+              {label('reportMapRemove')}
+            </button>
             <button class="btn" type="button" data-variant="secondary" data-map-close>
               {label('reportMapClose')}
             </button>
@@ -256,16 +274,11 @@ const strings = {
         <p class="report-map-caption" id="report-map-caption">{label('reportMapCaption')}</p>
         <p class="report-map-status" id="report-map-status" role="status" aria-live="polite" data-map-status></p>
         <p class="report-map-error" id="report-map-error" role="alert" data-map-error></p>
-        <div class="report-map-copy-actions">
-          <button class="btn" type="button" data-variant="tertiary" data-clear-location hidden>
-            {label('reportMapClear')}
-          </button>
-          <p class="entry-map-attribution">
-            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
-              {label('reportMapAttribution')}
-            </a>
-          </p>
-        </div>
+        <p class="entry-map-attribution">
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+            {label('reportMapAttribution')}
+          </a>
+        </p>
       </div>
     </div>
 

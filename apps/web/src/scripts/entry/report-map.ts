@@ -6,13 +6,16 @@
  *
  * Compact is a square thumbnail with every Leaflet handler switched off, so the
  * map can never swallow a page scroll. A button over the tiles opens it; the
- * "Moja lokacija" pill on the thumbnail drops a point without opening anything.
+ * "Moja lokacija" pill on the thumbnail drops a point without opening anything,
+ * and the "Izbriši" pill beside it takes the point away, also without opening.
  *
- * Expanded fills the form column, turns the handlers back on and shows two
- * buttons underneath: close reverts to the last confirmed point, confirm keeps
- * the new one. The coordinates the form submits change on confirm, on
- * "Moja lokacija" from the compact row, and on "Ukloni lokaciju" — never while
- * the person is still moving the marker around.
+ * Expanded fills the form column, turns the handlers back on and shows the
+ * buttons underneath. With a point the choice is remove or confirm: remove
+ * drops the point and collapses, confirm keeps it and collapses. With no point
+ * one button closes, which puts the last confirmed point back — so does Escape.
+ * The coordinates the form submits change on confirm, on "Moja lokacija" from
+ * the compact row and on either "Izbriši" — never while the person is still
+ * moving the marker around.
  */
 
 import * as L from 'leaflet';
@@ -185,8 +188,9 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
   const bar = root.querySelector<HTMLElement>('[data-map-bar]');
   const confirm = root.querySelector<HTMLButtonElement>('[data-map-confirm]');
   const close = root.querySelector<HTMLButtonElement>('[data-map-close]');
+  const remove = root.querySelector<HTMLButtonElement>('[data-map-remove]');
   const locate = root.querySelector<HTMLButtonElement>('[data-locate]');
-  const clear = root.querySelector<HTMLButtonElement>('[data-clear-location]');
+  const pill = root.querySelector<HTMLButtonElement>('[data-remove-location]');
   const status = root.querySelector<HTMLElement>('[data-map-status]');
   const error = root.querySelector<HTMLElement>('[data-map-error]');
   if (
@@ -196,8 +200,9 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
     !bar ||
     !confirm ||
     !close ||
+    !remove ||
     !locate ||
-    !clear ||
+    !pill ||
     !status ||
     !error ||
     !finiteCoordinates(options.center)
@@ -210,7 +215,8 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
   const barElement = bar;
   const confirmButton = confirm;
   const closeButton = close;
-  const clearButton = clear;
+  const removeButton = remove;
+  const removePill = pill;
   const locateButton = locate;
   const mapStatus = status;
   const mapError = error;
@@ -338,7 +344,7 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
   /** Hands the point to the form and says so out loud. */
   function commit(coordinates: ReportCoordinates | null, fix?: ReportFix): void {
     committed = coordinates;
-    clearButton.hidden = !coordinates;
+    removePill.hidden = !coordinates;
     options.onCoordinatesChange(coordinates);
     if (coordinates) announce(coordinates, fix);
     else mapStatus.textContent = options.strings.mapCleared;
@@ -355,10 +361,23 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
     else announce(coordinates, fix);
   }
 
+  /*
+   * A point on the map is a choice between taking it away and keeping it; with
+   * no point there is nothing to remove and one button closes the picker.
+   */
   function syncBar(): void {
     const chosen = shown !== null;
     confirmButton.hidden = !chosen;
+    removeButton.hidden = !chosen;
+    closeButton.hidden = chosen;
     barElement.dataset.choice = chosen ? 'point' : 'none';
+  }
+
+  /** Takes the point away from the map and from the form in one move. */
+  function removeLocation(): void {
+    generation += 1;
+    place(null);
+    commit(null);
   }
 
   // ---- compact and expanded ------------------------------------------------
@@ -415,7 +434,7 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
     syncInteraction();
     syncBar();
     resizeAfterTransition();
-    closeButton.focus({ preventScroll: true });
+    (removeButton.hidden ? closeButton : removeButton).focus({ preventScroll: true });
   }
 
   function collapse(keep: boolean): void {
@@ -432,6 +451,10 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
   openButton.addEventListener('click', expand);
   confirmButton.addEventListener('click', () => collapse(true));
   closeButton.addEventListener('click', () => collapse(false));
+  removeButton.addEventListener('click', () => {
+    removeLocation();
+    collapse(false);
+  });
   root.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || !expanded) return;
     event.preventDefault();
@@ -453,11 +476,10 @@ export function initReportMap(root: HTMLElement, options: ReportMapOptions): voi
     if (coordinates) select(coordinates);
   });
 
-  clearButton.addEventListener('click', () => {
-    generation += 1;
-    place(null);
-    commit(null);
-    openButton.focus({ preventScroll: true });
+  /* The pill hides itself once the point is gone, so the focus moves next door. */
+  removePill.addEventListener('click', () => {
+    removeLocation();
+    locateButton.focus({ preventScroll: true });
   });
 
   // ---- "Moja lokacija" -----------------------------------------------------
