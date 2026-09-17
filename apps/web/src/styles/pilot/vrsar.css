@@ -59,14 +59,14 @@ html[data-pilot='vrsar'] [hidden] {
   min-width: 0;
   min-height: 100vh;
   display: grid;
-  /* topbar, boundary, nav, main, footer: only main takes the free height. */
-  grid-template-rows: auto auto auto 1fr auto;
+  /* topbar, nav, main, footer: only main takes the free height. */
+  grid-template-rows: auto auto 1fr auto;
 }
 
 .pilot-topbar {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-sm) var(--space-md);
   padding: var(--space-sm) var(--pilot-gutter);
@@ -130,22 +130,23 @@ html[data-pilot='vrsar'] [hidden] {
 }
 
 /*
- * The band is a full-width strip and one line tall on every screen: the short
- * sentence truncates rather than wrapping, and the band's `title` carries the
- * full one. `apps/web/src/styles.css` caps every `p` at 68ch and gives its own
- * `.pilot-boundary` a top border, so both are undone here.
+ * The test notice sits in the middle of the topbar as one quiet line: muted
+ * ink, no band, the short sentence truncates rather than wrapping and the
+ * `title` carries the full one. `apps/web/src/styles.css` caps every `p` at
+ * 68ch and gives its own `.pilot-boundary` a top border, so both are undone.
  */
 html[data-pilot='vrsar'] .pilot-boundary {
   max-width: none;
   max-height: 2rem;
+  min-width: 0;
   margin: 0;
-  padding: var(--space-1) var(--pilot-gutter);
-  border-top: 0;
-  border-bottom: 1px solid var(--polis-border);
-  background: var(--polis-surface-tint);
-  color: var(--polis-warning);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--polis-muted);
+  opacity: 0.85;
   font-size: var(--type-data);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.45;
   text-align: center;
   white-space: nowrap;
@@ -1263,7 +1264,6 @@ a.pilot-ledger-row:hover,
   }
 
   .pilot-topbar,
-  .pilot-boundary,
   .pilot-nav-wrap,
   .pilot-footer {
     padding-inline: 1rem;
@@ -1271,11 +1271,18 @@ a.pilot-ledger-row:hover,
 
   .pilot-topbar {
     grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-1);
   }
 
   .pilot-context {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  html[data-pilot='vrsar'] .pilot-boundary {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    text-align: start;
   }
 
   .pilot-language {
@@ -1370,13 +1377,15 @@ a.pilot-ledger-row:hover,
     display: none !important;
   }
 
-  /* On paper the band has room for the whole sentence, so it wraps again. */
+  /* On paper the notice has room for the whole sentence, so it wraps again. */
   .pilot-boundary,
   html[data-pilot='vrsar'] .pilot-boundary {
+    grid-column: 1 / -1;
     max-height: none;
     padding: 0 0 0.5rem;
     background: none;
     color: #000 !important;
+    opacity: 1;
     text-align: start;
     white-space: normal;
     overflow: visible;
