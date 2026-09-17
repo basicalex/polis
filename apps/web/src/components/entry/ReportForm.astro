@@ -90,6 +90,9 @@ const strings = {
   mapMarkerLabel: label('reportMapMarkerLabel'),
   mapZoomIn: label('reportMapZoomIn'),
   mapZoomOut: label('reportMapZoomOut'),
+  mapAccuracy: label('reportMapAccuracy'),
+  mapInsecure: label('reportMapInsecure'),
+  mapOpen: label('reportMapOpen'),
 };
 ---
 
@@ -105,38 +108,164 @@ const strings = {
   <h1 class="report-title">{label('report')}</h1>
 
   <form class="report-form" data-report-form novalidate>
+    {/*
+      The location and the photo share one row. The map is a square thumbnail
+      with every Leaflet handler off, so it can never trap a scroll; tapping it
+      opens the full-size picker, and "Moja lokacija" drops a point without
+      opening anything. The hidden coordinates change only on confirm, on
+      "Moja lokacija" from the compact row, and on "Ukloni lokaciju".
+    */}
     <div
       class="report-map-block"
       data-report-map
       data-center-lat={String(place.reportMapCenter.lat)}
       data-center-lon={String(place.reportMapCenter.lon)}
     >
-      <div class="report-map">
-        <div
-          class="report-map-canvas"
-          data-report-map-canvas
-          role="region"
-          tabindex="0"
-          aria-label={label('reportMapLabel')}
-          aria-describedby="report-map-caption report-map-status report-map-error"
-          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space"
-        ></div>
-        <div class="entry-map-actions">
-          <button class="btn" type="button" data-locate>{label('locate')}</button>
-          <button class="btn" type="button" data-variant="secondary" data-clear-location hidden>
-            {label('reportMapClear')}
-          </button>
+      <div class="report-map-row">
+        <div class="report-map-col" data-map-frame>
+          <div class="report-map">
+            <div
+              class="report-map-canvas"
+              data-report-map-canvas
+              role="region"
+              tabindex="0"
+              aria-label={label('reportMapLabel')}
+              aria-describedby="report-map-caption report-map-status report-map-error"
+              aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space"
+            ></div>
+            <button
+              class="report-map-open"
+              type="button"
+              aria-expanded="false"
+              aria-label={label('reportMapOpen')}
+              data-map-open
+              hidden></button>
+            <div class="entry-map-actions">
+              <button class="btn report-map-locate" type="button" data-locate>
+                <svg class="report-map-pin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 21.5c4.2-4.6 6.3-8 6.3-10.4a6.3 6.3 0 1 0-12.6 0c0 2.4 2.1 5.8 6.3 10.4Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="12" cy="11" r="2.3" fill="none" stroke="currentColor" stroke-width="1.6" />
+                </svg>
+                <span>{label('locate')}</span>
+              </button>
+            </div>
+          </div>
+          <div class="report-map-bar" data-map-bar hidden>
+            <button class="btn" type="button" data-variant="secondary" data-map-close>
+              {label('reportMapClose')}
+            </button>
+            <button class="btn" type="button" data-variant="primary" data-map-confirm hidden>
+              {label('reportMapConfirm')}
+            </button>
+          </div>
         </div>
-        <p class="entry-map-attribution">
-          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
-            {label('reportMapAttribution')}
-          </a>
-        </p>
+
+        {/*
+          One photo, replaced rather than added to. Each card carries its own file
+          input, so the picker opens on a tap and on Enter from the keyboard with
+          no script running; everything after the pick needs one, and without
+          scripting the form files text only. The camera card asks for the camera,
+          the gallery card asks for nothing and gets the picker.
+        */}
+        <div class="report-photo" data-photo>
+          <div class="report-photo-actions" data-photo-actions>
+            <label class="report-photo-card">
+              <input
+                class="report-photo-input"
+                type="file"
+                name="photo"
+                accept="image/jpeg,image/png"
+                capture="environment"
+                data-photo-input
+              />
+              <span class="report-photo-icon" data-icon="camera">
+                <svg class="report-photo-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M4 8.5h3.2l1.4-2.2h6.8l1.4 2.2H20a1 1 0 0 1 1 1v8.3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="12" cy="13.5" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+                </svg>
+              </span>
+              <span class="report-photo-text">
+                <span class="report-photo-title">{label('reportPhotoCapture')}</span>
+                <span class="report-photo-hint">{label('reportPhotoCaptureHint')}</span>
+              </span>
+            </label>
+
+            <label class="report-photo-card">
+              <input
+                class="report-photo-input"
+                type="file"
+                name="photo-upload"
+                accept="image/jpeg,image/png"
+                data-photo-input
+              />
+              <span class="report-photo-icon" data-icon="upload">
+                <svg class="report-photo-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 15.5V4.8m0 0L8.2 8.6M12 4.8l3.8 3.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M4.5 14.6v3.1a1.6 1.6 0 0 0 1.6 1.6h11.8a1.6 1.6 0 0 0 1.6-1.6v-3.1"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              <span class="report-photo-text">
+                <span class="report-photo-title">{label('reportPhotoUpload')}</span>
+                <span class="report-photo-hint">{label('reportPhotoUploadHint')}</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="report-photo-picked" data-photo-picked hidden>
+            <img class="report-photo-thumb" alt={label('reportPhotoAlt')} data-photo-thumb />
+            <span class="report-photo-size" data-photo-size></span>
+            <button class="btn" data-variant="tertiary" type="button" data-photo-remove>
+              {label('reportPhotoRemove')}
+            </button>
+          </div>
+        </div>
+
+        <div class="report-photo-copy">
+          <p class="field-hint" role="status" aria-live="polite" data-photo-status></p>
+          <p class="field-error" role="alert" data-photo-error></p>
+          <p class="report-photo-note">{label('reportPhotoNote')}</p>
+        </div>
       </div>
+
       <div class="report-map-copy">
         <p class="report-map-caption" id="report-map-caption">{label('reportMapCaption')}</p>
         <p class="report-map-status" id="report-map-status" role="status" aria-live="polite" data-map-status></p>
         <p class="report-map-error" id="report-map-error" role="alert" data-map-error></p>
+        <div class="report-map-copy-actions">
+          <button class="btn" type="button" data-variant="tertiary" data-clear-location hidden>
+            {label('reportMapClear')}
+          </button>
+          <p class="entry-map-attribution">
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+              {label('reportMapAttribution')}
+            </a>
+          </p>
+        </div>
       </div>
     </div>
 
@@ -145,7 +274,7 @@ const strings = {
       <textarea
         id="report-text"
         name="text"
-        rows="6"
+        rows="4"
         required
         maxlength={MAX_TEXT}
         aria-describedby="report-text-count report-text-error"
@@ -166,48 +295,6 @@ const strings = {
         placeholder={label('reportWherePlaceholder')}
         data-where
       />
-    </div>
-
-    {/*
-      One photo, replaced rather than added to. The input carries the button, so
-      the picker opens on a tap and on Enter from the keyboard without a script;
-      everything after the pick needs one, and without scripting the form files
-      text only.
-    */}
-    <div class="report-photo" data-photo>
-      <label class="report-photo-add btn" data-variant="secondary">
-        <input
-          class="report-photo-input"
-          type="file"
-          name="photo"
-          accept="image/jpeg,image/png"
-          capture="environment"
-          data-photo-input
-        />
-        <svg class="report-photo-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M4 8.5h3.2l1.4-2.2h6.8l1.4 2.2H20a1 1 0 0 1 1 1v8.3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
-          />
-          <circle cx="12" cy="13.5" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6" />
-        </svg>
-        <span>{label('reportPhotoAdd')}</span>
-      </label>
-
-      <div class="report-photo-picked" data-photo-picked hidden>
-        <img class="report-photo-thumb" alt={label('reportPhotoAlt')} data-photo-thumb />
-        <span class="report-photo-size" data-photo-size></span>
-        <button class="btn" data-variant="tertiary" type="button" data-photo-remove>
-          {label('reportPhotoRemove')}
-        </button>
-      </div>
-
-      <p class="field-hint" role="status" aria-live="polite" data-photo-status></p>
-      <p class="field-error" role="alert" data-photo-error></p>
-      <p class="report-photo-note">{label('reportPhotoNote')}</p>
     </div>
 
     <button class="btn report-submit" data-variant="primary" type="submit" data-submit>

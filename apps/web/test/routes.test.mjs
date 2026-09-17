@@ -696,10 +696,22 @@ test('filing asks for no identity and sends an optional WGS84 point', async () =
   assert.match(mapScript, /map\.on\('click'/);
   assert.match(mapScript, /marker\.on\('dragend'/);
   assert.match(mapScript, /event\.key !== 'Enter' && event\.key !== ' '/);
-  assert.match(mapScript, /options\.onCoordinatesChange\(null\)/);
-  assert.equal((mapScript.match(/getCurrentPosition/g) ?? []).length, 1);
+  assert.match(mapScript, /commit\(null\)/);
+  assert.match(mapScript, /options\.onCoordinatesChange\(coordinates\)/);
+  assert.equal((mapScript.match(/geolocation\.getCurrentPosition\(/g) ?? []).length, 1);
   assert.match(mapScript, /locateButton\.addEventListener\('click'/);
   assert.match(mapScript, /enableHighAccuracy: true/);
+
+  // The compact thumbnail is a picture, not a scroll trap, and the point the
+  // form submits moves on confirm, on "Moja lokacija" and on a clear — never
+  // while the marker is still being dragged around the open map.
+  assert.match(mapScript, /if \(expanded\) handler\.enable\(\);/);
+  assert.match(mapScript, /else handler\.disable\(\);/);
+  assert.match(mapScript, /if \(!expanded\) commit\(coordinates, fix\);/);
+  assert.match(mapScript, /window\.isSecureContext/);
+  assert.match(mapScript, /map\.invalidateSize/);
+  assert.match(component, /data-map-open/);
+  assert.match(component, /data-map-confirm hidden/);
 
   // Map startup is isolated from the form; coordinates stay WGS84 latitude,
   // longitude at five decimals and precede any free-text location detail.

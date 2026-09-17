@@ -141,6 +141,15 @@ export const entryStrings = {
     en: '© OpenStreetMap contributors',
   },
   reportMapClear: { hr: 'Ukloni lokaciju', en: 'Clear location' },
+  // HR draft: native editor review
+  reportMapOpen: { hr: 'Otvori kartu', en: 'Open the map' },
+  reportMapConfirm: { hr: 'Potvrdi lokaciju', en: 'Confirm location' },
+  reportMapClose: { hr: 'Zatvori', en: 'Close' },
+  reportMapAccuracy: { hr: 'Točnost oko {metres} m.', en: 'Accuracy about {metres} m.' },
+  reportMapInsecure: {
+    hr: 'Lokacija radi samo preko sigurne veze. Odaberite točku na karti ili opišite mjesto.',
+    en: 'Location works only over a secure connection. Choose a point on the map or describe the place.',
+  },
   reportMapSelected: { hr: 'Odabrana lokacija:', en: 'Selected location:' },
   reportMapCleared: { hr: 'Lokacija je uklonjena.', en: 'The location was cleared.' },
   reportMapMarkerLabel: { hr: 'Odabrana lokacija', en: 'Selected location' },
@@ -170,7 +179,11 @@ export const entryStrings = {
     hr: 'npr. Stup 14, kod pekare',
     en: 'e.g. Lamp post 14, by the bakery',
   },
-  reportPhotoAdd: { hr: 'Dodaj fotografiju', en: 'Add a photo' },
+  // HR draft: native editor review
+  reportPhotoCapture: { hr: 'Fotografiraj', en: 'Take a photo' },
+  reportPhotoCaptureHint: { hr: 'Otvori kameru', en: 'Open the camera' },
+  reportPhotoUpload: { hr: 'Učitaj sliku', en: 'Upload a photo' },
+  reportPhotoUploadHint: { hr: 'Iz galerije uređaja', en: 'From your gallery' },
   reportPhotoRemove: { hr: 'Ukloni', en: 'Remove' },
   reportPhotoWorking: { hr: 'Obrađujem fotografiju…', en: 'Preparing photo…' },
   reportPhotoAlt: { hr: 'Odabrana fotografija', en: 'The selected photo' },
@@ -239,7 +252,10 @@ export const entryStrings = {
     hr: 'Cijela obavijest o zaštiti podataka',
     en: 'The full data protection notice',
   },
-  reportFailed: { hr: 'Prijava nije poslana. Pokušajte ponovno.', en: 'The report was not sent. Try again.' },
+  reportFailed: {
+    hr: 'Prijava nije poslana. Pokušajte ponovno.',
+    en: 'The report was not sent. Try again.',
+  },
   reportNoScript: {
     hr: 'Za slanje je potreban JavaScript ili pošaljite SMS na broj općine.',
     en: 'Sending needs JavaScript, or send an SMS to the municipality number.',

@@ -134,7 +134,8 @@ function start(report: HTMLElement): void {
   const counter = report.querySelector<HTMLElement>('[data-count]');
   const textError = report.querySelector<HTMLElement>('[data-text-error]');
   const formError = report.querySelector<HTMLElement>('[data-form-error]');
-  const photoInput = report.querySelector<HTMLInputElement>('[data-photo-input]');
+  const photoInputs = Array.from(report.querySelectorAll<HTMLInputElement>('[data-photo-input]'));
+  const photoActions = report.querySelector<HTMLElement>('[data-photo-actions]');
   const photoPicked = report.querySelector<HTMLElement>('[data-photo-picked]');
   const photoThumb = report.querySelector<HTMLImageElement>('[data-photo-thumb]');
   const photoSize = report.querySelector<HTMLElement>('[data-photo-size]');
@@ -185,6 +186,8 @@ function start(report: HTMLElement): void {
               mapMarkerLabel: strings.mapMarkerLabel ?? '',
               mapZoomIn: strings.mapZoomIn ?? '',
               mapZoomOut: strings.mapZoomOut ?? '',
+              mapAccuracy: strings.mapAccuracy ?? '',
+              mapInsecure: strings.mapInsecure ?? '',
             },
             onCoordinatesChange: (coordinates) => {
               pin = coordinates;
@@ -229,6 +232,8 @@ function start(report: HTMLElement): void {
     if (photoThumb) photoThumb.removeAttribute('src');
     if (photoSize) photoSize.textContent = '';
     if (photoPicked) photoPicked.hidden = true;
+    // The two pick cards come back the moment there is nothing to replace.
+    if (photoActions) photoActions.hidden = false;
   }
 
   async function takePhoto(file: File): Promise<void> {
@@ -245,8 +250,10 @@ function start(report: HTMLElement): void {
       photo = { contentType: 'image/jpeg', base64: prepared.base64 };
       photoObjectUrl = URL.createObjectURL(prepared.blob);
       if (photoThumb) photoThumb.src = photoObjectUrl;
-      if (photoSize) photoSize.textContent = `${Math.max(1, Math.round(prepared.blob.size / 1024))} kB`;
+      if (photoSize)
+        photoSize.textContent = `${Math.max(1, Math.round(prepared.blob.size / 1024))} kB`;
       if (photoPicked) photoPicked.hidden = false;
+      if (photoActions) photoActions.hidden = true;
     } catch (error) {
       if (pick !== pickCount) return;
       const tooLarge = error instanceof Error && error.message === PHOTO_TOO_LARGE;
@@ -262,12 +269,19 @@ function start(report: HTMLElement): void {
     }
   }
 
-  photoInput?.addEventListener('change', () => {
-    const file = photoInput.files?.[0];
-    // Clearing the input lets the same file be picked again after a removal.
-    photoInput.value = '';
-    if (file) void takePhoto(file);
-  });
+  // Camera and gallery are two inputs over one photo: the newest pick replaces
+  // whatever was there, and the other input is emptied so it cannot file a
+  // second file with the form.
+  for (const photoInput of photoInputs) {
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files?.[0];
+      for (const other of photoInputs) {
+        // Clearing the inputs lets the same file be picked again after a removal.
+        other.value = '';
+      }
+      if (file) void takePhoto(file);
+    });
+  }
 
   photoRemove?.addEventListener('click', () => {
     pickCount += 1;
@@ -301,8 +315,11 @@ function start(report: HTMLElement): void {
     sending = true;
     syncSubmit();
 
-    const filing: { text: string; location?: string; photo?: { contentType: 'image/jpeg'; base64: string } } =
-      { text: body };
+    const filing: {
+      text: string;
+      location?: string;
+      photo?: { contentType: 'image/jpeg'; base64: string };
+    } = { text: body };
     if (location_) filing.location = location_;
     // A failed send keeps the photo selected, so a retry is one tap, not another pick.
     if (photo) filing.photo = photo;
@@ -320,7 +337,6 @@ function start(report: HTMLElement): void {
         if (formError) formError.textContent = strings.failed ?? '';
       });
   });
-
 }
 
 function readStrings(): Record<string, string> {
