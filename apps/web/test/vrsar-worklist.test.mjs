@@ -25,9 +25,14 @@ registerHooks({
   },
 });
 
-const { groupRecords, isOverdue, worklistCounts, WORKLIST_GROUP_ORDER } = await import(
-  '../src/scripts/pilot/vrsar/staff.ts'
-);
+const {
+  groupRecords,
+  isOverdue,
+  parseWorklistFilter,
+  worklistCounts,
+  WORKLIST_FILTERS,
+  WORKLIST_GROUP_ORDER,
+} = await import('../src/scripts/pilot/vrsar/staff.ts');
 
 const webRoot = new URL('../', import.meta.url);
 const TODAY = '2026-09-17';
@@ -217,4 +222,36 @@ test('the worklist page no longer carries the office forms', async () => {
   assert.equal(page.includes('data-record-detail'), false);
   assert.match(page, /data-worklist-groups/);
   assert.match(page, /styles\/pilot\/vrsar-worklist\.css/);
+});
+
+test('a link can open the queue on one view and a bad view costs nothing', async () => {
+  assert.deepEqual([...WORKLIST_FILTERS], ['open', 'overdue', 'held', 'disputed']);
+  for (const key of WORKLIST_FILTERS) assert.equal(parseWorklistFilter(key), key);
+  // Anything the strip does not offer, including nothing at all, opens the
+  // queue on the view the office sees every day.
+  assert.equal(parseWorklistFilter(null), 'open');
+  assert.equal(parseWorklistFilter(''), 'open');
+  assert.equal(parseWorklistFilter('none'), 'open');
+  assert.equal(parseWorklistFilter('closed'), 'open');
+  assert.equal(parseWorklistFilter('OVERDUE'), 'open');
+  assert.equal(parseWorklistFilter('held', 'none'), 'held');
+  assert.equal(parseWorklistFilter('nonsense', 'none'), 'none');
+
+  const source = await readFile(new URL('src/scripts/pilot/vrsar/staff.ts', webRoot), 'utf8');
+  // The queue reads the view and the selected case from the same query.
+  assert.match(source, /parseWorklistFilter\(params\.get\('filter'\)\)/);
+  assert.match(source, /params\.get\('case'\)/);
+});
+
+test('the overview strip is styled once, in the sheet every pilot page loads', async () => {
+  const worklist = await readFile(new URL('src/styles/pilot/vrsar-worklist.css', webRoot), 'utf8');
+  assert.equal(worklist.includes('.worklist-stat '), false);
+  assert.equal(worklist.includes('.worklist-stat-value'), false);
+  const styles = await readFile(new URL('src/styles/pilot/vrsar.css', webRoot), 'utf8');
+  // The worklist container keeps its class, so the shared rule names both.
+  assert.match(styles, /\.pilot-stats,\n\.worklist-stats \{/);
+  assert.match(styles, /\.pilot-stat \{[\s\S]*?min-height: var\(--tap-target\);/);
+  assert.match(styles, /\.pilot-stat-value \{[\s\S]*?font-family: var\(--display\);/);
+  const staff = await readFile(new URL('src/scripts/pilot/vrsar/staff.ts', webRoot), 'utf8');
+  assert.match(staff, /button\.className = 'pilot-stat';/);
 });

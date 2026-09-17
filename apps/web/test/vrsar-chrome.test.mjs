@@ -147,3 +147,31 @@ test('the office home reorders the shared blocks instead of dropping them', asyn
     );
   }
 });
+
+test('the office home opens on the queue counts, and a resident sees none', async () => {
+  const page = await readFile(new URL('src/pages/pilot/vrsar/index.astro', webRoot), 'utf8');
+  // The block ships hidden, so a resident and a failed private call see nothing.
+  assert.match(page, /data-entry-counts\n\s+hidden/);
+  assert.match(page, /<div class="pilot-stats" data-entry-stats><\/div>/);
+  assert.match(page, /worklistCopy\.overviewHeading\[lang\]/);
+
+  const script = await readFile(new URL('src/scripts/pilot/vrsar/index.ts', webRoot), 'utf8');
+  // The counts come from the worklist's own functions, not a second count.
+  assert.match(script, /import \{ todayKey, WORKLIST_FILTERS, worklistCounts \} from '\.\/staff'/);
+  assert.match(script, /listPrivateRecords\(\),\n\s+listPublicCases\(100\)/);
+  assert.doesNotMatch(script, /OPEN_STATUSES|counts\.open \+= 1/);
+  // Only an official asks for private records, and each count is a way in.
+  assert.match(script, /if \(!isOfficial \|\| !countsSection \|\| !countsStrip\) return;/);
+  assert.match(script, /\/pilot\/vrsar\/staff\?filter=\$\{key\}/);
+  // A private call that fails leaves the block hidden, with no second banner.
+  assert.match(
+    script,
+    /\} catch \{\n\s+countsStrip\.replaceChildren\(\);\n\s+countsSection\.hidden = true;/,
+  );
+
+  const styles = await readFile(new URL('src/styles/pilot/vrsar.css', webRoot), 'utf8');
+  assert.ok(
+    styles.includes(".pilot-page[data-role='official'] > [data-entry-counts]"),
+    'the counts block is ordered outside the official role',
+  );
+});

@@ -2,7 +2,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
 /*
- * Office worklist: an overview strip of counts, then one line per case.
+ * Office worklist: one line per case, under the group it belongs to. The
+ * overview strip above it is shell-level (`.pilot-stats` in vrsar.css),
+ * because the office home shows the same four counts.
  * Tokens come from @polis/ui/styles/base.css; this file defines none of its
  * own. It is loaded only by /pilot/vrsar/staff.
  */
@@ -18,79 +20,6 @@
   display: grid;
   gap: var(--space-3);
   justify-items: start;
-}
-
-/* Hairline cells, no card and no shadow: the numbers carry the weight. */
-.worklist-stats {
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  border-top: 1px solid var(--polis-border);
-  border-bottom: 1px solid var(--polis-border);
-}
-
-.worklist-stat {
-  min-width: 0;
-  min-height: var(--tap-target);
-  display: grid;
-  gap: 0.125rem;
-  align-content: center;
-  justify-items: start;
-  padding: var(--space-3);
-  border: 0;
-  border-left: 1px solid var(--polis-border);
-  background: transparent;
-  color: var(--polis-text);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.worklist-stat:first-child {
-  border-left: 0;
-}
-
-.worklist-stat-value {
-  font-family: var(--display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.worklist-stat-label {
-  color: var(--polis-muted);
-  font-size: var(--pilot-type-meta);
-  line-height: 1.4;
-}
-
-.worklist-stat[data-tone='danger'] .worklist-stat-value {
-  color: var(--polis-danger);
-}
-
-.worklist-stat:hover {
-  background: var(--polis-surface-tint);
-}
-
-/* The chosen view is marked by the tint, the trace colour, and the underline
-   under its label: never by colour alone. */
-.worklist-stat[aria-pressed='true'] {
-  background: var(--polis-surface-tint);
-}
-
-.worklist-stat[aria-pressed='true'] .worklist-stat-value {
-  color: var(--polis-trace);
-}
-
-.worklist-stat[aria-pressed='true'] .worklist-stat-label {
-  color: var(--polis-text);
-  text-decoration: underline;
-  text-underline-offset: 0.25em;
-}
-
-.worklist-stat:focus-visible {
-  outline: 0.125rem solid var(--polis-trace);
-  outline-offset: -0.125rem;
 }
 
 .worklist-groups {
@@ -252,18 +181,6 @@
 }
 
 @media (max-width: 40rem) {
-  .worklist-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .worklist-stat:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .worklist-stat:nth-child(n + 3) {
-    border-top: 1px solid var(--polis-border);
-  }
-
   /* The stamp drops under the title and keeps the row one link. */
   .worklist-row-head {
     grid-template-columns: auto minmax(0, 1fr);
@@ -276,7 +193,6 @@
 }
 
 @media (forced-colors: active) {
-  .worklist-stat[aria-pressed='true'],
   .worklist-row[aria-current='true'] {
     outline: 0.125rem solid CanvasText;
     outline-offset: -0.125rem;

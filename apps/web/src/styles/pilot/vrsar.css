@@ -682,6 +682,110 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
 }
 
 /*
+ * The overview strip: four counts on one hairline band, each one a way into
+ * the queue it counts. The office home and the worklist show the same four,
+ * so the rules live in the shell sheet and both pages spend them. The
+ * worklist markup keeps its own container class.
+ */
+.pilot-stats,
+.worklist-stats {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  border-top: 1px solid var(--polis-border);
+  border-bottom: 1px solid var(--polis-border);
+}
+
+/* A cell is a button on the worklist and a link on the home page; both read
+   as one cell, so neither carries a border, a background or an underline. */
+.pilot-stat {
+  min-width: 0;
+  min-height: var(--tap-target);
+  display: grid;
+  gap: 0.125rem;
+  align-content: center;
+  justify-items: start;
+  padding: var(--space-3);
+  border: 0;
+  border-left: 1px solid var(--polis-border);
+  background: transparent;
+  color: var(--polis-text);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pilot-stat:first-child {
+  border-left: 0;
+}
+
+.pilot-stat-value {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.pilot-stat-label {
+  color: var(--polis-muted);
+  font-size: var(--pilot-type-meta);
+  line-height: 1.4;
+}
+
+.pilot-stat[data-tone='danger'] .pilot-stat-value {
+  color: var(--polis-danger);
+}
+
+.pilot-stat:hover {
+  background: var(--polis-surface-tint);
+}
+
+/* The chosen view is marked by the tint, the trace colour, and the underline
+   under its label: never by colour alone. */
+.pilot-stat[aria-pressed='true'] {
+  background: var(--polis-surface-tint);
+}
+
+.pilot-stat[aria-pressed='true'] .pilot-stat-value {
+  color: var(--polis-trace);
+}
+
+.pilot-stat[aria-pressed='true'] .pilot-stat-label {
+  color: var(--polis-text);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.pilot-stat:focus-visible {
+  outline: 0.125rem solid var(--polis-trace);
+  outline-offset: -0.125rem;
+}
+
+@media (max-width: 40rem) {
+  .pilot-stats,
+  .worklist-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pilot-stat:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .pilot-stat:nth-child(n + 3) {
+    border-top: 1px solid var(--polis-border);
+  }
+}
+
+@media (forced-colors: active) {
+  .pilot-stat[aria-pressed='true'] {
+    outline: 0.125rem solid CanvasText;
+    outline-offset: -0.125rem;
+  }
+}
+
+/*
  * The office home. The signed-in official gets the same blocks as a resident
  * in the order the work needs them: who they are and the queue, then a case by
  * number, then the scope. The public explanation stays, one step quieter.
@@ -706,12 +810,17 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
   white-space: nowrap;
 }
 
-.pilot-page[data-role='official'] > [data-entry-lookup] {
+/* The queue in four numbers, straight under the role line it belongs to. */
+.pilot-page[data-role='official'] > [data-entry-counts] {
   order: 3;
 }
 
-.pilot-page[data-role='official'] > [data-entry-scope] {
+.pilot-page[data-role='official'] > [data-entry-lookup] {
   order: 4;
+}
+
+.pilot-page[data-role='official'] > [data-entry-scope] {
+  order: 5;
 }
 
 /* The statute links are reference for the office, not reading. */
@@ -721,7 +830,7 @@ html[data-pilot='vrsar'] .field-choice > .field-error {
 }
 
 .pilot-page[data-role='official'] > [data-entry-aside] {
-  order: 5;
+  order: 6;
 }
 
 /* Secondary: the public explanation an official already knows. */

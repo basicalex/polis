@@ -55,6 +55,25 @@ export const WORKLIST_GROUP_ORDER: readonly WorklistGroupKey[] = [
 /** Statuses the office still owes something on. */
 const OPEN_STATUSES = new Set(['open', 'assigned', 'answered', 'disputed']);
 
+/** The views the overview strip offers, and that a link may ask for. */
+export const WORKLIST_FILTERS: readonly Exclude<WorklistFilter, 'none'>[] = [
+  'open',
+  'overdue',
+  'held',
+  'disputed',
+];
+
+/**
+ * `?filter=` lets another page link straight into one view. Anything the strip
+ * does not offer is not an error: the queue opens on its usual view.
+ */
+export function parseWorklistFilter(
+  value: string | null | undefined,
+  fallback: WorklistFilter = 'open',
+): WorklistFilter {
+  return WORKLIST_FILTERS.some((key) => key === value) ? (value as WorklistFilter) : fallback;
+}
+
 let started = false;
 
 /** Dates arrive as `YYYY-MM-DD` or as a timestamp; only the day matters here. */
@@ -306,17 +325,15 @@ export function initVrsarStaff(): void {
 
   let records: PrivateTraceRecord[] = [];
   let shells: PublicCaseShell[] = [];
-  let filter: WorklistFilter = 'open';
+  const params = new URL(location.href).searchParams;
+  let filter: WorklistFilter = parseWorklistFilter(params.get('filter'));
   let showClosed = false;
   const today = todayKey();
-  const selectedId = new URL(location.href).searchParams.get('case') ?? '';
+  const selectedId = params.get('case') ?? '';
 
-  const cells: { key: Exclude<WorklistFilter, 'none'>; label: string }[] = [
-    { key: 'open', label: worklistCopy.counts.open[lang] },
-    { key: 'overdue', label: worklistCopy.counts.overdue[lang] },
-    { key: 'held', label: worklistCopy.counts.held[lang] },
-    { key: 'disputed', label: worklistCopy.counts.disputed[lang] },
-  ];
+  const cells: { key: Exclude<WorklistFilter, 'none'>; label: string }[] = WORKLIST_FILTERS.map(
+    (key) => ({ key, label: worklistCopy.counts[key][lang] }),
+  );
 
   function renderOverview(): void {
     if (!stats) return;
@@ -325,13 +342,13 @@ export function initVrsarStaff(): void {
       ...cells.map((cell) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'worklist-stat';
+        button.className = 'pilot-stat';
         button.dataset.filter = cell.key;
         button.setAttribute('aria-pressed', String(filter === cell.key));
         if (cell.key === 'overdue' && counts.overdue > 0) button.dataset.tone = 'danger';
         button.append(
-          createTextElement('span', counts[cell.key], 'worklist-stat-value'),
-          createTextElement('span', cell.label, 'worklist-stat-label'),
+          createTextElement('span', counts[cell.key], 'pilot-stat-value'),
+          createTextElement('span', cell.label, 'pilot-stat-label'),
         );
         button.addEventListener('click', () => {
           filter = filter === cell.key ? 'none' : cell.key;

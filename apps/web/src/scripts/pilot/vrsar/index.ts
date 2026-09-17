@@ -1,9 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { getPilotConfig, getPilotSession, PilotApiError } from '../../../lib/pilot/vrsar/api';
-import { entityName } from '../../../lib/pilot/vrsar/model';
+import {
+  getPilotConfig,
+  getPilotSession,
+  listPrivateRecords,
+  listPublicCases,
+  PilotApiError,
+} from '../../../lib/pilot/vrsar/api';
+import { entityName, type PublicCaseShell } from '../../../lib/pilot/vrsar/model';
 import { pilotCopy, pilotHref, pickLocalized, translatedRole } from '../../../content/pilot/vrsar';
+import { worklistCopy } from '../../../content/pilot/vrsar-worklist';
+import { todayKey, WORKLIST_FILTERS, worklistCounts } from './staff';
 import {
   apiErrorMessage,
   clearState,
@@ -32,6 +40,8 @@ export function initVrsarEntry(): void {
   const lead = document.querySelector<HTMLElement>('[data-entry-lead]');
   const lookupSection = document.querySelector<HTMLElement>('[data-entry-lookup]');
   const scopeList = document.querySelector<HTMLElement>('[data-config-details]');
+  const countsSection = document.querySelector<HTMLElement>('[data-entry-counts]');
+  const countsStrip = document.querySelector<HTMLElement>('[data-entry-stats]');
 
   let runtimeDown = false;
   let isOfficial = false;
@@ -56,6 +66,42 @@ export function initVrsarEntry(): void {
       lookupSection.dataset.lookup = 'compact';
     }
     if (scopeList) scopeList.dataset.compact = 'true';
+  }
+
+  /**
+   * The office home opens on the same four numbers as the worklist strip, from
+   * the same two calls and the same counting function. Each number is the way
+   * into the view it counts. A resident never asks for them, and a private
+   * call that fails leaves the block hidden: the queue is one click away and
+   * a second failure notice on this page would say nothing new.
+   */
+  async function loadCounts(): Promise<void> {
+    if (!isOfficial || !countsSection || !countsStrip) return;
+    try {
+      const [records, shells] = await Promise.all([
+        listPrivateRecords(),
+        listPublicCases(100).catch(() => [] as PublicCaseShell[]),
+      ]);
+      const counts = worklistCounts(records, shells, todayKey());
+      countsStrip.replaceChildren(
+        ...WORKLIST_FILTERS.map((key) => {
+          const cell = document.createElement('a');
+          cell.className = 'pilot-stat';
+          cell.dataset.filter = key;
+          cell.href = pilotHref(`/pilot/vrsar/staff?filter=${key}`, lang);
+          if (key === 'overdue' && counts.overdue > 0) cell.dataset.tone = 'danger';
+          cell.append(
+            createTextElement('span', counts[key], 'pilot-stat-value'),
+            createTextElement('span', worklistCopy.counts[key][lang], 'pilot-stat-label'),
+          );
+          return cell;
+        }),
+      );
+      countsSection.hidden = false;
+    } catch {
+      countsStrip.replaceChildren();
+      countsSection.hidden = true;
+    }
   }
 
   /**
@@ -144,6 +190,7 @@ export function initVrsarEntry(): void {
       const session = await getPilotSession();
       isOfficial = session.role === 'official';
       applyOfficeLayout();
+      void loadCounts();
       setState(pageState, `${pilotCopy.common.role[lang]}: ${translatedRole(session.role, lang)}`, 'success');
       let path = '/pilot/vrsar';
       let label = pilotCopy.nav.home[lang];

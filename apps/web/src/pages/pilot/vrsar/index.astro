@@ -7,6 +7,7 @@ import VrsarPilotShell from '../../../components/pilot/vrsar/VrsarPilotShell.ast
 import VrsarTraceSummary from '../../../components/pilot/vrsar/VrsarTraceSummary.astro';
 import { parsePilotLang, pilotCopy } from '../../../content/pilot/vrsar';
 import { CASE_NUMBER_PATTERN, publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+import { worklistCopy } from '../../../content/pilot/vrsar-worklist';
 
 const lang = parsePilotLang(Astro.url);
 const lookup = publicCaseCopy.lookup;
@@ -23,6 +24,18 @@ const lookup = publicCaseCopy.lookup;
       <h1 data-entry-heading>{pilotCopy.entry.heading[lang]}</h1>
       <p class="pilot-lead" data-entry-lead>{pilotCopy.entry.intro[lang]}</p>
     </header>
+
+    <section
+      class="pilot-section"
+      aria-labelledby="pilot-counts-title"
+      data-entry-counts
+      hidden
+    >
+      <h2 class="visually-hidden" id="pilot-counts-title">
+        {worklistCopy.overviewHeading[lang]}
+      </h2>
+      <div class="pilot-stats" data-entry-stats></div>
+    </section>
 
     <section class="pilot-section panel" aria-labelledby="pilot-lookup-title" data-entry-lookup>
       <h2 id="pilot-lookup-title">{lookup.heading[lang]}</h2>
