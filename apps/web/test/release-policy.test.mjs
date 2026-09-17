@@ -28,21 +28,8 @@ const expectedCurrentByKind = {
     '/en/:place',
     '/:place/privatnost',
     '/en/:place/privatnost',
-    '/presentation',
-    '/hr/presentation',
-    '/en/presentation',
-    '/demo',
-    '/demo/citizen',
-    '/demo/official',
-    '/demo/review',
-    '/demo/record',
-    '/demo/embed',
-    '/docs',
-    '/methodology',
-    '/privacy',
-    '/security',
-    '/source',
-    '/transparency',
+    '/o-polisu',
+    '/en/o-polisu',
   ],
   'backend-dependent': [
     '/assistant',
@@ -133,11 +120,32 @@ function requestContext(path, method = 'GET') {
   };
 }
 
+// The pages that decision D3 retired. Each one still exists and still answers,
+// because it now serves a permanent redirect to About; nothing may 404.
+const expectedRetired = [
+  '/presentation',
+  '/hr/presentation',
+  '/en/presentation',
+  '/demo',
+  '/demo/citizen',
+  '/demo/official',
+  '/demo/review',
+  '/demo/record',
+  '/demo/embed',
+  '/docs',
+  '/methodology',
+  '/privacy',
+  '/security',
+  '/source',
+  '/transparency',
+];
+
 test('release policy gives every current Astro page exactly one disposition', async () => {
   const discovered = sorted((await pageFiles(pagesRoot)).map(fileToRoutePattern));
   const requiredCurrent = sorted(Object.values(expectedCurrentByKind).flat());
 
   for (const route of requiredCurrent) assert.ok(discovered.includes(route), `missing page ${route}`);
+  for (const route of expectedRetired) assert.ok(discovered.includes(route), `missing redirect ${route}`);
   // `/:place` matches every one-segment path, so a page route can match several
   // patterns; exactly one of them must win, and it must be the page's own.
   for (const route of discovered) {
@@ -167,7 +175,7 @@ test('the most literal pattern wins and only a real tie throws', () => {
   assert.equal(releasePatternSpecificity('/').count, 0);
   assert.equal(releasePatternSpecificity('/:place').count, 0);
   assert.equal(releasePatternSpecificity('/en/:place').count, 1);
-  assert.equal(releasePatternSpecificity('/en/presentation').count, 2);
+  assert.equal(releasePatternSpecificity('/en/o-polisu').count, 2);
 
   // Literal beats param at the same depth.
   assert.equal(classifyReleasePath('/docs').id, 'docs');
@@ -175,8 +183,8 @@ test('the most literal pattern wins and only a real tie throws', () => {
   assert.equal(classifyReleasePath('/hr').id, 'home-hr');
   assert.equal(classifyReleasePath('/demo').id, 'demo-hub');
   assert.equal(classifyReleasePath('/privacy').id, 'privacy');
-  assert.equal(classifyReleasePath('/presentation').id, 'presentation');
-  assert.equal(classifyReleasePath('/en/presentation').id, 'presentation-en');
+  assert.equal(classifyReleasePath('/o-polisu').id, 'about');
+  assert.equal(classifyReleasePath('/en/o-polisu').id, 'about-en');
   // The place routes take what is left.
   assert.equal(classifyReleasePath('/vrsar').id, 'place');
   assert.equal(classifyReleasePath('/en/vrsar').id, 'place-en');
@@ -196,6 +204,15 @@ test('the most literal pattern wins and only a real tie throws', () => {
   ];
   assert.equal(pickMostSpecific([tie[0]], '/one/x/two').id, 'left');
   assert.throws(() => pickMostSpecific(tie, '/one/x/two'), /policy overlap/);
+});
+
+test('the retired routes stay safe so their redirect is served', () => {
+  for (const route of expectedRetired) {
+    const entry = classifyReleasePath(route);
+    assert.equal(entry.pattern, route, route);
+    assert.equal(entry.kind, 'safe', route);
+    assert.equal(entry.inventory, 'retired', route);
+  }
 });
 
 test('release policy fixes the exact current route disposition by category', () => {
@@ -220,6 +237,8 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/', 'safe'],
     ['/hr/', 'safe'],
     ['/en/', 'safe'],
+    ['/o-polisu', 'safe'],
+    ['/en/o-polisu', 'safe'],
     ['/presentation', 'safe'],
     ['/hr/presentation', 'safe'],
     ['/en/presentation', 'safe'],

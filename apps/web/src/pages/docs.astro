@@ -2,36 +2,6 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import '../styles/public.css';
-import Base from '../layouts/Base.astro';
+// Retired 2026-09-17: The platform documentation stub said nothing About does not say. The old address keeps working as a permanent redirect.
+return Astro.redirect('/o-polisu', 301);
 ---
-
-<Base title="Docs">
-  <article class="reading-page" id="public-record">
-    <header class="page-header">
-      <h1>Docs</h1>
-      <p class="page-header-lede">
-        Local v1 documentation covers methodology, transparency, security, privacy, architecture,
-        roadmap, service map, document trust, AI safety, contribution, and partner pilots.
-      </p>
-    </header>
-
-    <section class="reading-section">
-      <h2>Document trust</h2>
-      <p>
-        The document-trust docs cover the local proof registry v0: ingestion, hash and file
-        verification, proof manifests, test signatures, RFC3161-stub timestamps, and the
-        supersession and revocation caveats.
-      </p>
-    </section>
-
-    <section class="reading-section">
-      <h2>AI safety</h2>
-      <p>
-        The AI-safety docs cover the assistant v0: local deterministic grounded answers, citation
-        enforcement, prompt-injection blocking, trace, audit and review state, and the gates a
-        production provider would have to pass.
-      </p>
-    </section>
-  </article>
-</Base>

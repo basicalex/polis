@@ -1,0 +1,26 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * About Polis, English. Croatian is the product default, so the address keeps
+ * the Croatian slug under `/en/` the way the place routes do.
+ */
+
+import Base from '../../layouts/Base.astro';
+import AboutPolis from '../../components/entry/AboutPolis.astro';
+import { aboutMeta } from '../../content/about';
+import { text } from '../../content/chrome';
+
+const lang = 'en' as const;
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={{ hr: '/o-polisu', en: '/en/o-polisu' }}
+  title={text(aboutMeta.title, lang)}
+  description={text(aboutMeta.description, lang)}
+>
+  <AboutPolis lang={lang} />
+</Base>

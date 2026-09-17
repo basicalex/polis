@@ -16,22 +16,32 @@ const policy = [
   { id: 'place-privacy-en', pattern: '/en/:place/privatnost', kind: 'safe', inventory: 'current' },
   { id: 'home-hr', pattern: '/hr', kind: 'safe', inventory: 'planned' },
   { id: 'home-en', pattern: '/en', kind: 'safe', inventory: 'current' },
-  { id: 'presentation', pattern: '/presentation', kind: 'safe', inventory: 'current' },
-  { id: 'presentation-hr', pattern: '/hr/presentation', kind: 'safe', inventory: 'current' },
-  { id: 'presentation-en', pattern: '/en/presentation', kind: 'safe', inventory: 'current' },
-  { id: 'demo-hub', pattern: '/demo', kind: 'safe', inventory: 'current' },
-  { id: 'demo-citizen', pattern: '/demo/citizen', kind: 'safe', inventory: 'current' },
-  { id: 'demo-official', pattern: '/demo/official', kind: 'safe', inventory: 'current' },
-  { id: 'demo-review', pattern: '/demo/review', kind: 'safe', inventory: 'current' },
-  { id: 'demo-record', pattern: '/demo/record', kind: 'safe', inventory: 'current' },
-  { id: 'demo-embed', pattern: '/demo/embed', kind: 'safe', inventory: 'current' },
+  { id: 'about', pattern: '/o-polisu', kind: 'safe', inventory: 'current' },
+  { id: 'about-en', pattern: '/en/o-polisu', kind: 'safe', inventory: 'current' },
   { id: 'release-boundary', pattern: '/release-boundary', kind: 'safe', inventory: 'planned' },
-  { id: 'docs', pattern: '/docs', kind: 'safe', inventory: 'current' },
-  { id: 'methodology', pattern: '/methodology', kind: 'safe', inventory: 'current' },
-  { id: 'privacy', pattern: '/privacy', kind: 'safe', inventory: 'current' },
-  { id: 'security', pattern: '/security', kind: 'safe', inventory: 'current' },
-  { id: 'source', pattern: '/source', kind: 'safe', inventory: 'current' },
-  { id: 'transparency', pattern: '/transparency', kind: 'safe', inventory: 'current' },
+
+  /*
+   * Retired 2026-09-17 (decision D3): the presentation, the demo hub with its
+   * five screens, and the platform stubs are gone from the site. Their pages
+   * are still there and still safe, because each one now serves a permanent
+   * redirect to About — nothing may 404.
+   */
+  { id: 'presentation', pattern: '/presentation', kind: 'safe', inventory: 'retired' },
+  { id: 'presentation-hr', pattern: '/hr/presentation', kind: 'safe', inventory: 'retired' },
+  { id: 'presentation-en', pattern: '/en/presentation', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-hub', pattern: '/demo', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-citizen', pattern: '/demo/citizen', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-official', pattern: '/demo/official', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-review', pattern: '/demo/review', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-record', pattern: '/demo/record', kind: 'safe', inventory: 'retired' },
+  { id: 'demo-embed', pattern: '/demo/embed', kind: 'safe', inventory: 'retired' },
+  { id: 'docs', pattern: '/docs', kind: 'safe', inventory: 'retired' },
+  { id: 'methodology', pattern: '/methodology', kind: 'safe', inventory: 'retired' },
+  { id: 'privacy', pattern: '/privacy', kind: 'safe', inventory: 'retired' },
+  { id: 'security', pattern: '/security', kind: 'safe', inventory: 'retired' },
+  { id: 'source', pattern: '/source', kind: 'safe', inventory: 'retired' },
+  { id: 'transparency', pattern: '/transparency', kind: 'safe', inventory: 'retired' },
+
   { id: 'verify', pattern: '/verify', kind: 'backend-dependent', inventory: 'current' },
 
   { id: 'assistant', pattern: '/assistant', kind: 'backend-dependent', inventory: 'current' },

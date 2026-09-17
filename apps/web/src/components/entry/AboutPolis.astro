@@ -1,0 +1,122 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * What Polis is, in one reading page.
+ *
+ * Six sections, one column, one heading rank: what Polis is, how a case moves,
+ * what is public, who runs it, what happens to the data, and what this release
+ * does. The retired platform stubs — privacy, source, security, methodology,
+ * docs, transparency — redirect here, so whatever still mattered on them lives
+ * in one of these six sections.
+ *
+ * The per-municipality notice under `/:place/privatnost` is the one that names a
+ * controller and a retention period; section 5 only links to it.
+ */
+
+import '../../styles/entry.css';
+import {
+  aboutContactEmail,
+  aboutIntrfaceSite,
+  aboutLicence,
+  aboutMeta,
+  aboutReleasePoints,
+  aboutRepository,
+  aboutSectionIds,
+  aboutStages,
+  aboutStrings,
+} from '../../content/about';
+import { entryStrings } from '../../content/entry';
+import { text } from '../../content/chrome';
+import { livePlaces } from '../../content/places';
+import type { Lang } from '../../content/public-release';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props as Props;
+const base = lang === 'hr' ? '/' : '/en/';
+const label = (key: keyof typeof aboutStrings) => text(aboutStrings[key], lang);
+const [whatId, howId, openId, whoId, dataId, releaseId] = aboutSectionIds;
+const [whoBuildsBefore, whoBuildsAfter] = label('whoBuilds').split('{intrface}');
+const [whoWriteBefore, whoWriteAfter] = label('whoWrite').split('{email}');
+---
+
+<article class="about">
+  <a class="intent-back" href={base}>← Polis</a>
+  <h1 class="about-title">{label('heading')}</h1>
+  <p class="about-lede">{text(aboutMeta.description, lang)}</p>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={whatId}>{label('whatTitle')}</h2>
+    <p class="about-line">{label('whatBody')}</p>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={howId}>{label('howTitle')}</h2>
+    <ul class="about-stages">
+      {
+        aboutStages.map((stage) => (
+          <li class="about-stage">
+            <span class="about-stage-label">{text(stage.label, lang)}</span>
+            <span class="about-stage-line">{text(stage.line, lang)}</span>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="about-line">{label('howAfter')}</p>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={openId}>{label('openTitle')}</h2>
+    <p class="about-line">{label('openBody')}</p>
+    <ul class="about-links">
+      <li>
+        {label('openRepositoryLabel')}:{' '}
+        <a href={aboutRepository} rel="noreferrer">{aboutRepository}</a>
+      </li>
+      <li>{label('openLicenceLabel')}: {aboutLicence}</li>
+    </ul>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={whoId}>{label('whoTitle')}</h2>
+    <p class="about-line">
+      {whoBuildsBefore}
+      <a href={aboutIntrfaceSite} rel="noreferrer">Intrface</a>
+      {whoBuildsAfter}
+    </p>
+    <p class="about-line">{label('whoController')}</p>
+    <p class="about-line">
+      {whoWriteBefore}
+      <a href={`mailto:${aboutContactEmail}`}>{aboutContactEmail}</a>
+      {whoWriteAfter}
+    </p>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={dataId}>{label('dataTitle')}</h2>
+    <p class="about-line">{label('dataProcessor')}</p>
+    <p class="about-line">{text(entryStrings.reportMapPrivacy, lang)}</p>
+    <p class="about-line">{label('dataNotices')}</p>
+    <ul class="about-links">
+      {
+        livePlaces.map((place) => (
+          <li>
+            <a href={`${base}${place.slug}/privatnost`}>{place.name[lang]}</a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-heading" id={releaseId}>{label('releaseTitle')}</h2>
+    <ul class="about-points">
+      {aboutReleasePoints.map((point) => <li>{text(point, lang)}</li>)}
+    </ul>
+    <p class="about-line">{label('releaseSynthetic')}</p>
+  </section>
+</article>

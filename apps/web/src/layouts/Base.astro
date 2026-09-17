@@ -14,7 +14,6 @@ import {
   localBanner,
   localNavGroups,
   menuButton,
-  presentationHrefs,
   releaseBanner,
   releaseBannerDetails,
   releaseNav,
@@ -47,7 +46,7 @@ interface Props {
    * head, main, and footer are unchanged. `DemoShell` does not set this — the page passes it.
    *
    * `'entry'` is the front door of the entry flow. The root asks one question, so the chrome is a
-   * wordmark, the language switch, and a footer of privacy and source (entry-flow R1). The boundary
+   * wordmark, the language switch, and a footer of Intrface and About (entry-flow R1). The boundary
    * attribution rides in the corner of the map that draws the boundaries, so the footer does not
    * repeat it. Banner, head, skip link, and direction contract are the same as every other page.
    */
@@ -74,15 +73,14 @@ const presenter = Astro.url.searchParams.get('present') === '1';
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 const otherLang: Lang = lang === 'hr' ? 'en' : 'hr';
 const homeHref = languageHomes[lang];
-const presentationHref = presentationHrefs[lang];
+/* The one page that explains Polis; the retired platform stubs redirect to it. */
+const aboutHref = lang === 'hr' ? '/o-polisu' : '/en/o-polisu';
 const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
-const onPresentation = currentPath === '/presentation' || currentPath === '/en/presentation';
 const languageHrefs = {
   hr: alternates?.hr ?? languageHomes.hr,
   en: alternates?.en ?? languageHomes.en,
 };
 const otherLanguageHref = languageHrefs[otherLang];
-const presentHref = `${presentationHref}?present=1`;
 
 /** Absolute URL for a site-relative path, for the `hreflang` alternates. */
 const absolute = (path: string) => new URL(path, Astro.site ?? Astro.url).href;
@@ -155,7 +153,7 @@ const isCurrentPath = (href: string) =>
             <div class="site-container">
               <p>
                 {releaseBanner[lang]}{' '}
-                <a href="/transparency">{releaseBannerDetails[lang]}</a>
+                <a href={`${aboutHref}#izdanje`}>{releaseBannerDetails[lang]}</a>
               </p>
             </div>
           </aside>
@@ -183,23 +181,16 @@ const isCurrentPath = (href: string) =>
           publicRelease ? (
             <div class="release-nav-shell">
               <nav class="site-nav release-nav" aria-label={text(releaseNav.primary, lang)}>
-                <a class="nav-link" href={presentationHref} aria-current={onPresentation ? 'page' : undefined}>
-                  {text(releaseNav.presentation, lang)}
-                </a>
-                <a class="nav-link" href="/transparency" aria-current={currentPath === '/transparency' ? 'page' : undefined}>
-                  {text(releaseNav.transparency, lang)}
-                </a>
-                <a class="nav-link" href="/source" aria-current={currentPath === '/source' ? 'page' : undefined}>
-                  {text(releaseNav.source, lang)}
+                <a class="nav-link" href={aboutHref} aria-current={currentPath === aboutHref ? 'page' : undefined}>
+                  {text(releaseNav.about, lang)}
                 </a>
                 <a class="nav-link" href={otherLanguageHref} hreflang={otherLang} lang={otherLang}>
                   {languageEndonyms[otherLang]}
                 </a>
-                {!presenter && <a class="nav-link" href={presentHref}>{text(releaseNav.present, lang)}</a>}
               </nav>
               <span class="release-nav-overflow" aria-hidden="true">{text(releaseNav.more, lang)} →</span>
             </div>
-          ) : (
+          ) : testInstance ? null : (
             <details class="nav-root" data-nav-root open>
               <summary class="nav-root-summary">{text(menuButton, lang)}</summary>
               <nav class="site-nav site-nav--groups" aria-label={text(releaseNav.primary, lang)}>
@@ -252,8 +243,8 @@ const isCurrentPath = (href: string) =>
       {entryChrome && (
         <footer class="entry-footer" id="site-footer">
           <p class="entry-footer-links">
-            <a href="/privacy">{text(entryStrings.privacy, lang)}</a>
-            <a href="/source">{text(entryStrings.source, lang)}</a>
+            <a href="https://intrface.eu" rel="noreferrer">{text(entryStrings.footerIntrface, lang)}</a>
+            <a href={aboutHref}>{text(entryStrings.footerAbout, lang)}</a>
           </p>
         </footer>
       )}

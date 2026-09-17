@@ -2,26 +2,6 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import '../styles/public.css';
-import Base from '../layouts/Base.astro';
+// Retired 2026-09-17: What this build does and does not do is one section of About. The old address keeps working as a permanent redirect.
+return Astro.redirect('/o-polisu', 301);
 ---
-
-<Base title="Security">
-  <article class="reading-page" id="public-record">
-    <header class="page-header">
-      <h1>Security</h1>
-      <p class="page-header-lede">
-        Local v1 exposes public read APIs, operational health and version routes, and an internal
-        audit write path.
-      </p>
-    </header>
-
-    <section class="reading-section">
-      <p>
-        Production identity, private document custody, signatures, and provider integrations are not
-        live. Timestamps and signatures in this build are stubs that demonstrate the mechanism; they
-        are not evidence from an active trust service.
-      </p>
-    </section>
-  </article>
-</Base>

@@ -15,12 +15,19 @@ const remoteBaseUrl = process.env.POLIS_RELEASE_BASE_URL?.replace(/\/+$/, '');
 const baseUrl = remoteBaseUrl || `http://${host}:${port}`;
 const baseOrigin = new URL(baseUrl).origin;
 
-const stageLabels = {
-  en: ['voice', 'responsibility', 'response', 'independent check', 'public receipt'],
-  hr: ['glas', 'odgovornost', 'odgovor', 'neovisna provjera', 'javna potvrda'],
+/* The six sections of About, in the order the page reads them (decision D3). */
+const aboutSectionIds = [
+  'sto-je-polis',
+  'kako-radi',
+  'javno-i-otvoreno',
+  'tko-stoji-iza',
+  'podaci',
+  'izdanje',
+];
+const aboutCopy = {
+  hr: { path: '/o-polisu', heading: 'O Polisu' },
+  en: { path: '/en/o-polisu', heading: 'About Polis' },
 };
-const stageIds = ['voice', 'responsibility', 'response', 'check', 'receipt'];
-
 const chromeCandidates = [
   process.env.CHROME_PATH,
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -118,25 +125,23 @@ function trackRequests(context, forbiddenRequests) {
   });
 }
 
-async function assertStages(page, language) {
-  const stages = await page.locator('[data-release-stage]').evaluateAll((elements) =>
-    elements.map((element) => ({
-      id: element.getAttribute('data-stage'),
-      text: element.textContent ?? '',
-    })),
-  );
-  assert(stages.length === 5, `${page.url()} renders ${stages.length} release stages instead of 5`);
+/* About is the one page that explains Polis; every retired address lands here. */
+async function assertAbout(page, language) {
+  const copy = aboutCopy[language];
+  const response = await page.goto(`${baseUrl}${copy.path}`, { waitUntil: 'domcontentloaded' });
+  assert(response, `${copy.path} returned no response`);
+  assert(response.status() === 200, `${copy.path} returned ${response.status()} instead of 200`);
+
+  const heading = (await page.locator('h1').first().innerText()).trim();
+  assert(heading === copy.heading, `${page.url()} is titled "${heading}" instead of "${copy.heading}"`);
+
+  const ids = await page
+    .locator('.about-heading')
+    .evaluateAll((elements) => elements.map((element) => element.id));
   assert(
-    stages.every((stage, index) => stage.id === stageIds[index]),
-    `${page.url()} has the wrong stage order: ${stages.map((stage) => stage.id).join(', ')}`,
+    ids.length === aboutSectionIds.length && ids.every((id, index) => id === aboutSectionIds[index]),
+    `${page.url()} renders the sections ${ids.join(', ')}`,
   );
-  const text = stages
-    .map((stage) => stage.text)
-    .join(' ')
-    .toLocaleLowerCase(language === 'hr' ? 'hr' : 'en');
-  for (const label of stageLabels[language]) {
-    assert(text.includes(label), `${page.url()} is missing the ${label} stage`);
-  }
 }
 
 const entryCopy = {
@@ -265,88 +270,9 @@ async function assertKeyboardFocus(page) {
   );
 }
 
-// The verifier controls and results are reviewed labels, so the smoke run
-// matches both languages rather than assuming the English page (decision R1).
-const verifierCopy = {
-  en: {
-    original: /use exact fixture bytes/i,
-    changed: /change one byte/i,
-    match: 'EXACT MATCH',
-    mismatch: 'CHANGED BYTE — NO MATCH',
-    limitation: 'does not make the claim true',
-  },
-  hr: {
-    original: /koristi izvorne bajtove primjera/i,
-    changed: /promijeni jedan bajt/i,
-    match: 'POTPUNO PODUDARANJE',
-    mismatch: 'PROMIJENJEN BAJT — NEMA PODUDARANJA',
-    limitation: 'ne čini tvrdnju istinitom',
-  },
-};
-
-async function assertVerifier(page, language) {
-  const copy = verifierCopy[language];
-  const original = page.getByRole('button', { name: copy.original });
-  const changed = page.getByRole('button', { name: copy.changed });
-  assert((await original.count()) === 1, 'original-byte verifier control is missing');
-  assert((await changed.count()) === 1, 'changed-byte verifier control is missing');
-
-  await original.click();
-  assert(
-    (await page.locator('[data-verifier-result]').textContent())?.trim() === copy.match,
-    'exact-match result is missing',
-  );
-  await changed.click();
-  assert(
-    (await page.locator('[data-verifier-result]').textContent())?.trim() === copy.mismatch,
-    'changed-byte mismatch result is missing',
-  );
-  const body = await page.locator('body').innerText();
-  assert(body.includes(copy.limitation), 'verifier truth limitation is missing');
-}
-
-async function activePresenterStage(page) {
-  return page.evaluate(() => {
-    const active = document.querySelector(
-      '[aria-current="step"], [data-active="true"], [data-present-active="true"], [data-stage][aria-hidden="false"]',
-    );
-    return active?.getAttribute('data-stage') || active?.textContent?.trim() || null;
-  });
-}
-
-async function assertPresenterKeyboard(page) {
-  const before = await activePresenterStage(page);
-  assert(before, 'presenter mode has no programmatic active-stage marker');
-  await page.keyboard.press('ArrowRight');
-  const after = await activePresenterStage(page);
-  assert(after && after !== before, 'ArrowRight did not advance presenter mode');
-  await page.keyboard.press('Home');
-  const home = await activePresenterStage(page);
-  assert(home, 'Home removed the presenter active stage');
-  await page.keyboard.press('End');
-  const end = await activePresenterStage(page);
-  assert(end && end !== home, 'End did not move to the final presenter stage');
-
-  for (let index = 0; index < 5; index += 1) {
-    const verifierButton = page.getByRole('button', { name: verifierCopy.hr.original });
-    if ((await verifierButton.count()) === 1 && (await verifierButton.isVisible())) {
-      await verifierButton.focus();
-      const stageBeforeControlKey = await activePresenterStage(page);
-      await page.keyboard.press('ArrowRight');
-      assert(
-        (await activePresenterStage(page)) === stageBeforeControlKey,
-        'presenter navigation handled ArrowRight from a form control',
-      );
-      return;
-    }
-    await page.keyboard.press('ArrowLeft');
-  }
-  throw new Error('presenter verifier control did not become visible');
-}
-
 async function assertReducedMotion(page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${baseUrl}/o-polisu`, { waitUntil: 'domcontentloaded' });
   const result = await page.evaluate(() => {
     const runningLongAnimations = document
       .getAnimations()
@@ -436,46 +362,41 @@ try {
   await assertGeometry(desktopPage, 'English map desktop');
   await assertIntent(desktopPage, 'en');
 
-  await desktopPage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(desktopPage, 'hr');
+  await assertAbout(desktopPage, 'hr');
   await assertGeometry(desktopPage, 'desktop');
   await assertKeyboardFocus(desktopPage);
-  await assertVerifier(desktopPage, 'hr');
   await desktopPage.screenshot({ path: path.join(screenshotsDir, 'desktop-1440x900.png'), fullPage: true });
 
-  await desktopPage.goto(`${baseUrl}/en/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(desktopPage, 'en');
+  await assertAbout(desktopPage, 'en');
   await assertGeometry(desktopPage, 'English desktop');
 
-  // The old Croatian addresses stay reachable as permanent redirects (R1).
+  // Nothing 404s: the old Croatian home keeps its query, and every address
+  // decision D3 retired is a permanent redirect to About.
   for (const [legacy, target] of [
     ['/hr/', '/'],
-    ['/hr/presentation', '/presentation'],
+    ['/hr/presentation', '/o-polisu'],
+    ['/presentation', '/o-polisu'],
+    ['/en/presentation', '/en/o-polisu'],
+    ['/transparency', '/o-polisu'],
+    ['/privacy', '/o-polisu'],
+    ['/source', '/o-polisu'],
+    ['/security', '/o-polisu'],
+    ['/methodology', '/o-polisu'],
+    ['/docs', '/o-polisu'],
+    ['/demo', '/o-polisu'],
+    ['/demo/citizen', '/o-polisu'],
+    ['/demo/official', '/o-polisu'],
+    ['/demo/review', '/o-polisu'],
+    ['/demo/record', '/o-polisu'],
+    ['/demo/embed', '/o-polisu'],
   ]) {
-    await desktopPage.goto(`${baseUrl}${legacy}`, { waitUntil: 'domcontentloaded' });
+    const response = await desktopPage.goto(`${baseUrl}${legacy}`, { waitUntil: 'domcontentloaded' });
+    assert(response, `${legacy} returned no response`);
+    assert(response.status() === 200, `${legacy} ended on ${response.status()}`);
     assert(
       new URL(desktopPage.url()).pathname === target,
       `${legacy} did not redirect to ${target}: ${desktopPage.url()}`,
     );
-  }
-
-  for (const demoPath of [
-    '/demo/citizen',
-    '/demo/official',
-    '/demo/review',
-    '/demo/record',
-    '/demo/embed',
-  ]) {
-    const demoResponse = await desktopPage.goto(`${baseUrl}${demoPath}`, {
-      waitUntil: 'domcontentloaded',
-    });
-    assert(demoResponse, `${demoPath} returned no response`);
-    assert(
-      demoResponse.status() === 200,
-      `${demoPath} returned ${demoResponse.status()} instead of 200`,
-    );
-    const hasShell = await desktopPage.$('[data-demo-shell]');
-    assert(hasShell, `${demoPath} does not render the demo shell`);
   }
 
   // The place map and the intent screen are safe, but everything behind the two
@@ -508,20 +429,18 @@ try {
   // Gating the flow must not take the two buttons off the intent screen.
   await assertIntent(desktopPage, 'hr');
 
+  // The old presenter link still lands somewhere real, now About.
   const legacyPresent = await desktopPage.goto(`${baseUrl}/?present=1`, {
     waitUntil: 'domcontentloaded',
   });
   assert(legacyPresent, '/?present=1 returned no response');
   assert(
-    new URL(desktopPage.url()).pathname === '/presentation',
-    `/?present=1 did not reach the presentation: ${desktopPage.url()}`,
+    new URL(desktopPage.url()).pathname === '/o-polisu',
+    `/?present=1 did not reach About: ${desktopPage.url()}`,
   );
-  await assertStages(desktopPage, 'hr');
-  await assertGeometry(desktopPage, 'presenter');
-  await assertPresenterKeyboard(desktopPage);
   await desktopPage.setViewportSize({ width: 1920, height: 1080 });
-  await assertGeometry(desktopPage, 'presenter 1920x1080');
-  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'presenter-1920x1080.png') });
+  await assertGeometry(desktopPage, 'about 1920x1080');
+  await desktopPage.screenshot({ path: path.join(screenshotsDir, 'about-1920x1080.png') });
   await assertReducedMotion(desktopPage);
   await desktop.close();
 
@@ -554,8 +473,7 @@ try {
   await assertEntryMap(mobilePage, 'en');
   await assertGeometry(mobilePage, 'English map mobile');
 
-  await mobilePage.goto(`${baseUrl}/presentation`, { waitUntil: 'domcontentloaded' });
-  await assertStages(mobilePage, 'hr');
+  await assertAbout(mobilePage, 'hr');
   await assertGeometry(mobilePage, 'mobile');
   await assertKeyboardFocus(mobilePage);
   await mobilePage.screenshot({ path: path.join(screenshotsDir, 'mobile-390x844.png'), fullPage: true });

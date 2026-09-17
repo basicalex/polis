@@ -1396,6 +1396,95 @@
   font-weight: 600;
 }
 
+/* ---- about ---------------------------------------------------------------- */
+
+/*
+ * The About page reads like the notice under a place: one column at the reading
+ * measure, one heading rank, a rule between sections. No hero, no cards, no
+ * icons — the page is prose and two short lists.
+ */
+.about {
+  display: grid;
+  gap: var(--space-5);
+  justify-items: start;
+  width: min(44rem, 100%);
+  margin-inline: auto;
+}
+
+.about-title {
+  margin: 0;
+  font-family: var(--display);
+  font-synthesis-weight: none;
+  font-size: var(--type-heading-md);
+  line-height: 1.05;
+}
+
+.about-lede {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+.about-section {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  padding-block-start: var(--space-4);
+  border-top: 1px solid var(--polis-border);
+}
+
+.about-heading {
+  margin: 0;
+  font-size: var(--type-heading-sm);
+}
+
+.about-line {
+  max-width: 68ch;
+  margin: 0;
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+.about-stages,
+.about-points,
+.about-links {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 68ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+.about-stage {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.about-stage-label {
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  font-weight: 650;
+}
+
+.about-points {
+  padding-inline-start: var(--space-5);
+  list-style: disc;
+}
+
+.about-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: var(--polis-trace);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /*
  * `.btn` and the map actions set their own `display`, which beats the UA rule
  * for the `hidden` attribute. Keep hiding a control by hiding it.

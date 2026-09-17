@@ -10,7 +10,7 @@
  * demonstrator and the public release cannot drift apart (DESIGN.md, "Bilingual
  * EN/HR": one typed content source, equal information in both languages).
  *
- * Croatian is the product default: `/` and `/presentation` serve Croatian and
+ * Croatian is the product default: `/` and `/o-polisu` serve Croatian and
  * English lives under `/en/` (revision 2026-09-09, decision R1). Internal tooling
  * pages whose body copy is English only keep `lang="en"`, so they read the English
  * side of this file and nothing mixes languages inside one page.
@@ -25,7 +25,7 @@ import { releaseBanner, releaseBannerDetails, type Lang, type LocalizedText } fr
 export { releaseBanner, releaseBannerDetails };
 export type { Lang, LocalizedText };
 
-/** A route that differs between languages: `/presentation` vs `/en/presentation`. */
+/** A route that differs between languages: `/o-polisu` vs `/en/o-polisu`. */
 export type LocalizedHref = Record<Lang, string>;
 
 export type ChromeNavItem = {
@@ -75,9 +75,10 @@ export const languageHomes: LocalizedHref = {
   en: '/en/',
 };
 
-export const presentationHrefs: LocalizedHref = {
-  hr: '/presentation',
-  en: '/en/presentation',
+/** The one page that says what Polis is; the retired platform stubs redirect to it. */
+export const aboutHrefs: LocalizedHref = {
+  hr: '/o-polisu',
+  en: '/en/o-polisu',
 };
 
 /* ---------------------------------------------------------------------------
@@ -107,10 +108,7 @@ export const localBanner: LocalizedText = {
 export const releaseNav = {
   primary: { en: 'Public release', hr: 'Javno izdanje' },
   boundary: { en: 'Release boundary', hr: 'Granica izdanja' },
-  presentation: { en: 'Presentation', hr: 'Prezentacija' },
-  transparency: { en: 'Transparency', hr: 'Transparentnost' },
-  source: { en: 'Source', hr: 'Izvor' },
-  present: { en: 'Present', hr: 'Izlaganje' },
+  about: { en: 'About Polis', hr: 'O Polisu' },
   more: { en: 'More', hr: 'Dalje' },
 } satisfies Record<string, LocalizedText>;
 
@@ -290,56 +288,14 @@ export const footer = {
   },
   groups: [
     {
-      id: 'product',
-      label: { en: 'Product', hr: 'Proizvod' },
+      id: 'polis',
+      label: { en: 'Polis', hr: 'Polis' },
       links: [
         {
-          id: 'demonstration',
-          href: { en: '/demo', hr: '/demo' },
-          label: { en: 'Demonstration', hr: 'Demonstracija' },
+          id: 'about',
+          href: aboutHrefs,
+          label: { en: 'About Polis', hr: 'O Polisu' },
         },
-        {
-          id: 'presentation',
-          href: presentationHrefs,
-          label: { en: 'Presentation', hr: 'Prezentacija' },
-        },
-        {
-          id: 'record',
-          href: { en: '/demo/record', hr: '/demo/record' },
-          label: { en: 'Public record', hr: 'Javna evidencija' },
-        },
-      ],
-    },
-    {
-      id: 'trust',
-      label: { en: 'Trust', hr: 'Povjerenje' },
-      links: [
-        {
-          id: 'transparency',
-          href: { en: '/transparency', hr: '/transparency' },
-          label: { en: 'Transparency', hr: 'Transparentnost' },
-        },
-        {
-          id: 'methodology',
-          href: { en: '/methodology', hr: '/methodology' },
-          label: { en: 'Methodology', hr: 'Metodologija' },
-        },
-        {
-          id: 'privacy',
-          href: { en: '/privacy', hr: '/privacy' },
-          label: { en: 'Privacy', hr: 'Privatnost' },
-        },
-        {
-          id: 'security',
-          href: { en: '/security', hr: '/security' },
-          label: { en: 'Security', hr: 'Sigurnost' },
-        },
-      ],
-    },
-    {
-      id: 'source',
-      label: { en: 'Source', hr: 'Izvor' },
-      links: [
         {
           id: 'repository',
           href: {
@@ -348,16 +304,6 @@ export const footer = {
           },
           label: { en: 'Source code on GitHub', hr: 'Izvorni kod na GitHubu' },
           external: true,
-        },
-        {
-          id: 'docs',
-          href: { en: '/docs', hr: '/docs' },
-          label: { en: 'Documentation', hr: 'Dokumentacija' },
-        },
-        {
-          id: 'licence',
-          href: { en: '/source', hr: '/source' },
-          label: { en: 'Licence AGPL-3.0-or-later', hr: 'Licencija AGPL-3.0-or-later' },
         },
       ],
     },

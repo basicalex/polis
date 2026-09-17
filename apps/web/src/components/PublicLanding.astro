@@ -19,6 +19,7 @@ import {
   type LocalizedText,
   type Stage,
 } from '../content/public-release';
+import { aboutHrefs } from '../content/chrome';
 
 interface Props {
   lang: Lang;
@@ -194,7 +195,7 @@ const recordStageState: Record<Stage, 'is-appended' | 'is-active' | 'is-ahead'> 
     <p class="landing-pilot-body">{text.pilotBody}</p>
     <p class="landing-pilot-links">
       <a href={entryHrefs.presentation}>{text.pilotLinks.presentation}</a>
-      <a href="/source">{text.pilotLinks.source}</a>
+      <a href={aboutHrefs[lang]}>{text.pilotLinks.source}</a>
     </p>
   </section>
 

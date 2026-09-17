@@ -383,8 +383,13 @@ export const entryStrings = {
     hr: '© OpenStreetMap contributors (ODbL) · geoBoundaries',
     en: '© OpenStreetMap contributors (ODbL) · geoBoundaries',
   },
-  privacy: { hr: 'Privatnost', en: 'Privacy' },
-  source: { hr: 'Izvorni kod', en: 'Source' },
+  /*
+   * The entry footer, two links: the company that runs Polis, then the page
+   * that says what Polis is. The per-municipality privacy notice is not here —
+   * it belongs to the place, and the filing form links to it directly.
+   */
+  footerIntrface: { hr: 'Intrface', en: 'Intrface' },
+  footerAbout: { hr: 'O Polisu', en: 'About Polis' },
   /*
    * The band a hosted test build carries on every entry page. It names the
    * instance, the data and the fact that the municipality does not answer here,

@@ -13,13 +13,11 @@ async function exists(path) {
 }
 
 test('web has required phase 1 and public-release routes', async () => {
-  const presentation = await readFile(new URL('presentation.astro', root), 'utf8');
-  assert.match(presentation, /PublicReleaseHome/);
   await exists('index.astro');
   await exists('en/index.astro');
-  await exists(join('en', 'presentation.astro'));
   await exists('hr/index.astro');
-  await exists(join('hr', 'presentation.astro'));
+  await exists('o-polisu.astro');
+  await exists(join('en', 'o-polisu.astro'));
   await exists('release-boundary.astro');
   await exists('governance/[jurisdiction]/index.astro');
   await exists(join('governance', '[jurisdiction]', 'institutions', '[institutionId].astro'));
@@ -139,16 +137,11 @@ test('pilot demonstrator support pages keep their local-mode disclosure and reso
 });
 
 test('public release uses one bilingual five-stage semantic Trace composition', async () => {
-  const [presentation, english, component, content] = await Promise.all([
-    readFile(new URL('presentation.astro', root), 'utf8'),
-    readFile(new URL('en/presentation.astro', root), 'utf8'),
+  const [component, content] = await Promise.all([
     readFile(new URL('../src/components/PublicReleaseHome.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/content/public-release.ts', import.meta.url), 'utf8'),
   ]);
 
-  // Croatian at the root, English under /en/ (revision decision R1).
-  assert.match(presentation, /<PublicReleaseHome lang="hr" \/>/);
-  assert.match(english, /<PublicReleaseHome lang="en" \/>/);
   assert.match(component, /stages\.map/);
   assert.match(component, /record\.events\.slice\(0, index \+ 1\)/);
   for (const stage of ['voice', 'responsibility', 'response', 'check', 'receipt']) {
@@ -181,7 +174,7 @@ test('public release uses one bilingual five-stage semantic Trace composition', 
   assert.doesNotMatch(component, /<form\b/);
 });
 
-test('the root is the place map and the demo entries moved to the hub', async () => {
+test('the root is the place map and the demo hub is retired', async () => {
   const [index, english, hub, place, englishPlace] = await Promise.all([
     readFile(new URL('index.astro', root), 'utf8'),
     readFile(new URL('en/index.astro', root), 'utf8'),
@@ -199,21 +192,8 @@ test('the root is the place map and the demo entries moved to the hub', async ()
     assert.doesNotMatch(page, /\/demo\//);
   }
 
-  // The five role surfaces are listed on the hub, not on the front door.
-  for (const href of [
-    '/demo/citizen',
-    '/demo/official',
-    '/demo/review',
-    '/demo/record',
-    '/demo/embed',
-  ]) {
-    assert.match(hub, new RegExp(`'${href}'`), href);
-  }
-  assert.doesNotMatch(hub, /Astro\.redirect\('\/', 302\)/);
-
-  // Old presenter links keep working.
-  assert.match(index, /Astro\.redirect\('\/presentation\?present=1', 302\)/);
-  assert.match(english, /Astro\.redirect\('\/en\/presentation\?present=1', 302\)/);
+  // The hub and its five role surfaces are gone from the site (decision D3).
+  assert.match(hub, /Astro\.redirect\('\/o-polisu', 301\)/);
 
   // S2: unknown slug is a 404, known-but-not-live answers 200 (R4).
   for (const page of [place, englishPlace]) {
@@ -270,7 +250,7 @@ test('entry chrome uses the approved full Polis lockup once', async () => {
 });
 
 test('the report map bundles Leaflet only on the filing surface', async () => {
-  const [component, mapScript, reportScript, styles, placeMap, placeMapScript, places, privacy, content] =
+  const [component, mapScript, reportScript, styles, placeMap, placeMapScript, places, about, content] =
     await Promise.all([
       readFile(new URL('../src/components/entry/ReportForm.astro', import.meta.url), 'utf8'),
       readFile(new URL('../src/scripts/entry/report-map.ts', import.meta.url), 'utf8'),
@@ -279,7 +259,7 @@ test('the report map bundles Leaflet only on the filing surface', async () => {
       readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
       readFile(new URL('../src/scripts/entry/map.ts', import.meta.url), 'utf8'),
       readFile(new URL('../src/content/places.ts', import.meta.url), 'utf8'),
-      readFile(new URL('../src/pages/privacy.astro', import.meta.url), 'utf8'),
+      readFile(new URL('../src/components/entry/AboutPolis.astro', import.meta.url), 'utf8'),
       readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
     ]);
 
@@ -304,7 +284,7 @@ test('the report map bundles Leaflet only on the filing surface', async () => {
   assert.match(mapScript, /mapError\.textContent = ''/);
   assert.match(mapScript, /prefers-reduced-motion: reduce/);
   assert.match(places, /reportMapCenter: \{ lat: 45\.149, lon: 13\.605 \}/);
-  assert.match(privacy, /entryStrings\.reportMapPrivacy/);
+  assert.match(about, /entryStrings\.reportMapPrivacy/);
   assert.match(content, /OpenStreetMap receives your IP address and the map area shown/);
   assert.doesNotMatch(placeMap, /leaflet/i);
   assert.doesNotMatch(placeMapScript, /leaflet|tile\.openstreetmap/i);
@@ -353,8 +333,9 @@ test('release Base emits the direction contract first and removes service action
     releaseNav,
     /\/login|\/complaints|\/contribute|\/rewards|\/proofs|\/verify|\/assistant|\/audit|\/governance/,
   );
-  assert.match(releaseNav, /href=\{presentationHref\}/);
-  assert.match(base, /const presentHref = `\$\{presentationHref\}\?present=1`/);
+  assert.doesNotMatch(releaseNav, /\/presentation|\/transparency|\/source|\/privacy|\/demo/);
+  assert.match(releaseNav, /href=\{aboutHref\}/);
+  assert.match(base, /const aboutHref = lang === 'hr' \? '\/o-polisu' : '\/en\/o-polisu';/);
 });
 
 test('release styles carry the locked phone, focus, motion, print, and font contracts', async () => {
@@ -436,9 +417,9 @@ test('site chrome groups the local navigation and skips to main content', async 
 });
 
 test('Croatian is the default language and English lives under /en/', async () => {
-  const [index, presentation, hrIndex, hrPresentation, base] = await Promise.all([
+  const [index, about, hrIndex, hrPresentation, base] = await Promise.all([
     readFile(new URL('index.astro', root), 'utf8'),
-    readFile(new URL('presentation.astro', root), 'utf8'),
+    readFile(new URL('o-polisu.astro', root), 'utf8'),
     readFile(new URL('hr/index.astro', root), 'utf8'),
     readFile(new URL('hr/presentation.astro', root), 'utf8'),
     readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
@@ -447,11 +428,11 @@ test('Croatian is the default language and English lives under /en/', async () =
   // The root pair is Croatian and declares both alternates.
   assert.match(index, /const lang = 'hr' as const;/);
   assert.match(index, /alternates=\{\{ hr: '\/', en: '\/en\/' \}\}/);
-  assert.match(presentation, /alternates=\{\{ hr: '\/presentation', en: '\/en\/presentation' \}\}/);
+  assert.match(about, /alternates=\{\{ hr: '\/o-polisu', en: '\/en\/o-polisu' \}\}/);
 
-  // The old Croatian addresses are permanent redirects that keep the query.
+  // The old Croatian home keeps its query; the retired presentation does not.
   assert.match(hrIndex, /Astro\.redirect\(`\/\$\{Astro\.url\.search\}`, 301\)/);
-  assert.match(hrPresentation, /Astro\.redirect\(`\/presentation\$\{Astro\.url\.search\}`, 301\)/);
+  assert.match(hrPresentation, /Astro\.redirect\('\/o-polisu', 301\)/);
 
   // Both languages plus x-default are declared in the head.
   assert.match(base, /<link rel="alternate" hreflang="hr" href=\{absolute\(alternates\.hr\)\} \/>/);
@@ -475,12 +456,12 @@ test('site chrome and footer read one bilingual content source', async () => {
   // The banner text keeps one source in public-release.ts and is re-exported.
   assert.match(chromeContent, /export \{ releaseBanner, releaseBannerDetails \};/);
 
-  // Footer: brand sentence, three link groups, the language switch, and the
-  // boundary or version row (revision decision R5).
+  // Footer: brand sentence, the one link group left after decision D3, the
+  // language switch, and the boundary or version row (revision decision R5).
   assert.match(base, /class="footer-blurb"/);
-  for (const group of ["id: 'product'", "id: 'trust'", "id: 'source'"]) {
-    assert.match(chromeContent, new RegExp(group), group);
-  }
+  assert.match(chromeContent, /id: 'polis'/);
+  assert.match(chromeContent, /id: 'about'/);
+  assert.doesNotMatch(chromeContent, /href: \{ en: '\/(transparency|privacy|security|methodology|docs|source|demo)'/);
   assert.match(base, /\{text\(languageSwitch, lang\)\}/);
   assert.match(base, /statusLabels\.demonstrationFixture\[lang\]/);
   assert.match(base, /statusLabels\.notLive\[lang\]/);
@@ -603,11 +584,11 @@ test('every live place has a data protection notice in both languages', async ()
   const pages = [join('[place]', 'privatnost.astro'), join('en', '[place]', 'privatnost.astro')];
   for (const page of pages) await exists(page);
 
-  const [hr, en, notice, privacy, content] = await Promise.all([
+  const [hr, en, notice, about, content] = await Promise.all([
     readFile(new URL(pages[0], root), 'utf8'),
     readFile(new URL(pages[1], root), 'utf8'),
     readFile(new URL('../src/components/entry/PrivacyNotice.astro', import.meta.url), 'utf8'),
-    readFile(new URL('privacy.astro', root), 'utf8'),
+    readFile(new URL('../src/components/entry/AboutPolis.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
   ]);
 
@@ -636,11 +617,11 @@ test('every live place has a data protection notice in both languages', async ()
   assert.match(content, /Otisak izvornog teksta ostaje javan i nakon uklanjanja teksta/);
   assert.match(content, /Pritužbu možete podnijeti Agenciji za zaštitu osobnih podataka \(AZOP\)\./);
 
-  // The platform notice stays the platform's: the map tiles and one link per
-  // live place to the municipality that is the controller.
-  assert.match(privacy, /entryStrings\.reportMapPrivacy/);
-  assert.match(privacy, /livePlaces/);
-  assert.match(privacy, /\/privatnost/);
+  // The retired platform notice moved into About: the map tiles and one link
+  // per live place to the municipality that is the controller.
+  assert.match(about, /entryStrings\.reportMapPrivacy/);
+  assert.match(about, /livePlaces/);
+  assert.match(about, /\/privatnost/);
 });
 
 test('the case-number screen asks the public shell what happened to the text', async () => {
