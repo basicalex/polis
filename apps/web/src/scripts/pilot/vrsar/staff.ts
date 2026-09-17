@@ -271,9 +271,7 @@ function metaLine(
   if (shell && shell.noticeCount > 0) {
     parts.push(mark(`${worklistCopy.notices[lang]}: ${shell.noticeCount}`, 'warning'));
   }
-  if (record.origin && record.origin !== 'web') {
-    parts.push(mark(translatedOrigin(record.origin, lang)));
-  }
+  parts.push(mark(translatedOrigin(record.origin ?? 'unknown', lang)));
   parts.forEach((part, index) => {
     if (index > 0) {
       const separator = createTextElement('span', '·', 'worklist-sep');

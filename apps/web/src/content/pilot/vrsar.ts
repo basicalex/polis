@@ -590,9 +590,9 @@ export const pilotCopy = Object.freeze({
 export const statusLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   open: localized('ZAPRIMLJENO', 'RICEVUTO', 'RECEIVED'),
   received: localized('ZAPRIMLJENO', 'RICEVUTO', 'RECEIVED'),
-  assigned: localized('Odgovornost preuzeta', 'Responsabilità assunta', 'Responsibility assigned'),
+  assigned: localized('DODIJELJENO', 'ASSEGNATO', 'ASSIGNED'),
   answered: localized('ODGOVORENO', 'RISPOSTO', 'ANSWERED'),
-  resolved: localized('Dovršetak prijavljen', 'Completamento segnalato', 'Completion reported'),
+  resolved: localized('RIJEŠENO', 'RISOLTO', 'RESOLVED'),
   disputed: localized('OSPORENO', 'CONTESTATO', 'DISPUTED'),
   closed: localized('ZATVORENO', 'CHIUSO', 'CLOSED'),
   unknown: localized('Status nije poznat', 'Stato sconosciuto', 'Status unknown'),
