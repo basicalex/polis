@@ -223,6 +223,35 @@ The pass runs inside `create` and `createChannelCase` before the insert, and on
 `dispute` text. The existing asynchronous AI intake (category and duplicate
 proposals) is unchanged.
 
+### Model provider for the compliance pass (O2)
+
+The gateway half of the pass is not built. Trace-service ships with the local
+checks only. Before `TRACE_AI_COMPLIANCE_URL` points at a real model in any
+shipped profile, the provider must meet all of these:
+
+- P1 Inference inside the EU. The pass reads the raw text, and the text it is
+  meant to hold (third-party personal data, whistleblower reports) is exactly
+  the text that must not leave the EU. Minimisation cannot apply here.
+- P2 A processor agreement (GDPR Art. 28) with the municipality as controller
+  that covers special-category data (Art. 9), no training on the data, and no
+  retention of prompts or outputs.
+- P3 The reply is a hold reason or nothing. It never removes text and never
+  closes a case. Every reply is a logged event with its reason, and an error
+  or timeout fails open to the local result, as the contract above says.
+- P4 Shadow first. The reply is logged as a signal but not applied until its
+  holds have been compared with the office's release decisions on real
+  filings. Only then may a gateway hold win over a local null.
+- P5 A Croatian and Italian test set of abuse, personal-data and form-letter
+  texts with measured precision and recall before the shadow period ends.
+
+Candidate noted 2026-09-17: TypeSafe AI's Jev through Vercel AI Gateway. Its
+typed Choice, Boolean and Score outputs match the reply contract with no
+taxonomy work, and the gateway has per-request no-retention and no-training
+flags. It is blocked on P1 and P2: the model listing publishes no inference
+region, and the provider terms as published do not cover special-category
+data. Re-check when either changes. The category and routing classifier is a
+separate, later item; this pass comes first.
+
 ## Erasure
 
 `POST /internal/trace/cases/:caseNumber/erase-text` accepts `{ reopenKey }` and
@@ -335,7 +364,8 @@ name and title.
 ## Open items
 
 - O1 Photos stay private until an image compliance pass exists.
-- O2 `POST /internal/ai/compliance` in ai-gateway (Python), EU-hosted model.
+- O2 `POST /internal/ai/compliance` in ai-gateway (Python). Provider
+  requirements P1–P5 are under "Model provider for the compliance pass".
 - O3 Demo store and `/demo/*` pages, `public-release.ts`, non-pilot pages,
   and the pitch deck still describe the reviewer; they follow in a later wave.
 - O4 Croatian strings for the new states go to the native editor before release.
