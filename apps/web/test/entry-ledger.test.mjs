@@ -19,6 +19,11 @@ import {
   ledgerFilterHref,
   normalizeLedgerFilter,
 } from '../src/lib/entry/ledger-stages.ts';
+import {
+  getPublicSummary,
+  listPublicCasesPage,
+  publicSummaryFromResponse,
+} from '../src/lib/entry/ledger-api.ts';
 
 const webRoot = new URL('../', import.meta.url);
 
@@ -155,9 +160,10 @@ test('the ledger renders a chip per stage and the case page tells each stage as 
   for (const key of ['all', ...LEDGER_STAGES]) {
     assert.ok(ledgerMarkup.includes(`key: '${key}'`), `the chip row is missing ${key}`);
   }
-  // Filtering happens in the browser: the chips must not send the reader back to the API.
-  assert.equal((ledgerScript.match(/listPublicCases\(/g) ?? []).length, 1);
-  assert.match(ledgerScript, /filterLedgerCases\(loaded, stage\)/);
+  // The API filters and pages: the browser no longer holds the whole ledger.
+  assert.doesNotMatch(ledgerScript, /\blistPublicCases\(/);
+  assert.doesNotMatch(ledgerScript, /filterLedgerCases/);
+  assert.match(ledgerScript, /state: stage === 'all' \? null : stage/);
 
   // The approved answer is read before the path and before the verification block.
   const answerIndex = shellMarkup.indexOf('data-public-receipt');
@@ -195,4 +201,146 @@ test('the ledger renders a chip per stage and the case page tells each stage as 
     assert.doesNotMatch(source, /neovisn/i, name);
     assert.doesNotMatch(source, /independent review/i, name);
   }
+});
+
+/* ---- the API the ledger reads ------------------------------------------- */
+
+function stubFetch(pages) {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push(String(url));
+    const body = pages.shift() ?? {};
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  return { calls, restore: () => { globalThis.fetch = original; } };
+}
+
+test('a stage is a request: the page carries the state, and only when one is chosen', async () => {
+  const stub = stubFetch([
+    { cases: [shell('answered')], nextCursor: null },
+    { cases: [shell('received')], nextCursor: null },
+  ]);
+  try {
+    await listPublicCasesPage({ limit: 50, state: 'answered' });
+    await listPublicCasesPage({ limit: 50, state: null });
+    assert.equal(stub.calls[0], '/pilot/vrsar/api/public/cases?limit=50&state=answered');
+    assert.equal(stub.calls[1], '/pilot/vrsar/api/public/cases?limit=50');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('the next page is the cursor the last one returned, and null ends the paging', async () => {
+  const stub = stubFetch([
+    { cases: [shell('received'), shell('assigned')], nextCursor: 'cur-1' },
+    { cases: [shell('closed')], nextCursor: null },
+  ]);
+  try {
+    const first = await listPublicCasesPage({ limit: 50 });
+    assert.equal(first.cases.length, 2);
+    assert.equal(first.nextCursor, 'cur-1');
+
+    const second = await listPublicCasesPage({ limit: 50, cursor: first.nextCursor });
+    assert.equal(stub.calls[1], '/pilot/vrsar/api/public/cases?limit=50&cursor=cur-1');
+    // What the reader ends up with is one list, in the order the pages arrived.
+    assert.deepEqual(
+      [...first.cases, ...second.cases].map((item) => item.state),
+      ['received', 'assigned', 'closed'],
+    );
+    // No next cursor is what takes the button off the page.
+    assert.equal(second.nextCursor, null);
+  } finally {
+    stub.restore();
+  }
+});
+
+test('an empty or missing nextCursor is the end, not a cursor', async () => {
+  const stub = stubFetch([{ cases: [] }, { cases: [], nextCursor: '' }]);
+  try {
+    assert.equal((await listPublicCasesPage({})).nextCursor, null);
+    assert.equal((await listPublicCasesPage({})).nextCursor, null);
+    assert.equal(stub.calls[0], '/pilot/vrsar/api/public/cases');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('the summary counts the whole place and keeps every stage key', async () => {
+  const stub = stubFetch([
+    {
+      total: 137,
+      byState: { received: 20, assigned: 30, answered: 40, resolved: 25, disputed: 2, closed: 20 },
+      open: 92,
+      overdue: 7,
+      held: 3,
+      pendingRelease: 1,
+      removed: 2,
+      computedAt: '2026-09-18T09:00:00Z',
+    },
+  ]);
+  try {
+    const summary = await getPublicSummary();
+    assert.equal(stub.calls[0], '/pilot/vrsar/api/public/summary');
+    assert.equal(summary.total, 137);
+    assert.equal(summary.byState.answered, 40);
+    assert.equal(summary.open, 92);
+    assert.equal(summary.overdue, 7);
+    assert.equal(summary.pendingRelease, 1);
+    // The chips read the same numbers the summary strip reads.
+    assert.equal(
+      LEDGER_STAGES.reduce((sum, stage) => sum + summary.byState[stage], 0),
+      summary.total,
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
+test('a summary missing a number reads as zero, never as a blank', () => {
+  const summary = publicSummaryFromResponse({ total: 4, byState: { received: 4 } });
+  for (const stage of LEDGER_STAGES) {
+    assert.equal(typeof summary.byState[stage], 'number', `${stage} lost its count`);
+  }
+  assert.equal(summary.byState.closed, 0);
+  assert.equal(summary.open, 0);
+  assert.equal(summary.computedAt, '');
+  assert.equal(publicSummaryFromResponse({ total: -3 }).total, 0);
+});
+
+test('the ledger counts the municipality and pages the list, and no longer says "the latest 100"', async () => {
+  const [markup, script, copy, styles] = await Promise.all([
+    readFile(new URL('src/components/entry/PlaceLedger.astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/entry/ledger.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/entry.ts', webRoot), 'utf8'),
+    readFile(new URL('src/styles/entry.css', webRoot), 'utf8'),
+  ]);
+
+  // The cap is gone from the page, the script and the copy.
+  for (const [name, source] of [['ledger', markup], ['script', script], ['copy', copy]]) {
+    assert.doesNotMatch(source, /capped|ledgerCapped/i, name);
+  }
+
+  // The counts come from the summary, not from the rows in the browser.
+  assert.match(script, /getPublicSummary\(/);
+  assert.doesNotMatch(script, /countLedgerStages|countOpenCases|countOverdueCases/);
+  assert.match(script, /totals\.byState\[key\]/);
+
+  // One more page is one button, and it goes when there is no next cursor.
+  assert.match(markup, /data-paging/);
+  assert.match(markup, /data-more/);
+  assert.match(markup, /data-shown/);
+  assert.match(markup, /data-variant="secondary"[^>]*data-more/);
+  assert.match(script, /paging\.hidden = nextCursor === null/);
+  assert.match(script, /loaded = \[\.\.\.loaded, \.\.\.page\.cases\]/);
+  assert.match(script, /const LIST_LIMIT = 50;/);
+  assert.match(styles, /\.ledger-paging \{/);
+
+  for (const key of ['ledgerMore', 'ledgerMoreLoading', 'ledgerShown']) {
+    assert.ok(copy.includes(`${key}: {`), `the paging copy is missing ${key}`);
+  }
+  assert.match(copy, /ledgerShown: \{ hr: 'Prikazano \{n\} od \{total\}'/);
 });

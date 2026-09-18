@@ -49,11 +49,11 @@ test('the ledger summary strip names one text fact per mode', async () => {
   assert.match(component, /key: 'removed', label: label\('ledgerRemoved'\), modes: 'open release', whenCounted: true/);
   assert.match(script, /summaryWhenCounted !== 'true' \|\| \(counts\[key\] \?\? 0\) > 0/);
 
-  // Each of the four counts comes from the shared counting module, not from a
-  // second rule written here.
-  assert.match(script, /held: countHeld\(shells\)/);
-  assert.match(script, /pendingRelease: countPendingRelease\(shells\)/);
-  assert.match(script, /removed: countRemoved\(shells\)/);
+  // Each count comes from the server summary for the whole municipality, not
+  // from the rows on the page.
+  assert.match(script, /held: totals\.held/);
+  assert.match(script, /pendingRelease: totals\.pendingRelease/);
+  assert.match(script, /removed: totals\.removed/);
 });
 
 test('a shell-mode row carries no text element, and the other modes say why', async () => {

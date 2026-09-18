@@ -520,7 +520,7 @@ test('the place ledger lists every state and says a count is not a vote', async 
   // The existing stamp recipe and state translation, not a second vocabulary.
   assert.match(script, /translatedCaseState/);
   assert.match(script, /caseStateTone/);
-  assert.match(script, /listPublicCases\(LIST_LIMIT\)/);
+  assert.match(script, /listPublicCasesPage\(\{ limit: LIST_LIMIT/);
   // A row shape while loading, never a spinner.
   assert.match(component, /ledger-row--skeleton/);
   // Empty state carries an action, error state carries a retry.
@@ -533,7 +533,7 @@ test('the place ledger lists every state and says a count is not a vote', async 
   // number on the office's own page.
   assert.match(component, /key: 'held'/);
   assert.match(component, /key: 'closed'/);
-  assert.match(script, /countHeld\(shells\)/);
+  assert.match(script, /held: totals\.held/);
   // Each row carries the report itself, or says the text is held.
   assert.match(script, /textExcerpt\(shell\.text\)/);
   assert.match(script, /ledger-row-text/);

@@ -2,16 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /*
- * S3 behaviour: read the place's public cases, count them by stage, and draw one
+ * S3 behaviour: read the place's public cases one page at a time and draw one
  * row per case in the order the API returns (newest activity first, entry-flow
- * R8). The stage chips filter the hundred shells already in the browser, so
- * switching stage costs no request.
+ * R8). The counts above the list come from the summary, which counts every case
+ * of the municipality, so a number here is never a number about one page.
+ *
+ * A stage chip is a request: the API filters by state and the reader gets that
+ * stage from the first case to the last, not the part of it that happened to be
+ * in the first page. "Prikaži još" asks for the next page behind the cursor.
  *
  * The shells are public by design, so nothing here needs a session. The search
  * field only navigates: a case number is a route, not a query.
  */
 
-import { getPilotConfig, listPublicCases } from '../../lib/pilot/vrsar/api';
+import { getPilotConfig } from '../../lib/pilot/vrsar/api';
+import {
+  getPublicSummary,
+  listPublicCasesPage,
+  type PublicSummary,
+} from '../../lib/entry/ledger-api';
 import {
   entityName,
   type PilotConfig,
@@ -27,13 +36,6 @@ import {
 import type { PilotLang } from '../../content/pilot/vrsar';
 import { createTextElement, formatPilotDate } from '../pilot/vrsar/shell';
 import {
-  countHeld,
-  countLedgerStages,
-  countOpenCases,
-  countOverdueCases,
-  countPendingRelease,
-  countRemoved,
-  filterLedgerCases,
   isOverdue,
   ledgerFilterFromLocation,
   ledgerFilterHref,
@@ -41,7 +43,8 @@ import {
   type LedgerFilter,
 } from '../../lib/entry/ledger-stages';
 
-const LIST_LIMIT = 100;
+/** One page. The API takes at most 100; 50 is a screenful of rows, not a wall. */
+const LIST_LIMIT = 50;
 
 type Strings = Record<string, string>;
 
@@ -52,7 +55,9 @@ function start(ledger: HTMLElement): void {
   const list = ledger.querySelector<HTMLElement>('[data-list]');
   const loading = ledger.querySelector<HTMLElement>('[data-loading]');
   const summary = ledger.querySelector<HTMLElement>('[data-summary]');
-  const capped = ledger.querySelector<HTMLElement>('[data-capped]');
+  const paging = ledger.querySelector<HTMLElement>('[data-paging]');
+  const more = ledger.querySelector<HTMLButtonElement>('[data-more]');
+  const shownLine = ledger.querySelector<HTMLElement>('[data-shown]');
   const empty = ledger.querySelector<HTMLElement>('[data-empty]');
   const failure = ledger.querySelector<HTMLElement>('[data-failure]');
   const retry = ledger.querySelector<HTMLButtonElement>('[data-retry]');
@@ -69,6 +74,12 @@ function start(ledger: HTMLElement): void {
   const lang = documentLang();
   let loaded: PublicCaseShell[] = [];
   let pilot: PilotConfig | null = null;
+  let totals: PublicSummary | null = null;
+  let nextCursor: string | null = null;
+  // Every request carries the number of the view that asked for it; a reply for
+  // an older view is dropped rather than drawn under the wrong chip.
+  let sequence = 0;
+  let fetchingMore = false;
   let stage: LedgerFilter = ledgerFilterFromLocation(location.search);
   const base = ledger.dataset.base === '/en/' ? '/en/' : '/';
   const place = ledger.dataset.place ?? '';
@@ -215,33 +226,46 @@ function start(ledger: HTMLElement): void {
 
   // ---- counts and chips ---------------------------------------------------
 
-  function countAndShow(shells: PublicCaseShell[]): void {
-    const byStage = countLedgerStages(shells);
-    const counts: Record<string, number> = {
-      open: countOpenCases(shells),
-      overdue: countOverdueCases(shells),
-      // Held, pending, removed and closed are how a text that is not on the
-      // page stays visible: as a number.
-      held: countHeld(shells),
-      pendingRelease: countPendingRelease(shells),
-      removed: countRemoved(shells),
-      closed: byStage.closed ?? 0,
-    };
+  /*
+   * Every number on this page is a number about the whole municipality, which
+   * is why they come from the summary and not from the rows in the browser. The
+   * summary can fail on its own: then the chips carry no number at all rather
+   * than a number about one page, and the list goes on working.
+   */
+  function countAndShow(): void {
+    const values: Record<string, number> = totals
+      ? {
+          open: totals.open,
+          overdue: totals.overdue,
+          // Held, pending, removed and closed are how a text that is not on the
+          // page stays visible: as a number.
+          held: totals.held,
+          pendingRelease: totals.pendingRelease,
+          removed: totals.removed,
+          closed: totals.byState.closed ?? 0,
+        }
+      : {};
     for (const element of summary?.querySelectorAll<HTMLElement>('[data-count]') ?? []) {
-      element.textContent = String(counts[element.dataset.count ?? ''] ?? 0);
+      const key = element.dataset.count ?? '';
+      element.textContent = totals ? String(values[key] ?? 0) : '—';
     }
-    showSummaryItems(counts);
+    showSummaryItems(values);
 
     // A stage nobody is in keeps its chip: the reader should see the whole path,
     // not only the parts of it this place happens to be standing in today.
     stageChips.forEach((chip) => {
       const key = normalizeLedgerFilter(chip.dataset.stageChip);
-      const count = byStage[key] ?? 0;
+      const count = stageTotal(key);
       const value = chip.querySelector<HTMLElement>('[data-stage-count]');
-      if (value) value.textContent = String(count);
-      chip.dataset.empty = count === 0 && key !== 'all' ? 'true' : 'false';
+      if (value) value.textContent = totals ? String(count) : '';
+      chip.dataset.empty = totals && count === 0 && key !== 'all' ? 'true' : 'false';
     });
-    if (capped) capped.hidden = shells.length < LIST_LIMIT;
+  }
+
+  /** How many cases the place has in one stage, or in all of them. */
+  function stageTotal(key: LedgerFilter): number {
+    if (!totals) return 0;
+    return key === 'all' ? totals.total : totals.byState[key] ?? 0;
   }
 
   /*
@@ -266,14 +290,44 @@ function start(ledger: HTMLElement): void {
     });
   }
 
-  /** Redraw the rows for the selected stage. Nothing is refetched. */
+  /*
+   * Draw the pages fetched so far. The API already returned the selected stage
+   * and nothing else, so there is nothing left to filter here.
+   */
   function draw(): void {
-    const shown = filterLedgerCases(loaded, stage);
-    list!.replaceChildren(...shown.map((shell) => row(shell, pilot)));
-    list!.hidden = shown.length === 0;
-    if (empty) empty.hidden = loaded.length > 0;
-    if (stageEmpty) stageEmpty.hidden = shown.length > 0 || loaded.length === 0;
+    list!.replaceChildren(...loaded.map((shell) => row(shell, pilot)));
+    list!.hidden = loaded.length === 0;
+    // An empty place and an empty stage are two different sentences, and the
+    // summary is what tells them apart.
+    const placeEmpty = totals ? totals.total === 0 : stage === 'all' && loaded.length === 0;
+    if (empty) empty.hidden = !placeEmpty;
+    if (stageEmpty) stageEmpty.hidden = loaded.length > 0 || placeEmpty;
     markSelected();
+    showPaging();
+  }
+
+  /** Append one more page without redrawing the rows already on screen. */
+  function append(shells: PublicCaseShell[]): void {
+    list!.append(...shells.map((shell) => row(shell, pilot)));
+    list!.hidden = loaded.length === 0;
+    showPaging();
+  }
+
+  /*
+   * The button is the only thing that says there is more. It goes when the API
+   * says there is no next page, and the line beside it counts the rows on
+   * screen against every case in this stage.
+   */
+  function showPaging(): void {
+    if (more) more.textContent = strings.more ?? '';
+    if (shownLine) {
+      shownLine.textContent = totals
+        ? (strings.shown ?? '')
+            .replace('{n}', String(loaded.length))
+            .replace('{total}', String(stageTotal(stage)))
+        : '';
+    }
+    if (paging) paging.hidden = nextCursor === null;
   }
 
   function select(next: LedgerFilter, push: boolean): void {
@@ -282,7 +336,8 @@ function start(ledger: HTMLElement): void {
       const href = ledgerFilterHref(`${location.pathname}${location.search}`, next, location.origin);
       history.pushState({ stage: next }, '', href);
     }
-    draw();
+    markSelected();
+    void loadPage();
   }
 
   stageChips.forEach((chip) => {
@@ -300,50 +355,107 @@ function start(ledger: HTMLElement): void {
 
   // Back and forward move between stages, because each stage has its own address.
   window.addEventListener('popstate', () => {
-    stage = ledgerFilterFromLocation(location.search);
-    draw();
+    select(ledgerFilterFromLocation(location.search), false);
   });
 
   // ---- load ---------------------------------------------------------------
 
-  async function load(): Promise<void> {
+  /*
+   * The first page of the selected stage. The summary and the pilot config are
+   * fetched beside it on the first load and whenever one of them is still
+   * missing; a chip change asks only for the list, because the counts of the
+   * place do not change with the stage the reader is looking at.
+   */
+  async function loadPage(): Promise<void> {
+    const token = ++sequence;
+    nextCursor = null;
     if (failure) failure.hidden = true;
     if (empty) empty.hidden = true;
     if (stageEmpty) stageEmpty.hidden = true;
+    if (paging) paging.hidden = true;
     if (loading) loading.hidden = false;
     list!.setAttribute('aria-busy', 'true');
     try {
-      const [shells, config] = await Promise.all([
-        listPublicCases(LIST_LIMIT),
-        getPilotConfig().catch(() => null),
+      const [page, total, config] = await Promise.all([
+        listPublicCasesPage({ limit: LIST_LIMIT, state: stage === 'all' ? null : stage }),
+        totals ? Promise.resolve(totals) : getPublicSummary().catch(() => null),
+        pilot ? Promise.resolve(pilot) : getPilotConfig().catch(() => null),
       ]);
-      loaded = shells;
+      if (token !== sequence) return;
+      loaded = page.cases;
+      nextCursor = page.nextCursor;
+      totals = total;
       pilot = config;
       // The municipality's own setting wins over the one built into the page.
       if (config) {
         textMode = readTextMode(config.publicTextMode);
         ledger.dataset.publicTextMode = textMode;
       }
-      countAndShow(shells);
+      if (summary) summary.hidden = false;
+      countAndShow();
       draw();
     } catch {
+      if (token !== sequence) return;
       loaded = [];
       list!.replaceChildren();
       list!.hidden = true;
       if (summary) summary.hidden = true;
+      if (paging) paging.hidden = true;
       if (stageEmpty) stageEmpty.hidden = true;
       if (failure) failure.hidden = false;
     } finally {
-      list!.removeAttribute('aria-busy');
-      if (loading) loading.hidden = true;
+      if (token === sequence) {
+        list!.removeAttribute('aria-busy');
+        if (loading) loading.hidden = true;
+      }
     }
   }
 
+  /*
+   * One more page, appended. A failed page leaves the rows that are already
+   * there alone and puts the button back, so pressing it again is the whole
+   * recovery.
+   */
+  async function loadMore(): Promise<void> {
+    if (!nextCursor || fetchingMore) return;
+    const token = sequence;
+    const cursor = nextCursor;
+    fetchingMore = true;
+    if (more) {
+      more.disabled = true;
+      more.textContent = strings.moreLoading ?? strings.more ?? '';
+    }
+    try {
+      const page = await listPublicCasesPage({
+        limit: LIST_LIMIT,
+        state: stage === 'all' ? null : stage,
+        cursor,
+      });
+      if (token !== sequence) return;
+      loaded = [...loaded, ...page.cases];
+      nextCursor = page.nextCursor;
+      append(page.cases);
+    } catch {
+      // The page the reader already has stays on screen; the button comes back.
+    } finally {
+      fetchingMore = false;
+      if (more) {
+        more.disabled = false;
+        more.textContent = strings.more ?? '';
+      }
+      if (token === sequence) showPaging();
+    }
+  }
+
+  more?.addEventListener('click', () => {
+    void loadMore();
+  });
+
   retry?.addEventListener('click', () => {
     if (summary) summary.hidden = false;
-    void load();
+    void loadPage();
   });
-  void load();
+  void loadPage();
 }
 
 /** An unknown mode is the open one: the page shows the text it has. */

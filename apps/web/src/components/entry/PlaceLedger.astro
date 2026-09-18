@@ -34,7 +34,9 @@ const strings = {
   overdue: label('ledgerOverdue'),
   held: label('ledgerHeld'),
   closed: label('ledgerClosed'),
-  capped: label('ledgerCapped'),
+  more: label('ledgerMore'),
+  moreLoading: label('ledgerMoreLoading'),
+  shown: label('ledgerShown'),
   searchInvalid: label('ledgerSearchInvalid'),
   filed: label('ledgerFiled'),
   due: label('ledgerDue'),
@@ -120,7 +122,6 @@ const stages = [
         </p>
       ))
     }
-    <span class="ledger-summary-note" data-capped hidden>{strings.capped}</span>
   </div>
 
   <!--
@@ -174,6 +175,16 @@ const stages = [
     }
   </ul>
   <p class="ledger-loading" data-loading>{label('ledgerLoading')}</p>
+
+  <!--
+    The list arrives one page at a time, so the ledger says how much of the
+    stage is on screen and offers the rest. The block stands only while the API
+    has a next page to give.
+  -->
+  <div class="ledger-paging" data-paging hidden>
+    <button class="btn" data-variant="secondary" type="button" data-more>{label('ledgerMore')}</button>
+    <p class="ledger-shown" data-shown aria-live="polite"></p>
+  </div>
 
   <div class="ledger-stage-empty" data-stage-empty hidden>
     <p class="ledger-stage-empty-line">{label('ledgerStageEmpty')}</p>

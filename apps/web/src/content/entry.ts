@@ -46,7 +46,18 @@ export const entryStrings = {
   ledgerClosed: { hr: 'Zatvoreno', en: 'Closed' },
   /* Held text is not a process state, so it is counted next to the states. */
   ledgerHeld: { hr: 'Zadržan tekst', en: 'Text held' },
-  ledgerCapped: { hr: 'posljednjih 100', en: 'the latest 100' },
+
+  /*
+   * The list arrives in pages of fifty. The counts above it are the whole
+   * municipality, so the line beside the button says how much of it is on
+   * screen instead of leaving the reader to guess.
+   */
+  // HR draft: native editor review
+  ledgerMore: { hr: 'Prikaži još', en: 'Show more' },
+  // HR draft: native editor review
+  ledgerMoreLoading: { hr: 'Učitavanje…', en: 'Loading…' },
+  // HR draft: native editor review
+  ledgerShown: { hr: 'Prikazano {n} od {total}', en: 'Showing {n} of {total}' },
 
   /*
    * The stage chips. The labels are the same reviewed words the status stamp on

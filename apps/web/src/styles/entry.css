@@ -469,12 +469,6 @@
   font-weight: 650;
 }
 
-.ledger-summary-note {
-  margin-inline-start: auto;
-  color: var(--polis-muted);
-  font-size: var(--type-meta);
-}
-
 /* ---- stage chips --------------------------------------------------------- */
 
 /*
@@ -668,6 +662,21 @@
 .ledger-skeleton--line {
   flex: 1 1 10rem;
   max-width: 18rem;
+}
+
+/* The next page is one control, with the count of what is on screen beside it. */
+.ledger-paging {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.ledger-shown {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+  font-variant-numeric: tabular-nums;
 }
 
 .ledger-loading,
