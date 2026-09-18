@@ -78,6 +78,8 @@ Every decryption is written to the audit trail with the request reference. The
 operator notifies the person unless the law forbids notice. The vault TTL is the
 outer limit: after purge, there is nothing to disclose.
 
+Phone reveal is an offline operator procedure: from `services/channel-gateway`, run `bun run reveal --case <caseNumber> --request-ref <writtenRequestReference> --actor <operator>`. The command prints the number once; before decryption, it writes `channel_decryptions` and sends the restricted `phone-decrypted` audit event. A failed local write aborts the reveal.
+
 Intrface j.d.o.o. decides the purpose of phone-number and relay processing, so
 it is the controller for that contact data. The municipality is the controller
 for case content. The L1 agreement must record these separate roles. A plain

@@ -7,9 +7,14 @@ import test from 'node:test';
 import type { ChannelConfig } from './config.js';
 import { openString, phoneHash, sealString } from './crypto.js';
 import { MemoryChannelStore } from './memory-store.js';
-import type { PipelineDeps, TraceClient } from './pipeline-types.js';
-import { deliverOutbound, runRelayCycle } from './relay.js';
-import type { ChannelIdentity, ChannelLink, ChannelOutbox } from './types.js';
+import type { AuditClient, PipelineDeps, TraceClient } from './pipeline-types.js';
+import { decryptPhone, deliverOutbound, runRelayCycle } from './relay.js';
+import type {
+  ChannelDecryption,
+  ChannelIdentity,
+  ChannelLink,
+  ChannelOutbox,
+} from './types.js';
 
 const key = Buffer.alloc(32, 8);
 const initialNow = new Date('2026-09-12T12:00:00.000Z');
@@ -184,6 +189,78 @@ async function enqueue(
   await subject.store.enqueueOutbox(row);
   return row;
 }
+
+test('decryptPhone records context and emits the contract audit before returning', async () => {
+  const subject = fixture();
+  const { hash } = await seedIdentityAndLink(subject);
+  const identity = await subject.store.getIdentity(hash);
+  assert.ok(identity);
+  const order: string[] = [];
+  const decryptions: ChannelDecryption[] = [];
+  const audits: Array<Parameters<AuditClient['emit']>[0]> = [];
+  subject.store.recordDecryption = async (row) => {
+    order.push('row');
+    decryptions.push(row);
+  };
+  subject.audit.emit = async (event) => {
+    order.push('audit');
+    audits.push(event);
+  };
+
+  const decrypted = await decryptPhone(subject, identity, {
+    reason: 'outbound-sms',
+    caseNumber: 'VRS-1',
+    recordId: 'rec-1',
+    actor: 'channel-gateway',
+  });
+
+  assert.equal(phoneHash(decrypted, subject.config.vaultPepper, subject.config.municipalityId), hash);
+  assert.deepEqual(order, ['row', 'audit']);
+  assert.match(decryptions[0]!.id, /^[0-9a-f-]{36}$/);
+  assert.deepEqual({ ...decryptions[0], id: '[generated]' }, {
+    id: '[generated]',
+    phoneHashPrefix: hash.slice(0, 8),
+    reason: 'outbound-sms',
+    caseNumber: 'VRS-1',
+    requestRef: null,
+    actor: 'channel-gateway',
+    createdAt: initialNow,
+  });
+  assert.deepEqual(audits, [
+    {
+      eventType: 'channel.phone.decrypted',
+      code: 'phone-decrypted',
+      phoneHashPrefix: hash.slice(0, 8),
+      caseNumber: 'VRS-1',
+      recordId: 'rec-1',
+      reason: 'outbound-sms',
+    },
+  ]);
+});
+
+test('decryptPhone aborts before decryption when the local row cannot be written', async () => {
+  const subject = fixture();
+  const { hash } = await seedIdentityAndLink(subject);
+  const identity = await subject.store.getIdentity(hash);
+  assert.ok(identity);
+  let audited = false;
+  subject.store.recordDecryption = async () => {
+    throw new Error('decryption_row_write_failed');
+  };
+  subject.audit.emit = async () => {
+    audited = true;
+  };
+
+  await assert.rejects(
+    decryptPhone(
+      subject,
+      { ...identity, phoneCiphertext: new Uint8Array() },
+      { reason: 'reveal', requestRef: 'request-17', actor: 'operator@example.test' },
+    ),
+    /decryption_row_write_failed/,
+  );
+  assert.equal(audited, false);
+});
 
 test('runRelayCycle marks a Trace message without a channel failed no_channel', async () => {
   const subject = fixture({

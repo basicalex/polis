@@ -7,9 +7,9 @@ import { openString, sealString } from './crypto.js';
 import { phoneHashPrefix } from './log.js';
 import { SMS_RELAY } from './copy-hr.js';
 import type { PipelineDeps } from './pipeline-types.js';
-import type { ChannelOutbox } from './types.js';
+import type { ChannelIdentity, ChannelOutbox, DecryptionReason } from './types.js';
 
-function keyFor(deps: PipelineDeps, version: number): Uint8Array {
+function keyFor(deps: Pick<PipelineDeps, 'config'>, version: number): Uint8Array {
   const key = deps.config.vaultKeys.get(version);
   if (!key) throw new Error(`missing vault key v${version}`);
   return key;
@@ -46,15 +46,40 @@ function sealOutbox(deps: PipelineDeps, text: string) {
   return { version, sealed: sealString(keyFor(deps, version), text, 'outbox-body') };
 }
 
-function decryptPhone(
-  deps: PipelineDeps,
-  row: {
-    phoneCiphertext: Uint8Array;
-    phoneNonce: Uint8Array;
-    phoneTag: Uint8Array;
-    keyVersion: number;
-  },
-): string {
+export interface PhoneDecryptionContext {
+  reason: DecryptionReason;
+  caseNumber?: string;
+  recordId?: string;
+  requestRef?: string;
+  actor: string;
+}
+
+type PhoneDecryptionDeps = Pick<PipelineDeps, 'config' | 'store' | 'audit' | 'now'>;
+
+export async function decryptPhone(
+  deps: PhoneDecryptionDeps,
+  row: ChannelIdentity,
+  context: PhoneDecryptionContext,
+): Promise<string> {
+  const hashPrefix = phoneHashPrefix(row.phoneHash);
+  await deps.store.recordDecryption({
+    id: randomUUID(),
+    phoneHashPrefix: hashPrefix,
+    reason: context.reason,
+    caseNumber: context.caseNumber ?? null,
+    requestRef: context.requestRef ?? null,
+    actor: context.actor,
+    createdAt: deps.now(),
+  });
+  await deps.audit.emit({
+    eventType: 'channel.phone.decrypted',
+    code: 'phone-decrypted',
+    phoneHashPrefix: hashPrefix,
+    ...(context.caseNumber === undefined ? {} : { caseNumber: context.caseNumber }),
+    ...(context.recordId === undefined ? {} : { recordId: context.recordId }),
+    reason: context.reason,
+    ...(context.requestRef === undefined ? {} : { requestRef: context.requestRef }),
+  });
   return openString(
     keyFor(deps, row.keyVersion),
     {
@@ -185,7 +210,12 @@ export async function deliverOutbound(
       continue;
     }
     try {
-      const to = decryptPhone(deps, identity);
+      const to = await decryptPhone(deps, identity, {
+        reason: 'outbound-sms',
+        caseNumber: row.caseNumber,
+        recordId: row.recordId,
+        actor: 'channel-gateway',
+      });
       const body = decryptBody(deps, row);
       const text = row.origin === 'relay' ? SMS_RELAY(row.caseNumber, body) : body;
       const delivered = await deps.provider.sendSms({ to, text, idempotencyKey: row.id });

@@ -5,6 +5,7 @@ import type { ChannelStore } from './store.js';
 import type {
   CallStep,
   ChannelCall,
+  ChannelDecryption,
   ChannelEvent,
   ChannelIdentity,
   ChannelInbox,
@@ -97,6 +98,7 @@ export class MemoryChannelStore implements ChannelStore {
   readonly #identities = new Map<string, ChannelIdentity>();
   readonly #links = new Map<string, ChannelLink>();
   readonly #calls = new Map<string, ChannelCall>();
+  readonly #decryptions = new Map<string, ChannelDecryption>();
   readonly #events = new Map<string, ChannelEvent>();
   readonly #inbox = new Map<string, ChannelInbox>();
   readonly #outbox = new Map<string, ChannelOutbox>();
@@ -147,6 +149,11 @@ export class MemoryChannelStore implements ChannelStore {
     return found ? copyLink(found) : null;
   }
 
+  async findLinkByCase(caseNumber: string): Promise<ChannelLink | null> {
+    const found = [...this.#links.values()].find((value) => value.caseNumber === caseNumber);
+    return found ? copyLink(found) : null;
+  }
+
   async upsertLink(value: ChannelLink): Promise<void> {
     this.#links.set(`${value.phoneHash}\0${value.recordId}`, copyLink(value));
   }
@@ -191,6 +198,10 @@ export class MemoryChannelStore implements ChannelStore {
     if (!value) return;
     value.step = step;
     value.updatedAt = new Date(updatedAt);
+  }
+
+  async recordDecryption(value: ChannelDecryption): Promise<void> {
+    this.#decryptions.set(value.id, { ...value, createdAt: new Date(value.createdAt) });
   }
 
   async recordEvent(

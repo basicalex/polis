@@ -7,7 +7,7 @@
 import type { ChannelConfig } from './config.js';
 import type { LogFields } from './log.js';
 import type { ChannelStore } from './store.js';
-import type { ChannelInbox, ChannelKind } from './types.js';
+import type { ChannelInbox, ChannelKind, DecryptionReason } from './types.js';
 
 /** Parsed provider webhook event; one source result maps to one dedupe record. */
 export interface ProviderEvent {
@@ -124,6 +124,8 @@ export interface AuditClient {
     phoneHashPrefix?: string;
     caseNumber?: string;
     recordId?: string;
+    reason?: DecryptionReason;
+    requestRef?: string;
   }): Promise<void>;
 }
 

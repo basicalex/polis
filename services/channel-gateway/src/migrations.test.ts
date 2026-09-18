@@ -11,7 +11,7 @@ test('bundled channel migrations are ordered, hashed, and complete', () => {
   const migrations = readMigrations();
   assert.deepEqual(
     migrations.map((migration) => migration.version),
-    ['0001', '0002', '0003'],
+    ['0001', '0002', '0003', '0004'],
   );
   for (const migration of migrations) assert.match(migration.hash, /^[a-f0-9]{64}$/);
   for (const table of [
@@ -28,6 +28,8 @@ test('bundled channel migrations are ordered, hashed, and complete', () => {
   assert.match(migrations[1]!.sql, /CREATE TABLE channel_calls/);
   assert.match(migrations[1]!.sql, /'answered', 'prompt', 'readback', 'recording', 'done'/);
   assert.match(migrations[2]!.sql, /closed_at/);
+  assert.match(migrations[3]!.sql, /CREATE TABLE channel_decryptions/);
+  assert.match(migrations[3]!.sql, /'outbound-sms', 'reveal'/);
 });
 
 test('migration ledger is serialized and hash verified', () => {

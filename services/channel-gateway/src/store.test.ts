@@ -13,6 +13,7 @@ import type { ChannelStore } from './store.js';
 import type {
   ChannelCall,
   ChannelIdentity,
+  ChannelDecryption,
   ChannelInbox,
   ChannelLink,
   ChannelOutbox,
@@ -34,6 +35,7 @@ interface FixtureState {
 
 interface ConformanceState extends FixtureState {
   eventId: string;
+  decryptionId: string;
 }
 
 function fixtures(): FixtureState {
@@ -153,6 +155,7 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
   );
 
   await store.upsertLink(value.link);
+  assert.equal((await store.findLinkByCase(value.link.caseNumber))?.recordId, value.link.recordId);
   assert.equal((await store.listOpenLinks(value.phoneHash))[0]?.recordId, value.link.recordId);
   const closure = {
     closedAt: value.now,
@@ -180,6 +183,16 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
     callUpdatedAt.getTime(),
   );
 
+  const decryption: ChannelDecryption = {
+    id: randomUUID(),
+    phoneHashPrefix: value.phoneHash.slice(0, 8),
+    reason: 'reveal',
+    caseNumber: value.link.caseNumber,
+    requestRef: 'request-17',
+    actor: 'operator@example.test',
+    createdAt: value.now,
+  };
+  await store.recordDecryption(decryption);
   const eventId = `event-${randomUUID()}`;
   const eventHash = 'a'.repeat(64);
   assert.deepEqual(await store.recordEvent('infobip', eventId, 'sms.received', eventHash), {
@@ -233,7 +246,7 @@ async function assertConformance(store: ChannelStore): Promise<ConformanceState>
 
   assert.equal(await store.bumpRate('inbound-hour', value.phoneHash, value.now), 1);
   assert.equal(await store.bumpRate('inbound-hour', value.phoneHash, value.now), 2);
-  return { ...value, eventId };
+  return { ...value, eventId, decryptionId: decryption.id };
 }
 
 test('MemoryChannelStore conforms to the shared channel contract', async () => {
@@ -254,6 +267,7 @@ if (postgresDatabaseUrl) {
         value = await assertConformance(repository);
       } finally {
         if (value) {
+          await sql`DELETE FROM channel_decryptions WHERE id = ${value.decryptionId}`;
           await sql`DELETE FROM channel_recordings WHERE id = ${value.recording.id}`;
           await sql`DELETE FROM channel_inbox WHERE id = ${value.inbox.id}`;
           await sql`DELETE FROM channel_outbox WHERE id = ${value.outbox.id}`;

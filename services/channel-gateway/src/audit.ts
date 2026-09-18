@@ -6,7 +6,7 @@ import { fetchWithTimeout, internalHeaders } from '@polis/service-runtime';
 import type { ChannelConfig } from './config.js';
 import type { AuditClient } from './pipeline-types.js';
 import type { FetchImplementation } from './infobip-client.js';
-import type { ChannelKind } from './types.js';
+import type { ChannelKind, DecryptionReason } from './types.js';
 
 const AUDIT_TIMEOUT_MS = 5_000;
 
@@ -18,6 +18,8 @@ interface AuditEvent {
   phoneHashPrefix?: string;
   caseNumber?: string;
   recordId?: string;
+  reason?: DecryptionReason;
+  requestRef?: string;
 }
 
 export class HttpAuditClient implements AuditClient {
@@ -43,14 +45,23 @@ export class HttpAuditClient implements AuditClient {
             type: 'channel_gateway',
             id: event.recordId ?? event.caseNumber ?? event.eventId ?? 'channel',
           },
-          data: {
-            eventId: event.eventId,
-            phoneHashPrefix: event.phoneHashPrefix,
-            caseNumber: event.caseNumber,
-            recordId: event.recordId,
-            channel: event.channel,
-            code: event.code,
-          },
+          data:
+            event.code === 'phone-decrypted'
+              ? {
+                  reason: event.reason,
+                  caseNumber: event.caseNumber,
+                  recordId: event.recordId,
+                  phoneHashPrefix: event.phoneHashPrefix,
+                  requestRef: event.requestRef,
+                }
+              : {
+                  eventId: event.eventId,
+                  phoneHashPrefix: event.phoneHashPrefix,
+                  caseNumber: event.caseNumber,
+                  recordId: event.recordId,
+                  channel: event.channel,
+                  code: event.code,
+                },
         }),
       });
     } catch (error) {

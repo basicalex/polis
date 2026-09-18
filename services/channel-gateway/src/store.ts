@@ -3,6 +3,7 @@
 
 import type {
   ChannelCall,
+  ChannelDecryption,
   ChannelEvent,
   ChannelIdentity,
   ChannelInbox,
@@ -24,6 +25,7 @@ export interface ChannelStore {
   setBlocked(phoneHash: string, blocked: boolean): Promise<void>;
   listOpenLinks(phoneHash: string): Promise<ChannelLink[]>;
   findLinkByRecord(recordId: string): Promise<ChannelLink | null>;
+  findLinkByCase(caseNumber: string): Promise<ChannelLink | null>;
   upsertLink(link: ChannelLink): Promise<void>;
   /** Marks the link closed and caps its expiry to the closed-case retention. */
   closeLink(phoneHash: string, recordId: string, closure: LinkClosure): Promise<void>;
@@ -33,6 +35,7 @@ export interface ChannelStore {
   upsertCall(call: ChannelCall): Promise<void>;
   getCall(callId: string): Promise<ChannelCall | null>;
   markCallStep(callId: string, step: CallStep, updatedAt: Date): Promise<void>;
+  recordDecryption(decryption: ChannelDecryption): Promise<void>;
   recordEvent(
     provider: string,
     eventId: string,

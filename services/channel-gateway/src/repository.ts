@@ -7,6 +7,7 @@ import type { ChannelStore } from './store.js';
 import type {
   CallStep,
   ChannelCall,
+  ChannelDecryption,
   ChannelIdentity,
   ChannelInbox,
   ChannelLink,
@@ -300,6 +301,18 @@ export class PostgresChannelStore implements ChannelStore {
     return rows[0] ? link(rows[0]) : null;
   }
 
+  async findLinkByCase(caseNumber: string): Promise<ChannelLink | null> {
+    const rows = await this.#sql<LinkRow[]>`
+      SELECT phone_hash, record_id, case_number, reopen_key_ciphertext, reopen_key_nonce,
+             reopen_key_tag, key_version, channel, state, last_message_at, closed_at, expires_at
+      FROM channel_links
+      WHERE case_number = ${caseNumber}
+      ORDER BY last_message_at DESC
+      LIMIT 1
+    `;
+    return rows[0] ? link(rows[0]) : null;
+  }
+
   async upsertLink(value: ChannelLink): Promise<void> {
     await this.#sql`
       INSERT INTO channel_links (
@@ -351,6 +364,17 @@ export class PostgresChannelStore implements ChannelStore {
       UPDATE channel_identities
       SET expires_at = LEAST(expires_at, ${expiresAt})
       WHERE phone_hash = ${phoneHash}
+    `;
+  }
+
+  async recordDecryption(value: ChannelDecryption): Promise<void> {
+    await this.#sql`
+      INSERT INTO channel_decryptions (
+        id, phone_hash_prefix, reason, case_number, request_ref, actor, created_at
+      ) VALUES (
+        ${value.id}, ${value.phoneHashPrefix}, ${value.reason}, ${value.caseNumber},
+        ${value.requestRef}, ${value.actor}, ${value.createdAt}
+      )
     `;
   }
 

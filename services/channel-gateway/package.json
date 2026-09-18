@@ -9,6 +9,8 @@
     "typecheck": "node ../../node_modules/ts7/bin/tsc -p tsconfig.json --noEmit",
     "test": "bun --no-env-file test src",
     "migrate": "bun --no-env-file src/migrate.ts",
+    "purge": "bun --no-env-file src/purge.ts",
+    "reveal": "bun --no-env-file src/reveal.ts",
     "start": "node dist/index.js"
   },
   "dependencies": {

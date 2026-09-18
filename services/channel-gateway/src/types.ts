@@ -39,6 +39,18 @@ export interface ChannelLink {
   expiresAt: Date;
 }
 
+export type DecryptionReason = 'outbound-sms' | 'reveal';
+
+export interface ChannelDecryption {
+  id: string;
+  phoneHashPrefix: string;
+  reason: DecryptionReason;
+  caseNumber: string | null;
+  requestRef: string | null;
+  actor: string;
+  createdAt: Date;
+}
+
 export interface LinkClosure {
   closedAt: Date;
   expiresAt: Date;
