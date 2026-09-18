@@ -40,6 +40,7 @@ import {
   normalizeFilerMessage,
   normalizeGatewayCreate,
   normalizeGatewayMessage,
+  normalizeOfficialProfile,
   normalizeHold,
   normalizeNotice,
   normalizeLabel,
@@ -48,7 +49,9 @@ import {
   normalizeReopen,
   normalizeReopenRead,
   normalizeResolution,
+  parsePublicListQuery,
   parseListLimit,
+  validateCitizenId,
   validateCaseNumber,
   validateIdempotencyKey,
   validateRecordId,
@@ -189,6 +192,7 @@ function operationalRoutes(store: TraceStore): Route[] {
 }
 
 export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
+  const unitIds = new Set(config.pilot.office.units.map((unit) => unit.id));
   return [
     ...operationalRoutes(store),
     {
@@ -207,6 +211,32 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
           role: actor.role,
           municipalityId: config.pilot.municipality.id,
         };
+      }),
+    },
+    {
+      method: 'PUT',
+      path: '/internal/trace/officials/:citizenId',
+      maxBodyBytes: 2_000,
+      handler: safe(async (request, body, params) => {
+        const actor = gatewayActorFromRequest(request, config);
+        return store.upsertOfficial(
+          actor,
+          validateCitizenId(params.citizenId ?? ''),
+          normalizeOfficialProfile(body, unitIds),
+        );
+      }),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/officials/me',
+      handler: safe(async (request) => {
+        const actor = actorFromRequest(request, config);
+        requireRole(actor, 'official');
+        const profile = await store.getOfficial(actor);
+        if (!profile) {
+          throw new DomainError(404, 'official_profile_missing', 'Official profile not found.');
+        }
+        return profile;
       }),
     },
     {
@@ -250,7 +280,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
           request,
           actor,
           recordPath(id, '/assign'),
-          normalizeAssign(body),
+          normalizeAssign(body, unitIds),
         );
         const output = await store.assign(ctx, id);
         return result(output.status, output.body);
@@ -301,7 +331,7 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
           request,
           actor,
           recordPath(id, '/reopen'),
-          normalizeReopen(body),
+          normalizeReopen(body, unitIds),
         );
         const output = await store.reopen(ctx, id);
         return result(output.status, output.body);
@@ -617,7 +647,12 @@ export function traceRoutes(store: TraceStore, config: TraceConfig): Route[] {
     {
       method: 'GET',
       path: '/internal/trace/public/cases',
-      handler: safe(async (request) => store.listPublicShells(parseListLimit(request.url))),
+      handler: safe(async (request) => store.listPublicShells(parsePublicListQuery(request.url))),
+    },
+    {
+      method: 'GET',
+      path: '/internal/trace/public/summary',
+      handler: safe(async () => store.listPublicSummary()),
     },
     {
       method: 'GET',

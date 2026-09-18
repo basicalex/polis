@@ -3,7 +3,15 @@
 
 import { createHash } from 'node:crypto';
 
-import type { CaseShell, PublicRecord, TraceRole, TraceStage, TraceStatus } from './types.js';
+import type {
+  CaseShell,
+  PublicEvent,
+  PublicEventData,
+  PublicRecord,
+  TraceRole,
+  TraceStage,
+  TraceStatus,
+} from './types.js';
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === 'boolean' || typeof value === 'string')
@@ -112,6 +120,31 @@ export function verifyEventChain(
   }
   return { valid: true };
 }
+export function computePublicEventHash(event: PublicEventData, previousHash: string): string {
+  return sha256(canonicalJson(event) + previousHash);
+}
+
+export function chainPublicEvents(events: readonly PublicEventData[]): PublicEvent[] {
+  let previousHash = '';
+  return events.map((event) => {
+    const hash = computePublicEventHash(event, previousHash);
+    const chained: PublicEvent = { ...event, previousHash, hash };
+    previousHash = hash;
+    return chained;
+  });
+}
+
+export function verifyPublicEventChain(events: readonly PublicEvent[]): boolean {
+  let previousHash = '';
+  for (const event of events) {
+    if (event.previousHash !== previousHash) return false;
+    const { hash, previousHash: _storedPreviousHash, ...material } = event;
+    if (computePublicEventHash(material as PublicEventData, previousHash) !== hash) return false;
+    previousHash = hash;
+  }
+  return true;
+}
+
 
 export const RECEIPT_HASH_FIELDS = [
   'id',
@@ -127,6 +160,7 @@ export const RECEIPT_HASH_FIELDS = [
   'publishedAt',
   'resolvedAt',
   'disputes',
+  'lastEventHash',
   'events',
   'testEnvironment',
 ] as const;
@@ -151,6 +185,7 @@ export function buildReceiptHashMaterial(
     publishedAt: record.publishedAt,
     resolvedAt: record.resolvedAt,
     disputes: record.disputes.map((dispute) => ({ ...dispute })),
+    lastEventHash: record.lastEventHash,
     events: record.events.map((event) => ({ ...event })),
     testEnvironment: record.testEnvironment,
   };
@@ -180,6 +215,8 @@ export const CASE_SHELL_HASH_FIELDS = [
   'textStatus',
   'holdReason',
   'removedReason',
+  'textHashKind',
+  'unitId',
   'textSha256',
   'labels',
   'closedPublicReason',
@@ -211,6 +248,8 @@ export function buildShellHashMaterial(
     textStatus: shell.textStatus,
     holdReason: shell.holdReason,
     removedReason: shell.removedReason,
+    textHashKind: shell.textHashKind,
+    unitId: shell.unitId,
     textSha256: shell.textSha256,
     labels: [...shell.labels].sort(),
     closedPublicReason: shell.closedPublicReason,

@@ -23,7 +23,15 @@ export type ClosedReason =
   | 'insufficient-information'
   | 'no-action-possible'
   | 'resolved-elsewhere';
-export type ShellState = 'received' | 'assigned' | 'answered' | 'resolved' | 'disputed' | 'closed';
+export const SHELL_STATES = [
+  'received',
+  'assigned',
+  'answered',
+  'resolved',
+  'disputed',
+  'closed',
+] as const;
+export type ShellState = (typeof SHELL_STATES)[number];
 export type PublicTextMode = 'open' | 'release' | 'shell';
 export const ASSESSMENT_HOLD_REASONS = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
 export type AssessmentHoldReason = (typeof ASSESSMENT_HOLD_REASONS)[number];
@@ -44,6 +52,18 @@ export interface LocalizedText {
   it: string;
   en: string;
 }
+export interface TraceUnit {
+  id: string;
+  name: LocalizedText;
+}
+
+export interface OfficialProfile {
+  citizenId: string;
+  name: string;
+  title: string;
+  unit: TraceUnit;
+}
+
 
 export interface PilotSource {
   id: string;
@@ -64,7 +84,12 @@ export interface PilotConfig {
     caseNumber?: { prefix: string };
   };
   category: { id: 'public-lighting'; name: LocalizedText };
-  office: { id: 'communal-system'; name: LocalizedText; routingStatus: string };
+  office: {
+    id: 'communal-system';
+    name: LocalizedText;
+    routingStatus: string;
+    units: TraceUnit[];
+  };
   sources: PilotSource[];
 }
 
@@ -112,7 +137,7 @@ export interface PrivateEvent {
   hash: string;
 }
 
-export type PublicEvent =
+export type PublicEventData =
   | {
       stage: 'voice';
       action: 'report-filed';
@@ -151,19 +176,21 @@ export type PublicEvent =
       stage: 'responsibility';
       action: 'office-assigned';
       actorRole: 'official';
+      unit: TraceUnit | null;
       createdAt: string;
     }
   | {
       stage: 'response';
       action: 'commitment-published';
       actorRole: 'official';
-      signedBy: string;
+      signedBy: { name: string; title: string };
       createdAt: string;
     }
   | {
       stage: 'check';
       action: 'completion-reported';
       actorRole: 'official';
+      signedBy: { name: string; title: string };
       createdAt: string;
     }
   | {
@@ -191,6 +218,11 @@ export type PublicEvent =
       publicReason: string;
       createdAt: string;
     };
+
+export type PublicEvent = PublicEventData & {
+  previousHash: string;
+  hash: string;
+};
 
 export interface AttachmentMetadata {
   id: string;
@@ -243,6 +275,9 @@ export interface PublicRecord {
   commitment: string;
   dueDate: string;
   signedBy: { name: string; title: string };
+  unit: TraceUnit | null;
+  textSha256: string;
+  textHashKind: 'raw' | 'normalized-legacy';
   evidenceNote: string | null;
   evidenceUrls: string[];
   publishedAt: string;
@@ -254,6 +289,7 @@ export interface PublicRecord {
     createdAt: string;
   }>;
   events: PublicEvent[];
+  lastEventHash: string;
   receiptHash: string;
   testEnvironment: true;
 }
@@ -270,6 +306,8 @@ export interface CaseShell {
   textStatus: TextStatus;
   holdReason: HoldReason | null;
   removedReason: RemovedReason | null;
+  textHashKind: 'raw' | 'normalized-legacy';
+  unitId: string | null;
   textSha256: string;
   labels: string[];
   closedPublicReason: string | null;
@@ -388,6 +426,9 @@ export interface RecordRow {
   text_status: TextStatus;
   hold_reason: HoldReason | null;
   removed_reason: RemovedReason | null;
+  text_normalized_sha256: string;
+  text_hash_kind: 'raw' | 'normalized-legacy';
+  unit_id: string | null;
   text_sha256: string;
   redacted_text: string | null;
   labels: string[];
@@ -477,14 +518,12 @@ export interface CommitmentInput {
   expectedVersion: number;
   commitment: string;
   dueDate: string;
-  signedBy: { name: string; title: string };
 }
 
 export interface ResolutionInput {
   expectedVersion: number;
   evidenceNote: string;
   evidenceUrls: string[];
-  signedBy: { name: string; title: string };
 }
 
 export interface HoldInput {
@@ -526,6 +565,34 @@ export interface AttentionInput {
   kind: 'follow' | 'also-affected' | 'not-fixed';
   action: 'add' | 'remove';
 }
+export interface PublicCaseCursor {
+  updatedAt: string;
+  caseNumber: string;
+}
+
+export interface PublicCaseListQuery {
+  limit: number;
+  state: ShellState | null;
+  cursor: PublicCaseCursor | null;
+}
+
+export interface PublicCaseSummary {
+  total: number;
+  byState: Record<ShellState, number>;
+  open: number;
+  overdue: number;
+  held: number;
+  pendingRelease: number;
+  removed: number;
+  computedAt: string;
+}
+
+export interface OfficialProfileInput {
+  name: string;
+  title: string;
+  unitId: string;
+}
+
 
 export interface TraceStore {
   check(): Promise<void>;
@@ -602,10 +669,19 @@ export interface TraceStore {
     recordId: string,
     input: CloseInput,
   ): Promise<{ record: PrivateRecord; shell: CaseShell }>;
-  listPublicShells(limit: number): Promise<{ cases: CaseShell[] }>;
+  listPublicShells(
+    query: PublicCaseListQuery,
+  ): Promise<{ cases: CaseShell[]; nextCursor: string | null }>;
+  listPublicSummary(): Promise<PublicCaseSummary>;
   getPublicCase(
     caseNumber: string,
   ): Promise<{ case: CaseShell; record: PublicRecord | null } | null>;
+  upsertOfficial(
+    actor: Actor,
+    citizenId: string,
+    input: OfficialProfileInput,
+  ): Promise<OfficialProfile>;
+  getOfficial(actor: Actor): Promise<OfficialProfile | null>;
   recordAttention(
     caseNumber: string,
     input: AttentionInput,

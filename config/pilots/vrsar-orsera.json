@@ -31,7 +31,17 @@
       "it": "Ufficio amministrativo unico / Sezione per il sistema comunale",
       "en": "Unified Administrative Department / Communal System Section"
     },
-    "routingStatus": "inferred-test-only"
+    "routingStatus": "inferred-test-only",
+    "units": [
+      {
+        "id": "communal-system",
+        "name": {
+          "hr": "Odsjek za komunalni sustav",
+          "it": "Sezione sistema comunale",
+          "en": "Communal systems section"
+        }
+      }
+    ]
   },
   "settlements": [
     "Vrsar-Orsera",

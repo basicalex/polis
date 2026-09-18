@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  chainPublicEvents,
   computeEventHash,
   computeReceiptHash,
   verifyEventChain,
@@ -162,6 +163,31 @@ test('event verification detects payload, link, sequence, hash, omission, duplic
 });
 
 test('receipt hash covers public-safe fields and excludes receiptHash and caseNumber', () => {
+  const events = chainPublicEvents([
+    {
+      stage: 'voice',
+      action: 'report-filed',
+      actorRole: 'resident',
+      createdAt: '2026-09-01T08:00:00.000Z',
+    },
+    {
+      stage: 'responsibility',
+      action: 'office-assigned',
+      actorRole: 'official',
+      unit: {
+        id: 'communal-system',
+        name: { hr: 'Komunalni', it: 'Comunale', en: 'Communal' },
+      },
+      createdAt: '2026-09-02T08:00:00.000Z',
+    },
+    {
+      stage: 'response',
+      action: 'commitment-published',
+      actorRole: 'official',
+      signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+      createdAt: '2026-09-03T08:00:00.000Z',
+    },
+  ]);
   const withoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
     id: '20000000-0000-4000-8000-000000000001',
     municipalityId: 'vrsar-orsera',
@@ -171,32 +197,19 @@ test('receipt hash covers public-safe fields and excludes receiptHash and caseNu
     commitment: 'Replace one luminaire',
     dueDate: '2026-12-01',
     signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+    unit: {
+      id: 'communal-system',
+      name: { hr: 'Komunalni', it: 'Comunale', en: 'Communal' },
+    },
+    textSha256: 'a'.repeat(64),
+    textHashKind: 'raw',
     evidenceNote: null,
     evidenceUrls: [],
     publishedAt: '2026-09-05T00:00:00.000Z',
     resolvedAt: null,
     disputes: [],
-    events: [
-      {
-        stage: 'voice',
-        action: 'report-filed',
-        actorRole: 'resident',
-        createdAt: '2026-09-01T08:00:00.000Z',
-      },
-      {
-        stage: 'responsibility',
-        action: 'office-assigned',
-        actorRole: 'official',
-        createdAt: '2026-09-02T08:00:00.000Z',
-      },
-      {
-        stage: 'response',
-        action: 'commitment-published',
-        actorRole: 'official',
-        signedBy: 'Ana Anić',
-        createdAt: '2026-09-03T08:00:00.000Z',
-      },
-    ],
+    events,
+    lastEventHash: events.at(-1)!.hash,
     testEnvironment: true,
   };
   const receiptHash = computeReceiptHash(withoutHash);

@@ -33,6 +33,7 @@ import type {
   CommandContext,
   DisputeInput,
   GatewayCreateInput,
+  GatewayMessageInput,
   PrivateRecord,
   TraceRole,
   TraceStatus,
@@ -47,6 +48,7 @@ import {
   normalizeLabel,
   normalizeRelease,
   normalizeReopen,
+  parsePublicListQuery,
   normalizeResolution,
 } from './validation.js';
 
@@ -200,6 +202,8 @@ test(
               text_status: 'public';
               hold_reason: null;
               removed_reason: null;
+              text_hash_kind: 'raw' | 'normalized-legacy';
+              unit_id: string | null;
               text_sha256: string;
               labels: string[];
               closed_public_reason: null;
@@ -225,6 +229,8 @@ test(
           textStatus: migrated.text_status,
           holdReason: migrated.hold_reason,
           removedReason: migrated.removed_reason,
+          textHashKind: migrated.text_hash_kind,
+          unitId: migrated.unit_id,
           textSha256: migrated.text_sha256.trim(),
           labels: migrated.labels,
           closedPublicReason: migrated.closed_public_reason,
@@ -272,6 +278,7 @@ test(
 
     await sql.unsafe(`
       TRUNCATE TABLE
+        trace_officials,
         trace_reopen_attempts,
         trace_case_attention,
         trace_case_messages,
@@ -286,6 +293,16 @@ test(
         trace_records
       CASCADE
     `);
+    await repository.upsertOfficial(gateway, OFFICIAL, {
+      ...SIGNED_BY,
+      unitId: 'communal-system',
+    });
+    assert.deepEqual(await repository.getOfficial(official), {
+      citizenId: OFFICIAL,
+      ...SIGNED_BY,
+      unit: config.pilot.office.units[0],
+    });
+
 
     try {
       const createBody = normalizeCreate({
@@ -310,6 +327,9 @@ test(
       assert.equal(publicAtFiling.case.text, createBody.narrative);
       assert.equal(publicAtFiling.case.location, createBody.location);
       assert.equal(publicAtFiling.case.textStatus, 'public');
+      assert.equal(publicAtFiling.case.textSha256, sha256(createBody.narrative as string));
+      assert.equal(publicAtFiling.case.textHashKind, 'raw');
+      assert.equal(publicAtFiling.case.unitId, null);
       assert.equal(publicAtFiling.case.holdReason, null);
       assert.equal(publicAtFiling.case.labels.length, 0);
       assert.equal(publicAtFiling.case.notFixedCount, 0);
@@ -319,6 +339,42 @@ test(
       assert.equal(
         sha256(canonicalJson(buildShellHashMaterial(publicAtFiling.case))),
         publicAtFiling.case.shellHash,
+      );
+      const firstPage = await repository.listPublicShells({
+        limit: 1,
+        state: 'received',
+        cursor: null,
+      });
+      assert.equal(firstPage.cases.length, 1);
+      assert.ok(firstPage.nextCursor);
+      const secondPage = await repository.listPublicShells(
+        parsePublicListQuery(
+          `/internal/trace/public/cases?limit=1&state=received&cursor=${firstPage.nextCursor}`,
+        ),
+      );
+      assert.equal(secondPage.cases.length, 0);
+      assert.equal(secondPage.nextCursor, null);
+      const summary = await repository.listPublicSummary();
+      assert.match(summary.computedAt, /^202[0-9]-/);
+      assert.deepEqual(
+        { ...summary, computedAt: '<timestamp>' },
+        {
+          total: 1,
+          byState: {
+            received: 1,
+            assigned: 0,
+            answered: 0,
+            resolved: 0,
+            disputed: 0,
+            closed: 0,
+          },
+          open: 1,
+          overdue: 0,
+          held: 0,
+          pendingRelease: 0,
+          removed: 0,
+          computedAt: '<timestamp>',
+        },
       );
 
       const releaseRepository = new TraceRepository(databaseUrl, {
@@ -421,7 +477,6 @@ test(
                 expectedVersion: primary.version,
                 commitment: 'Inspect and replace the failed lamp.',
                 dueDate: '2026-12-01',
-                signedBy: SIGNED_BY,
               }),
             ),
             primary.id,
@@ -434,6 +489,10 @@ test(
       assert.equal(answered.status, 'answered');
       assert.equal(answered.caseNumber, primary.caseNumber);
       assert.deepEqual(answered.signedBy, SIGNED_BY);
+      assert.equal(answered.unit?.id, 'communal-system');
+      assert.equal(answered.textSha256, sha256(createBody.narrative as string));
+      assert.equal(answered.textHashKind, 'raw');
+      assert.equal(answered.lastEventHash, answered.events.at(-1)?.hash);
       assert.equal(verifyReceiptHash(answered), true);
       assert.deepEqual(
         answered.events.map((event) => event.action),
@@ -456,7 +515,6 @@ test(
                 expectedVersion: primary.version,
                 evidenceNote: 'The lamp was replaced and tested.',
                 evidenceUrls: ['https://example.test/evidence/lamp'],
-                signedBy: SIGNED_BY,
               }),
             ),
             primary.id,
@@ -471,6 +529,11 @@ test(
       assert.deepEqual(
         resolved.events.slice(-2).map((event) => event.action),
         ['completion-reported', 'case-resolved-standing'],
+      );
+      const completion = resolved.events.at(-2);
+      assert.deepEqual(
+        completion?.action === 'completion-reported' ? completion.signedBy : null,
+        SIGNED_BY,
       );
       const attention = await repository.recordAttention(primary.caseNumber, {
         followerKey: 'not_fixed_follower_1',
@@ -593,7 +656,7 @@ test(
 
       const channelInput = {
         channel: 'sms' as const,
-        text: 'A second lamp is dark.',
+        text: null,
         location: 'Old town',
         source: 'typed' as const,
         occurredAt: '2026-09-16T10:00:00.000Z',
@@ -602,8 +665,24 @@ test(
         ctx(gateway, '/internal/trace/channel/cases', channelInput),
         channelInput as GatewayCreateInput,
       );
-      assert.equal(channel.shell.text, channelInput.text);
+      assert.equal(channel.shell.text, 'Glasovna prijava u obradi.');
       assert.equal(JSON.stringify(channel.shell).includes('contactEmail'), false);
+      const transcriptInput: GatewayMessageInput = {
+        channel: 'sms',
+        kind: 'transcript',
+        text: 'A second lamp is dark.',
+        source: 'transcript',
+        occurredAt: '2026-09-16T10:01:00.000Z',
+      };
+      await repository.appendChannelMessage(
+        ctx(
+          gateway,
+          `/internal/trace/channel/cases/${channel.case.caseNumber}/messages`,
+          { reopenKey: channel.case.reopenKey },
+        ),
+        channel.case.caseNumber,
+        transcriptInput,
+      );
       let channelRecord = await repository.getPrivate(official, channel.case.recordId);
       assert.ok(channelRecord);
       channelRecord = recordFrom(
@@ -618,6 +697,11 @@ test(
           )
         ).body,
       );
+      const transcribedShell = await repository.getPublicCase(channel.case.caseNumber);
+      assert.ok(transcribedShell);
+      assert.equal(transcribedShell.case.text, transcriptInput.text);
+      assert.equal(transcribedShell.case.textSha256, sha256(transcriptInput.text!));
+      assert.equal(verifyShellHash(transcribedShell.case), true);
       channelRecord = recordFrom(
         (
           await repository.commitment(
@@ -628,7 +712,6 @@ test(
                 expectedVersion: channelRecord.version,
                 commitment: 'Replace the second lamp.',
                 dueDate: '2026-12-02',
-                signedBy: SIGNED_BY,
               }),
             ),
             channelRecord.id,
@@ -645,7 +728,6 @@ test(
                 expectedVersion: channelRecord.version,
                 evidenceNote: 'Second lamp replaced.',
                 evidenceUrls: ['https://example.test/evidence/second-lamp'],
-                signedBy: SIGNED_BY,
               }),
             ),
             channelRecord.id,
@@ -674,13 +756,33 @@ test(
               ctx(
                 official,
                 `/internal/trace/records/${channelRecord.id}/reopen`,
-                normalizeReopen({ note: 'The office will repair it again.' }),
+                normalizeReopen(
+                  {
+                    note: 'The office will repair it again.',
+                    ...(disputeNumber === 1 ? { unitId: 'communal-system' } : {}),
+                  },
+                  new Set(config.pilot.office.units.map((unit) => unit.id)),
+                ),
               ),
               channelRecord.id,
             )
           ).body,
         );
         assert.equal(channelRecord.status, 'answered');
+        if (disputeNumber === 1) {
+          const reassigned = await repository.getPublic(channelRecord.id);
+          assert.ok(reassigned);
+          assert.deepEqual(
+            reassigned.events.slice(-2).map((event) => event.action),
+            ['case-reopened', 'office-assigned'],
+          );
+          const assignment = reassigned.events.at(-1);
+          assert.equal(
+            assignment?.action === 'office-assigned' ? assignment.unit?.id : null,
+            'communal-system',
+          );
+          assert.equal(verifyReceiptHash(reassigned), true);
+        }
         channelRecord = recordFrom(
           (
             await repository.resolution(
@@ -691,7 +793,6 @@ test(
                   expectedVersion: channelRecord.version,
                   evidenceNote: `Follow-up repair ${disputeNumber} completed.`,
                   evidenceUrls: [`https://example.test/evidence/follow-up-${disputeNumber}`],
-                  signedBy: SIGNED_BY,
                 }),
               ),
               channelRecord.id,

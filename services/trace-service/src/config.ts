@@ -11,6 +11,7 @@ import type {
   PilotConfig,
   PilotSource,
   TraceConfig,
+  TraceUnit,
 } from './types.js';
 
 export type PilotLoader = () => unknown;
@@ -168,6 +169,22 @@ function source(value: unknown): PilotSource {
     supports: [...(item.supports as string[])],
   };
 }
+function units(value: unknown): TraceUnit[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 100) {
+    throw new Error('invalid pilot office.units');
+  }
+  const ids = new Set<string>();
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object') throw new Error('invalid pilot office.units');
+    const item = entry as Record<string, unknown>;
+    if (typeof item.id !== 'string' || !/^[a-z0-9-]{2,40}$/.test(item.id) || ids.has(item.id)) {
+      throw new Error('invalid pilot office.units');
+    }
+    ids.add(item.id);
+    return { id: item.id, name: localized(item.name, `office.units.${item.id}.name`) };
+  });
+}
+
 
 export function validatePilotConfig(value: unknown): PilotConfig {
   if (!value || typeof value !== 'object') throw new Error('invalid pilot config');
@@ -215,6 +232,7 @@ export function validatePilotConfig(value: unknown): PilotConfig {
       id: 'communal-system',
       name: localized(office.name, 'office.name'),
       routingStatus: office.routingStatus,
+      units: units(office.units),
     },
     sources: root.sources.map(source),
   };
@@ -279,6 +297,7 @@ export function publicTraceConfig(config: TraceConfig): Record<string, unknown> 
     municipality: config.pilot.municipality,
     category: config.pilot.category,
     office: config.pilot.office,
+    units: config.pilot.office.units,
     testEnvironment: true,
     intakeOpen: config.intakeOpen,
     publicTextMode: config.pilot.publicTextMode,

@@ -34,6 +34,12 @@ const pilot: PilotConfig = {
     id: 'communal-system',
     name: { hr: 'Komunalni', it: 'Comunale', en: 'Communal' },
     routingStatus: 'inferred-test-only',
+    units: [
+      {
+        id: 'communal-system',
+        name: { hr: 'Komunalni odjel', it: 'Sezione comunale', en: 'Communal section' },
+      },
+    ],
   },
   sources: [
     {
@@ -103,6 +109,8 @@ function caseShell(): CaseShell {
     textStatus: 'public',
     holdReason: null,
     removedReason: null,
+    textHashKind: 'raw',
+    unitId: null,
     textSha256: 'd'.repeat(64),
     labels: [],
     closedPublicReason: null,
@@ -129,12 +137,19 @@ function publicRecord(): PublicRecord {
     commitment: 'Replace the lamp',
     dueDate: '2026-10-01',
     signedBy: { name: 'Ana Anić', title: 'Head of public works' },
+    unit: {
+      id: 'communal-system',
+      name: { hr: 'Komunalni odjel', it: 'Sezione comunale', en: 'Communal section' },
+    },
+    textSha256: 'd'.repeat(64),
+    textHashKind: 'raw',
     evidenceNote: null,
     evidenceUrls: [],
     publishedAt: '2026-09-12T10:00:00.000Z',
     resolvedAt: null,
     disputes: [],
     events: [],
+    lastEventHash: '',
     receiptHash: 'e'.repeat(64),
     testEnvironment: true,
   };
@@ -206,6 +221,18 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     check: async () => undefined,
     listPrivate: async () => [record],
     getPrivate: async () => record,
+    upsertOfficial: async (_actor, citizenId, input) => ({
+      citizenId,
+      name: input.name,
+      title: input.title,
+      unit: pilot.office.units[0]!,
+    }),
+    getOfficial: async (actor) => ({
+      citizenId: actor.id,
+      name: 'Ivana Testić',
+      title: 'Viša stručna suradnica',
+      unit: pilot.office.units[0]!,
+    }),
     create: async () => ({ status: 201, body: { record } }),
     assign: ok,
     commitment: ok,
@@ -243,7 +270,17 @@ function fakeStore(overrides: Partial<TraceStore> = {}): TraceStore {
     proposeAi: async () => ({ proposal }),
     decideAi: async () => ({ proposal, record }),
     closeCase: async () => ({ record, shell }),
-    listPublicShells: async () => ({ cases: [shell] }),
+    listPublicShells: async () => ({ cases: [shell], nextCursor: null }),
+    listPublicSummary: async () => ({
+      total: 1,
+      byState: { received: 1, assigned: 0, answered: 0, resolved: 0, disputed: 0, closed: 0 },
+      open: 1,
+      overdue: 0,
+      held: 0,
+      pendingRelease: 0,
+      removed: 0,
+      computedAt: '2026-09-12T10:00:00.000Z',
+    }),
     getPublicCase: async () => ({ case: shell, record: null }),
     recordAttention: async () => ({
       counts: { followerCount: 1, alsoAffectedCount: 0, notFixedCount: 0 },
@@ -301,6 +338,8 @@ test('route table exposes every exact internal trace path', () => {
     'GET /readyz',
     'GET /internal/trace/config',
     'GET /internal/trace/session',
+    'PUT /internal/trace/officials/:citizenId',
+    'GET /internal/trace/officials/me',
     'GET /internal/trace/records',
     'POST /internal/trace/records',
     'GET /internal/trace/records/:id',
@@ -329,6 +368,7 @@ test('route table exposes every exact internal trace path', () => {
     'POST /internal/trace/records/:id/ai-proposals/:proposalId/decision',
     'POST /internal/trace/records/:id/close',
     'GET /internal/trace/public/cases',
+    'GET /internal/trace/public/summary',
     'GET /internal/trace/public/cases/:caseNumber',
     'POST /internal/trace/public/cases/:caseNumber/attention',
     'POST /internal/trace/public/cases/:caseNumber/notice',
@@ -362,6 +402,109 @@ test('internal token and trusted actor are required; mapped role ignores browser
     assert.equal(session.headers.get('cache-control'), 'no-store');
   });
 });
+test('official profiles use gateway writes and the signed-in official identity', async () => {
+  await withServer(fakeStore(), config(), async (base) => {
+    const profileBody = {
+      name: 'Ivana Testić',
+      title: 'Viša stručna suradnica',
+      unitId: 'communal-system',
+    };
+    const unauthorized = await fetch(
+      `${base}/internal/trace/officials/trace-official-test`,
+      {
+        method: 'PUT',
+        headers: internalHeaders('trace-official-test'),
+        body: JSON.stringify(profileBody),
+      },
+    );
+    assert.equal(unauthorized.status, 401);
+
+    const updated = await fetch(`${base}/internal/trace/officials/trace-official-test`, {
+      method: 'PUT',
+      headers: gatewayHeaders('sms-gateway'),
+      body: JSON.stringify(profileBody),
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(
+      ((await updated.json()) as { citizenId: string }).citizenId,
+      'trace-official-test',
+    );
+
+    const mine = await fetch(`${base}/internal/trace/officials/me`, {
+      headers: internalHeaders('trace-official-test'),
+    });
+    assert.equal(mine.status, 200);
+    assert.equal(((await mine.json()) as { unit: { id: string } }).unit.id, 'communal-system');
+
+    const resident = await fetch(`${base}/internal/trace/officials/me`, {
+      headers: internalHeaders('trace-resident-test'),
+    });
+    assert.equal(resident.status, 403);
+
+    const signedBy = await fetch(`${base}/internal/trace/records/${RECORD_ID}/commitment`, {
+      method: 'POST',
+      headers: internalHeaders('trace-official-test', VALID_IDEMPOTENCY_KEY),
+      body: JSON.stringify({
+        expectedVersion: 1,
+        commitment: 'Replace the lamp',
+        dueDate: '2026-10-01',
+        signedBy: { name: 'Forged', title: 'Forged' },
+      }),
+    });
+    assert.equal(signedBy.status, 400);
+    assert.equal(((await signedBy.json()) as { error: string }).error, 'unexpected_key');
+    const resolutionSigner = await fetch(
+      `${base}/internal/trace/records/${RECORD_ID}/resolution`,
+      {
+        method: 'POST',
+        headers: internalHeaders('trace-official-test', `${VALID_IDEMPOTENCY_KEY.slice(0, -1)}2`),
+        body: JSON.stringify({
+          expectedVersion: 2,
+          evidenceNote: 'Completed',
+          evidenceUrls: ['https://example.test/proof'],
+          signedBy: { name: 'Forged', title: 'Forged' },
+        }),
+      },
+    );
+    assert.equal(resolutionSigner.status, 400);
+    assert.equal(
+      ((await resolutionSigner.json()) as { error: string }).error,
+      'unexpected_key',
+    );
+  });
+});
+
+test('missing official profiles and invalid public list queries expose stable errors', async () => {
+  await withServer(
+    fakeStore({
+      getOfficial: async () => null,
+    }),
+    config(),
+    async (base) => {
+      const profile = await fetch(`${base}/internal/trace/officials/me`, {
+        headers: internalHeaders('trace-official-test'),
+      });
+      assert.equal(profile.status, 404);
+      assert.equal(
+        ((await profile.json()) as { error: string }).error,
+        'official_profile_missing',
+      );
+
+      const state = await fetch(`${base}/internal/trace/public/cases?state=in-review`, {
+        headers: internalHeaders(),
+      });
+      assert.equal(state.status, 400);
+      assert.equal(((await state.json()) as { error: string }).error, 'invalid_state');
+
+      const cursor = await fetch(`${base}/internal/trace/public/cases?cursor=tampered`, {
+        headers: internalHeaders(),
+      });
+      assert.equal(cursor.status, 400);
+      assert.equal(((await cursor.json()) as { error: string }).error, 'invalid_cursor');
+    },
+  );
+});
+
 
 test('closed intake, authority fields, missing idempotency, and list overflow return safe errors', async () => {
   let creates = 0;

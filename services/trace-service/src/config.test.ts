@@ -19,6 +19,12 @@ const pilot = {
     id: 'communal-system',
     name: { hr: 'Komunalni', it: 'Comunale', en: 'Communal' },
     routingStatus: 'inferred-test-only',
+    units: [
+      {
+        id: 'communal-system',
+        name: { hr: 'Komunalni odjel', it: 'Sezione comunale', en: 'Communal section' },
+      },
+    ],
   },
   sources: [
     {
@@ -78,6 +84,7 @@ test('trace config maps roles and public text policy settings from the injected 
     municipality: pilot.municipality,
     category: pilot.category,
     office: pilot.office,
+    units: pilot.office.units,
     testEnvironment: true,
     intakeOpen: true,
     publicTextMode: 'open',
@@ -142,6 +149,18 @@ test('pilot configuration must match the fixed authority and contain valid cited
       parseTraceConfig(env, () => ({
         ...pilot,
         municipality: { ...pilot.municipality, caseNumber },
+      })),
+    );
+  }
+  for (const units of [
+    [],
+    [{ ...pilot.office.units[0], id: 'A' }],
+    [pilot.office.units[0], pilot.office.units[0]],
+  ]) {
+    assert.throws(() =>
+      parseTraceConfig(env, () => ({
+        ...pilot,
+        office: { ...pilot.office, units },
       })),
     );
   }

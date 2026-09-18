@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { SHELL_STATES, type OfficialProfileInput, type PublicCaseListQuery } from './types.js';
+
 const AUTHORITY_FIELDS: Record<string, true> = {
   actor: true,
   actorId: true,
@@ -176,6 +178,14 @@ export function validateCaseNumber(value: string): string {
   }
   return value;
 }
+export function validateCitizenId(value: string): string {
+  const normalized = value.trim();
+  if (!normalized || normalized.length > 200 || hasControl(normalized)) {
+    throw new InputError('invalid_citizen_id', 'citizenId is invalid.');
+  }
+  return normalized;
+}
+
 
 export function validateDateOnly(value: unknown): string {
   if (typeof value !== 'string')
@@ -215,28 +225,52 @@ export function normalizeCreate(value: unknown): Record<string, unknown> {
   };
 }
 
-export function normalizeAssign(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion']);
-  return { expectedVersion: expectedVersion(body.expectedVersion) };
+function configuredUnitId(value: unknown, unitIds: ReadonlySet<string> | undefined): string {
+  const id = text(value, 'unitId', 120);
+  if (!unitIds?.has(id)) throw new InputError('invalid_unit', 'unitId is not configured.');
+  return id;
 }
 
-function signedBy(value: unknown): { name: string; title: string } {
-  const body = exactBody(value, ['name', 'title']);
+export function normalizeAssign(
+  value: unknown,
+  unitIds?: ReadonlySet<string>,
+): Record<string, unknown> {
+  const body = exactBody(value, ['expectedVersion', 'unitId']);
   return {
-    name: text(body.name, 'signedBy.name', 120),
-    title: text(body.title, 'signedBy.title', 120),
+    expectedVersion: expectedVersion(body.expectedVersion),
+    unitId: body.unitId === undefined ? null : configuredUnitId(body.unitId, unitIds),
   };
 }
 
+export function normalizeOfficialProfile(
+  value: unknown,
+  unitIds: ReadonlySet<string>,
+): OfficialProfileInput {
+  const body = exactBody(value, ['name', 'title', 'unitId']);
+  return {
+    name: text(body.name, 'name', 120),
+    title: text(body.title, 'title', 120),
+    unitId: configuredUnitId(body.unitId, unitIds),
+  };
+}
+
+function bodyWithoutSigner(value: unknown): Record<string, unknown> {
+  const body = objectBody(value);
+  if (Object.hasOwn(body, 'signedBy')) {
+    throw new InputError('unexpected_key', 'signedBy is server controlled.');
+  }
+  return body;
+}
+
 export function normalizeCommitment(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion', 'commitment', 'dueDate', 'signedBy']);
+  const body = exactBody(bodyWithoutSigner(value), ['expectedVersion', 'commitment', 'dueDate']);
   return {
     expectedVersion: expectedVersion(body.expectedVersion),
     commitment: text(body.commitment, 'commitment', 2_000),
     dueDate: validateDateOnly(body.dueDate),
-    signedBy: signedBy(body.signedBy),
   };
 }
+
 
 function evidenceUrls(value: unknown): string[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
@@ -264,12 +298,15 @@ function evidenceUrls(value: unknown): string[] {
 }
 
 export function normalizeResolution(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['expectedVersion', 'evidenceNote', 'evidenceUrls', 'signedBy']);
+  const body = exactBody(bodyWithoutSigner(value), [
+    'expectedVersion',
+    'evidenceNote',
+    'evidenceUrls',
+  ]);
   return {
     expectedVersion: expectedVersion(body.expectedVersion),
     evidenceNote: text(body.evidenceNote, 'evidenceNote', 5_000),
     evidenceUrls: evidenceUrls(body.evidenceUrls),
-    signedBy: signedBy(body.signedBy),
   };
 }
 
@@ -328,15 +365,69 @@ export function normalizeAttachment(value: unknown): Record<string, unknown> {
   };
 }
 
-export function parseListLimit(urlText: string | undefined): number {
-  const url = new URL(urlText ?? '/', 'http://localhost');
+function parseLimit(url: URL): number {
   const raw = url.searchParams.get('limit');
   if (raw === null) return 50;
-  if (!/^[1-9]\d*$/.test(raw))
+  if (!/^[1-9]\d*$/.test(raw)) {
     throw new InputError('invalid_limit', 'limit must be an integer from 1 to 100.');
+  }
   const limit = Number(raw);
   if (limit > 100) throw new InputError('invalid_limit', 'limit must be an integer from 1 to 100.');
   return limit;
+}
+
+export function parseListLimit(urlText: string | undefined): number {
+  return parseLimit(new URL(urlText ?? '/', 'http://localhost'));
+}
+
+export function encodePublicListCursor(cursor: {
+  updatedAt: string;
+  caseNumber: string;
+}): string {
+  return Buffer.from(JSON.stringify({ u: cursor.updatedAt, c: cursor.caseNumber })).toString(
+    'base64url',
+  );
+}
+
+function parsePublicListCursor(raw: string): PublicCaseListQuery['cursor'] {
+  try {
+    if (!/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error('invalid base64url');
+    const decoded = Buffer.from(raw, 'base64url').toString('utf8');
+    const value = JSON.parse(decoded) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('not object');
+    const object = value as Record<string, unknown>;
+    if (
+      Object.keys(object).length !== 2 ||
+      typeof object.u !== 'string' ||
+      typeof object.c !== 'string' ||
+      !/^[A-Z]{2,4}-[0-9]{1,8}$/.test(object.c)
+    ) {
+      throw new Error('invalid material');
+    }
+    const timestamp = new Date(object.u);
+    if (!Number.isFinite(timestamp.getTime()) || timestamp.toISOString() !== object.u) {
+      throw new Error('invalid timestamp');
+    }
+    const cursor = { updatedAt: object.u, caseNumber: object.c };
+    if (encodePublicListCursor(cursor) !== raw) throw new Error('noncanonical cursor');
+    return cursor;
+  } catch {
+    throw new InputError('invalid_cursor', 'cursor is invalid.');
+  }
+}
+
+export function parsePublicListQuery(urlText: string | undefined): PublicCaseListQuery {
+  const url = new URL(urlText ?? '/', 'http://localhost');
+  const state = url.searchParams.get('state');
+  if (state !== null && !(SHELL_STATES as readonly string[]).includes(state)) {
+    throw new InputError('invalid_state', 'state is invalid.');
+  }
+  const cursor = url.searchParams.get('cursor');
+  return {
+    limit: parseLimit(url),
+    state: state as PublicCaseListQuery['state'],
+    cursor: cursor === null ? null : parsePublicListCursor(cursor),
+  };
 }
 
 function oneOf<T extends string>(value: unknown, name: string, allowed: readonly T[]): T {
@@ -599,9 +690,15 @@ export function normalizeLabel(value: unknown): Record<string, unknown> {
   };
 }
 
-export function normalizeReopen(value: unknown): Record<string, unknown> {
-  const body = exactBody(value, ['note']);
-  return { note: optionalBoundedText(body.note, 'note', 5_000) };
+export function normalizeReopen(
+  value: unknown,
+  unitIds?: ReadonlySet<string>,
+): Record<string, unknown> {
+  const body = exactBody(value, ['note', 'unitId']);
+  return {
+    note: optionalBoundedText(body.note, 'note', 5_000),
+    unitId: body.unitId === undefined ? null : configuredUnitId(body.unitId, unitIds),
+  };
 }
 
 export function normalizeDispute(value: unknown): Record<string, unknown> {

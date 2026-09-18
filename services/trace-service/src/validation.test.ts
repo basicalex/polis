@@ -9,6 +9,7 @@ import {
   InputError,
   normalizeAiDecision,
   normalizeAiProposal,
+  normalizeAssign,
   normalizeAttachment,
   normalizeAttention,
   normalizeClose,
@@ -23,11 +24,14 @@ import {
   normalizeHold,
   normalizeLabel,
   normalizeOfficialMessage,
+  normalizeOfficialProfile,
   normalizeNotice,
   normalizeRelease,
   normalizeReopen,
   normalizeReopenRead,
   normalizeResolution,
+  encodePublicListCursor,
+  parsePublicListQuery,
   parseListLimit,
   validateCaseNumber,
   validateDateOnly,
@@ -92,7 +96,6 @@ test('evidence URLs are bounded HTTPS-only values without credentials', () => {
     expectedVersion: 2,
     evidenceNote: 'Completed',
     evidenceUrls: ['https://example.test/proof'],
-    signedBy: { name: 'Ana Anić', title: 'Head of public works' },
   });
   assert.deepEqual(valid.evidenceUrls, ['https://example.test/proof']);
   for (const url of ['http://example.test', 'https://user:pass@example.test', 'not-a-url']) {
@@ -102,7 +105,6 @@ test('evidence URLs are bounded HTTPS-only values without credentials', () => {
           expectedVersion: 2,
           evidenceNote: 'Completed',
           evidenceUrls: [url],
-          signedBy: { name: 'Ana Anić', title: 'Head of public works' },
         }),
       ),
       'invalid_evidence_urls',
@@ -114,39 +116,73 @@ test('evidence URLs are bounded HTTPS-only values without credentials', () => {
         expectedVersion: 2,
         evidenceNote: 'Completed',
         evidenceUrls: [],
-        signedBy: { name: 'Ana Anić', title: 'Head of public works' },
       }),
     ),
     'invalid_evidence_urls',
   );
+  assert.equal(
+    code(() =>
+      normalizeResolution({
+        expectedVersion: 2,
+        evidenceNote: 'Completed',
+        evidenceUrls: ['https://example.test/proof'],
+        signedBy: { name: 'Forged', title: 'Forged' },
+      }),
+    ),
+    'unexpected_key',
+  );
 });
 
-test('signed commands and public text policy inputs are strict and normalized', () => {
+test('commitments reject body signers and assignment units come from configured ids', () => {
   assert.deepEqual(
     normalizeCommitment({
       expectedVersion: 1,
       commitment: '  Replace the lamp  ',
       dueDate: '2026-10-01',
-      signedBy: { name: '  Ana Anić ', title: ' Head of public works ' },
     }),
     {
       expectedVersion: 1,
       commitment: 'Replace the lamp',
       dueDate: '2026-10-01',
-      signedBy: { name: 'Ana Anić', title: 'Head of public works' },
     },
   );
   assert.equal(
     code(() =>
       normalizeCommitment({
-        expectedVersion: 1.5,
-        commitment: 'c',
+        expectedVersion: 1,
+        commitment: 'Replace the lamp',
         dueDate: '2026-10-01',
         signedBy: { name: 'Ana', title: 'Official' },
       }),
     ),
-    'invalid_expected_version',
+    'unexpected_key',
   );
+  const units = new Set(['communal-system']);
+  assert.deepEqual(normalizeAssign({ expectedVersion: 2 }, units), {
+    expectedVersion: 2,
+    unitId: null,
+  });
+  assert.deepEqual(normalizeAssign({ expectedVersion: 2, unitId: 'communal-system' }, units), {
+    expectedVersion: 2,
+    unitId: 'communal-system',
+  });
+  assert.equal(
+    code(() => normalizeAssign({ expectedVersion: 2, unitId: 'unknown' }, units)),
+    'invalid_unit',
+  );
+  assert.deepEqual(
+    normalizeOfficialProfile(
+      { name: ' Ivana Testić ', title: ' Viša stručna suradnica ', unitId: 'communal-system' },
+      units,
+    ),
+    {
+      name: 'Ivana Testić',
+      title: 'Viša stručna suradnica',
+      unitId: 'communal-system',
+    },
+  );
+});
+test('public text policy inputs are strict and normalized', () => {
   assert.deepEqual(normalizeHold({ reason: 'abuse', note: '  policy term ' }), {
     reason: 'abuse',
     note: 'policy term',
@@ -159,7 +195,10 @@ test('signed commands and public text policy inputs are strict and normalized', 
     label: 'form-letter',
     action: 'clear',
   });
-  assert.deepEqual(normalizeReopen({ note: '  repair again ' }), { note: 'repair again' });
+  assert.deepEqual(normalizeReopen({ note: '  repair again ' }), {
+    note: 'repair again',
+    unitId: null,
+  });
   assert.deepEqual(normalizeDispute({ reopenKey: 'Abcdefghijklmnop_1234', text: ' Still dark ' }), {
     reopenKey: 'Abcdefghijklmnop_1234',
     text: 'Still dark',
@@ -341,6 +380,35 @@ test('idempotency UUIDs and list limits are bounded', () => {
   assert.equal(
     code(() => parseListLimit('/internal/trace/records?limit=1%20OR%201=1')),
     'invalid_limit',
+  );
+});
+
+test('public case list query validates state and canonical cursor material', () => {
+  const cursor = encodePublicListCursor({
+    updatedAt: '2026-09-18T07:00:00.000Z',
+    caseNumber: 'VRS-123456',
+  });
+  assert.deepEqual(
+    parsePublicListQuery(
+      `/internal/trace/public/cases?limit=25&state=assigned&cursor=${cursor}`,
+    ),
+    {
+      limit: 25,
+      state: 'assigned',
+      cursor: {
+        updatedAt: '2026-09-18T07:00:00.000Z',
+        caseNumber: 'VRS-123456',
+      },
+    },
+  );
+  assert.equal(
+    code(() => parsePublicListQuery('/internal/trace/public/cases?state=in-review')),
+    'invalid_state',
+  );
+  const tampered = `${cursor.slice(0, -1)}${cursor.endsWith('A') ? 'B' : 'A'}`;
+  assert.equal(
+    code(() => parsePublicListQuery(`/internal/trace/public/cases?cursor=${tampered}`)),
+    'invalid_cursor',
   );
 });
 

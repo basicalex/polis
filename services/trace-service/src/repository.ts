@@ -6,11 +6,13 @@ import postgres from 'postgres';
 
 import {
   canonicalJson,
+  chainPublicEvents,
   computeEventHash,
   computeReceiptHash,
   computeShellHash,
   sha256,
   verifyEventChain,
+  verifyPublicEventChain,
   verifyReceiptHash,
   type EventHashMaterial,
   type StoredEvent,
@@ -30,7 +32,7 @@ import {
   transitionAllowed,
 } from './domain.js';
 import { requestAiIntake as fetchAiIntake } from './ai-client.js';
-import { assessText } from './compliance.js';
+import { assessText, normalizedSha256 } from './compliance.js';
 import type {
   Actor,
   AiDecisionInput,
@@ -47,6 +49,8 @@ import type {
   CaseMessageSource,
   CaseShell,
   CloseInput,
+  OfficialProfile,
+  OfficialProfileInput,
   CommandContext,
   DisputeInput,
   FilerCaseView,
@@ -60,6 +64,9 @@ import type {
   OfficialMessageInput,
   PrivateEvent,
   PrivateRecord,
+  PublicCaseListQuery,
+  PublicCaseSummary,
+  PublicEventData,
   PublicEvent,
   PublicRecord,
   RecordRow,
@@ -70,8 +77,10 @@ import type {
   TraceRole,
   TraceStage,
   TraceStatus,
+  TraceUnit,
   TraceStore,
 } from './types.js';
+import { encodePublicListCursor } from './validation.js';
 
 interface PrivateMaterialRow {
   subject: string;
@@ -105,6 +114,14 @@ interface PublicEventSourceRow {
   payload: Record<string, unknown>;
   created_at: Date | string;
 }
+interface OfficialRow {
+  citizen_id: string;
+  name: string;
+  title: string;
+  unit_id: string;
+  updated_at: Date | string;
+}
+
 
 interface AttachmentRow {
   id: string;
@@ -128,6 +145,9 @@ interface IdempotencyRow {
 interface PublicSnapshotRow {
   record_id: string;
   case_number: string;
+  unit_id: string | null;
+  text_sha256: string;
+  text_hash_kind: 'raw' | 'normalized-legacy';
   municipality_id: string;
   category: string;
   office: string;
@@ -158,6 +178,8 @@ interface CaseShellRow {
   text_status: TextStatus;
   hold_reason: HoldReason | null;
   removed_reason: RemovedReason | null;
+  text_hash_kind: 'raw' | 'normalized-legacy';
+  unit_id: string | null;
   text_sha256: string;
   labels: string[];
   closed_public_reason: string | null;
@@ -300,8 +322,28 @@ function attachmentMetadata(row: AttachmentRow): AttachmentMetadata {
   };
 }
 
-function publicRecord(row: PublicSnapshotRow): PublicRecord {
+function unitForConfig(config: TraceConfig, unitId: string | null): TraceUnit | null {
+  if (unitId === null) return null;
+  const unit = config.pilot.office.units.find((candidate) => candidate.id === unitId);
+  return unit ? { id: unit.id, name: { ...unit.name } } : null;
+}
+
+function officialProfile(row: OfficialRow, config: TraceConfig): OfficialProfile {
+  const unit = unitForConfig(config, row.unit_id);
+  if (!unit) throw integrityError();
+  return {
+    citizenId: row.citizen_id,
+    name: row.name,
+    title: row.title,
+    unit,
+  };
+}
+
+function publicRecord(row: PublicSnapshotRow, config: TraceConfig): PublicRecord {
   if (!row.signed_by_name || !row.signed_by_title) throw integrityError();
+  const events = row.public_events.map((event) => ({ ...event }));
+  const unit = unitForConfig(config, row.unit_id);
+  if (row.unit_id !== null && unit === null) throw integrityError();
   return {
     id: row.record_id,
     caseNumber: row.case_number,
@@ -312,21 +354,27 @@ function publicRecord(row: PublicSnapshotRow): PublicRecord {
     commitment: row.commitment,
     dueDate: dateOnly(row.due_date),
     signedBy: { name: row.signed_by_name, title: row.signed_by_title },
+    unit,
+    textSha256: row.text_sha256.trim(),
+    textHashKind: row.text_hash_kind,
     evidenceNote: row.evidence_note,
     evidenceUrls: [...row.evidence_urls],
     publishedAt: iso(row.published_at),
     resolvedAt: row.resolved_at ? iso(row.resolved_at) : null,
     disputes: row.disputes.map((dispute) => ({ ...dispute })),
-    events: row.public_events.map((event) => ({ ...event })),
+    events,
+    lastEventHash: events.at(-1)?.hash ?? '',
     receiptHash: row.receipt_hash.trim(),
     testEnvironment: true,
   };
 }
 
-function verifiedPublicRecord(row: PublicSnapshotRow): PublicRecord {
+function verifiedPublicRecord(row: PublicSnapshotRow, config: TraceConfig): PublicRecord {
   try {
-    const record = publicRecord(row);
-    if (!verifyReceiptHash(record)) throw integrityError();
+    const record = publicRecord(row, config);
+    if (!verifyPublicEventChain(record.events) || !verifyReceiptHash(record)) {
+      throw integrityError();
+    }
     return record;
   } catch {
     throw integrityError();
@@ -346,6 +394,8 @@ function caseShell(row: CaseShellRow): CaseShell {
     textStatus: row.text_status,
     holdReason: row.hold_reason,
     removedReason: row.removed_reason,
+    textHashKind: row.text_hash_kind,
+    unitId: row.unit_id,
     textSha256: row.text_sha256.trim(),
     labels: [...row.labels],
     closedPublicReason: row.closed_public_reason,
@@ -404,6 +454,86 @@ function aiProposal(row: AiProposalRow): AiProposal {
     createdAt: iso(row.created_at),
   };
 }
+export interface PublicShellCursorPredicate {
+  text: string;
+  values: [ShellState | null, string | null, string | null];
+}
+
+export function buildPublicShellCursorPredicate(
+  query: PublicCaseListQuery,
+): PublicShellCursorPredicate {
+  return {
+    text: `($1::text IS NULL OR state = $1)
+      AND (
+        $2::timestamptz IS NULL
+        OR updated_at < $2::timestamptz
+        OR (updated_at = $2::timestamptz AND case_number > $3)
+      )`,
+    values: [
+      query.state,
+      query.cursor?.updatedAt ?? null,
+      query.cursor?.caseNumber ?? null,
+    ],
+  };
+}
+
+export async function resolveAssignmentUnit(
+  tx: QuerySql,
+  config: TraceConfig,
+  actorId: string,
+  requestedUnitId: string | null,
+): Promise<TraceUnit> {
+  const profiles =
+    requestedUnitId === null
+      ? await tx<OfficialRow[]>`
+          SELECT * FROM trace_officials WHERE citizen_id = ${actorId} LIMIT 1
+        `
+      : [];
+  const unitId = requestedUnitId ?? profiles[0]?.unit_id ?? null;
+  if (unitId === null) {
+    throw new DomainError(409, 'unit_required', 'An assignment unit is required.');
+  }
+  const unit = unitForConfig(config, unitId);
+  if (!unit) throw new DomainError(400, 'invalid_unit', 'unitId is not configured.');
+  return unit;
+}
+
+export async function signerForOfficial(
+  tx: QuerySql,
+  actorId: string,
+): Promise<{ name: string; title: string }> {
+  const profiles = await tx<OfficialRow[]>`
+    SELECT * FROM trace_officials WHERE citizen_id = ${actorId} LIMIT 1
+  `;
+  const profile = profiles[0];
+  if (!profile) {
+    throw new DomainError(409, 'official_profile_missing', 'Official profile is required.');
+  }
+  return { name: profile.name, title: profile.title };
+}
+export async function replacePlaceholderNarrative(
+  tx: QuerySql,
+  recordId: string,
+  narrative: string,
+): Promise<RecordRow | null> {
+  const replacements = await tx<{ record_id: string }[]>`
+    UPDATE trace_report_private SET narrative = ${narrative}
+    WHERE record_id = ${recordId} AND narrative = 'Glasovna prijava u obradi.'
+    RETURNING record_id
+  `;
+  if (!replacements[0]) return null;
+  const rows = await tx<RecordRow[]>`
+    UPDATE trace_records SET
+      text_sha256 = ${sha256(narrative)},
+      text_normalized_sha256 = ${normalizedSha256(narrative)},
+      text_hash_kind = 'raw'
+    WHERE id = ${recordId}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+
 
 function errorForUnknownCase(): DomainError {
   return new DomainError(404, 'case_not_found', 'Case not found.');
@@ -473,27 +603,67 @@ export class TraceRepository implements TraceStore {
       return this.#loadPrivate(tx, row);
     });
   }
+  async upsertOfficial(
+    actor: Actor,
+    citizenId: string,
+    input: OfficialProfileInput,
+  ): Promise<OfficialProfile> {
+    requireRole(actor, 'gateway');
+    if (!unitForConfig(this.config, input.unitId)) {
+      throw new DomainError(400, 'invalid_unit', 'unitId is not configured.');
+    }
+    const rows = await this.#sql<OfficialRow[]>`
+      INSERT INTO trace_officials (citizen_id, name, title, unit_id, updated_at)
+      VALUES (${citizenId}, ${input.name}, ${input.title}, ${input.unitId}, NOW())
+      ON CONFLICT (citizen_id) DO UPDATE SET
+        name = EXCLUDED.name,
+        title = EXCLUDED.title,
+        unit_id = EXCLUDED.unit_id,
+        updated_at = EXCLUDED.updated_at
+      RETURNING *
+    `;
+    return officialProfile(rows[0]!, this.config);
+  }
+
+  async getOfficial(actor: Actor): Promise<OfficialProfile | null> {
+    requireRole(actor, 'official');
+    const rows = await this.#sql<OfficialRow[]>`
+      SELECT * FROM trace_officials WHERE citizen_id = ${actor.id} LIMIT 1
+    `;
+    return rows[0] ? officialProfile(rows[0], this.config) : null;
+  }
+
 
   async listPublic(limit: number): Promise<PublicRecord[]> {
     const rows = await this.#sql<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       ORDER BY trace_public_snapshots.updated_at DESC
       LIMIT ${limit}
     `;
-    return rows.map(verifiedPublicRecord);
+    return rows.map((row) => verifiedPublicRecord(row, this.config));
   }
 
   async getPublic(id: string): Promise<PublicRecord | null> {
     const rows = await this.#sql<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${id}
       LIMIT 1
     `;
-    return rows[0] ? verifiedPublicRecord(rows[0]) : null;
+    return rows[0] ? verifiedPublicRecord(rows[0], this.config) : null;
   }
 
   async createChannelCase(
@@ -541,15 +711,15 @@ export class TraceRepository implements TraceStore {
         INSERT INTO trace_records (
           id, municipality_id, category, office, owner_actor_id, case_number, origin, filer_kind,
           gateway_actor_id, reopen_key_hash, status, version, commitment, due_date,
-          evidence_note, evidence_urls, text_status, hold_reason, text_sha256, labels,
-          created_at, updated_at
+          evidence_note, evidence_urls, text_status, hold_reason, text_sha256,
+          text_normalized_sha256, labels, created_at, updated_at
         ) VALUES (
           ${recordId}, 'vrsar-orsera', 'public-lighting', 'communal-system', NULL, ${caseNumber},
           ${input.channel}, 'anonymous-channel', ${ctx.actor.id}, ${issued.hash}, 'open', 0,
           NULL, NULL, NULL, ${tx.json(jsonValue([]))},
           ${filingHold ? 'held' : 'public'}, ${filingHold},
-          ${assessment.normalizedSha256}, ${assessment.formLetter ? ['form-letter'] : []},
-          ${now}, ${now}
+          ${sha256(narrative)}, ${assessment.normalizedSha256},
+          ${assessment.formLetter ? ['form-letter'] : []}, ${now}, ${now}
         )
       `;
       await tx`
@@ -973,11 +1143,89 @@ export class TraceRepository implements TraceStore {
     return result.body as { record: PrivateRecord; shell: CaseShell };
   }
 
-  async listPublicShells(limit: number): Promise<{ cases: CaseShell[] }> {
-    const rows = await this.#sql<CaseShellRow[]>`
-      SELECT * FROM trace_case_shells ORDER BY updated_at DESC, case_number LIMIT ${limit}
+  async listPublicShells(
+    query: PublicCaseListQuery,
+  ): Promise<{ cases: CaseShell[]; nextCursor: string | null }> {
+    const predicate = buildPublicShellCursorPredicate(query);
+    const rows = await this.#sql.unsafe<CaseShellRow[]>(
+      `SELECT *
+       FROM trace_case_shells
+       WHERE ${predicate.text}
+       ORDER BY updated_at DESC, case_number ASC
+       LIMIT $4`,
+      [...predicate.values, query.limit],
+    );
+    const last = rows.at(-1);
+    return {
+      cases: rows.map(caseShell),
+      nextCursor:
+        rows.length < query.limit || !last
+          ? null
+          : encodePublicListCursor({
+              updatedAt: iso(last.updated_at),
+              caseNumber: last.case_number,
+            }),
+    };
+  }
+
+  async listPublicSummary(): Promise<PublicCaseSummary> {
+    const rows = await this.#sql<
+      Array<{
+        total: number;
+        received: number;
+        assigned: number;
+        answered: number;
+        resolved: number;
+        disputed: number;
+        closed: number;
+        open: number;
+        overdue: number;
+        held: number;
+        pending_release: number;
+        removed: number;
+        computed_at: Date | string;
+      }>
+    >`
+      SELECT
+        COUNT(*)::integer AS total,
+        COUNT(*) FILTER (WHERE state = 'received')::integer AS received,
+        COUNT(*) FILTER (WHERE state = 'assigned')::integer AS assigned,
+        COUNT(*) FILTER (WHERE state = 'answered')::integer AS answered,
+        COUNT(*) FILTER (WHERE state = 'resolved')::integer AS resolved,
+        COUNT(*) FILTER (WHERE state = 'disputed')::integer AS disputed,
+        COUNT(*) FILTER (WHERE state = 'closed')::integer AS closed,
+        COUNT(*) FILTER (WHERE state NOT IN ('resolved', 'closed'))::integer AS open,
+        COUNT(*) FILTER (
+          WHERE state NOT IN ('resolved', 'closed')
+            AND clock_due_at IS NOT NULL
+            AND (clock_due_at::timestamp AT TIME ZONE 'UTC') < CURRENT_TIMESTAMP
+        )::integer AS overdue,
+        COUNT(*) FILTER (WHERE text_status = 'held')::integer AS held,
+        COUNT(*) FILTER (
+          WHERE text_status = 'held' AND hold_reason = 'pending-release'
+        )::integer AS pending_release,
+        COUNT(*) FILTER (WHERE text_status = 'removed')::integer AS removed,
+        CURRENT_TIMESTAMP AS computed_at
+      FROM trace_case_shells
     `;
-    return { cases: rows.map(caseShell) };
+    const row = rows[0]!;
+    return {
+      total: row.total,
+      byState: {
+        received: row.received,
+        assigned: row.assigned,
+        answered: row.answered,
+        resolved: row.resolved,
+        disputed: row.disputed,
+        closed: row.closed,
+      },
+      open: row.open,
+      overdue: row.overdue,
+      held: row.held,
+      pendingRelease: row.pending_release,
+      removed: row.removed,
+      computedAt: iso(row.computed_at),
+    };
   }
 
   async getPublicCase(
@@ -989,7 +1237,12 @@ export class TraceRepository implements TraceStore {
     const shell = shells[0];
     if (!shell) return null;
     const snapshots = await this.#sql<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${shell.record_id}
@@ -997,7 +1250,7 @@ export class TraceRepository implements TraceStore {
     `;
     return {
       case: caseShell(shell),
-      record: snapshots[0] ? verifiedPublicRecord(snapshots[0]) : null,
+      record: snapshots[0] ? verifiedPublicRecord(snapshots[0], this.config) : null,
     };
   }
 
@@ -1156,13 +1409,13 @@ export class TraceRepository implements TraceStore {
         INSERT INTO trace_records (
           id, municipality_id, category, office, owner_actor_id, case_number, status, version,
           commitment, due_date, evidence_note, evidence_urls, text_status, hold_reason,
-          text_sha256, labels, created_at, updated_at
+          text_sha256, text_normalized_sha256, labels, created_at, updated_at
         ) VALUES (
           ${id}, 'vrsar-orsera', 'public-lighting', 'communal-system', ${ctx.actor.id},
           ${caseNumber}, 'open', 0, NULL, NULL, NULL, ${tx.json(jsonValue([]))},
           ${filingHold ? 'held' : 'public'}, ${filingHold},
-          ${assessment.normalizedSha256}, ${assessment.formLetter ? ['form-letter'] : []},
-          ${now}, ${now}
+          ${sha256(narrative)}, ${assessment.normalizedSha256},
+          ${assessment.formLetter ? ['form-letter'] : []}, ${now}, ${now}
         )
       `;
       await tx`
@@ -1229,8 +1482,24 @@ export class TraceRepository implements TraceStore {
       requireRole(ctx.actor, 'official');
       assertExpectedVersion(Number(ctx.normalizedBody.expectedVersion), record.version);
       requireTransition(transitionAllowed('assign', record.status));
+      const unit = await resolveAssignmentUnit(
+        tx,
+        this.config,
+        ctx.actor.id,
+        (ctx.normalizedBody.unitId as string | null | undefined) ?? null,
+      );
       const now = new Date().toISOString();
-      const next = await this.#updateStatus(tx, record, 'assigned', now);
+      const next = (
+        await tx<RecordRow[]>`
+          UPDATE trace_records SET
+            status = 'assigned',
+            unit_id = ${unit.id},
+            version = version + 1,
+            updated_at = ${now}
+          WHERE id = ${id}
+          RETURNING *
+        `
+      )[0]!;
       await this.#markOfficial(tx, id, ctx.actor.id);
       await this.#appendEvent(
         tx,
@@ -1239,7 +1508,7 @@ export class TraceRepository implements TraceStore {
         'responsibility',
         'record-assigned',
         null,
-        {},
+        { unitId: unit.id, unitName: unit.name },
         now,
       );
       await this.#writeShell(tx, next);
@@ -1252,8 +1521,8 @@ export class TraceRepository implements TraceStore {
       requireRole(ctx.actor, 'official');
       assertExpectedVersion(Number(ctx.normalizedBody.expectedVersion), record.version);
       requireTransition(transitionAllowed('commitment', record.status));
+      const signedBy = await signerForOfficial(tx, ctx.actor.id);
       const now = new Date().toISOString();
-      const signedBy = ctx.normalizedBody.signedBy as { name: string; title: string };
       const rows = await tx<RecordRow[]>`
         UPDATE trace_records SET
           status = 'answered', version = version + 1,
@@ -1291,9 +1560,9 @@ export class TraceRepository implements TraceStore {
       requireRole(ctx.actor, 'official');
       assertExpectedVersion(Number(ctx.normalizedBody.expectedVersion), record.version);
       requireTransition(transitionAllowed('resolution', record.status));
+      const signedBy = await signerForOfficial(tx, ctx.actor.id);
       const now = new Date().toISOString();
       const urls = ctx.normalizedBody.evidenceUrls as string[];
-      const signedBy = ctx.normalizedBody.signedBy as { name: string; title: string };
       const rows = await tx<RecordRow[]>`
         UPDATE trace_records SET
           status = 'resolved', version = version + 1,
@@ -1337,11 +1606,21 @@ export class TraceRepository implements TraceStore {
     return this.#recordCommand(ctx, id, async (tx, record) => {
       requireRole(ctx.actor, 'official');
       requireTransition(transitionAllowed('reopen', record.status));
+      const requestedUnitId =
+        (ctx.normalizedBody.unitId as string | null | undefined) ?? null;
+      const unit = requestedUnitId === null ? null : unitForConfig(this.config, requestedUnitId);
+      if (requestedUnitId !== null && !unit) {
+        throw new DomainError(400, 'invalid_unit', 'unitId is not configured.');
+      }
       const now = new Date().toISOString();
       const next = (
         await tx<RecordRow[]>`
           UPDATE trace_records SET
-            status = 'answered', terminal_at = NULL, version = version + 1, updated_at = ${now}
+            status = 'answered',
+            unit_id = ${unit?.id ?? record.unit_id},
+            terminal_at = NULL,
+            version = version + 1,
+            updated_at = ${now}
           WHERE id = ${record.id} RETURNING *
         `
       )[0]!;
@@ -1356,6 +1635,18 @@ export class TraceRepository implements TraceStore {
         {},
         now,
       );
+      if (unit) {
+        await this.#appendEvent(
+          tx,
+          next,
+          ctx.actor,
+          'responsibility',
+          'record-assigned',
+          null,
+          { unitId: unit.id, unitName: unit.name },
+          now,
+        );
+      }
       await this.#reopenSnapshot(tx, next, now);
       await this.#writeShell(tx, next);
       return { status: 200, body: { record: await this.#loadPrivate(tx, next) } };
@@ -1531,8 +1822,8 @@ export class TraceRepository implements TraceStore {
   }
 
   async #assessText(tx: QuerySql, text: string, location: string | null, municipalityId: string) {
-    const rows = await tx<{ text_sha256: string }[]>`
-      SELECT text_sha256
+    const rows = await tx<{ text_normalized_sha256: string }[]>`
+      SELECT text_normalized_sha256
       FROM trace_records
       WHERE municipality_id = ${municipalityId}
         AND created_at >= NOW() - INTERVAL '30 days'
@@ -1543,7 +1834,7 @@ export class TraceRepository implements TraceStore {
         text,
         location,
         municipalityId,
-        recentNarrativeHashes: rows.map((row) => row.text_sha256.trim()),
+        recentNarrativeHashes: rows.map((row) => row.text_normalized_sha256.trim()),
       },
       {
         gatewayUrl: this.config.aiComplianceUrl ?? null,
@@ -1672,17 +1963,14 @@ export class TraceRepository implements TraceStore {
       if (!replies[0]) throw new DomainError(404, 'message_not_found', 'Message not found.');
     }
     const now = new Date().toISOString();
-    const next = (
+    let next = (
       await tx<RecordRow[]>`
         UPDATE trace_records SET version = version + 1, updated_at = ${now}
         WHERE id = ${record.id} RETURNING *
       `
     )[0]!;
     if (input.kind === 'transcript' && input.body) {
-      await tx`
-        UPDATE trace_report_private SET narrative = ${input.body}
-        WHERE record_id = ${record.id} AND narrative = 'Glasovna prijava u obradi.'
-      `;
+      next = (await replacePlaceholderNarrative(tx, record.id, input.body)) ?? next;
     }
     const row: CaseMessageRow = {
       id: randomUUID(),
@@ -1752,6 +2040,8 @@ export class TraceRepository implements TraceStore {
       textStatus: record.text_status,
       holdReason: record.hold_reason,
       removedReason: record.removed_reason,
+      textHashKind: record.text_hash_kind,
+      unitId: record.unit_id,
       textSha256: record.text_sha256.trim(),
       labels: [...record.labels].sort(),
       closedPublicReason: record.closed_public_reason,
@@ -1772,16 +2062,17 @@ export class TraceRepository implements TraceStore {
     await tx`
       INSERT INTO trace_case_shells (
         record_id, case_number, municipality_id, area, category, track, state,
-        text, location, text_status, hold_reason, removed_reason, text_sha256, labels,
-        closed_public_reason, filed_at, clock_due_at, follower_count, also_affected_count,
-        not_fixed_count, dispute_count, notice_count, shell_hash, updated_at
+        text, location, text_status, hold_reason, removed_reason, text_hash_kind, unit_id,
+        text_sha256, labels, closed_public_reason, filed_at, clock_due_at, follower_count,
+        also_affected_count, not_fixed_count, dispute_count, notice_count, shell_hash, updated_at
       ) VALUES (
         ${record.id}, ${shell.caseNumber}, ${shell.municipalityId}, ${shell.area}, ${shell.category},
         ${shell.track}, ${shell.state}, ${shell.text}, ${shell.location}, ${shell.textStatus},
-        ${shell.holdReason}, ${shell.removedReason}, ${shell.textSha256}, ${shell.labels},
-        ${shell.closedPublicReason}, ${shell.filedAt}, ${shell.clockDueAt}, ${shell.followerCount},
-        ${shell.alsoAffectedCount}, ${shell.notFixedCount}, ${shell.disputeCount},
-        ${shell.noticeCount}, ${shell.shellHash}, ${shell.updatedAt}
+        ${shell.holdReason}, ${shell.removedReason}, ${shell.textHashKind}, ${shell.unitId},
+        ${shell.textSha256}, ${shell.labels}, ${shell.closedPublicReason}, ${shell.filedAt},
+        ${shell.clockDueAt}, ${shell.followerCount}, ${shell.alsoAffectedCount},
+        ${shell.notFixedCount}, ${shell.disputeCount}, ${shell.noticeCount}, ${shell.shellHash},
+        ${shell.updatedAt}
       )
       ON CONFLICT (record_id) DO UPDATE SET
         case_number = EXCLUDED.case_number,
@@ -1795,6 +2086,8 @@ export class TraceRepository implements TraceStore {
         text_status = EXCLUDED.text_status,
         hold_reason = EXCLUDED.hold_reason,
         removed_reason = EXCLUDED.removed_reason,
+        text_hash_kind = EXCLUDED.text_hash_kind,
+        unit_id = EXCLUDED.unit_id,
         text_sha256 = EXCLUDED.text_sha256,
         labels = EXCLUDED.labels,
         closed_public_reason = EXCLUDED.closed_public_reason,
@@ -2302,7 +2595,7 @@ export class TraceRepository implements TraceStore {
       WHERE record_id = ${record.id}
       ORDER BY sequence
     `;
-    const milestones: PublicEvent[] = [];
+    const milestones: PublicEventData[] = [];
     for (const row of rows) {
       const createdAt = iso(row.created_at);
       if (
@@ -2357,26 +2650,48 @@ export class TraceRepository implements TraceStore {
           createdAt,
         });
       } else if (row.action === 'record-assigned' && row.actor_role === 'official') {
+        const unitId = row.payload.unitId;
+        const unitName = row.payload.unitName as TraceUnit['name'] | undefined;
+        const unit =
+          typeof unitId === 'string' &&
+          typeof unitName?.hr === 'string' &&
+          typeof unitName.it === 'string' &&
+          typeof unitName.en === 'string'
+            ? { id: unitId, name: { ...unitName } }
+            : null;
         milestones.push({
           stage: 'responsibility',
           action: 'office-assigned',
           actorRole: 'official',
+          unit,
           createdAt,
         });
       } else if (row.action === 'commitment-published' && row.actor_role === 'official') {
-        const signedBy = row.payload.signedBy as { name?: unknown } | undefined;
+        const signedBy = row.payload.signedBy as
+          | { name?: unknown; title?: unknown }
+          | undefined;
         milestones.push({
           stage: 'response',
           action: 'commitment-published',
           actorRole: 'official',
-          signedBy: typeof signedBy?.name === 'string' ? signedBy.name : '',
+          signedBy: {
+            name: typeof signedBy?.name === 'string' ? signedBy.name : '',
+            title: typeof signedBy?.title === 'string' ? signedBy.title : '',
+          },
           createdAt,
         });
       } else if (row.action === 'completion-reported' && row.actor_role === 'official') {
+        const signedBy = row.payload.signedBy as
+          | { name?: unknown; title?: unknown }
+          | undefined;
         milestones.push({
           stage: 'check',
           action: 'completion-reported',
           actorRole: 'official',
+          signedBy: {
+            name: typeof signedBy?.name === 'string' ? signedBy.name : '',
+            title: typeof signedBy?.title === 'string' ? signedBy.title : '',
+          },
           createdAt,
         });
       } else if (row.action === 'completion-disputed' && row.actor_role === 'resident') {
@@ -2414,7 +2729,7 @@ export class TraceRepository implements TraceStore {
         });
       }
     }
-    return milestones;
+    return chainPublicEvents(milestones);
   }
 
   async #removePublicText(
@@ -2425,13 +2740,18 @@ export class TraceRepository implements TraceStore {
     now: string,
   ): Promise<{ record: RecordRow; shell: CaseShell }> {
     const priorRows = await tx<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${record.id}
       FOR UPDATE OF trace_public_snapshots
     `;
-    const prior = priorRows[0] ? verifiedPublicRecord(priorRows[0]) : null;
+    const prior = priorRows[0] ? verifiedPublicRecord(priorRows[0], this.config) : null;
     const next = (
       await tx<RecordRow[]>`
         UPDATE trace_records SET
@@ -2458,6 +2778,7 @@ export class TraceRepository implements TraceStore {
         ...prior,
         disputes,
         events,
+        lastEventHash: events.at(-1)?.hash ?? '',
       };
       const receiptHash = computeReceiptHash(snapshotWithoutHash);
       await tx`
@@ -2474,7 +2795,12 @@ export class TraceRepository implements TraceStore {
 
   async #refreshSnapshotEvents(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${record.id}
@@ -2482,11 +2808,12 @@ export class TraceRepository implements TraceStore {
     `;
     const prior = rows[0];
     if (!prior) return;
-    const current = verifiedPublicRecord(prior);
+    const current = verifiedPublicRecord(prior, this.config);
     const events = await this.#publicMilestones(tx, record);
     const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...current,
       events,
+      lastEventHash: events.at(-1)?.hash ?? '',
     };
     const receiptHash = computeReceiptHash(snapshotWithoutHash);
     await tx`
@@ -2517,12 +2844,16 @@ export class TraceRepository implements TraceStore {
       commitment: record.commitment,
       dueDate: dateOnly(record.due_date),
       signedBy: { name: record.signed_by_name, title: record.signed_by_title },
+      unit: unitForConfig(this.config, record.unit_id),
+      textSha256: record.text_sha256.trim(),
+      textHashKind: record.text_hash_kind,
       evidenceNote: null,
       evidenceUrls: [],
       publishedAt: now,
       resolvedAt: null,
       disputes: [],
       events,
+      lastEventHash: events.at(-1)?.hash ?? '',
       testEnvironment: true,
     };
     const receiptHash = computeReceiptHash(snapshotWithoutHash);
@@ -2556,7 +2887,12 @@ export class TraceRepository implements TraceStore {
 
   async #resolveSnapshot(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${record.id}
@@ -2566,7 +2902,7 @@ export class TraceRepository implements TraceStore {
     if (!prior || !record.evidence_note || !record.signed_by_name || !record.signed_by_title) {
       throw new Error('resolution is missing an answered publication');
     }
-    const answered = verifiedPublicRecord(prior);
+    const answered = verifiedPublicRecord(prior, this.config);
     const events = await this.#publicMilestones(tx, record);
     const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...answered,
@@ -2576,6 +2912,7 @@ export class TraceRepository implements TraceStore {
       evidenceUrls: [...(record.evidence_urls ?? [])],
       resolvedAt: now,
       events,
+      lastEventHash: events.at(-1)?.hash ?? '',
     };
     const receiptHash = computeReceiptHash(snapshotWithoutHash);
     await tx`
@@ -2595,7 +2932,12 @@ export class TraceRepository implements TraceStore {
 
   async #reopenSnapshot(tx: QuerySql, record: RecordRow, now: string): Promise<void> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${record.id}
@@ -2603,13 +2945,14 @@ export class TraceRepository implements TraceStore {
     `;
     const prior = rows[0];
     if (!prior) throw new Error('reopen is missing a public record');
-    const current = verifiedPublicRecord(prior);
+    const current = verifiedPublicRecord(prior, this.config);
     const events = await this.#publicMilestones(tx, record);
     const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
       ...current,
       status: 'answered',
       resolvedAt: null,
       events,
+      lastEventHash: events.at(-1)?.hash ?? '',
     };
     const receiptHash = computeReceiptHash(snapshotWithoutHash);
     await tx`
@@ -2630,7 +2973,12 @@ export class TraceRepository implements TraceStore {
     now: string,
   ): Promise<PublicRecord> {
     const rows = await tx<PublicSnapshotRow[]>`
-      SELECT trace_public_snapshots.*, trace_records.case_number AS case_number
+      SELECT
+        trace_public_snapshots.*,
+        trace_records.case_number AS case_number,
+        trace_records.unit_id AS unit_id,
+        trace_records.text_sha256 AS text_sha256,
+        trace_records.text_hash_kind AS text_hash_kind
       FROM trace_public_snapshots
       JOIN trace_records ON trace_public_snapshots.record_id = trace_records.id
       WHERE trace_public_snapshots.record_id = ${record.id}
@@ -2638,7 +2986,7 @@ export class TraceRepository implements TraceStore {
     `;
     const prior = rows[0];
     if (!prior) throw new Error('dispute is missing a resolved public record');
-    const current = verifiedPublicRecord(prior);
+    const current = verifiedPublicRecord(prior, this.config);
     const events = await this.#publicMilestones(tx, record);
     const disputes = [...current.disputes, dispute];
     const snapshotWithoutHash: Omit<PublicRecord, 'receiptHash' | 'caseNumber'> = {
@@ -2646,6 +2994,7 @@ export class TraceRepository implements TraceStore {
       status: 'disputed',
       disputes,
       events,
+      lastEventHash: events.at(-1)?.hash ?? '',
     };
     const receiptHash = computeReceiptHash(snapshotWithoutHash);
     await tx`
