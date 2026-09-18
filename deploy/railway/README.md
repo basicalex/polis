@@ -54,10 +54,13 @@ For a service, apply every row whose **Services** cell names it. `all` means all
 | `TRACE_INTERNAL_URL` | platform | `http://trace-service.railway.internal:8980` | No; replace the port with that service's Railway `PORT` |
 | `TRACE_ENABLED` | platform | `true` | No |
 | `TRACE_WEB_GATEWAY_ACTOR_ID` | platform | `pilot-web` | No; must be present in trace's gateway allowlist |
+| `PUBLIC_EDGE_TRUSTED_KEY` | platform | `<RANDOM_SECRET_AT_LEAST_32_BYTES>` | **Secret**; must equal the Worker's `PILOT_EDGE_KEY` |
+| `PUBLIC_EDGE_TRUST_XFF` | platform | `false` | No; the paired Worker headers are authoritative |
 | `TRACE_OFFICIAL_CITIZEN_IDS` | trace | `trace-official-test` | No; the only staff role since the 2026-09-16 policy (`docs/pilot/public-text-policy.md`) |
 | `TRACE_GATEWAY_ACTOR_IDS` | trace | `pilot-web` | No; local `pilot-gateway` is omitted because channel-gateway is not deployed |
 | `TRACE_ATTENTION_PEPPER` | trace | `<RANDOM_SECRET_AT_LEAST_32_CHARACTERS>` | **Secret** |
 | `TRACE_INTAKE_OPEN` | trace | `true` | No; set `false` to fail closed without redeploying code |
+| `TRACE_RETENTION_INTERVAL_MINUTES` | trace | `60` | No; runs the retention sweeper hourly |
 | `PILOT_CONFIG_PATH` | trace | `/app/config/pilots/vrsar-orsera.json` | No; launcher parity |
 | `TRACE_PILOT_CONFIG_PATH` | trace | `/app/config/pilots/vrsar-orsera.json` | No; launcher parity |
 | `PUBLIC_EDGE` | platform | unset | No; `true` blocks every trace route (see Runtime posture) |
@@ -99,7 +102,11 @@ Run from the repository root on a trusted laptop. Load `DATABASE_URL` from a sec
 ```sh
 bun run --filter @polis/db build
 DATABASE_URL="$DATABASE_URL" node deploy/railway/migrate-core.mjs --yes
-DATABASE_URL="$DATABASE_URL" node deploy/railway/seed-identities.mjs --yes
+DATABASE_URL="$DATABASE_URL" \
+  TRACE_INTERNAL_URL="$TRACE_INTERNAL_URL" \
+  INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" \
+  TRACE_GATEWAY_ACTOR_ID=pilot-web \
+  node deploy/railway/seed-identities.mjs --yes
 ```
 
 The existing `scripts/pilot/seed-identities.mjs` cannot target Supabase: it requires an owned runtime, an explicit local marker, loopback, a `*_test` database, bundled local PostgreSQL binaries, and hard-codes `polis_trace_test`. The Railway seed script preserves its three synthetic rows and idempotent update behavior. `trace-official-test` receives `staff` identity level; its trace role comes from `TRACE_OFFICIAL_CITIZEN_IDS`. The fourth staff row an earlier seed created for the removed review role is harmless but unused; the demo seed no longer touches it.
@@ -133,6 +140,8 @@ Platform-api allows five public filings per ten minutes per IP. A fresh nine-cas
 `PUBLIC_WEB_BASE` is optional and only changes the case URLs the script prints; set it to `http://127.0.0.1:4321` when running against the local runtime. The script never reads a local environment file. It records the filed case numbers, record IDs, the attention keys and the reopen key of the disputed case outside the repository at `${XDG_STATE_HOME:-~/.local/state}/polis/seed-demo-cases.json`, mode `0600`. When that marker exists, the script reuses the recorded cases instead of filing another batch and safely resumes any incomplete lifecycle work. A marker written by the review-era seed (version 1) is rejected; pass `--reset` with `--yes` to start a new nine-case batch. Existing hosted cases are never deleted by the script.
 
 The passcode grants staff access to the synthetic official on the hosted test instance only. Keep it in the secret manager and never place it in the repository or shared logs.
+
+The Cloudflare Worker secrets are `PILOT_DEMO_STAFF_PASSCODE` and `PILOT_EDGE_KEY`. `PILOT_EDGE_KEY` must equal platform-api's `PUBLIC_EDGE_TRUSTED_KEY`. Their values live in `~/.config/polis/polis-test.env`; never write them to Wrangler config or this repository. From `apps/web`, install both for preview with `bunx wrangler secret put <NAME> --env preview`.
 
 ## Reset and reseed for migration 0004
 
@@ -179,7 +188,9 @@ Run from the repository root on a trusted laptop with `DATABASE_URL` loaded from
 
    ```sh
    bun run --filter @polis/db build
-   DATABASE_URL="$DATABASE_URL" node deploy/railway/seed-identities.mjs --yes
+   DATABASE_URL="$DATABASE_URL" TRACE_INTERNAL_URL="$TRACE_INTERNAL_URL" \
+     INTERNAL_API_TOKEN="$INTERNAL_API_TOKEN" TRACE_GATEWAY_ACTOR_ID=pilot-web \
+     node deploy/railway/seed-identities.mjs --yes
    ```
 
 6. Discard the old demo marker and file the new spread.
@@ -195,8 +206,8 @@ Run from the repository root on a trusted laptop with `DATABASE_URL` loaded from
 Migration/deploy order:
 
 1. Run core migrations with `migrate-core.mjs`.
-2. Run `seed-identities.mjs`.
-3. Deploy `trace-service`; `start.sh` runs `services/trace-service/dist/migrate.js` before `dist/index.js`.
+2. Deploy `trace-service`; `start.sh` runs `services/trace-service/dist/migrate.js` before `dist/index.js`.
+3. Run `seed-identities.mjs` with a reachable `TRACE_INTERNAL_URL`; it writes the identity rows, then idempotently upserts the official profile through trace.
 4. Deploy `citizen-identity-service`; `start.sh` idempotently runs `@polis/db` core migrations before `dist/index.js`.
 5. Deploy `platform-api`; `start.sh` only starts it. Its existing `main()` also runs core migrations and fails startup on migration error in `pilot` profile.
 
@@ -214,6 +225,7 @@ railway variable set --service trace-service \
   TRACE_OFFICIAL_CITIZEN_IDS=trace-official-test \
   TRACE_GATEWAY_ACTOR_IDS=pilot-web \
   TRACE_ATTENTION_PEPPER="$TRACE_ATTENTION_PEPPER" TRACE_INTAKE_OPEN=true \
+  TRACE_RETENTION_INTERVAL_MINUTES=60 \
   PILOT_CONFIG_PATH=/app/config/pilots/vrsar-orsera.json \
   TRACE_PILOT_CONFIG_PATH=/app/config/pilots/vrsar-orsera.json
 
@@ -239,6 +251,7 @@ railway variable set --service platform-api \
   IDENTITY_INTERNAL_URL='http://citizen-identity-service.railway.internal:8650' \
   TRACE_INTERNAL_URL='http://trace-service.railway.internal:8980' \
   TRACE_ENABLED=true TRACE_WEB_GATEWAY_ACTOR_ID=pilot-web \
+  PUBLIC_EDGE_TRUSTED_KEY="$PUBLIC_EDGE_TRUSTED_KEY" PUBLIC_EDGE_TRUST_XFF=false \
   CHANNEL_ENABLED=false INTERNAL_FETCH_TIMEOUT_MS=5000 \
   PUBLIC_EDGE_RATE_LIMIT_PER_MIN=60
 

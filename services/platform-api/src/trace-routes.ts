@@ -26,7 +26,8 @@ import { createFixedWindowPerIpLimiter } from './public-edge.js';
 
 const TRACE_PREFIX = '/api/trace';
 const INTERNAL_TRACE_PREFIX = '/internal/trace';
-const LIST_QUERY_PARAMETERS: Readonly<Record<string, true>> = { limit: true };
+const LIST_QUERY_PARAMETERS = ['limit'] as const;
+const CASE_LIST_QUERY_PARAMETERS = ['limit', 'state', 'cursor'] as const;
 const IDEMPOTENCY_KEY_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ATTACHMENT_UPLOAD_MAX_BODY_BYTES = 2_900_000;
@@ -69,7 +70,7 @@ type TraceRouteSpec = {
   internalPath?: string;
   gatewayPrincipalEnv?: 'TRACE_WEB_GATEWAY_ACTOR_ID';
   shapeBody?: (body: unknown) => TraceBodyShapeResult;
-  listQuery?: true;
+  queryParameters?: readonly string[];
   write?: true;
   maxBodyBytes?: number;
   rateLimit?: Readonly<{ limit: number; windowMs: number }>;
@@ -78,7 +79,8 @@ type TraceRouteSpec = {
 const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
   { method: 'GET', path: '/config', access: 'public' },
   { method: 'GET', path: '/session', access: 'private' },
-  { method: 'GET', path: '/records', access: 'private', listQuery: true },
+  { method: 'GET', path: '/records', access: 'private', queryParameters: LIST_QUERY_PARAMETERS },
+  { method: 'GET', path: '/officials/me', access: 'private' },
   { method: 'POST', path: '/records', access: 'private', write: true },
   { method: 'GET', path: '/records/:id', access: 'private' },
   { method: 'POST', path: '/records/:id/assign', access: 'private', write: true },
@@ -100,9 +102,25 @@ const TRACE_ROUTE_SPECS: readonly TraceRouteSpec[] = [
     path: '/records/:id/attachments/:attachmentId',
     access: 'private',
   },
-  { method: 'GET', path: '/public/records', access: 'public', listQuery: true },
+  {
+    method: 'GET',
+    path: '/public/records',
+    access: 'public',
+    queryParameters: LIST_QUERY_PARAMETERS,
+  },
   { method: 'GET', path: '/public/records/:id', access: 'public' },
-  { method: 'GET', path: '/public/cases', access: 'public', listQuery: true },
+  {
+    method: 'GET',
+    path: '/public/cases',
+    access: 'public',
+    queryParameters: CASE_LIST_QUERY_PARAMETERS,
+  },
+  {
+    method: 'GET',
+    path: '/public/summary',
+    access: 'public',
+    rateLimit: { limit: 30, windowMs: MINUTE_MS },
+  },
   {
     method: 'POST',
     path: '/public/cases',
@@ -176,11 +194,11 @@ function internalPath(path: string, params: Record<string, string>): string {
   );
 }
 
-function listSearch(req: IncomingMessage): string {
+function allowedSearch(req: IncomingMessage, allowedNames: readonly string[]): string {
   const input = new URL(req.url ?? '/', 'http://localhost');
   const output = new URLSearchParams();
   for (const [name, value] of input.searchParams) {
-    if (LIST_QUERY_PARAMETERS[name]) output.append(name, value);
+    if (allowedNames.includes(name)) output.append(name, value);
   }
   const query = output.toString();
   return query ? '?' + query : '';
@@ -329,7 +347,8 @@ async function proxyTrace(
   if (gatewayPrincipal) extraHeaders['x-polis-trace-gateway'] = gatewayPrincipal;
   const headers = actor ? trustedActorHeaders(actor, extraHeaders) : internalHeaders(extraHeaders);
   const path =
-    internalPath(spec.internalPath ?? spec.path, params) + (spec.listQuery ? listSearch(req) : '');
+    internalPath(spec.internalPath ?? spec.path, params) +
+    (spec.queryParameters ? allowedSearch(req, spec.queryParameters) : '');
   try {
     const upstream = await fetchWithTimeout(
       base + path,

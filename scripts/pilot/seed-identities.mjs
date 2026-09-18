@@ -16,10 +16,10 @@ if (process.env.PILOT_TEST_DATABASE_MARKER !== TEST_MARKER) {
 }
 const runtime = await (async () => {
   const { metadata, paths } = await assertOwnedRuntime(runtimePath);
-  const secrets = JSON.parse(
-    await (await import('node:fs/promises')).readFile(paths.secrets, 'utf8'),
-  );
-  return { metadata, paths, secrets };
+  const { readFile } = await import('node:fs/promises');
+  const secrets = JSON.parse(await readFile(paths.secrets, 'utf8'));
+  const state = JSON.parse(await readFile(paths.state, 'utf8'));
+  return { metadata, paths, secrets, state };
 })();
 const url = new URL(databaseUrl(runtime.metadata, runtime.secrets, 'superuser'));
 if (
@@ -74,3 +74,38 @@ await runBounded(
     timeoutMs: 20_000,
   },
 );
+
+if (runtime.state.phase === 'running') {
+  const traceBase = (process.env.TRACE_INTERNAL_URL ?? 'http://127.0.0.1:8980').replace(/\/+$/, '');
+  let response;
+  try {
+    response = await fetch(`${traceBase}/internal/trace/officials/trace-official-test`, {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        'x-polis-internal-token': runtime.secrets.internalApiToken,
+        'x-polis-trace-gateway':
+          process.env.TRACE_WEB_GATEWAY_ACTOR_ID?.trim() || 'pilot-web',
+      },
+      body: JSON.stringify({
+        name: 'Ivana Testić',
+        title: 'Viša stručna suradnica za komunalni sustav',
+        unitId: 'communal-system',
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw new Error('official profile seed request failed');
+  }
+  if (!response.ok) {
+    throw new Error(`official profile seed failed with HTTP ${response.status}`);
+  }
+} else {
+  console.log(
+    JSON.stringify({
+      stage: 'seed-identities',
+      officialProfile: 'deferred',
+      reason: 'trace-service-not-running-during-bootstrap',
+    }),
+  );
+}

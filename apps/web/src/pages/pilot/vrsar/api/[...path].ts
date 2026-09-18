@@ -17,10 +17,12 @@ const handler: APIRoute = async (context) => {
   const backendBase = binding('PILOT_API_BASE');
   const demoPasscode = binding('PILOT_DEMO_STAFF_PASSCODE');
   const demoOfficialEmail = binding('PILOT_DEMO_OFFICIAL_EMAIL');
+  const edgeKey = binding('PILOT_EDGE_KEY');
   return handlePilotProxy(context, {
     ...(backendBase ? { backendBase } : {}),
     ...(demoPasscode ? { demoPasscode } : {}),
     ...(demoOfficialEmail ? { demoOfficialEmail } : {}),
+    ...(edgeKey ? { edgeKey } : {}),
   });
 };
 

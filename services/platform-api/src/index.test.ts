@@ -13,6 +13,7 @@ import {
   validatePlatformConfig,
   withPublicEdge,
 } from './index.js';
+import { clientAddressKey, createFixedWindowPerIpLimiter } from './public-edge.js';
 
 test('platform startup permits dev and only the approved public-read pilot shape', () => {
   assert.doesNotThrow(() => validatePlatformConfig({ DEPLOYMENT_PROFILE: 'dev' }));
@@ -170,6 +171,56 @@ const mockReq = (
     headers: init.headers ?? {},
     socket: { remoteAddress: ip },
   }) as unknown as IncomingMessage;
+
+test('public edge derives trusted client addresses and evicts expired windows', () => {
+  const trusted = mockReq('10.0.0.4', {
+    headers: {
+      'x-polis-edge-key': 'shared-edge-secret',
+      'x-polis-client-ip': '203.0.113.44',
+      'x-forwarded-for': '198.51.100.10, 10.0.0.3',
+    },
+  });
+  assert.equal(
+    clientAddressKey(trusted, { PUBLIC_EDGE_TRUSTED_KEY: 'shared-edge-secret' }),
+    '203.0.113.44',
+  );
+  assert.equal(
+    clientAddressKey(trusted, { PUBLIC_EDGE_TRUSTED_KEY: 'different-edge-secret' }),
+    '10.0.0.4',
+  );
+  assert.equal(
+    clientAddressKey(trusted, {
+      PUBLIC_EDGE_TRUSTED_KEY: 'different-edge-secret',
+      PUBLIC_EDGE_TRUST_XFF: 'true',
+    }),
+    '198.51.100.10',
+  );
+  assert.equal(
+    clientAddressKey(
+      mockReq('10.0.0.5', {
+        headers: { 'x-polis-client-ip': '203.0.113.45' },
+      }),
+      {},
+    ),
+    '10.0.0.5',
+  );
+
+  const originalNow = Date.now;
+  let now = 1_000;
+  Date.now = () => now;
+  try {
+    const limiter = createFixedWindowPerIpLimiter(1, 1_000);
+    const firstAddress = mockReq('192.0.2.1');
+    assert.equal(limiter(firstAddress), true);
+    assert.equal(limiter(firstAddress), false);
+    now = 2_001;
+    assert.equal(limiter(mockReq('192.0.2.2')), true);
+    now = 1_000;
+    assert.equal(limiter(firstAddress), true);
+  } finally {
+    Date.now = originalNow;
+  }
+});
 
 const fetchHeader = (headers: unknown, name: string): string | undefined => {
   if (headers instanceof Headers) return headers.get(name) ?? undefined;

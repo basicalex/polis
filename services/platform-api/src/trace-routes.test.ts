@@ -105,6 +105,7 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'GET /api/trace/config',
         'GET /api/trace/session',
         'GET /api/trace/records',
+        'GET /api/trace/officials/me',
         'POST /api/trace/records',
         'GET /api/trace/records/:id',
         'POST /api/trace/records/:id/assign',
@@ -119,6 +120,7 @@ test('trace routes are disabled by default and expose only the exact enabled con
         'GET /api/trace/public/records',
         'GET /api/trace/public/records/:id',
         'GET /api/trace/public/cases',
+        'GET /api/trace/public/summary',
         'POST /api/trace/public/cases',
         'GET /api/trace/public/cases/:caseNumber',
         'POST /api/trace/public/cases/:caseNumber/attention',
@@ -269,9 +271,21 @@ test('anonymous trace reads carry only internal auth and preserve bounded list q
       {},
       {},
     );
+    const publicCases = await route(routes, 'GET', '/api/trace/public/cases').handler(
+      request(
+        'GET',
+        '/api/trace/public/cases?limit=25&state=answered&cursor=opaque%2Bcursor&token=secret',
+      ),
+      {},
+      {},
+    );
 
     assert.equal(calls[0]?.url, 'http://trace.internal/internal/trace/config');
     assert.equal(calls[1]?.url, 'http://trace.internal/internal/trace/public/records?limit=10');
+    assert.equal(
+      calls[2]?.url,
+      'http://trace.internal/internal/trace/public/cases?limit=25&state=answered&cursor=opaque%2Bcursor',
+    );
     for (const call of calls) {
       const headers = new Headers(call.init?.headers);
       assert.equal(headers.get('x-polis-internal-token'), 'platform-token');
@@ -285,6 +299,7 @@ test('anonymous trace reads carry only internal auth and preserve bounded list q
     });
     assert.equal(result(publicList).status, 200);
     assert.deepEqual(result(publicList).body, { records: [] });
+    assert.equal(result(publicCases).status, 200);
   });
 });
 
@@ -799,7 +814,7 @@ test('trace preserves downstream status, body, and safe content headers', async 
   });
 });
 
-test('public trace writes enforce their per-IP limits with and without public-edge mode', async () => {
+test('public trace routes enforce their per-IP limits with and without public-edge mode', async () => {
   for (const publicEdge of [undefined, 'true'] as const) {
     await withEnvironment({ ...enabledEnvironment, PUBLIC_EDGE: publicEdge }, async () => {
       let fetchCalls = 0;
@@ -890,12 +905,37 @@ test('public trace writes enforce their per-IP limits with and without public-ed
         });
       }
 
-      assert.equal(fetchCalls, 55);
+      const summary = route(routes, 'GET', '/api/trace/public/summary');
+      const summaryAddress = `summary-${publicEdge ?? 'default'}`;
+      for (let index = 0; index < 30; index += 1) {
+        const response = result(
+          await summary.handler(
+            request('GET', '/api/trace/public/summary', {}, summaryAddress),
+            {},
+            {},
+          ),
+        );
+        assert.equal(response.status, 200);
+      }
+      const blockedSummary = result(
+        await summary.handler(
+          request('GET', '/api/trace/public/summary', {}, summaryAddress),
+          {},
+          {},
+        ),
+      );
+      assert.equal(blockedSummary.status, 429);
+      assert.deepEqual(blockedSummary.body, {
+        error: 'rate_limited',
+        message: 'Too many requests.',
+      });
+
+      assert.equal(fetchCalls, 85);
     });
   }
 });
 
-test('public-edge mode blocks private trace routes and unknown methods', async () => {
+test('public-edge mode blocks unlisted private trace routes and unknown methods', async () => {
   await withEnvironment({ ...enabledEnvironment, PUBLIC_EDGE: 'true' }, async () => {
     const unknownMethodRoutes: Route[] = [
       {
@@ -918,6 +958,18 @@ test('public-edge mode blocks private trace routes and unknown methods', async (
     const response = result(await privateRoute.handler(request('GET', privateRoute.path), {}, {}));
     assert.equal(response.status, 405);
     assert.deepEqual(response.body, { error: 'method_not_allowed', reason: 'public_edge' });
+    const official = result(
+      await route(routes, 'GET', '/api/trace/officials/me').handler(
+        request('GET', '/api/trace/officials/me'),
+        {},
+        {},
+      ),
+    );
+    assert.equal(official.status, 401);
+    assert.deepEqual(official.body, {
+      error: 'unauthenticated',
+      message: 'Sign in is required.',
+    });
     for (const unknown of unknownMethodRoutes) {
       const blocked = result(
         await route(routes, unknown.method, unknown.path).handler(

@@ -273,6 +273,7 @@ export function serviceEnvironment(runtime, extra = {}) {
     TRACE_ENABLED: 'true',
     TRACE_OFFICIAL_CITIZEN_IDS: 'trace-official-test',
     TRACE_INTAKE_OPEN: 'true',
+    TRACE_RETENTION_INTERVAL_MINUTES: '60',
     PILOT_CONFIG_PATH: path.join(ROOT, 'config/pilots/vrsar-orsera.json'),
     TRACE_PILOT_CONFIG_PATH: path.join(ROOT, 'config/pilots/vrsar-orsera.json'),
     PILOT_API_BASE: 'http://127.0.0.1:3000',

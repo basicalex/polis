@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 
 import { result, type Route } from '@polis/service-runtime';
@@ -14,17 +15,60 @@ import { result, type Route } from '@polis/service-runtime';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT = Number(process.env.PUBLIC_EDGE_RATE_LIMIT_PER_MIN ?? 60);
 
+function headerValue(req: IncomingMessage, name: string): string | null {
+  const value = req.headers[name];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function secretsEqual(left: string, right: string): boolean {
+  const leftHash = createHash('sha256').update(left).digest();
+  const rightHash = createHash('sha256').update(right).digest();
+  return timingSafeEqual(leftHash, rightHash);
+}
+
+/** Derive the rate-limit key without trusting browser-supplied forwarding headers. */
+export function clientAddressKey(
+  req: IncomingMessage,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const trustedKey = env.PUBLIC_EDGE_TRUSTED_KEY?.trim();
+  const suppliedKey = headerValue(req, 'x-polis-edge-key');
+  const suppliedClientIp = headerValue(req, 'x-polis-client-ip');
+  if (
+    trustedKey &&
+    suppliedKey &&
+    suppliedClientIp &&
+    secretsEqual(suppliedKey, trustedKey)
+  ) {
+    return suppliedClientIp;
+  }
+
+  if (env.PUBLIC_EDGE_TRUST_XFF === 'true') {
+    const forwarded = headerValue(req, 'x-forwarded-for')?.split(',', 1)[0]?.trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket?.remoteAddress ?? 'unknown';
+}
+
 /** Build a fixed-window, per-IP limiter for one route or route group. */
 export function createFixedWindowPerIpLimiter(
   limit: number,
   windowMs: number,
 ): (req: IncomingMessage) => boolean {
   const rateBuckets = new Map<string, { count: number; windowStart: number }>();
+  let nextSweep = 0;
   return (req) => {
-    const key = req.socket?.remoteAddress ?? 'unknown';
     const now = Date.now();
+    if (now >= nextSweep) {
+      for (const [address, bucket] of rateBuckets) {
+        if (now - bucket.windowStart >= windowMs) rateBuckets.delete(address);
+      }
+      nextSweep = now + windowMs;
+    }
+
+    const key = clientAddressKey(req);
     let bucket = rateBuckets.get(key);
-    if (!bucket || now - bucket.windowStart >= windowMs) {
+    if (!bucket) {
       bucket = { count: limit, windowStart: now };
       rateBuckets.set(key, bucket);
     }
@@ -80,6 +124,8 @@ const PUBLIC_EDGE_ALLOWED: Record<string, true> = {
   'GET /api/trace/public/records': true,
   'GET /api/trace/public/records/:id': true,
   'GET /api/trace/public/cases': true,
+  'GET /api/trace/public/summary': true,
+  'GET /api/trace/officials/me': true,
   'POST /api/trace/public/cases': true,
   'GET /api/trace/public/cases/:caseNumber': true,
   'POST /api/trace/public/cases/:caseNumber/attention': true,

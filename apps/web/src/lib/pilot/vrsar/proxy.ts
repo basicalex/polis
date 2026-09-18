@@ -14,7 +14,6 @@ const MAX_JSON_BYTES = 3 * 1024 * 1024;
 const ID_SEGMENT = '[A-Za-z0-9_-]{1,128}';
 /** Case numbers are the public identifier: an office prefix and a counter. */
 const CASE_SEGMENT = '[A-Z]{2,4}-[0-9]{1,8}';
-const MAX_LIST_LIMIT = 100;
 
 interface ProxyContext {
   request: Request;
@@ -30,6 +29,8 @@ interface ProxyOverrides {
   /** Worker secret. Without it the demo sign-in route does not exist. */
   demoPasscode?: string | null;
   demoOfficialEmail?: string | null;
+  /** Shared with platform-api; absent means no client-address headers leave this Worker. */
+  edgeKey?: string | null;
 }
 
 /**
@@ -63,8 +64,8 @@ interface RouteMatch {
    * `Response` rejects the request.
    */
   upstreamBodyFrom?: (body: Record<string, unknown>) => Record<string, unknown> | Response;
-  /** Only `limit` is forwarded, and only for routes that page a list. */
-  listQuery?: boolean;
+  /** Exact query names forwarded to the upstream route. */
+  queryParameters?: readonly string[];
 }
 
 function jsonError(status: number, error: string, message: string, extraHeaders?: HeadersInit): Response {
@@ -219,6 +220,12 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       responseKind: 'json',
       bodyKeys: ['subject', 'narrative', 'location', 'contactEmail'],
     },
+    'GET officials/me': {
+      upstreamPath: '/api/trace/officials/me',
+      needsSession: true,
+      idempotency: false,
+      responseKind: 'json',
+    },
     'GET public/records': {
       upstreamPath: '/api/trace/public/records',
       needsSession: false,
@@ -230,7 +237,13 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
       needsSession: false,
       idempotency: false,
       responseKind: 'json',
-      listQuery: true,
+      queryParameters: ['limit', 'state', 'cursor'],
+    },
+    'GET public/summary': {
+      upstreamPath: '/api/trace/public/summary',
+      needsSession: false,
+      idempotency: false,
+      responseKind: 'json',
     },
     'POST public/cases': {
       upstreamPath: '/api/trace/public/cases',
@@ -389,9 +402,9 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
   );
   if (method !== 'POST' || !action) return null;
   const bodyKeys: Record<string, readonly string[]> = {
-    assign: ['expectedVersion'],
-    commitment: ['commitment', 'dueDate', 'signedBy', 'evidenceNote', 'evidenceUrls'],
-    resolution: ['evidenceNote', 'evidenceUrls', 'signedBy'],
+    assign: ['expectedVersion', 'unitId'],
+    commitment: ['expectedVersion', 'commitment', 'dueDate', 'evidenceNote', 'evidenceUrls'],
+    resolution: ['evidenceNote', 'evidenceUrls'],
     reopen: ['note'],
     hold: ['reason', 'note'],
     release: ['redactedText', 'note'],
@@ -407,9 +420,6 @@ function matchTraceRoute(method: string, path: string): RouteMatch | null {
     idempotency: true,
     responseKind: 'json',
     bodyKeys: bodyKeys[actionName],
-    ...(actionName === 'commitment' || actionName === 'resolution'
-      ? { objectKeys: { signedBy: ['name', 'title'] } }
-      : {}),
   };
 }
 
@@ -494,14 +504,15 @@ function demoLoginRoute(method: string, path: string, demo: DemoLoginConfig | nu
   };
 }
 
-/** The browser may ask for a page size and nothing else. */
-function listQuery(route: RouteMatch, url: URL): string {
-  if (!route.listQuery) return '';
-  const raw = url.searchParams.get('limit');
-  if (!raw || !/^[0-9]{1,3}$/.test(raw)) return '';
-  const limit = Number(raw);
-  if (limit < 1 || limit > MAX_LIST_LIMIT) return '';
-  return `?limit=${limit}`;
+/** Forward only each route's contracted query names; trace-service validates their values. */
+function allowedQuery(route: RouteMatch, url: URL): string {
+  if (!route.queryParameters) return '';
+  const output = new URLSearchParams();
+  for (const [name, value] of url.searchParams) {
+    if (route.queryParameters.includes(name)) output.append(name, value);
+  }
+  const query = output.toString();
+  return query ? `?${query}` : '';
 }
 
 function cleanProxyPath(raw: string | undefined): string | null {
@@ -598,6 +609,12 @@ export async function handlePilotProxy(
 
   const upstreamHeaders = new Headers({ accept: 'application/json' });
   if (method === 'POST') upstreamHeaders.set('content-type', 'application/json');
+  const edgeKey = trimmedSetting(overrides.edgeKey);
+  const clientIp = trimmedSetting(context.request.headers.get('cf-connecting-ip'));
+  if (edgeKey && clientIp) {
+    upstreamHeaders.set('x-polis-edge-key', edgeKey);
+    upstreamHeaders.set('x-polis-client-ip', clientIp);
+  }
   if (route.needsSession && token) upstreamHeaders.set('authorization', `Bearer ${token}`);
   if (route.idempotency) {
     const key = context.request.headers.get('idempotency-key');
@@ -610,7 +627,7 @@ export async function handlePilotProxy(
   const fetchImpl = overrides.fetchImpl ?? fetch;
   let upstream: Response;
   try {
-    upstream = await fetchImpl(new URL(route.upstreamPath + listQuery(route, context.url), backend), {
+    upstream = await fetchImpl(new URL(route.upstreamPath + allowedQuery(route, context.url), backend), {
       method,
       headers: upstreamHeaders,
       body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,

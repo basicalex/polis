@@ -7,6 +7,29 @@ if (args.length !== 1 || args[0] !== '--yes') {
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is required');
+const traceInternalUrl = process.env.TRACE_INTERNAL_URL?.trim();
+const internalApiToken = process.env.INTERNAL_API_TOKEN?.trim();
+const traceGatewayActorId = process.env.TRACE_GATEWAY_ACTOR_ID?.trim();
+if (!traceInternalUrl) throw new Error('TRACE_INTERNAL_URL is required');
+if (!internalApiToken) throw new Error('INTERNAL_API_TOKEN is required');
+if (!traceGatewayActorId) throw new Error('TRACE_GATEWAY_ACTOR_ID is required');
+
+let traceBase;
+try {
+  const parsed = new URL(traceInternalUrl);
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error();
+  }
+  traceBase = parsed.href.replace(/\/+$/, '');
+} catch {
+  throw new Error('TRACE_INTERNAL_URL must be an HTTP(S) origin without credentials');
+}
 
 let target;
 try {
@@ -73,6 +96,32 @@ try {
   });
 } finally {
   await sql.end({ timeout: 5 });
+}
+
+let profileResponse;
+try {
+  profileResponse = await fetch(
+    `${traceBase}/internal/trace/officials/trace-official-test`,
+    {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        'x-polis-internal-token': internalApiToken,
+        'x-polis-trace-gateway': traceGatewayActorId,
+      },
+      body: JSON.stringify({
+        name: 'Ivana Testić',
+        title: 'Viša stručna suradnica za komunalni sustav',
+        unitId: 'communal-system',
+      }),
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
+} catch {
+  throw new Error('official profile seed request failed');
+}
+if (!profileResponse.ok) {
+  throw new Error(`official profile seed failed with HTTP ${profileResponse.status}`);
 }
 
 console.log(JSON.stringify({ stage: 'seed-identities', status: 'complete', rows: rows.length }));
