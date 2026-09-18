@@ -143,15 +143,9 @@ test('browser pilot code keeps bearer sessions out of Web Storage and uses only 
     const file = browserFiles[index];
     assert.doesNotMatch(source, /sessionStorage|Bearer\s|authorization\s*:/i, file);
     assert.doesNotMatch(source, /api\/v1\/trace-records|window\.__API_URL/, file);
-    // The office queue keeps the signing name and title between answers. That
-    // one key is the only Web Storage in the pilot, and it holds no session.
-    if (file === 'src/scripts/pilot/vrsar/office-actions.ts') {
-      assert.equal((source.match(/localStorage/g) ?? []).length, 2, file);
-      assert.match(source, /const SIGNATURE_KEY = 'polis\.pilot\.vrsar\.signature'/);
-      assert.doesNotMatch(source, /localStorage[\s\S]{0,120}(token|session|passcode)/i, file);
-    } else {
-      assert.doesNotMatch(source, /localStorage/, file);
-    }
+    // The signer is read from the login now, so the office keeps nothing in Web
+    // Storage at all: no name, no title, no session.
+    assert.doesNotMatch(source, /localStorage/, file);
   }
   assert.match(sources[0], /const API_ROOT = '\/pilot\/vrsar\/api'/);
 });
@@ -328,6 +322,65 @@ test('the public case page publishes the report, the signed answer and the publi
   }
 });
 
+test('the public case page reads answer, report, check, states, attention, verification', async () => {
+  const [shell, strip, script, copy, pilotSource] = await Promise.all([
+    readFile(new URL('src/components/pilot/vrsar/VrsarPublicShell.astro', webRoot), 'utf8'),
+    readFile(new URL('src/components/pilot/vrsar/VrsarStateStrip.astro', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/public-case.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/pilot/vrsar-public-case.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/pilot/vrsar.ts', webRoot), 'utf8'),
+  ]);
+
+  // The order of the page is the order a reader needs it in.
+  const at = (marker) => {
+    const index = shell.indexOf(marker);
+    assert.ok(index > 0, `the shell is missing ${marker}`);
+    return index;
+  };
+  const order = [
+    'data-case-number',
+    'data-public-receipt',
+    'data-case-pending',
+    'data-web-no-contact',
+    'data-case-text',
+    'data-case-check',
+    'data-case-trace',
+    'VrsarAttentionControl lang',
+    'data-public-verification',
+  ].map(at);
+  for (const [index, position] of order.entries()) {
+    if (index === 0) continue;
+    assert.ok(position > order[index - 1], `the shell block ${index} stands out of order`);
+  }
+
+  // Six states, in the ledger's own words and in the ledger's order.
+  assert.match(strip, /'received', 'assigned', 'answered', 'resolved', 'disputed', 'closed'/);
+  assert.match(strip, /ledgerStateLabels\[state\]\[lang\]/);
+  assert.doesNotMatch(shell, /VrsarTraceSummary/);
+  for (const word of ['Zaprimljeno', 'Dodijeljeno', 'Odgovoreno', 'Riješeno', 'Osporeno', 'Zatvoreno']) {
+    assert.ok(pilotSource.includes(`'${word}'`), `the ledger words are missing ${word}`);
+  }
+
+  // Osporeno turns back toward Odgovoreno; Zatvoreno branches off the line.
+  assert.match(copy, /disputedBack: localized\(/);
+  assert.match(copy, /closedFrom: localized\(/);
+  assert.match(script, /const MAIN_STATES = \['received', 'assigned', 'answered', 'resolved'\]/);
+  assert.match(script, /function stripPositions\(/);
+
+  // The verification block walks the hash chain and names the text hash.
+  assert.match(shell, /data-public-events/);
+  assert.match(shell, /data-case-text-hash-legacy/);
+  assert.match(shell, /data-last-event-hash/);
+  assert.match(script, /function publicEventRow\(event: PublicEvent\)/);
+  assert.match(script, /value\.slice\(0, 12\)/);
+  assert.match(script, /copy\.previousHash\[lang\]/);
+  assert.match(copy, /textHashLegacy: localized\(/);
+
+  // A web filing has no contact, and the page says so under the answer.
+  assert.match(copy, /Prijava je podnesena webom bez kontakta\./);
+  assert.match(script, /origin !== 'web'/);
+});
+
 test('the public case page carries the removal, the notice and the erase control', async () => {
   const [shell, script, copy] = await Promise.all([
     readFile(new URL('src/components/pilot/vrsar/VrsarPublicShell.astro', webRoot), 'utf8'),
@@ -454,13 +507,47 @@ test('the office surfaces carry the text actions and the signed answer, and the 
   assert.match(caseScript, /closeSection\.hidden = role !== 'official'/);
   assert.match(caseScript, /current\.status === 'open' \|\| current\.status === 'assigned'/);
 
-  // The answer is signed and publishes at once; no summary is proposed. The
-  // forms moved off the worklist panel into the case workspace.
-  assert.match(officeScript, /signedBy,/);
+  // The answer publishes at once under the signer the login names; no summary
+  // is proposed, and nothing asks the official to type their own name.
   assert.doesNotMatch(officeScript, /publicSummary/);
-  assert.doesNotMatch(officeScript, /expectedVersion: record\.version,\n\s*commitment/);
+  assert.doesNotMatch(officeScript, /signedByName|signedByTitle/);
+  assert.match(officeScript, /function signatureReadout\(profile: OfficialProfile/);
+  assert.match(officeScript, /if \(!profile\) return missingProfileForm\('commitment', lang\)/);
+  assert.match(officeScript, /expectedVersion: record\.version,\n\s*commitment/);
   assert.match(officeScript, /pilotCopy\.staff\.publishesNow\[lang\]/);
   assert.match(officeScript, /reopenCase\(record\.id/);
+});
+
+test('the office reads the signer from the login and names the unit on assignment', async () => {
+  const [officeScript, caseScript, api, copy] = await Promise.all([
+    readFile(new URL('src/scripts/pilot/vrsar/office-actions.ts', webRoot), 'utf8'),
+    readFile(new URL('src/scripts/pilot/vrsar/case-detail.ts', webRoot), 'utf8'),
+    readFile(new URL('src/lib/pilot/vrsar/api.ts', webRoot), 'utf8'),
+    readFile(new URL('src/content/pilot/vrsar.ts', webRoot), 'utf8'),
+  ]);
+
+  // The profile route, and a commitment body with no signer in it.
+  assert.match(api, /getOfficialProfile/);
+  assert.match(api, /'\/officials\/me'/);
+  assert.doesNotMatch(api, /signedBy: \{ name: string; title: string \};\n\s*evidenceNote/);
+  assert.match(api, /body: unitId \? \{ expectedVersion, unitId \} : \{ expectedVersion \}/);
+
+  // A missing profile is said in words, and the form carries no submit button.
+  assert.match(officeScript, /function missingProfileForm\(/);
+  assert.match(officeScript, /officeBlocked = 'profile'/);
+  assert.match(copy, /signerMissing: localized\(/);
+  assert.match(copy, /official_profile_missing: localized\(/);
+  assert.match(copy, /unit_required: localized\(/);
+
+  // The unit is asked for only where the office runs more than one section.
+  assert.match(officeScript, /units\.length > 1 \? unitSelect\(/);
+  assert.match(officeScript, /assignRecord\(record\.id, record\.version, unitId \|\| undefined\)/);
+
+  // The case page loads the profile and the timeline names unit and signer.
+  assert.match(caseScript, /async function loadProfile\(\)/);
+  assert.match(caseScript, /function eventDetail\(event: TraceEvent\)/);
+  assert.match(caseScript, /'record-assigned' \|\| event\.action === 'office-assigned'/);
+  assert.match(caseScript, /pilotCopy\.staff\.signer\[lang\]/);
 });
 
 test('pilot copy has HR default plus Italian and English and separates publication from completion', async () => {

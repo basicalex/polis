@@ -11,6 +11,7 @@
 import {
   closeCase,
   decideAiProposal,
+  getOfficialProfile,
   getPilotConfig,
   getPrivateRecord,
   getPublicCase,
@@ -25,6 +26,7 @@ import type {
   AiProposal,
   CaseMessage,
   HoldReason,
+  OfficialProfile,
   PilotConfig,
   PilotRole,
   PrivateTraceRecord,
@@ -33,7 +35,7 @@ import type {
   TraceAttachment,
   TraceEvent,
 } from '../../../lib/pilot/vrsar/model';
-import { CLOSED_REASONS } from '../../../lib/pilot/vrsar/model';
+import { CLOSED_REASONS, entityName } from '../../../lib/pilot/vrsar/model';
 import {
   pilotCopy,
   pilotHref,
@@ -181,6 +183,8 @@ export function initVrsarCaseDetail(): void {
   let record: PrivateTraceRecord | null = null;
   let shell: PublicCaseShell | null = null;
   let config: PilotConfig | null = null;
+  /** Who signs, read from the login. Null until it loads, and null when none exists. */
+  let profile: OfficialProfile | null = null;
   let role: PilotRole = 'resident';
   let messages: CaseMessage[] = [];
   let composerBuilt = false;
@@ -245,6 +249,7 @@ export function initVrsarCaseDetail(): void {
     renderRecord(record);
   }
 
+
   /**
    * A stale version is the one error worth recovering from in place: refresh
    * the record so the next attempt carries the current version, and keep what
@@ -306,7 +311,29 @@ export function initVrsarCaseDetail(): void {
   }
 
   function officeContext(current: PrivateTraceRecord): OfficeActionContext {
-    return { record: current, lang, run: runOfficeCommand };
+    return {
+      record: current,
+      lang,
+      profile,
+      units: Array.isArray(config?.units) ? config.units : [],
+      run: runOfficeCommand,
+    };
+  }
+
+  /**
+   * The office profile of the signed-in official. A missing one is not an
+   * error on this page: the forms that publish under a name say so themselves.
+   */
+  async function loadProfile(): Promise<void> {
+    if (!isStaff()) {
+      profile = null;
+      return;
+    }
+    try {
+      profile = await getOfficialProfile();
+    } catch {
+      profile = null;
+    }
   }
 
   function panelButton(
@@ -739,11 +766,37 @@ export function initVrsarCaseDetail(): void {
     return item;
   }
 
+  /**
+   * What a milestone carries beyond its name: the section that took the case
+   * on, and the person the commitment published under. The event keeps them
+   * where the backend writes them into its payload; otherwise the record does.
+   */
+  function eventDetail(event: TraceEvent): string {
+    if (event.action === 'record-assigned' || event.action === 'office-assigned') {
+      const unit = event.unitName
+        ? entityName({ name: event.unitName }, lang)
+        : record?.unit
+          ? entityName(record.unit, lang)
+          : '';
+      return unit ? `${pilotCopy.staff.unit[lang]}: ${unit}` : '';
+    }
+    if (event.action === 'commitment-published') {
+      const signed = typeof event.signedBy === 'object' && event.signedBy
+        ? event.signedBy
+        : record?.signedBy ?? null;
+      const line = signed ? [signed.name, signed.title].filter(Boolean).join(', ') : '';
+      return line ? `${pilotCopy.staff.signer[lang]}: ${line}` : '';
+    }
+    return '';
+  }
+
   function eventRow(event: TraceEvent): HTMLLIElement {
     const nodes: Node[] = [
       createTextElement('strong', translatedAction(event.action, lang)),
       createTextElement('span', formatPilotDate(event.createdAt, lang), 'pilot-event-meta'),
     ];
+    const detail = eventDetail(event);
+    if (detail) nodes.push(createTextElement('span', detail, 'pilot-event-meta'));
     if (event.note) nodes.push(createTextElement('span', event.note, 'pilot-event-meta'));
     const item = activityRow(event.actorRole, eventActor(event.actorRole), nodes);
     item.dataset.kind = 'event';
@@ -1262,6 +1315,7 @@ export function initVrsarCaseDetail(): void {
       ]);
       record = loaded;
       config = loadedConfig;
+      await loadProfile();
       await loadShell();
       await loadMessages();
       renderRecord(record);

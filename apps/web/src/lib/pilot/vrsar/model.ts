@@ -15,6 +15,8 @@ export type TraceStatus =
 
 /** How the filer reached the office. The web form is one channel among three. */
 export type TraceOrigin = 'web' | 'sms' | 'voice';
+/** `raw` is sha256 of the text as filed; the legacy one is the normalised hash. */
+export type TextHashKind = 'raw' | 'normalized-legacy';
 export type FilerKind = 'account' | 'anonymous-channel';
 export type ClosedReason =
   | 'duplicate'
@@ -93,6 +95,24 @@ export interface PilotConfig {
   sources: PilotSource[];
   publicTextMode: PublicTextMode;
   publicTextRetentionDays: number;
+  /**
+   * The sections of the office. A case is assigned to one of them, and the unit
+   * stands on the public record. An older config carries none, and then the
+   * office assigns without naming a section.
+   */
+  units?: PilotConfigEntity[];
+}
+
+/**
+ * The signer, read from the login rather than typed: the office profile of the
+ * signed-in official. Missing profile is an answer of its own
+ * (`official_profile_missing`), never an empty pair of fields.
+ */
+export interface OfficialProfile {
+  citizenId: string;
+  name: string;
+  title: string;
+  unit: { id: string; name: LocalizedName } | null;
 }
 
 export interface PilotSession {
@@ -174,7 +194,17 @@ export interface PublicCaseShell {
   textStatus: TextStatus;
   holdReason: HoldReason | null;
   removedReason: RemovedReason | null;
+  /** sha256 of the text as filed, lowercase hex: a reader can recompute it. */
   textSha256: string;
+  /**
+   * Which hash `textSha256` is. Rows written before the raw-text hash landed
+   * carry the old normalised one and say so.
+   */
+  textHashKind?: TextHashKind;
+  /** The section of the office that holds the case, once one does. */
+  unitId?: string | null;
+  /** Which channel filed the report; a web filing has no contact of any kind. */
+  origin?: TraceOrigin;
   labels: string[];
   closedPublicReason: string | null;
   filedAt: string;
@@ -208,6 +238,11 @@ export interface TraceEvent {
   createdAt: string;
   previousHash?: string;
   hash?: string;
+  /** Carried by `record-assigned` where the event keeps its payload. */
+  unitId?: string;
+  unitName?: LocalizedName;
+  /** Carried by `commitment-published` where the event keeps its payload. */
+  signedBy?: OfficialSignature | string;
 }
 
 export function latestTraceEvent(events: readonly TraceEvent[], stage: string): TraceEvent | undefined {
@@ -257,6 +292,11 @@ export interface PrivateTraceRecord {
   location: string;
   contactEmail?: string;
   office: string | PilotConfigEntity;
+  /** The section of the office that holds the case, once one took it on. */
+  unitId?: string | null;
+  unit?: { id: string; name: LocalizedName } | null;
+  /** The name and title the answers publish under, read from the official's profile. */
+  signedBy?: OfficialSignature | null;
   publicSummary?: string;
   commitment?: string;
   dueDate?: string;
@@ -277,7 +317,16 @@ export interface PrivateTraceRecord {
   aiProposals?: AiProposal[];
 }
 
-export type PublicEvent =
+/**
+ * Every public event carries the fingerprint of itself and of the one before
+ * it, so a reader can walk the chain without trusting the page.
+ */
+export interface PublicEventChain {
+  hash?: string;
+  previousHash?: string;
+}
+
+export type PublicEventBody =
   | {
       stage: 'voice';
       action: 'report-filed';
@@ -316,13 +365,16 @@ export type PublicEvent =
       stage: 'responsibility';
       action: 'office-assigned';
       actorRole: 'official';
+      /** The section of the office that took the case on. */
+      unit?: { id: string; name: LocalizedName } | null;
       createdAt: string;
     }
   | {
       stage: 'response';
       action: 'commitment-published';
       actorRole: 'official';
-      signedBy: string;
+      /** The name alone on older snapshots; the name and the title on new ones. */
+      signedBy: string | OfficialSignature;
       createdAt: string;
     }
   | {
@@ -357,6 +409,8 @@ export type PublicEvent =
       createdAt: string;
     };
 
+export type PublicEvent = PublicEventBody & PublicEventChain;
+
 export interface PublicDispute {
   text: string | null;
   textStatus: 'public' | 'held' | 'removed';
@@ -382,7 +436,37 @@ export interface PublicTraceRecord {
   disputes: PublicDispute[];
   events: PublicEvent[];
   receiptHash: string;
+  /** The hash of the last public event: the head of the chain the receipt covers. */
+  lastEventHash?: string;
+  /** sha256 of the text as filed, and which hash it is. */
+  textSha256?: string;
+  textHashKind?: TextHashKind;
+  /** The section of the office that holds the case. */
+  unit?: { id: string; name: LocalizedName } | null;
+  /** The channel the report came in on. */
+  origin?: TraceOrigin;
   testEnvironment: true;
+}
+
+export function officialProfileFromResponse(value: unknown): OfficialProfile {
+  if (!value || typeof value !== 'object') throw new Error('invalid_official_profile_response');
+  const body = value as Record<string, unknown>;
+  const profile = (body.profile && typeof body.profile === 'object' ? body.profile : body) as
+    Record<string, unknown>;
+  const name = typeof profile.name === 'string' ? profile.name.trim() : '';
+  const title = typeof profile.title === 'string' ? profile.title.trim() : '';
+  if (!name || !title) throw new Error('invalid_official_profile_response');
+  const unit = profile.unit && typeof profile.unit === 'object'
+    ? (profile.unit as { id?: unknown; name?: unknown })
+    : null;
+  return {
+    citizenId: typeof profile.citizenId === 'string' ? profile.citizenId : '',
+    name,
+    title,
+    unit: unit && typeof unit.id === 'string'
+      ? { id: unit.id, name: (unit.name ?? {}) as LocalizedName }
+      : null,
+  };
 }
 
 export function isPilotRole(value: unknown): value is PilotRole {

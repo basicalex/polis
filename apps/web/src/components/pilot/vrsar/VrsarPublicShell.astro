@@ -6,13 +6,14 @@
  * The public case shell: what everyone may read about a case from the moment it
  * is filed.
  *
- * The order on the page is the order a reader needs it in. First who and what:
- * the number, the state, the area. Then the report itself, published as it was
- * written, with its location and the hash of the original text. Then the
- * municipality's answer, signed by the official who made it, and what the office
- * reported doing. Then the public's check on that claim — the disputes and the
- * "not fixed" count — the path the case walked, the attention counts, and last
- * the verification block for the reader who wants to check the chain.
+ * The order on the page is the order a reader needs it in. First the case
+ * itself: the number, the state, the area. Then the answer the municipality
+ * gave — the promise, its due date, the person who signed it and what the
+ * office reported doing — because that is what a reader came for. Then the
+ * report as it was written, then the public's check on the completion claim,
+ * then the six states of the ledger with the one the case stands in, then the
+ * attention counts, and last the verification block: every public event with
+ * its hash, the hash before it, and the receipt that covers the chain.
  *
  * Nothing on this page waits for a reviewer: there is none. A text the
  * compliance pass held says so in plain words and names what the office can
@@ -23,7 +24,7 @@ import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
 import { findPilotPlace, type LivePlace } from '../../../content/places';
 import VrsarAttentionControl from './VrsarAttentionControl.astro';
-import VrsarTraceSummary from './VrsarTraceSummary.astro';
+import VrsarStateStrip from './VrsarStateStrip.astro';
 
 interface Props {
   lang: PilotLang;
@@ -42,6 +43,7 @@ const chip = publicCaseCopy.label;
 const answer = publicCaseCopy.answer;
 const check = publicCaseCopy.check;
 const pending = publicCaseCopy.pending;
+const strip = publicCaseCopy.stateStrip;
 const verification = publicCaseCopy.verification;
 const receipts = pilotCopy.receipts;
 
@@ -97,6 +99,69 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
     <p class="pilot-state" data-case-closed-reason hidden></p>
   </section>
 
+  <!-- The office's answer: published at once, signed by the person who made it. -->
+  <article class="pilot-receipt pilot-answer panel" data-public-receipt hidden>
+    <header class="pilot-receipt-header">
+      <h2>{answer.heading[lang]}</h2>
+      <span class="status-label" data-style="stamp" data-tone="unknown" data-public-state></span>
+    </header>
+
+    <div class="pilot-answer-body">
+      <section class="pilot-section">
+        <h3>{answer.commitment[lang]}</h3>
+        <p class="pilot-public-copy" data-public-commitment></p>
+      </section>
+    </div>
+
+    <dl class="pilot-meta">
+      <div>
+        <dt>{pilotCopy.common.office[lang]}</dt>
+        <dd data-public-office></dd>
+      </div>
+      <div data-public-unit-row hidden>
+        <dt>{answer.unit[lang]}</dt>
+        <dd data-public-unit></dd>
+      </div>
+      <div>
+        <dt>{answer.signedBy[lang]}</dt>
+        <dd data-public-signed-by></dd>
+      </div>
+      <div>
+        <dt>{answer.dueDate[lang]}</dt>
+        <dd data-public-due-date></dd>
+      </div>
+      <div>
+        <dt>{answer.publishedAt[lang]}</dt>
+        <dd data-public-published-at></dd>
+      </div>
+      <div data-public-resolved-at-row hidden>
+        <dt>{answer.resolvedAt[lang]}</dt>
+        <dd data-public-resolved-at></dd>
+      </div>
+    </dl>
+
+    <section class="pilot-section" data-public-evidence-section hidden>
+      <h3>{answer.doneHeading[lang]}</h3>
+      <p class="pilot-public-copy" data-public-evidence-note></p>
+      <h4 class="pilot-answer-subhead">{answer.evidenceLinks[lang]}</h4>
+      <ul class="pilot-evidence-links" data-public-evidence-links></ul>
+    </section>
+
+    <p class="field-hint">{answer.note[lang]}</p>
+  </article>
+
+  <!-- What the case is waiting for, in the words of the state it stands in. -->
+  <section class="pilot-section panel pilot-pending" data-case-pending hidden aria-labelledby="public-case-pending-title">
+    <h2 id="public-case-pending-title">{pending.heading[lang]}</h2>
+    <p class="pilot-pending-line" data-case-pending-text></p>
+  </section>
+
+  <!--
+    A report filed on the web carries no contact, so nothing is sent anywhere:
+    this page and the filer's own link are the whole channel.
+  -->
+  <p class="field-hint pilot-no-contact" data-web-no-contact hidden>{answer.webNoContact[lang]}</p>
+
   <!--
     The report as it was filed. Public from the first minute; held only when the
     compliance pass found a reason, and then the reason is named here.
@@ -129,10 +194,6 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
       <div>
         <dt>{report.locationLabel[lang]}</dt>
         <dd data-case-location></dd>
-      </div>
-      <div>
-        <dt>{report.hashLabel[lang]}</dt>
-        <dd class="pilot-hash" data-case-text-hash></dd>
       </div>
     </dl>
 
@@ -189,53 +250,6 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
     </div>
   </section>
 
-  <!-- The office's answer: published at once, signed by the person who made it. -->
-  <article class="pilot-receipt pilot-answer panel" data-public-receipt hidden>
-    <header class="pilot-receipt-header">
-      <h2>{answer.heading[lang]}</h2>
-      <span class="status-label" data-style="stamp" data-tone="unknown" data-public-state></span>
-    </header>
-
-    <div class="pilot-answer-body">
-      <section class="pilot-section">
-        <h3>{answer.commitment[lang]}</h3>
-        <p class="pilot-public-copy" data-public-commitment></p>
-      </section>
-    </div>
-
-    <dl class="pilot-meta">
-      <div>
-        <dt>{pilotCopy.common.office[lang]}</dt>
-        <dd data-public-office></dd>
-      </div>
-      <div>
-        <dt>{answer.signedBy[lang]}</dt>
-        <dd data-public-signed-by></dd>
-      </div>
-      <div>
-        <dt>{answer.dueDate[lang]}</dt>
-        <dd data-public-due-date></dd>
-      </div>
-      <div>
-        <dt>{answer.publishedAt[lang]}</dt>
-        <dd data-public-published-at></dd>
-      </div>
-      <div data-public-resolved-at-row hidden>
-        <dt>{answer.resolvedAt[lang]}</dt>
-        <dd data-public-resolved-at></dd>
-      </div>
-    </dl>
-
-    <section class="pilot-section" data-public-evidence-section hidden>
-      <h3>{answer.doneHeading[lang]}</h3>
-      <p class="pilot-public-copy" data-public-evidence-note></p>
-      <h4 class="pilot-answer-subhead">{answer.evidenceLinks[lang]}</h4>
-      <ul class="pilot-evidence-links" data-public-evidence-links></ul>
-    </section>
-
-    <p class="field-hint">{answer.note[lang]}</p>
-  </article>
-
   <!-- The public's check on the completion claim. -->
   <section class="pilot-section panel" data-case-check hidden aria-labelledby="public-case-check-title">
     <h2 id="public-case-check-title">{check.heading[lang]}</h2>
@@ -260,15 +274,10 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
     </form>
   </section>
 
-  <!-- What the case is waiting for, in the words of the state it stands in. -->
-  <section class="pilot-section panel pilot-pending" data-case-pending hidden aria-labelledby="public-case-pending-title">
-    <h2 id="public-case-pending-title">{pending.heading[lang]}</h2>
-    <p class="pilot-pending-line" data-case-pending-text></p>
-  </section>
-
+  <!-- The six states of the ledger, and the one this case stands in. -->
   <section class="pilot-section panel" aria-labelledby="public-case-trace-title" data-case-trace>
-    <h2 id="public-case-trace-title">{copy.trace[lang]}</h2>
-    <VrsarTraceSummary lang={lang} />
+    <h2 id="public-case-trace-title">{strip.heading[lang]}</h2>
+    <VrsarStateStrip lang={lang} />
   </section>
 
   <VrsarAttentionControl lang={lang} />
@@ -283,14 +292,26 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
     <p class="field-hint">{verification.note[lang]}</p>
 
     <h3 class="pilot-answer-subhead">{verification.events[lang]}</h3>
-    <VrsarTraceSummary lang={lang} />
+    <ol class="pilot-verify-events" data-public-events></ol>
+    <p class="pilot-state" data-public-events-empty hidden>{verification.eventsEmpty[lang]}</p>
 
     <div class="pilot-receipt-hash">
+      <strong>{verification.textHash[lang]}</strong>
+      <span class="pilot-hash" data-case-text-hash></span>
+    </div>
+    <p class="field-hint" data-case-text-hash-legacy hidden>{verification.textHashLegacy[lang]}</p>
+
+    <div class="pilot-receipt-hash" data-last-event-hash-row hidden>
+      <strong>{verification.lastEventHash[lang]}</strong>
+      <span class="pilot-hash" data-last-event-hash></span>
+    </div>
+
+    <div class="pilot-receipt-hash" data-receipt-id-row hidden>
       <strong>{pilotCopy.common.recordId[lang]}</strong>
       <span class="pilot-ledger-id" data-receipt-id></span>
     </div>
 
-    <div class="pilot-receipt-hash">
+    <div class="pilot-receipt-hash" data-receipt-hash-row hidden>
       <strong>{receipts.receiptHash[lang]}</strong>
       <span class="pilot-hash" data-public-hash></span>
     </div>
@@ -299,6 +320,13 @@ const noticeReasons = ['personal-data', 'abuse', 'off-topic', 'other'] as const;
 </div>
 
 <style>
+  /*
+   * A web filing has no channel back, so the sentence that says so sits right
+   * under the answer area rather than inside a block that can be hidden.
+   */
+  .pilot-no-contact {
+    margin: calc(-1 * var(--space-2)) 0 0;
+  }
   .pilot-public-case-head {
     display: flex;
     flex-wrap: wrap;

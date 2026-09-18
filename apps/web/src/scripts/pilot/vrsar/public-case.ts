@@ -18,9 +18,15 @@ import {
   type PilotConfig,
   type PublicCaseShell,
   type PublicDispute,
+  type PublicEvent,
   type PublicTraceRecord,
 } from '../../../lib/pilot/vrsar/model';
-import { pilotCopy, stageLabels, type PilotLang } from '../../../content/pilot/vrsar';
+import {
+  pilotCopy,
+  translatedAction,
+  translatedRole,
+  type PilotLang,
+} from '../../../content/pilot/vrsar';
 import {
   caseStateTone,
   confidentialContactLine,
@@ -92,38 +98,75 @@ export function initVrsarCaseLookup(): void {
 /* Public case page                                                            */
 /* -------------------------------------------------------------------------- */
 
-const TRACE_STAGES = ['voice', 'responsibility', 'response', 'check', 'receipt'] as const;
-
 /** At most three disputes ride on one case; the fourth is refused upstream. */
 const MAX_DISPUTES = 3;
 
-/** Where a shell state sits on the five-stage path shown to the public. */
-const ACTIVE_STAGE: Readonly<Record<string, string>> = Object.freeze({
-  received: 'voice',
-  assigned: 'responsibility',
-  answered: 'response',
-  resolved: 'receipt',
-  disputed: 'check',
-  closed: 'voice',
+/**
+ * The line of the ledger: four states a case walks in order. Osporeno and
+ * Zatvoreno leave that line, so they are not on it.
+ */
+const MAIN_STATES = ['received', 'assigned', 'answered', 'resolved'] as const;
+type MainState = (typeof MAIN_STATES)[number];
+
+/** Where a state stands relative to the case: walked, standing in, or not yet. */
+type StatePosition = 'done' | 'active' | 'ahead';
+
+/** What already happened in a state the case has walked. */
+const STATE_DONE: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
+  received: publicCaseCopy.stageStory.voiceDone,
+  assigned: publicCaseCopy.stageStory.responsibilityDone,
+  answered: publicCaseCopy.stageStory.responseDone,
+  resolved: publicCaseCopy.stageStory.receiptDone,
+  disputed: publicCaseCopy.stateStrip.disputedNow,
+  closed: publicCaseCopy.stateStrip.closedNow,
 });
 
-/** What already happened at a stage the case has walked. */
-const STAGE_DONE: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
-  voice: publicCaseCopy.stageStory.voiceDone,
-  responsibility: publicCaseCopy.stageStory.responsibilityDone,
-  response: publicCaseCopy.stageStory.responseDone,
-  check: publicCaseCopy.stageStory.checkDone,
-  receipt: publicCaseCopy.stageStory.receiptDone,
+/** What still has to happen in a state the case has not reached. */
+const STATE_NEXT: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
+  received: publicCaseCopy.stageStory.voiceNext,
+  assigned: publicCaseCopy.stageStory.responsibilityNext,
+  answered: publicCaseCopy.stageStory.responseNext,
+  resolved: publicCaseCopy.stageStory.receiptNext,
+  disputed: publicCaseCopy.stateStrip.disputedNext,
+  closed: publicCaseCopy.stateStrip.closedNext,
 });
 
-/** What still has to happen at a stage the case has not reached. */
-const STAGE_NEXT: Readonly<Record<string, { hr: string; it: string; en: string }>> = Object.freeze({
-  voice: publicCaseCopy.stageStory.voiceNext,
-  responsibility: publicCaseCopy.stageStory.responsibilityNext,
-  response: publicCaseCopy.stageStory.responseNext,
-  check: publicCaseCopy.stageStory.checkNext,
-  receipt: publicCaseCopy.stageStory.receiptNext,
-});
+/**
+ * Where the case stands in each of the six states. A closed case is the one
+ * that left the line early: it is marked closed, it keeps the states it walked,
+ * and everything beyond them stays ahead of it, unreached.
+ */
+/** Closing is allowed from the two states before the office answers, and no later. */
+function canStillClose(state: string): boolean {
+  return state === 'received' || state === 'assigned';
+}
+
+function stripPositions(state: string, assigned: boolean): Record<string, StatePosition> {
+  const walked = MAIN_STATES.indexOf(state as MainState);
+  const positions: Record<string, StatePosition> = {
+    received: 'ahead',
+    assigned: 'ahead',
+    answered: 'ahead',
+    resolved: 'ahead',
+    disputed: 'ahead',
+    closed: 'ahead',
+  };
+  if (state === 'closed') {
+    positions.received = 'done';
+    // Only the assignment is knowable from the shell itself: a unit holds it.
+    if (assigned) positions.assigned = 'done';
+    positions.closed = 'active';
+    return positions;
+  }
+  // A dispute happens after a completion, so the whole line stands behind it.
+  const reached = state === 'disputed' ? MAIN_STATES.length - 1 : walked;
+  for (const [index, name] of MAIN_STATES.entries()) {
+    if (index < reached) positions[name] = 'done';
+    else if (index === reached) positions[name] = state === 'disputed' ? 'done' : 'active';
+  }
+  if (state === 'disputed') positions.disputed = 'active';
+  return positions;
+}
 
 /** A Croatian reader reads a date as DD.MM.GGGG.; the other two keep DD/MM/YYYY. */
 const DATE_SHAPE: Readonly<Record<PilotLang, { separator: string; suffix: string }>> = Object.freeze({
@@ -252,8 +295,6 @@ export function initVrsarPublicCase(): void {
   const isFiler = reopenKey !== '';
   /** The date the office released a redacted text, read off the public trail. */
   let releasedAtFromEvents = '';
-  /** The removal on the public trail, when the text is gone: its date and why. */
-  let removedFromEvents: { stage: string; reason: string } | null = null;
   /** The pilot config of the last load, for the renders an action triggers. */
   let loadedConfig: PilotConfig | null = null;
 
@@ -267,48 +308,60 @@ export function initVrsarPublicCase(): void {
   }
 
   /**
-   * The five public stages, each carrying one plain sentence about this case:
-   * what already happened, what is happening now, and what is waited for. The
-   * stage right after the current one says so, because that is the only thing a
-   * reader can do anything with.
+   * One plain sentence per state — the ledger calls these six the stages of the
+   * process — saying what happened there, or what would happen if the case
+   * reached it. The state right after the one the case stands in says so,
+   * because that is the only thing a reader can wait for.
    */
-  function stageSentence(stage: string, index: number, activeIndex: number, state_: string): string {
+  function stageSentence(
+    name: string,
+    position: StatePosition,
+    caseState: string,
+    isNext: boolean,
+  ): string {
     const story = publicCaseCopy.stageStory;
-    // A closed case says once that it stopped here, not once per remaining stage.
-    if (state_ === 'closed' && index > activeIndex) {
-      return index === activeIndex + 1 ? story.closedAhead[lang] : '';
+    if (position === 'done') {
+      if (name === 'resolved' && caseState === 'disputed') return story.receiptDone[lang];
+      return STATE_DONE[name]?.[lang] ?? '';
     }
-    if (stage === 'check' && state_ === 'disputed') return story.checkDisputed[lang];
-    if (stage === 'check' && state_ === 'resolved') return story.checkNow[lang];
-    if (index <= activeIndex) {
-      if (stage === 'receipt' && state_ === 'resolved') return story.receiptResolved[lang];
-      return STAGE_DONE[stage]?.[lang] ?? '';
+    if (position === 'active') {
+      if (name === 'resolved') return story.receiptResolved[lang];
+      return STATE_DONE[name]?.[lang] ?? '';
     }
-    const ahead = STAGE_NEXT[stage]?.[lang] ?? '';
+    // A closed case says once that it stopped, not once per state it never reached.
+    if (caseState === 'closed') return isNext ? story.closedAhead[lang] : '';
+    // Closing is an early exit: once the office has answered it is off the table.
+    if (name === 'closed' && !canStillClose(caseState)) return '';
+    const ahead = STATE_NEXT[name]?.[lang] ?? '';
     if (!ahead) return '';
-    if (index === activeIndex + 1) return `${story.nextPrefix[lang]}: ${ahead}`;
+    if (isNext) return `${story.nextPrefix[lang]}: ${ahead}`;
     return ahead.charAt(0).toLocaleUpperCase(lang) + ahead.slice(1);
   }
 
-  function renderShellTrace(state_: string): void {
+  /**
+   * The six states of the ledger, in the ledger's own words, with the stamp on
+   * the one the case stands in.
+   */
+  function renderStateStrip(shell: PublicCaseShell): void {
     if (!shellRoot) return;
-    const active = ACTIVE_STAGE[state_] ?? 'voice';
-    const activeIndex = TRACE_STAGES.indexOf(active as (typeof TRACE_STAGES)[number]);
-    shellRoot.querySelectorAll<HTMLElement>('[data-case-trace] [data-stage]').forEach((stage) => {
-      const name = stage.dataset.stage ?? '';
-      const index = TRACE_STAGES.indexOf(name as (typeof TRACE_STAGES)[number]);
-      const reached = state_ === 'resolved' ? index <= activeIndex : index < activeIndex;
-      stage.hidden = false;
-      stage.dataset.state = reached ? 'appended' : index === activeIndex ? 'active' : 'ahead';
-      stage.dataset.proposed = 'false';
-      const title = stage.querySelector<HTMLElement>('[data-trace-title]');
-      if (title) {
-        // The stamp belongs on the stage the case is standing in, not on all five.
-        const mark = index === activeIndex ? ` · ${translatedCaseState(state_, lang)}` : '';
-        title.textContent = `${stageLabels[name]?.[lang] ?? name}${mark}`;
+    const caseState = String(shell.state ?? '');
+    const positions = stripPositions(caseState, Boolean(shell.unitId));
+    // The next state is the first one the case has not walked; at the end of the
+    // line the only thing still open is the dispute.
+    const next = MAIN_STATES.find((name) => positions[name] === 'ahead')
+      ?? (caseState === 'resolved' ? 'disputed' : undefined);
+    shellRoot.querySelectorAll<HTMLElement>('[data-state-strip] [data-state-step]').forEach((step) => {
+      const name = step.dataset.stateStep ?? '';
+      const position = positions[name] ?? 'ahead';
+      step.dataset.state = position === 'done' ? 'appended' : position;
+      const here = step.querySelector<HTMLElement>('[data-state-here]');
+      if (here) {
+        here.textContent = position === 'active' ? translatedCaseState(caseState, lang) : '';
+        here.hidden = position !== 'active';
+        here.dataset.tone = caseStateTone(caseState);
       }
-      const note = stage.querySelector<HTMLElement>('[data-trace-note]');
-      if (note) note.textContent = stageSentence(name, index, activeIndex, state_);
+      const note = step.querySelector<HTMLElement>('[data-state-note]');
+      if (note) note.textContent = stageSentence(name, position, caseState, name === next);
     });
   }
 
@@ -369,7 +422,6 @@ export function initVrsarPublicCase(): void {
       '[data-case-location]',
       held || gone || !location_ ? publicCaseCopy.text.locationMissing[lang] : location_,
     );
-    setText('[data-case-text-hash]', typeof shell.textSha256 === 'string' ? shell.textSha256 : '');
 
     renderLabel(shell);
   }
@@ -462,7 +514,7 @@ export function initVrsarPublicCase(): void {
     }
 
     renderText(shell);
-    renderShellTrace(String(shell.state ?? ''));
+    renderStateStrip(shell);
   }
 
   /**
@@ -480,11 +532,14 @@ export function initVrsarPublicCase(): void {
       (record.status === 'answered' || record.status === 'resolved' || record.status === 'disputed') &&
       typeof record.receiptHash === 'string';
 
+    renderNoContact(shell, record);
+
     if (!answered || !receipt) {
       if (receipt) receipt.hidden = true;
-      if (verification) verification.hidden = true;
       renderCheck(shell, null);
       showPending(String(shell.state ?? ''));
+      // The text hash is public from filing, so the verification block is too.
+      renderVerification(shell, null);
       return;
     }
     if (pending) pending.hidden = true;
@@ -498,6 +553,13 @@ export function initVrsarPublicCase(): void {
       stamp.textContent = translatedCaseState(record.status, lang);
     }
     setText('[data-public-office]', entityName(config ? config.office : record.office, lang), receipt);
+
+    // The section of the office that holds the case, where the record names one.
+    const unitRow = receipt.querySelector<HTMLElement>('[data-public-unit-row]');
+    const unitName = record.unit ? entityName(record.unit, lang) : '';
+    if (unitRow) unitRow.hidden = !unitName;
+    if (unitName) setText('[data-public-unit]', unitName, receipt);
+
     setText('[data-public-signed-by]', signature(record), receipt);
     setText('[data-public-due-date]', formatPilotDate(record.dueDate, lang, true), receipt);
     setText('[data-public-published-at]', formatPilotDate(record.publishedAt, lang), receipt);
@@ -524,12 +586,19 @@ export function initVrsarPublicCase(): void {
     receipt.hidden = false;
     renderCheck(shell, record);
     showPending(String(shell.state ?? ''));
+    renderVerification(shell, record);
+  }
 
-    if (verification) {
-      setText('[data-public-hash]', record.receiptHash, verification);
-      renderReceiptTrace(verification, record);
-      verification.hidden = false;
-    }
+  /**
+   * A report filed on the web carries no phone number and no address, so the
+   * office has nowhere to send anything. The page says so rather than leaving a
+   * filer waiting for a message that will never come (contract I).
+   */
+  function renderNoContact(shell: PublicCaseShell, record: PublicTraceRecord | null): void {
+    const line = document.querySelector<HTMLElement>('[data-web-no-contact]');
+    if (!line) return;
+    const origin = typeof shell.origin === 'string' ? shell.origin : record?.origin;
+    line.hidden = origin !== 'web';
   }
 
   /** Only https links, and only the ones the browser can parse. */
@@ -622,44 +691,138 @@ export function initVrsarPublicCase(): void {
     if (pending) pending.hidden = false;
   }
 
-  /** The milestones as written, each dated: this block is for checking, not reading. */
-  function renderReceiptTrace(root: ParentNode, record: PublicTraceRecord): void {
-    const events = Array.isArray(record.events) ? record.events : [];
-    const written = new Map<string, string>();
-    for (const event of events) {
-      const stage = String(event?.stage ?? '');
-      if (stage) written.set(stage, String(event?.createdAt ?? ''));
-    }
-    root.querySelectorAll<HTMLElement>('[data-trace] [data-stage]').forEach((stage) => {
-      const name = stage.dataset.stage ?? '';
-      const seen = written.has(name);
-      stage.hidden = !seen;
-      stage.dataset.state = seen ? 'appended' : 'ahead';
-      stage.dataset.proposed = 'false';
-      const note = stage.querySelector<HTMLElement>('[data-trace-note]');
-      if (!note) return;
-      const date = seen ? formatPilotDate(written.get(name), lang) : '';
-      // A removal is a public event of its own, so the trail says it happened.
-      const line = removedFromEvents?.stage === name
-        ? translatedTextRemoved(removedFromEvents.reason, lang)
+  /**
+   * The verification block: the hash of the text as filed, every public event
+   * with its own fingerprint and the fingerprint before it, the head of the
+   * chain, and the receipt hash that covers it. The text hash is public from
+   * filing, so the block stands even before the office answers.
+   */
+  function renderVerification(shell: PublicCaseShell, record: PublicTraceRecord | null): void {
+    if (!verification) return;
+
+    const textHash = typeof shell.textSha256 === 'string' && shell.textSha256
+      ? shell.textSha256
+      : typeof record?.textSha256 === 'string'
+        ? record.textSha256
         : '';
-      note.textContent = [date, seen ? line : ''].filter(Boolean).join(' · ');
-    });
+    setText('[data-case-text-hash]', textHash, verification);
+    const legacyKind = shell.textHashKind ?? record?.textHashKind;
+    show(verification.querySelector('[data-case-text-hash-legacy]'), legacyKind === 'normalized-legacy');
+
+    const events = Array.isArray(record?.events) ? (record?.events as PublicEvent[]) : [];
+    const list = verification.querySelector<HTMLElement>('[data-public-events]');
+    if (list) list.replaceChildren(...events.map((event) => publicEventRow(event)));
+    show(verification.querySelector('[data-public-events-empty]'), events.length === 0);
+
+    const lastEventHash = typeof record?.lastEventHash === 'string' && record.lastEventHash
+      ? record.lastEventHash
+      : typeof events.at(-1)?.hash === 'string'
+        ? String(events.at(-1)?.hash)
+        : '';
+    show(verification.querySelector('[data-last-event-hash-row]'), Boolean(lastEventHash));
+    if (lastEventHash) setText('[data-last-event-hash]', lastEventHash, verification);
+
+    const receiptId = typeof record?.id === 'string' ? record.id : '';
+    show(verification.querySelector('[data-receipt-id-row]'), Boolean(receiptId));
+    if (receiptId) setText('[data-receipt-id]', receiptId, verification);
+
+    const receiptHash = typeof record?.receiptHash === 'string' ? record.receiptHash : '';
+    show(verification.querySelector('[data-receipt-hash-row]'), Boolean(receiptHash));
+    if (receiptHash) setText('[data-public-hash]', receiptHash, verification);
+
+    verification.hidden = false;
+  }
+
+  /** The first twelve hex characters name a hash; the whole hash stays reachable. */
+  function shortHash(value: string): string {
+    return value.length > 12 ? `${value.slice(0, 12)}…` : value;
+  }
+
+  function hashRow(term: string, value: string): HTMLDivElement {
+    const row = document.createElement('div');
+    row.className = 'pilot-verify-hash';
+    const dd = createTextElement('dd', value);
+    dd.title = value;
+    row.append(createTextElement('dt', term), dd);
+    return row;
   }
 
   /**
-   * Two facts the text block reads off the public trail: the date a redacted
-   * text was released, and the removal that took a text off the page.
+   * One public event: when it happened, who wrote it, what it says, and the two
+   * fingerprints that place it in the chain. A removal is an event of its own,
+   * and the assignment and the commitment name the unit and the signer.
+   */
+  function publicEventRow(event: PublicEvent): HTMLLIElement {
+    const copy = publicCaseCopy.verification;
+    const item = document.createElement('li');
+    item.className = 'pilot-verify-event';
+    item.dataset.action = String(event?.action ?? '');
+    item.append(
+      createTextElement('p', translatedAction(event?.action, lang), 'pilot-verify-action'),
+      createTextElement(
+        'p',
+        [formatPilotDate(event?.createdAt, lang), translatedRole(event?.actorRole, lang)]
+          .filter(Boolean)
+          .join(' · '),
+        'pilot-verify-meta',
+      ),
+    );
+
+    const detail = eventDetail(event);
+    if (detail) item.append(createTextElement('p', detail, 'pilot-verify-meta'));
+
+    const hash = typeof event?.hash === 'string' ? event.hash : '';
+    const previous = typeof event?.previousHash === 'string' ? event.previousHash : '';
+    if (hash) {
+      const box = document.createElement('details');
+      box.className = 'pilot-verify-hashes';
+      const summary = createTextElement('summary', `${shortHash(hash)} · ${copy.hashOpen[lang]}`);
+      const rows = document.createElement('dl');
+      rows.append(hashRow(copy.eventHash[lang], hash));
+      rows.append(
+        previous
+          ? hashRow(copy.previousHash[lang], previous)
+          : hashRow(copy.previousHash[lang], copy.chainStart[lang]),
+      );
+      box.append(summary, rows);
+      item.append(box);
+    }
+    return item;
+  }
+
+  /** What a milestone carries beyond its name: the unit, the signer, the reason. */
+  function eventDetail(event: PublicEvent): string {
+    const record = event as unknown as Record<string, unknown>;
+    if (event?.action === 'office-assigned' && event.unit) {
+      return `${publicCaseCopy.answer.unit[lang]}: ${entityName(event.unit, lang)}`;
+    }
+    if (event?.action === 'commitment-published') {
+      const signedBy = event.signedBy;
+      const name = typeof signedBy === 'string' ? signedBy : signedBy?.name ?? '';
+      const title = typeof signedBy === 'string' ? '' : signedBy?.title ?? '';
+      const signature_ = [name, title].filter(Boolean).join(', ');
+      return signature_ ? `${publicCaseCopy.answer.signedBy[lang]}: ${signature_}` : '';
+    }
+    if (event?.action === 'text-removed') {
+      return translatedTextRemoved(String(record.reason ?? ''), lang);
+    }
+    if (event?.action === 'case-closed') {
+      const reason = typeof record.publicReason === 'string' ? record.publicReason.trim() : '';
+      return reason;
+    }
+    return '';
+  }
+
+  /**
+   * One fact the text block reads off the public trail: the date the office
+   * released a redacted text. The removal itself is a public event and says so
+   * in the verification block.
    */
   function readReleaseDate(record: PublicTraceRecord | null): void {
     releasedAtFromEvents = '';
-    removedFromEvents = null;
     const events = Array.isArray(record?.events) ? record?.events ?? [] : [];
     for (const event of events) {
       if (event?.action === 'text-released') releasedAtFromEvents = formatPilotDate(event.createdAt, lang);
-      if (event?.action === 'text-removed') {
-        removedFromEvents = { stage: String(event.stage ?? ''), reason: String(event.reason ?? '') };
-      }
     }
   }
 

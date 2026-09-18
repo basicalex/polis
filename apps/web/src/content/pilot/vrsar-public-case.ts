@@ -398,6 +398,55 @@ export const publicCaseCopy = Object.freeze({
     ),
   },
 
+  /*
+   * The six states of the ledger, in the ledger's own words. Four of them stand
+   * on the path itself — Zaprimljeno, Dodijeljeno, Odgovoreno, Riješeno — while
+   * Osporeno turns the case back toward Odgovoreno and Zatvoreno leaves the path
+   * before an answer. Each one carries one sentence; where the path already has
+   * the sentence, the strip reuses it rather than writing a second one.
+   */
+  stateStrip: {
+    heading: localized('Put predmeta', 'Percorso del caso', 'The path of the case'),
+    // HR draft: native editor review
+    branchLabel: localized('Odvojak', 'Ramo', 'Branch'),
+    // HR draft: native editor review
+    disputedNow: localized(
+      'Podnositelj je osporio dovršetak, pa se predmet vraća na Odgovoreno.',
+      'Chi ha segnalato ha contestato il completamento, quindi il caso torna a Risposto.',
+      'The filer disputed the completion, so the case goes back to Answered.',
+    ),
+    // HR draft: native editor review
+    disputedNext: localized(
+      'podnositelj može osporiti dovršetak i predmet se vraća na Odgovoreno.',
+      'chi ha segnalato può contestare il completamento e il caso torna a Risposto.',
+      'the filer can dispute the completion and the case goes back to Answered.',
+    ),
+    // HR draft: native editor review
+    disputedBack: localized(
+      'Vraća predmet na: Odgovoreno',
+      'Riporta il caso a: Risposto',
+      'Sends the case back to: Answered',
+    ),
+    // HR draft: native editor review
+    closedNow: localized(
+      'Predmet je zatvoren uz javno naveden razlog i ne ide dalje putem.',
+      'Il caso è chiuso con una motivazione pubblica e non prosegue lungo il percorso.',
+      'The case is closed with a public reason and goes no further along the path.',
+    ),
+    // HR draft: native editor review
+    closedNext: localized(
+      'ured može predmet zatvoriti uz javno naveden razlog prije nego što odgovori.',
+      'l’ufficio può chiudere il caso con una motivazione pubblica prima di rispondere.',
+      'the office can close the case with a public reason before it answers.',
+    ),
+    // HR draft: native editor review
+    closedFrom: localized(
+      'Odvojak od: Zaprimljeno ili Dodijeljeno',
+      'Ramo da: Ricevuto o Assegnato',
+      'Branch from: Received or Assigned',
+    ),
+  },
+
   /* The office's answer, signed, and what it reported doing. */
   answer: {
     heading: localized('Odgovor općine', 'La risposta del comune', 'The municipality’s answer'),
@@ -413,6 +462,13 @@ export const publicCaseCopy = Object.freeze({
     ),
     doneHeading: localized('Što je učinjeno', 'Che cosa è stato fatto', 'What was done'),
     evidenceLinks: localized('Dokazi', 'Prove', 'Evidence'),
+    // HR draft: native editor review
+    webNoContact: localized(
+      'Prijava je podnesena webom bez kontakta. Ured ne šalje obavijesti; podnositelj prati predmet na ovoj stranici ili svojom poveznicom.',
+      'La segnalazione è stata inviata dal web senza contatto. L’ufficio non invia avvisi; chi ha segnalato segue il caso su questa pagina o con il proprio link.',
+      'The report was filed on the web with no contact. The office sends no notifications; the filer follows the case on this page or through their own link.',
+    ),
+    unit: localized('Odsjek', 'Sezione', 'Section'),
   },
 
   /* The public check on a completion claim: the count, the disputes, the form. */
@@ -456,6 +512,38 @@ export const publicCaseCopy = Object.freeze({
       'The records below are written in order and each carries the fingerprint of the one before it. The receipt hash covers the whole chain.',
     ),
     events: localized('Zapisi predmeta', 'Record del caso', 'Case records'),
+    // HR draft: native editor review
+    eventHash: localized('Otisak zapisa', 'Impronta del record', 'Record hash'),
+    // HR draft: native editor review
+    previousHash: localized('Otisak prethodnog zapisa', 'Impronta del record precedente', 'Previous record hash'),
+    // HR draft: native editor review
+    chainStart: localized(
+      'Prvi zapis u lancu: prethodnika nema.',
+      'Primo record della catena: non ha un precedente.',
+      'First record in the chain: it has no predecessor.',
+    ),
+    // HR draft: native editor review
+    hashOpen: localized('Cijeli otisak', 'Impronta completa', 'Full hash'),
+    // HR draft: native editor review
+    textHash: localized(
+      'Otisak teksta kako je zaprimljen',
+      'Impronta del testo come ricevuto',
+      'Hash of the text as filed',
+    ),
+    // HR draft: native editor review
+    textHashLegacy: localized(
+      'Stariji zapis: otisak je izračunat nad normaliziranim tekstom, ne nad tekstom kako je zaprimljen.',
+      'Record più vecchio: l’impronta è calcolata sul testo normalizzato, non sul testo come ricevuto.',
+      'Older record: the hash is over the normalised text, not over the text as filed.',
+    ),
+    // HR draft: native editor review
+    lastEventHash: localized('Otisak posljednjeg zapisa', 'Impronta dell’ultimo record', 'Last record hash'),
+    // HR draft: native editor review
+    eventsEmpty: localized(
+      'Zapisi se objavljuju uz odgovor ureda.',
+      'I record vengono pubblicati insieme alla risposta dell’ufficio.',
+      'The records publish together with the office answer.',
+    ),
   },
 
   /**

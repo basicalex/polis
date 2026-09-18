@@ -315,6 +315,24 @@ export const pilotCopy = Object.freeze({
       'Il nome e la funzione compaiono accanto all’impegno nel record pubblico.',
       'The name and title stand next to the commitment on the public record.',
     ),
+    // HR draft: native editor review
+    signer: localized('Potpisuje', 'Firma', 'Signed by'),
+    // HR draft: native editor review
+    signerFromProfile: localized(
+      'Ime i funkcija dolaze iz vašeg službenog profila i ne upisuju se ovdje.',
+      'Il nome e la funzione provengono dal tuo profilo e non si scrivono qui.',
+      'The name and the title come from your official profile; they are not typed here.',
+    ),
+    // HR draft: native editor review
+    signerMissing: localized(
+      'Vaš službeni profil nije postavljen, pa se obveza ne može objaviti pod imenom. Zatražite od operatora upis imena, funkcije i odsjeka.',
+      'Il tuo profilo ufficiale non è impostato, quindi l’impegno non può essere pubblicato a nome. Chiedi all’operatore di registrare nome, funzione e sezione.',
+      'Your official profile is not set, so the commitment cannot publish under a name. Ask the operator to record your name, title and section.',
+    ),
+    // HR draft: native editor review
+    unit: localized('Odsjek', 'Sezione', 'Section'),
+    // HR draft: native editor review
+    unitChoose: localized('Odsjek koji preuzima predmet', 'Sezione che prende in carico il caso', 'Section taking the case on'),
     publishesNow: localized(
       'Objavljuje se odmah pod vašim imenom.',
       'Viene pubblicato subito a tuo nome.',
@@ -686,6 +704,20 @@ export const roleLabels: Readonly<Record<string, LocalizedText>> = Object.freeze
   system: localized('Sustav', 'Sistema', 'System'),
 });
 
+/**
+ * The six states of the ledger as words, not stamps: the strip on the public
+ * case page reads them in running text, so they are written the way the ledger
+ * filter writes them (src/content/entry.ts, ledgerStage*).
+ */
+export const ledgerStateLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
+  received: localized('Zaprimljeno', 'Ricevuto', 'Received'),
+  assigned: localized('Dodijeljeno', 'Assegnato', 'Assigned'),
+  answered: localized('Odgovoreno', 'Risposto', 'Answered'),
+  resolved: localized('Riješeno', 'Risolto', 'Resolved'),
+  disputed: localized('Osporeno', 'Contestato', 'Disputed'),
+  closed: localized('Zatvoreno', 'Chiuso', 'Closed'),
+});
+
 export const stageLabels: Readonly<Record<string, LocalizedText>> = Object.freeze({
   voice: localized('Prijava', 'Segnalazione', 'Voice'),
   responsibility: localized('Odgovornost', 'Responsabilità', 'Responsibility'),
@@ -790,6 +822,17 @@ export const errorMessages: Readonly<Record<string, LocalizedText>> = Object.fre
   unknown_field: pilotCopy.common.connectionError,
   invalid_limit: pilotCopy.common.connectionError,
   too_many_attempts: localized('Previše pokušaja. Pričekajte pa pokušajte ponovno.', 'Troppi tentativi. Attendi e riprova.', 'Too many attempts. Wait and try again.'),
+  official_profile_missing: localized(
+    'Vaš službeni profil nije postavljen. Obratite se operatoru da upiše ime, funkciju i odsjek.',
+    'Il tuo profilo ufficiale non è impostato. Chiedi all’operatore di registrare nome, funzione e sezione.',
+    'Your official profile is not set. Ask the operator to record your name, title and section.',
+  ),
+  unit_required: localized(
+    'Odaberite odsjek koji preuzima predmet.',
+    'Scegli la sezione che prende in carico il caso.',
+    'Choose the section that takes the case on.',
+  ),
+  unexpected_key: pilotCopy.common.connectionError,
   record_state_mismatch: localized('Status zapisa nije prošao provjeru. Obratite se operateru.', 'Lo stato del record non ha superato la verifica. Contatta l’operatore.', 'The record status failed verification. Contact the operator.'),
 });
 

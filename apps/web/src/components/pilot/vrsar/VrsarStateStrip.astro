@@ -1,0 +1,51 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/**
+ * The six states of the ledger, in the ledger's own words and in its own order:
+ * Zaprimljeno · Dodijeljeno · Odgovoreno · Riješeno, then the two states that
+ * leave that line — Osporeno, which turns the case back toward Odgovoreno, and
+ * Zatvoreno, which branches off before an answer.
+ *
+ * The strip is markup only. The client script fills one sentence per state and
+ * marks which one the case stands in; nothing here decides anything.
+ */
+
+import { ledgerStateLabels, type PilotLang } from '../../../content/pilot/vrsar';
+import { publicCaseCopy } from '../../../content/pilot/vrsar-public-case';
+
+interface Props {
+  lang: PilotLang;
+}
+
+const { lang } = Astro.props as Props;
+const copy = publicCaseCopy.stateStrip;
+const states = ['received', 'assigned', 'answered', 'resolved', 'disputed', 'closed'] as const;
+/** The two states that stand off the line, each saying where it leads. */
+const branchNote: Partial<Record<(typeof states)[number], string>> = {
+  disputed: copy.disputedBack[lang],
+  closed: copy.closedFrom[lang],
+};
+---
+
+<ol class="pilot-state-strip" data-state-strip>
+  {states.map((state) => (
+    <li
+      class="pilot-state-step"
+      data-state-step={state}
+      data-state="ahead"
+      data-branch={branchNote[state] ? 'true' : 'false'}
+    >
+      <span class="pilot-state-marker" aria-hidden="true"></span>
+      <div class="pilot-state-body">
+        <p class="pilot-state-name">
+          <span data-state-name>{ledgerStateLabels[state][lang]}</span>
+          <span class="status-label" data-style="stamp" data-tone="unknown" data-state-here hidden></span>
+        </p>
+        {branchNote[state] && <p class="pilot-state-branch">{branchNote[state]}</p>}
+        <p class="pilot-state-note" data-state-note></p>
+      </div>
+    </li>
+  ))}
+</ol>

@@ -415,6 +415,22 @@ html[data-pilot='vrsar'] .skip-link:focus {
   margin-top: 0;
 }
 
+/*
+ * The signer is read, not typed: the block stands where the two fields used to
+ * and says whose name the answer will carry.
+ */
+.pilot-signer {
+  display: grid;
+  gap: 0.125rem;
+  padding-inline-start: var(--space-sm);
+  border-inline-start: 3px solid var(--polis-border-strong);
+}
+
+.pilot-signer-name {
+  margin: 0;
+  font-weight: 650;
+}
+
 /* A checkbox row reads box first, then wording; messages wrap under both. */
 html[data-pilot='vrsar'] .field-choice {
   min-height: var(--tap-target);
@@ -1086,6 +1102,176 @@ a.pilot-ledger-row:hover,
   font-size: var(--type-data);
 }
 
+/*
+ * The six states of the ledger. Four of them stand on one line, numbered; the
+ * two that leave that line — Osporeno and Zatvoreno — are set in from it, carry
+ * no number, and hang off a dashed rule, because a branch is not a step.
+ */
+.pilot-state-strip {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pilot-state;
+}
+
+.pilot-state-step {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0 var(--space-sm);
+}
+
+.pilot-state-step[data-branch='false'] {
+  counter-increment: pilot-state;
+}
+
+.pilot-state-step[data-branch='true'] {
+  margin-inline-start: var(--space-lg);
+}
+
+.pilot-state-step::before {
+  content: '';
+  position: absolute;
+  top: 1.75rem;
+  bottom: calc(-1 * var(--space-md));
+  left: 0.8125rem;
+  border-left: 1px solid var(--polis-border-strong);
+}
+
+.pilot-state-step:last-child::before,
+.pilot-state-step[data-branch='true']::before {
+  display: none;
+}
+
+.pilot-state-marker {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--polis-border-strong);
+  border-radius: 50%;
+  background: var(--polis-surface);
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-meta);
+}
+
+.pilot-state-step[data-branch='false'] .pilot-state-marker::before {
+  content: counter(pilot-state);
+}
+
+.pilot-state-step[data-branch='true'] .pilot-state-marker {
+  border-style: dashed;
+  border-radius: 0;
+}
+
+.pilot-state-step[data-state='appended'] .pilot-state-marker {
+  border-color: var(--polis-trace);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+.pilot-state-step[data-state='active'] .pilot-state-marker {
+  border-color: var(--polis-trace);
+  border-style: solid;
+  box-shadow: inset 0 0 0 0.125rem var(--polis-surface);
+  background: var(--polis-trace);
+  color: var(--polis-on-primary);
+}
+
+.pilot-state-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.pilot-state-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0;
+  font-weight: 700;
+}
+
+.pilot-state-step[data-state='ahead'] .pilot-state-name {
+  color: var(--polis-muted);
+  font-weight: 650;
+}
+
+.pilot-state-branch,
+.pilot-state-note {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-data);
+}
+
+.pilot-state-branch {
+  font-size: var(--type-meta);
+}
+
+/* The verification list: one public event, its date, its actor and its hashes. */
+.pilot-verify-events {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: 0;
+  list-style: none;
+}
+
+.pilot-verify-event {
+  display: grid;
+  gap: 0.125rem;
+  padding-inline-start: var(--space-sm);
+  border-inline-start: 3px solid var(--polis-border-strong);
+}
+
+.pilot-verify-action {
+  margin: 0;
+  font-weight: 650;
+}
+
+.pilot-verify-meta {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.pilot-verify-hashes > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: var(--polis-muted);
+  font-family: var(--mono);
+  font-size: var(--type-meta);
+  cursor: pointer;
+}
+
+.pilot-verify-hash {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0 0 var(--space-sm);
+}
+
+.pilot-verify-hash dt {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.pilot-verify-hash dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--type-meta);
+  overflow-wrap: anywhere;
+}
+
 .pilot-event-list,
 .pilot-source-list {
   min-width: 0;
@@ -1423,12 +1609,17 @@ a.pilot-ledger-row:hover,
   .pilot-ledger-id,
   .pilot-trace-marker,
   .pilot-trace-note,
+  .pilot-state-marker,
+  .pilot-state-note,
+  .pilot-verify-meta,
   .pilot-event-meta,
   .pilot-disclosure {
     color: #000 !important;
   }
 
   .pilot-trace-stage,
+  .pilot-state-step,
+  .pilot-verify-event,
   .pilot-event-list li,
   .pilot-receipt-grid > *,
   .pilot-meta > div {

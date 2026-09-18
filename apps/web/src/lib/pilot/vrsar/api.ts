@@ -7,6 +7,7 @@ import type {
   CaseMessage,
   PilotConfig,
   HoldReason,
+  OfficialProfile,
   PilotSession,
   PrivateTraceRecord,
   PublicCaseShell,
@@ -21,6 +22,7 @@ import {
   messagesFromEnvelope,
   noticeResultFromEnvelope,
   proposalDecisionFromEnvelope,
+  officialProfileFromResponse,
   pilotConfigFromResponse,
   publicCaseFromEnvelope,
   publicCasesFromEnvelope,
@@ -142,6 +144,19 @@ export async function getPilotSession(signal?: AbortSignal): Promise<PilotSessio
   return requestJson<PilotSession>('/session', { signal });
 }
 
+/**
+ * The office profile of the signed-in official: the name and the title that
+ * will sign their answers, and the section they work in. A 404
+ * `official_profile_missing` is the honest answer when the operator has not
+ * written one yet, and the workspace says so instead of asking them to type it.
+ */
+export async function getOfficialProfile(signal?: AbortSignal): Promise<OfficialProfile> {
+  return requestJson<OfficialProfile>('/officials/me', {
+    signal,
+    parse: officialProfileFromResponse,
+  });
+}
+
 export async function listPrivateRecords(signal?: AbortSignal): Promise<PrivateTraceRecord[]> {
   return requestJson<PrivateTraceRecord[]>('/records', {
     signal,
@@ -170,21 +185,34 @@ export async function getPrivateRecord(id: string, signal?: AbortSignal): Promis
   });
 }
 
-export async function assignRecord(id: string, expectedVersion: number): Promise<PrivateTraceRecord> {
+/**
+ * Taking a case on. The unit travels only where the office has more than one:
+ * with a single section the backend reads it off the official's own profile.
+ */
+export async function assignRecord(
+  id: string,
+  expectedVersion: number,
+  unitId?: string,
+): Promise<PrivateTraceRecord> {
   return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/assign`, {
     method: 'POST',
-    body: { expectedVersion },
+    body: unitId ? { expectedVersion, unitId } : { expectedVersion },
     idempotent: true,
     parse: recordFromEnvelope,
   });
 }
 
+/**
+ * The commitment body carries no signer: the backend reads the name and the
+ * title off the official's profile, so the public record names the person who
+ * was signed in and nobody else. Sending `signedBy` is refused upstream.
+ */
 export async function submitCommitment(
   id: string,
   input: {
+    expectedVersion: number;
     commitment: string;
     dueDate: string;
-    signedBy: { name: string; title: string };
     evidenceNote?: string;
     evidenceUrls?: string[];
   },
@@ -202,7 +230,6 @@ export async function submitResolution(
   input: {
     evidenceNote: string;
     evidenceUrls: string[];
-    signedBy: { name: string; title: string };
   },
 ): Promise<PrivateTraceRecord> {
   return requestJson<PrivateTraceRecord>(`/records/${encodeURIComponent(id)}/resolution`, {

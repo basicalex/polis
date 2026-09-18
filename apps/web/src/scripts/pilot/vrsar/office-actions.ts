@@ -16,42 +16,18 @@ import {
   submitResolution,
   uploadPrivateAttachment,
 } from '../../../lib/pilot/vrsar/api';
-import type { OfficialSignature, PrivateTraceRecord } from '../../../lib/pilot/vrsar/model';
+import type {
+  OfficialProfile,
+  PilotConfigEntity,
+  PrivateTraceRecord,
+} from '../../../lib/pilot/vrsar/model';
+import { entityName } from '../../../lib/pilot/vrsar/model';
 import { pilotCopy, type PilotLang } from '../../../content/pilot/vrsar';
 import { workspaceCopy } from '../../../content/pilot/vrsar-workspace';
 import { createField, createTextElement, setFieldError } from './shell';
 
 const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'application/pdf', 'text/plain']);
-/**
- * The signing name and title are typed on every answer, so the last pair is
- * kept as a convenience. It is the only thing this workspace writes to Web
- * Storage: no session, no token, and nothing about the filer.
- */
-const SIGNATURE_KEY = 'polis.pilot.vrsar.signature';
-
-export function rememberedSignature(): OfficialSignature {
-  try {
-    const stored = window.localStorage.getItem(SIGNATURE_KEY);
-    if (!stored) return { name: '', title: '' };
-    const parsed = JSON.parse(stored) as Partial<OfficialSignature>;
-    return {
-      name: typeof parsed.name === 'string' ? parsed.name : '',
-      title: typeof parsed.title === 'string' ? parsed.title : '',
-    };
-  } catch {
-    // Private browsing, blocked storage, or a stale value: the fields start empty.
-    return { name: '', title: '' };
-  }
-}
-
-export function rememberSignature(signature: OfficialSignature): void {
-  try {
-    window.localStorage.setItem(SIGNATURE_KEY, JSON.stringify(signature));
-  } catch {
-    // Storage is a convenience; the answer is already on its way.
-  }
-}
 
 async function fileBase64(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -83,6 +59,10 @@ export function readEvidenceUrls(value: string): string[] | null {
 export interface OfficeActionContext {
   record: PrivateTraceRecord;
   lang: PilotLang;
+  /** Who is signing, read from the login. Null means the operator wrote no profile. */
+  profile: OfficialProfile | null;
+  /** The sections of the office, from the pilot config; one or none needs no choice. */
+  units: PilotConfigEntity[];
   run: (
     button: HTMLButtonElement,
     pending: string,
@@ -106,65 +86,100 @@ function submitButton(label: string, variant: 'primary' | 'secondary'): HTMLButt
 }
 
 /**
- * Name and title travel with every answer and stand on the public record,
- * so they are one pair of required fields, prefilled from the last answer.
+ * The signer is the login, not a typed pair of fields: the name and the title
+ * come from the official's own profile and only stand here to be read before
+ * the answer publishes under them.
  */
-function signatureFields(
-  record: PrivateTraceRecord,
-  lang: PilotLang,
-): { fields: HTMLElement[]; read: () => OfficialSignature } {
-  const remembered = rememberedSignature();
-  const name = document.createElement('input');
-  name.id = `office-signed-name-${record.id}`;
-  name.type = 'text';
-  name.required = true;
-  name.maxLength = 120;
-  name.autocomplete = 'name';
-  name.value = remembered.name;
-  const nameField = createField(name, pilotCopy.staff.signedByName[lang], {
-    hint: pilotCopy.staff.signedByHint[lang],
-  });
-
-  const title = document.createElement('input');
-  title.id = `office-signed-title-${record.id}`;
-  title.type = 'text';
-  title.required = true;
-  title.maxLength = 120;
-  title.setAttribute('autocomplete', 'organization-title');
-  title.value = remembered.title;
-  const titleField = createField(title, pilotCopy.staff.signedByTitle[lang]);
-
-  return {
-    fields: [nameField.field, titleField.field],
-    read: () => ({ name: name.value.trim(), title: title.value.trim() }),
-  };
+function signatureReadout(profile: OfficialProfile, lang: PilotLang): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'pilot-signer';
+  box.dataset.officeSigner = 'profile';
+  const line = [profile.name, profile.title].filter(Boolean).join(', ');
+  box.append(
+    createTextElement('p', `${pilotCopy.staff.signer[lang]}: ${line}`, 'pilot-signer-name'),
+    createTextElement('p', pilotCopy.staff.signerFromProfile[lang], 'field-hint'),
+  );
+  if (profile.unit) {
+    box.append(
+      createTextElement(
+        'p',
+        `${pilotCopy.staff.unit[lang]}: ${entityName(profile.unit, lang)}`,
+        'field-hint',
+      ),
+    );
+  }
+  return box;
 }
 
 /**
- * `open` has one honest action and no fields, so the primary control is the
- * whole form: one press accepts responsibility for the case.
+ * Without a profile there is nobody to sign, so the form says what is missing
+ * and carries no button: an answer with no name on it is not an option.
+ */
+function missingProfileForm(kind: string, lang: PilotLang): HTMLFormElement {
+  const form = document.createElement('form');
+  form.className = 'pilot-form';
+  form.dataset.officeForm = kind;
+  form.dataset.officeBlocked = 'profile';
+  form.append(createTextElement('p', pilotCopy.staff.signerMissing[lang], 'pilot-state'));
+  form.addEventListener('submit', (event) => event.preventDefault());
+  return form;
+}
+
+/**
+ * `open` has one honest action: take the case on. Where the office runs more
+ * than one section the form asks which one takes it; with a single section
+ * there is nothing to ask, and the backend reads the unit off the profile.
  */
 export function assignForm(context: OfficeActionContext): HTMLFormElement {
-  const { record, lang } = context;
+  const { record, lang, units } = context;
   const form = document.createElement('form');
   form.className = 'case-primary-form';
   form.dataset.officeForm = 'assign';
+
+  const choice = units.length > 1 ? unitSelect(record, units, lang, context.profile) : null;
+  if (choice) form.append(choice.field);
+
   const button = submitButton(pilotCopy.staff.assign[lang], 'primary');
   form.append(button);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (!form.reportValidity()) return;
+    const unitId = choice?.read() ?? '';
     context.run(
       button,
       pilotCopy.staff.assigning[lang],
       workspaceCopy.done.assigned[lang],
-      () => assignRecord(record.id, record.version),
+      () => assignRecord(record.id, record.version, unitId || undefined),
     );
   });
   return form;
 }
 
+/** The sections of the office, with the official's own section chosen first. */
+function unitSelect(
+  record: PrivateTraceRecord,
+  units: PilotConfigEntity[],
+  lang: PilotLang,
+  profile: OfficialProfile | null,
+): { field: HTMLElement; read: () => string } {
+  const select = document.createElement('select');
+  select.id = `office-unit-${record.id}`;
+  select.required = true;
+  for (const unit of units) {
+    const option = document.createElement('option');
+    option.value = String(unit.id ?? '');
+    option.textContent = entityName(unit, lang) || String(unit.id ?? '');
+    select.append(option);
+  }
+  const own = profile?.unit?.id ?? '';
+  if (own && units.some((unit) => unit.id === own)) select.value = own;
+  const parts = createField(select, pilotCopy.staff.unitChoose[lang]);
+  return { field: parts.field, read: () => select.value };
+}
+
 export function commitmentForm(context: OfficeActionContext): HTMLFormElement {
-  const { record, lang } = context;
+  const { record, lang, profile } = context;
+  if (!profile) return missingProfileForm('commitment', lang);
   const form = document.createElement('form');
   form.className = 'pilot-form';
   form.dataset.officeForm = 'commitment';
@@ -184,8 +199,6 @@ export function commitmentForm(context: OfficeActionContext): HTMLFormElement {
   due.value = record.dueDate ?? '';
   const dueField = createField(due, pilotCopy.staff.dueDate[lang], { width: 'date' });
 
-  const signature = signatureFields(record, lang);
-
   const evidence = document.createElement('textarea');
   evidence.id = `office-commitment-evidence-${record.id}`;
   evidence.rows = 2;
@@ -197,7 +210,7 @@ export function commitmentForm(context: OfficeActionContext): HTMLFormElement {
   form.append(
     commitmentField.field,
     dueField.field,
-    ...signature.fields,
+    signatureReadout(profile, lang),
     evidenceField.field,
     createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
     actionRow(button),
@@ -206,29 +219,26 @@ export function commitmentForm(context: OfficeActionContext): HTMLFormElement {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    const signedBy = signature.read();
     const note = evidence.value.trim();
     context.run(
       button,
       pilotCopy.staff.filingCommitment[lang],
       workspaceCopy.done.commitment[lang],
-      async () => {
-        const updated = await submitCommitment(record.id, {
+      () =>
+        submitCommitment(record.id, {
+          expectedVersion: record.version,
           commitment: commitment.value.trim(),
           dueDate: due.value,
-          signedBy,
           ...(note ? { evidenceNote: note } : {}),
-        });
-        rememberSignature(signedBy);
-        return updated;
-      },
+        }),
     );
   });
   return form;
 }
 
 export function resolutionForm(context: OfficeActionContext): HTMLFormElement {
-  const { record, lang } = context;
+  const { record, lang, profile } = context;
+  if (!profile) return missingProfileForm('resolution', lang);
   const form = document.createElement('form');
   form.className = 'pilot-form';
   form.dataset.officeForm = 'resolution';
@@ -249,13 +259,12 @@ export function resolutionForm(context: OfficeActionContext): HTMLFormElement {
     hint: pilotCopy.staff.evidenceUrlsHint[lang],
   });
 
-  const signature = signatureFields(record, lang);
   const button = submitButton(pilotCopy.staff.submitResolution[lang], 'primary');
   form.append(
     createTextElement('p', pilotCopy.entry.publicationRule[lang], 'field-hint'),
     noteField.field,
     urlsField.field,
-    ...signature.fields,
+    signatureReadout(profile, lang),
     createTextElement('p', pilotCopy.staff.publishesNow[lang], 'pilot-state'),
     actionRow(button),
   );
@@ -269,20 +278,16 @@ export function resolutionForm(context: OfficeActionContext): HTMLFormElement {
       return;
     }
     setFieldError(urlsField, urls, '');
-    const signedBy = signature.read();
+    // The completion is signed server-side by the same profile as the commitment.
     context.run(
       button,
       pilotCopy.staff.submittingResolution[lang],
       workspaceCopy.done.resolution[lang],
-      async () => {
-        const updated = await submitResolution(record.id, {
+      () =>
+        submitResolution(record.id, {
           evidenceNote: note.value.trim(),
           evidenceUrls,
-          signedBy,
-        });
-        rememberSignature(signedBy);
-        return updated;
-      },
+        }),
     );
   });
   return form;
