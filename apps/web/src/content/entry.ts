@@ -400,7 +400,9 @@ export const entryStrings = {
    * it belongs to the place, and the filing form links to it directly.
    */
   footerIntrface: { hr: 'Intrface', en: 'Intrface' },
-  footerAbout: { hr: 'O Polisu', en: 'About Polis' },
+  /* The studio's own mark, shown in the footer of "What is Polis?" only. */
+  footerIntrfaceBrand: { hr: 'INTRFACE', en: 'INTRFACE' },
+  footerAbout: { hr: 'Što je Polis?', en: 'What is Polis?' },
   /*
    * The band a hosted test build carries on every entry page. It names the
    * instance, the data and the fact that the municipality does not answer here,

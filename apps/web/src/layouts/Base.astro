@@ -6,6 +6,7 @@ import '../styles.css';
 import '../styles/chrome.css';
 import DemoBadge from '@polis/ui/astro/DemoBadge.astro';
 import {
+  aboutHrefs,
   accountNav,
   footer as footerChrome,
   languageEndonyms,
@@ -73,9 +74,11 @@ const presenter = Astro.url.searchParams.get('present') === '1';
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
 const otherLang: Lang = lang === 'hr' ? 'en' : 'hr';
 const homeHref = languageHomes[lang];
-/* The one page that explains Polis; the retired platform stubs redirect to it. */
-const aboutHref = lang === 'hr' ? '/o-polisu' : '/en/o-polisu';
+/* The one page that explains Polis; `/o-polisu` and the retired stubs redirect to it. */
+const aboutHref = aboutHrefs[lang];
 const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
+/* "What is Polis?" carries the INTRFACE mark in its footer instead of a link to itself. */
+const onAbout = currentPath === aboutHref;
 const languageHrefs = {
   hr: alternates?.hr ?? languageHomes.hr,
   en: alternates?.en ?? languageHomes.en,
@@ -243,8 +246,12 @@ const isCurrentPath = (href: string) =>
       {entryChrome && (
         <footer class="entry-footer" id="site-footer">
           <p class="entry-footer-links">
-            <a href="https://intrface.eu" rel="noreferrer">{text(entryStrings.footerIntrface, lang)}</a>
-            <a href={aboutHref}>{text(entryStrings.footerAbout, lang)}</a>
+            {onAbout ? (
+              <a class="entry-footer-brand" href="https://intrface.eu/" rel="noreferrer">{text(entryStrings.footerIntrfaceBrand, lang)}</a>
+            ) : (
+              <a href="https://intrface.eu" rel="noreferrer">{text(entryStrings.footerIntrface, lang)}</a>
+            )}
+            {!onAbout && <a href={aboutHref}>{text(entryStrings.footerAbout, lang)}</a>}
           </p>
         </footer>
       )}

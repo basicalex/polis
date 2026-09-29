@@ -1,0 +1,27 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import PlaceMap from '../components/entry/PlaceMap.astro';
+import Base from '../layouts/Base.astro';
+import { entryMeta } from '../content/entry';
+import { mapHrefs, text } from '../content/chrome';
+
+/*
+ * S1, the place map ("Gdje ste?"), the way into the tool. It was the root until
+ * the root became "What is Polis?"; `/?zupanija=` links redirect here.
+ */
+
+const lang = 'hr' as const;
+const county = Astro.url.searchParams.get('zupanija');
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={mapHrefs}
+  title={text(entryMeta.mapTitle, lang)}
+  description={text(entryMeta.mapDescription, lang)}
+>
+  <PlaceMap lang={lang} county={county} />
+</Base>

@@ -5,15 +5,15 @@
 /*
  * S1 · the place map.
  *
- * The root asks one thing: where. The 21 counties render from the bundled ADM1
+ * The map asks one thing: where. The 21 counties render from the bundled ADM1
  * file, the region select and every county link work as plain GET navigations
- * to `/?zupanija=<slug>`, and the script upgrades the same markup to an inline
- * zoom (entry-flow R1, R3, R6).
+ * to `/karta?zupanija=<slug>`, and the script upgrades the same markup to an
+ * inline zoom (entry-flow R1, R3, R6). Place links stay at `/<place>`.
  */
 
 import '../../styles/entry.css';
 import { entryStrings } from '../../content/entry';
-import { text } from '../../content/chrome';
+import { mapHrefs, text } from '../../content/chrome';
 import type { Lang } from '../../content/public-release';
 import { counties, findCounty, viewBoxFor, COUNTRY_VIEW_BOX } from '../../lib/geo/counties';
 import { isLive, liveSlugs, placesInCounty } from '../../content/places';
@@ -27,6 +27,7 @@ interface Props {
 const { lang, county: requested = null } = Astro.props as Props;
 const county = findCounty(requested);
 const base = lang === 'hr' ? '/' : '/en/';
+const mapHref = mapHrefs[lang];
 const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
 const viewBox = county ? viewBoxFor(county.bbox) : COUNTRY_VIEW_BOX;
 const countyPlaces = county ? placesInCounty(county.slug) : [];
@@ -46,6 +47,7 @@ const strings = {
       class="entry-map"
       data-entry-map
       data-base={base}
+      data-map-href={mapHref}
       data-zoom={county ? 'county' : 'country'}
       data-county={county?.slug}
       data-live={liveSlugs.join(',')}
@@ -54,7 +56,7 @@ const strings = {
         <g data-layer="counties">
           {
             counties.map((item) => (
-              <a href={`${base}?zupanija=${item.slug}`} data-county={item.slug} aria-label={item.name}>
+              <a href={`${mapHref}?zupanija=${item.slug}`} data-county={item.slug} aria-label={item.name}>
                 <path class="county-shape" d={item.d} data-selected={item.slug === county?.slug ? 'true' : undefined} />
                 <title>{item.name}</title>
               </a>
@@ -73,7 +75,7 @@ const strings = {
     </div>
 
     <div class="entry-controls">
-      <form class="entry-form" method="get" action={base} data-region-form>
+      <form class="entry-form" method="get" action={mapHref} data-region-form>
         <label for="zupanija">{label('regionLabel')}</label>
         <div class="entry-form-row">
           <select id="zupanija" name="zupanija" data-region>

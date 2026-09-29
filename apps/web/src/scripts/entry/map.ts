@@ -5,7 +5,7 @@
  * S1 behaviour: choose a region, the map zooms and the municipalities become
  * hittable (entry-flow R3). Everything here is an upgrade on markup that
  * already works: without scripting the county links and the region form are
- * plain GET navigations to `/?zupanija=<slug>`.
+ * plain GET navigations to `/karta?zupanija=<slug>`.
  *
  * No map provider, no tiles, no external request — the shapes are our own SVG
  * and the county files are same-origin JSON (R6).
@@ -63,6 +63,8 @@ function start(map: HTMLElement): void {
 
   const strings: Strings = readStrings();
   const base = map.dataset.base === '/en/' ? '/en/' : '/';
+  // The map's own address, for the county in the URL; place links use `base`.
+  const mapHref = map.dataset.mapHref === '/en/karta' ? '/en/karta' : '/karta';
   const liveSlugs = new Set((map.dataset.live ?? '').split(',').filter(Boolean));
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -195,7 +197,7 @@ function start(map: HTMLElement): void {
     }
     drawCounty(file);
     setViewBox(viewBoxOf(file.bbox), animate);
-    history.replaceState(null, '', `${base}?zupanija=${slug}`);
+    history.replaceState(null, '', `${mapHref}?zupanija=${slug}`);
     return file;
   }
 
@@ -210,7 +212,7 @@ function start(map: HTMLElement): void {
       shape.removeAttribute('data-selected');
     }
     setViewBox(COUNTRY_VIEW, true);
-    history.replaceState(null, '', base);
+    history.replaceState(null, '', mapHref);
     say('');
   }
 

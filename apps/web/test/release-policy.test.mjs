@@ -28,8 +28,10 @@ const expectedCurrentByKind = {
     '/en/:place',
     '/:place/privatnost',
     '/en/:place/privatnost',
-    '/o-polisu',
-    '/en/o-polisu',
+    '/about',
+    '/en/about',
+    '/karta',
+    '/en/karta',
   ],
   'backend-dependent': [
     '/assistant',
@@ -123,6 +125,8 @@ function requestContext(path, method = 'GET') {
 // The pages that decision D3 retired. Each one still exists and still answers,
 // because it now serves a permanent redirect to About; nothing may 404.
 const expectedRetired = [
+  '/o-polisu',
+  '/en/o-polisu',
   '/presentation',
   '/hr/presentation',
   '/en/presentation',
@@ -239,6 +243,10 @@ test('release policy matches representative dynamic routes without overlap', () 
     ['/en/', 'safe'],
     ['/o-polisu', 'safe'],
     ['/en/o-polisu', 'safe'],
+    ['/about', 'safe'],
+    ['/en/about', 'safe'],
+    ['/karta', 'safe'],
+    ['/en/karta', 'safe'],
     ['/presentation', 'safe'],
     ['/hr/presentation', 'safe'],
     ['/en/presentation', 'safe'],

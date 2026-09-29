@@ -25,15 +25,17 @@ const JSON_OUT = process.env.UI_AUDIT_JSON ?? '';
 const ROUTES = [
   // The entry flow: the map, a chosen region, the intent screen, the place
   // ledger, one public case, filing, and the case number.
-  '/',
-  '/?zupanija=istarska',
+  '/about',
+  '/karta',
+  '/karta?zupanija=istarska',
   '/vrsar',
   '/vrsar/zapis',
   '/vrsar/zapis/VRS-123456',
   '/vrsar/prijava',
   '/vrsar/prijava/VRS-123456',
   '/porec',
-  '/en/',
+  '/en/about',
+  '/en/karta',
   '/en/vrsar',
   '/en/vrsar/zapis',
   '/en/vrsar/zapis/VRS-123456',

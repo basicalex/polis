@@ -13,7 +13,7 @@
 
 import '../../styles/entry.css';
 import { entryStrings } from '../../content/entry';
-import { text } from '../../content/chrome';
+import { mapHrefs, text } from '../../content/chrome';
 import type { Lang } from '../../content/public-release';
 import type { Place } from '../../content/places';
 
@@ -26,7 +26,7 @@ const { lang, place } = Astro.props as Props;
 const base = lang === 'hr' ? '/' : '/en/';
 const label = (key: keyof typeof entryStrings) => text(entryStrings[key], lang);
 // The back link keeps the region selected, so the map opens where it was left.
-const backHref = `${base}?zupanija=${place.county}`;
+const backHref = `${mapHrefs[lang]}?zupanija=${place.county}`;
 ---
 
 <div class="intent">

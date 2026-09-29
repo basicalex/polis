@@ -2,30 +2,19 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import PlaceMap from '../components/entry/PlaceMap.astro';
-import Base from '../layouts/Base.astro';
-import { entryMeta } from '../content/entry';
-import { text } from '../content/chrome';
-
 /*
- * S1, the place map, is the root (entry-flow R1). Croatian is the default
- * language of the site (revision decision R1): the root serves Croatian and
- * English lives under `/en/`. `/hr/` keeps working as a 301 to this route.
+ * The Croatian root. It opens on "What is Polis?" (`/about`); the place map
+ * moved to `/karta`, and an old `/?zupanija=` link follows it there. Croatian
+ * is the default language of the site (revision decision R1), English lives
+ * under `/en/`, and `/hr/` keeps working as a 301.
  */
+
+import { rootRedirect } from '../lib/entry/root-redirect';
+
 if (Astro.url.searchParams.get('present') === '1') {
   return Astro.redirect('/presentation?present=1', 302);
 }
 
-const lang = 'hr' as const;
-const county = Astro.url.searchParams.get('zupanija');
+const { location, status } = rootRedirect(Astro.url, 'hr');
+return Astro.redirect(location, status);
 ---
-
-<Base
-  lang={lang}
-  chrome="entry"
-  alternates={{ hr: '/', en: '/en/' }}
-  title={text(entryMeta.mapTitle, lang)}
-  description={text(entryMeta.mapDescription, lang)}
->
-  <PlaceMap lang={lang} county={county} />
-</Base>

@@ -3,9 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /*
- * Croatian moved to the root (revision decision R1). The old address keeps
- * working as a permanent redirect, query string and all, so `?present=1` still
- * lands in presenter mode.
+ * Croatian moved to the root (revision decision R1), and the root now opens on
+ * "What is Polis?". The old address goes straight to where the root would send
+ * it: `?present=1` to presenter mode, `?zupanija=` to the map, anything else to
+ * About. It stays a permanent redirect.
  */
-return Astro.redirect(`/${Astro.url.search}`, 301);
+
+import { rootRedirect } from '../../lib/entry/root-redirect';
+
+if (Astro.url.searchParams.get('present') === '1') {
+  return Astro.redirect(`/${Astro.url.search}`, 301);
+}
+
+return Astro.redirect(rootRedirect(Astro.url, 'hr').location, 301);
 ---

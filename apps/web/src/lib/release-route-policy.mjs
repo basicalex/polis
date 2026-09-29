@@ -9,23 +9,29 @@ export const RELEASE_KINDS = Object.freeze([
 ]);
 
 const policy = [
+  // The roots redirect: `/` and `/en` to "What is Polis?", `?zupanija=` to the map.
   { id: 'home', pattern: '/', kind: 'safe', inventory: 'current' },
+  { id: 'what-is-polis', pattern: '/about', kind: 'safe', inventory: 'current' },
+  { id: 'what-is-polis-en', pattern: '/en/about', kind: 'safe', inventory: 'current' },
+  { id: 'map', pattern: '/karta', kind: 'safe', inventory: 'current' },
+  { id: 'map-en', pattern: '/en/karta', kind: 'safe', inventory: 'current' },
   { id: 'place', pattern: '/:place', kind: 'safe', inventory: 'current' },
   { id: 'place-en', pattern: '/en/:place', kind: 'safe', inventory: 'current' },
   { id: 'place-privacy', pattern: '/:place/privatnost', kind: 'safe', inventory: 'current' },
   { id: 'place-privacy-en', pattern: '/en/:place/privatnost', kind: 'safe', inventory: 'current' },
   { id: 'home-hr', pattern: '/hr', kind: 'safe', inventory: 'planned' },
   { id: 'home-en', pattern: '/en', kind: 'safe', inventory: 'current' },
-  { id: 'about', pattern: '/o-polisu', kind: 'safe', inventory: 'current' },
-  { id: 'about-en', pattern: '/en/o-polisu', kind: 'safe', inventory: 'current' },
   { id: 'release-boundary', pattern: '/release-boundary', kind: 'safe', inventory: 'planned' },
 
   /*
    * Retired 2026-09-17 (decision D3): the presentation, the demo hub with its
    * five screens, and the platform stubs are gone from the site. Their pages
    * are still there and still safe, because each one now serves a permanent
-   * redirect to About — nothing may 404.
+   * redirect to "What is Polis?" — nothing may 404.
    */
+  /* Retired 2026-09-29: About merged into "What is Polis?" and redirects there. */
+  { id: 'about', pattern: '/o-polisu', kind: 'safe', inventory: 'retired' },
+  { id: 'about-en', pattern: '/en/o-polisu', kind: 'safe', inventory: 'retired' },
   { id: 'presentation', pattern: '/presentation', kind: 'safe', inventory: 'retired' },
   { id: 'presentation-hr', pattern: '/hr/presentation', kind: 'safe', inventory: 'retired' },
   { id: 'presentation-en', pattern: '/en/presentation', kind: 'safe', inventory: 'retired' },

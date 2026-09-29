@@ -16,6 +16,8 @@ test('web has required phase 1 and public-release routes', async () => {
   await exists('index.astro');
   await exists('en/index.astro');
   await exists('hr/index.astro');
+  await exists('about.astro');
+  await exists(join('en', 'about.astro'));
   await exists('o-polisu.astro');
   await exists(join('en', 'o-polisu.astro'));
   await exists('release-boundary.astro');
@@ -174,26 +176,46 @@ test('public release uses one bilingual five-stage semantic Trace composition', 
   assert.doesNotMatch(component, /<form\b/);
 });
 
-test('the root is the place map and the demo hub is retired', async () => {
-  const [index, english, hub, place, englishPlace] = await Promise.all([
-    readFile(new URL('index.astro', root), 'utf8'),
-    readFile(new URL('en/index.astro', root), 'utf8'),
-    readFile(new URL(join('demo', 'index.astro'), root), 'utf8'),
-    readFile(new URL(join('[place]', 'index.astro'), root), 'utf8'),
-    readFile(new URL(join('en', '[place]', 'index.astro'), root), 'utf8'),
-  ]);
+test('the root opens on What is Polis, the map lives at /karta, and the demo hub is retired', async () => {
+  const [index, english, map, englishMap, about, englishAbout, redirect, hub, place, englishPlace] =
+    await Promise.all([
+      readFile(new URL('index.astro', root), 'utf8'),
+      readFile(new URL('en/index.astro', root), 'utf8'),
+      readFile(new URL('karta.astro', root), 'utf8'),
+      readFile(new URL('en/karta.astro', root), 'utf8'),
+      readFile(new URL('about.astro', root), 'utf8'),
+      readFile(new URL('en/about.astro', root), 'utf8'),
+      readFile(new URL('../src/lib/entry/root-redirect.ts', import.meta.url), 'utf8'),
+      readFile(new URL(join('demo', 'index.astro'), root), 'utf8'),
+      readFile(new URL(join('[place]', 'index.astro'), root), 'utf8'),
+      readFile(new URL(join('en', '[place]', 'index.astro'), root), 'utf8'),
+    ]);
 
-  // S1: the map and nothing else on the root (entry-flow R1).
+  // The roots render nothing: they redirect, server side.
   for (const page of [index, english]) {
+    assert.match(page, /rootRedirect\(Astro\.url, '(hr|en)'\)/);
+    assert.match(page, /return Astro\.redirect\(location, status\)/);
+    assert.doesNotMatch(page, /PlaceMap|PublicLanding|PublicReleaseHome/);
+  }
+  // Old map links keep their county; a bare visit goes to About.
+  assert.match(redirect, /searchParams\.has\('zupanija'\)/);
+  assert.match(redirect, /mapHrefs\[lang\]\}\$\{url\.search\}`, status: 301/);
+  assert.match(redirect, /aboutHrefs\[lang\]\}\$\{url\.search\}`, status: 302/);
+
+  // S1: the map and nothing else on the map route (entry-flow R1).
+  for (const page of [map, englishMap]) {
     assert.match(page, /PlaceMap/);
     assert.match(page, /chrome="entry"/);
     assert.match(page, /zupanija/);
-    assert.doesNotMatch(page, /PublicLanding|PublicReleaseHome/);
     assert.doesNotMatch(page, /\/demo\//);
+  }
+  for (const page of [about, englishAbout]) {
+    assert.match(page, /WhatIsPolis/);
+    assert.match(page, /chrome="entry"/);
   }
 
   // The hub and its five role surfaces are gone from the site (decision D3).
-  assert.match(hub, /Astro\.redirect\('\/o-polisu', 301\)/);
+  assert.match(hub, /Astro\.redirect\('\/about', 301\)/);
 
   // S2: unknown slug is a 404, known-but-not-live answers 200 (R4).
   for (const page of [place, englishPlace]) {
@@ -213,7 +235,7 @@ test('the intent screen shows two buttons in the fixed order', async () => {
   assert.ok(record > 0 && report > record, 'the public record must come before filing (R7)');
   assert.match(screen, /\$\{base\}\$\{place\.slug\}\/zapis/);
   assert.match(screen, /\$\{base\}\$\{place\.slug\}\/prijava/);
-  assert.match(screen, /backHref = `\$\{base\}\?zupanija=\$\{place\.county\}`/);
+  assert.match(screen, /backHref = `\$\{mapHrefs\[lang\]\}\?zupanija=\$\{place\.county\}`/);
 });
 
 test('the place map ships our own SVG and no map provider', async () => {
@@ -259,7 +281,7 @@ test('the report map bundles Leaflet only on the filing surface', async () => {
       readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
       readFile(new URL('../src/scripts/entry/map.ts', import.meta.url), 'utf8'),
       readFile(new URL('../src/content/places.ts', import.meta.url), 'utf8'),
-      readFile(new URL('../src/components/entry/AboutPolis.astro', import.meta.url), 'utf8'),
+      readFile(new URL('../src/components/entry/WhatIsPolis.astro', import.meta.url), 'utf8'),
       readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
     ]);
 
@@ -335,7 +357,7 @@ test('release Base emits the direction contract first and removes service action
   );
   assert.doesNotMatch(releaseNav, /\/presentation|\/transparency|\/source|\/privacy|\/demo/);
   assert.match(releaseNav, /href=\{aboutHref\}/);
-  assert.match(base, /const aboutHref = lang === 'hr' \? '\/o-polisu' : '\/en\/o-polisu';/);
+  assert.match(base, /const aboutHref = aboutHrefs\[lang\];/);
 });
 
 test('release styles carry the locked phone, focus, motion, print, and font contracts', async () => {
@@ -418,21 +440,21 @@ test('site chrome groups the local navigation and skips to main content', async 
 
 test('Croatian is the default language and English lives under /en/', async () => {
   const [index, about, hrIndex, hrPresentation, base] = await Promise.all([
-    readFile(new URL('index.astro', root), 'utf8'),
-    readFile(new URL('o-polisu.astro', root), 'utf8'),
+    readFile(new URL('karta.astro', root), 'utf8'),
+    readFile(new URL('about.astro', root), 'utf8'),
     readFile(new URL('hr/index.astro', root), 'utf8'),
     readFile(new URL('hr/presentation.astro', root), 'utf8'),
     readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
   ]);
 
-  // The root pair is Croatian and declares both alternates.
+  // The map pair is Croatian and declares both alternates.
   assert.match(index, /const lang = 'hr' as const;/);
-  assert.match(index, /alternates=\{\{ hr: '\/', en: '\/en\/' \}\}/);
-  assert.match(about, /alternates=\{\{ hr: '\/o-polisu', en: '\/en\/o-polisu' \}\}/);
+  assert.match(index, /alternates=\{mapHrefs\}/);
+  assert.match(about, /alternates=\{aboutHrefs\}/);
 
   // The old Croatian home keeps its query; the retired presentation does not.
-  assert.match(hrIndex, /Astro\.redirect\(`\/\$\{Astro\.url\.search\}`, 301\)/);
-  assert.match(hrPresentation, /Astro\.redirect\('\/o-polisu', 301\)/);
+  assert.match(hrIndex, /Astro\.redirect\(rootRedirect\(Astro\.url, 'hr'\)\.location, 301\)/);
+  assert.match(hrPresentation, /Astro\.redirect\('\/about', 301\)/);
 
   // Both languages plus x-default are declared in the head.
   assert.match(base, /<link rel="alternate" hreflang="hr" href=\{absolute\(alternates\.hr\)\} \/>/);
@@ -588,7 +610,7 @@ test('every live place has a data protection notice in both languages', async ()
     readFile(new URL(pages[0], root), 'utf8'),
     readFile(new URL(pages[1], root), 'utf8'),
     readFile(new URL('../src/components/entry/PrivacyNotice.astro', import.meta.url), 'utf8'),
-    readFile(new URL('../src/components/entry/AboutPolis.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/entry/WhatIsPolis.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/content/entry.ts', import.meta.url), 'utf8'),
   ]);
 
@@ -795,8 +817,8 @@ test('the map pages state the boundary attribution once', async () => {
   const [base, map, index, english] = await Promise.all([
     readFile(new URL('../src/layouts/Base.astro', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/entry/PlaceMap.astro', import.meta.url), 'utf8'),
-    readFile(new URL('index.astro', root), 'utf8'),
-    readFile(new URL('en/index.astro', root), 'utf8'),
+    readFile(new URL('karta.astro', root), 'utf8'),
+    readFile(new URL('en/karta.astro', root), 'utf8'),
   ]);
   // The corner of the map that draws the boundaries keeps it; the footer keeps
   // its links and stops repeating it.
@@ -804,4 +826,22 @@ test('the map pages state the boundary attribution once', async () => {
   assert.doesNotMatch(base, /entry-attribution/);
   assert.match(base, /class="entry-footer-links"/);
   for (const page of [index, english]) assert.doesNotMatch(page, /\battribution\b/);
+});
+
+test('What is Polis has one action into the map, a state line, the source, and both languages', async () => {
+  const [component, content] = await Promise.all([
+    readFile(new URL('../src/components/entry/WhatIsPolis.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/what-is-polis.ts', import.meta.url), 'utf8'),
+  ]);
+  // The same single action, in the opening and in the close, into the map.
+  const actions = component.match(/<a class="btn" data-variant="primary" href=\{mapHref\}>/g) ?? [];
+  assert.equal(actions.length, 2);
+  assert.match(component, /class="wip-state"/);
+  assert.match(component, /href=\{whatIsPolisRepository\}/);
+  assert.match(content, /whatIsPolisRepository = 'https:\/\/github\.com\/basicalex\/polis'/);
+  assert.match(content, /whatIsPolisLicence = 'AGPL-3\.0-or-later'/);
+  // Every string carries both product languages.
+  const entries = content.match(/\{ hr: '[^']*', en: '[^']*' \}|hr: '[^']*',\s*en: '[^']*'/g) ?? [];
+  assert.ok(entries.length > 10, 'localized strings are present');
+  assert.doesNotMatch(content, /comprehensive|robust|seamless|leverage|ensure|empower|revolutioni|cutting-edge/i);
 });

@@ -2,26 +2,6 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/*
- * About Polis, Croatian. The entry footer links here, and every retired
- * platform stub redirects here, so this is the one page that says what Polis
- * is, who runs it and what this release does.
- */
-
-import Base from '../layouts/Base.astro';
-import AboutPolis from '../components/entry/AboutPolis.astro';
-import { aboutMeta } from '../content/about';
-import { text } from '../content/chrome';
-
-const lang = 'hr' as const;
+// Retired 2026-09-29: About merged into "What is Polis?". The old address keeps working as a permanent redirect; the section anchors are the same.
+return Astro.redirect('/about', 301);
 ---
-
-<Base
-  lang={lang}
-  chrome="entry"
-  alternates={{ hr: '/o-polisu', en: '/en/o-polisu' }}
-  title={text(aboutMeta.title, lang)}
-  description={text(aboutMeta.description, lang)}
->
-  <AboutPolis lang={lang} />
-</Base>

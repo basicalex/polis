@@ -1,0 +1,380 @@
+/* SPDX-FileCopyrightText: 2026 Intrface j.d.o.o. */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/*
+ * "What is Polis?" — the page the roots open on.
+ *
+ * A reading page in the light civic world: display-face headings, hairline
+ * rules between sections, one teal action. Tokens come from @polis/ui; nothing
+ * here defines a colour, a spacing step or a type size of its own.
+ */
+
+.wip {
+  display: grid;
+  gap: var(--space-16);
+  padding-block: var(--space-6) var(--space-12);
+}
+
+.wip h1,
+.wip h2,
+.wip h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-synthesis-weight: none;
+}
+
+/* ---- the opening --------------------------------------------------------- */
+
+.wip-hero {
+  display: grid;
+  gap: var(--space-10);
+  align-items: center;
+}
+
+@media (min-width: 56.25rem) {
+  .wip-hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: var(--space-12);
+    min-height: min(34rem, 70svh);
+  }
+}
+
+.wip-hero-copy {
+  display: grid;
+  gap: var(--space-5);
+  justify-items: start;
+}
+
+.wip-title {
+  margin: 0;
+  font-size: var(--type-heading-lg);
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.wip-lede {
+  max-width: 34ch;
+  margin: 0;
+  font-size: var(--type-body-lg);
+  line-height: 1.5;
+}
+
+.wip-action {
+  margin: var(--space-2) 0 0;
+}
+
+.wip-state {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}
+
+.wip-state-label {
+  color: var(--polis-warning);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wip-hero-figure {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.wip-map {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+  justify-self: center;
+  padding: var(--space-4);
+  border: 1px solid var(--polis-border);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface);
+}
+
+.wip-county {
+  fill: var(--polis-surface-2);
+  stroke: var(--polis-border-strong);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.wip-caption {
+  justify-self: center;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  text-align: center;
+}
+
+/* ---- sections ------------------------------------------------------------ */
+
+.wip-section {
+  display: grid;
+  gap: var(--space-8);
+  padding-block-start: var(--space-8);
+  border-top: 1px solid var(--polis-border);
+}
+
+.wip-heading {
+  margin: 0;
+  font-size: var(--type-heading-md);
+  line-height: 1.15;
+}
+
+.wip-item-title {
+  margin: 0;
+  font-size: var(--type-heading-sm);
+  line-height: 1.2;
+}
+
+.wip-line {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+/* what you can do: two columns on wide screens, one on phones */
+.wip-abilities,
+.wip-steps {
+  display: grid;
+  gap: var(--space-8) var(--space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 45rem) {
+  .wip-abilities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wip-ability,
+.wip-step {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+/* how it works: three steps in order */
+@media (min-width: 56.25rem) {
+  .wip-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.wip-step-number {
+  color: var(--polis-trace);
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the six ledger states, in the words and tones the ledger uses */
+.wip-stages {
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-5);
+  border-top: 1px solid var(--polis-border);
+}
+
+.wip-stages-label {
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+.wip-stage-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wip-stage {
+  font-size: var(--type-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wip-stage:not(:last-child)::after {
+  content: '·';
+  margin-inline-start: var(--space-4);
+  color: var(--polis-border-strong);
+}
+
+.wip-stage[data-tone='unknown'] {
+  color: var(--polis-unknown);
+}
+
+.wip-stage[data-tone='trace'] {
+  color: var(--polis-trace);
+}
+
+.wip-stage[data-tone='valid'] {
+  color: var(--polis-valid);
+}
+
+.wip-stage[data-tone='warning'] {
+  color: var(--polis-warning);
+}
+
+/* why the record holds: one fact per row */
+.wip-reasons {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 56.25rem) {
+  .wip-reasons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-10);
+  }
+}
+
+.wip-reason {
+  max-width: 48ch;
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--polis-border);
+  font-size: var(--type-body);
+  line-height: 1.55;
+}
+
+.wip-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin: 0;
+}
+
+.wip-source a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: var(--polis-trace);
+  font-weight: 600;
+}
+
+.wip-source-licence {
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+}
+
+/* ---- the close ----------------------------------------------------------- */
+
+.wip-close {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+  padding: var(--space-10) var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--polis-surface-tint);
+}
+
+.wip-close-title {
+  max-width: 24ch;
+  margin: 0;
+  font-size: var(--type-heading-md);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.wip-scope {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}
+
+@media (max-width: 40rem) {
+  .wip {
+    gap: var(--space-12);
+  }
+
+  .wip-map {
+    max-width: 16rem;
+  }
+
+  .wip-close {
+    padding: var(--space-8) var(--space-5);
+  }
+
+  .wip-action,
+  .wip-action .btn {
+    width: 100%;
+  }
+}
+
+/* who runs Polis and what happens to the data: two short blocks under the facts */
+.wip-facts {
+  display: grid;
+  gap: var(--space-8) var(--space-10);
+  padding-block-start: var(--space-4);
+}
+
+@media (min-width: 56.25rem) {
+  .wip-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wip-fact {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.wip-fact a {
+  color: var(--polis-trace);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* what this release does not do yet: quiet, under the scope line */
+.wip-release {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+}
+
+.wip-release-title {
+  margin: 0;
+  color: var(--polis-muted);
+  font-family: var(--body);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wip .wip-release-title {
+  font-family: var(--body);
+  font-weight: 600;
+}
+
+.wip-release-points {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 60ch;
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  color: var(--polis-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}

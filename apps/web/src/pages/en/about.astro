@@ -1,0 +1,26 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * "What is Polis?", English. A visit to `/en/` lands here; the one action on
+ * the page opens the place map at `/en/karta`.
+ */
+
+import Base from '../../layouts/Base.astro';
+import WhatIsPolis from '../../components/entry/WhatIsPolis.astro';
+import { whatIsPolisMeta } from '../../content/what-is-polis';
+import { aboutHrefs, text } from '../../content/chrome';
+
+const lang = 'en' as const;
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={aboutHrefs}
+  title={text(whatIsPolisMeta.title, lang)}
+  description={text(whatIsPolisMeta.description, lang)}
+>
+  <WhatIsPolis lang={lang} />
+</Base>

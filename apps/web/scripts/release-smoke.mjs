@@ -15,9 +15,13 @@ const remoteBaseUrl = process.env.POLIS_RELEASE_BASE_URL?.replace(/\/+$/, '');
 const baseUrl = remoteBaseUrl || `http://${host}:${port}`;
 const baseOrigin = new URL(baseUrl).origin;
 
-/* The six sections of About, in the order the page reads them (decision D3). */
+/*
+ * The anchors of "What is Polis?", in page order. The six ids of the retired
+ * About page (decision D3) survive among them, so old `/o-polisu#…` links land.
+ */
 const aboutSectionIds = [
   'sto-je-polis',
+  'sto-mozete',
   'kako-radi',
   'javno-i-otvoreno',
   'tko-stoji-iza',
@@ -25,8 +29,8 @@ const aboutSectionIds = [
   'izdanje',
 ];
 const aboutCopy = {
-  hr: { path: '/o-polisu', heading: 'O Polisu' },
-  en: { path: '/en/o-polisu', heading: 'About Polis' },
+  hr: { path: '/about', heading: 'Što je Polis?' },
+  en: { path: '/en/about', heading: 'What is Polis?' },
 };
 const chromeCandidates = [
   process.env.CHROME_PATH,
@@ -136,12 +140,25 @@ async function assertAbout(page, language) {
   assert(heading === copy.heading, `${page.url()} is titled "${heading}" instead of "${copy.heading}"`);
 
   const ids = await page
-    .locator('.about-heading')
+    .locator('.wip [id]')
     .evaluateAll((elements) => elements.map((element) => element.id));
+  const anchors = ids.filter((id) => aboutSectionIds.includes(id));
   assert(
-    ids.length === aboutSectionIds.length && ids.every((id, index) => id === aboutSectionIds[index]),
-    `${page.url()} renders the sections ${ids.join(', ')}`,
+    anchors.length === aboutSectionIds.length && anchors.every((id, index) => id === aboutSectionIds[index]),
+    `${page.url()} renders the sections ${anchors.join(', ')}`,
   );
+
+  // One action, repeated in the close, into the map; the INTRFACE mark in the footer.
+  const mapPath = language === 'en' ? '/en/karta' : '/karta';
+  const actions = await page
+    .locator('.wip a.btn[data-variant="primary"]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
+  assert(
+    actions.length === 2 && actions.every((href) => href === mapPath),
+    `${page.url()} actions open ${actions.join(', ')}`,
+  );
+  const brand = await page.locator('.entry-footer a[href="https://intrface.eu/"]').innerText();
+  assert(brand.trim() === 'INTRFACE', `${page.url()} footer brand reads "${brand}"`);
 }
 
 const entryCopy = {
@@ -175,7 +192,8 @@ async function assertEntryMap(page, language) {
 /** The region carries in the URL, so a chosen county server-renders its places. */
 async function assertCountyView(page, language) {
   const base = language === 'en' ? '/en/' : '/';
-  await page.goto(`${baseUrl}${base}?zupanija=istarska`, { waitUntil: 'domcontentloaded' });
+  const mapPath = language === 'en' ? '/en/karta' : '/karta';
+  await page.goto(`${baseUrl}${mapPath}?zupanija=istarska`, { waitUntil: 'domcontentloaded' });
   const hrefs = await page
     .locator('[data-county-list] a[href]')
     .evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
@@ -272,7 +290,7 @@ async function assertKeyboardFocus(page) {
 
 async function assertReducedMotion(page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(`${baseUrl}/o-polisu`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${baseUrl}/about`, { waitUntil: 'domcontentloaded' });
   const result = await page.evaluate(() => {
     const runningLongAnimations = document
       .getAnimations()
@@ -342,7 +360,22 @@ try {
   const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   trackRequests(desktop, forbiddenRequests);
   const desktopPage = await desktop.newPage();
-  await desktopPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+  // The root opens on "What is Polis?"; an old county link follows the map.
+  for (const [root, target] of [
+    ['/', '/about'],
+    ['/en/', '/en/about'],
+    ['/?zupanija=istarska', '/karta'],
+    ['/en/?zupanija=istarska', '/en/karta'],
+  ]) {
+    const response = await desktopPage.goto(`${baseUrl}${root}`, { waitUntil: 'domcontentloaded' });
+    assert(response && response.status() === 200, `${root} ended on ${response?.status()}`);
+    assert(new URL(desktopPage.url()).pathname === target, `${root} did not reach ${target}: ${desktopPage.url()}`);
+  }
+  await desktopPage.goto(`${baseUrl}/about`, { waitUntil: 'domcontentloaded' });
+  const aboutOpenHref = await desktopPage.getAttribute('.wip-hero a.btn[data-variant="primary"]', 'href');
+  assert(aboutOpenHref === '/karta', `the About action opens ${aboutOpenHref}`);
+
+  await desktopPage.goto(`${baseUrl}/karta`, { waitUntil: 'domcontentloaded' });
   await assertEntryMap(desktopPage, 'hr');
   await assertGeometry(desktopPage, 'map desktop');
   await assertKeyboardFocus(desktopPage);
@@ -357,7 +390,7 @@ try {
   await assertKeyboardFocus(desktopPage);
   await desktopPage.screenshot({ path: path.join(screenshotsDir, 'intent-1440x900.png'), fullPage: true });
 
-  await desktopPage.goto(`${baseUrl}/en/`, { waitUntil: 'domcontentloaded' });
+  await desktopPage.goto(`${baseUrl}/en/karta`, { waitUntil: 'domcontentloaded' });
   await assertEntryMap(desktopPage, 'en');
   await assertGeometry(desktopPage, 'English map desktop');
   await assertIntent(desktopPage, 'en');
@@ -373,22 +406,24 @@ try {
   // Nothing 404s: the old Croatian home keeps its query, and every address
   // decision D3 retired is a permanent redirect to About.
   for (const [legacy, target] of [
-    ['/hr/', '/'],
-    ['/hr/presentation', '/o-polisu'],
-    ['/presentation', '/o-polisu'],
-    ['/en/presentation', '/en/o-polisu'],
-    ['/transparency', '/o-polisu'],
-    ['/privacy', '/o-polisu'],
-    ['/source', '/o-polisu'],
-    ['/security', '/o-polisu'],
-    ['/methodology', '/o-polisu'],
-    ['/docs', '/o-polisu'],
-    ['/demo', '/o-polisu'],
-    ['/demo/citizen', '/o-polisu'],
-    ['/demo/official', '/o-polisu'],
-    ['/demo/review', '/o-polisu'],
-    ['/demo/record', '/o-polisu'],
-    ['/demo/embed', '/o-polisu'],
+    ['/hr/', '/about'],
+    ['/o-polisu', '/about'],
+    ['/en/o-polisu', '/en/about'],
+    ['/hr/presentation', '/about'],
+    ['/presentation', '/about'],
+    ['/en/presentation', '/en/about'],
+    ['/transparency', '/about'],
+    ['/privacy', '/about'],
+    ['/source', '/about'],
+    ['/security', '/about'],
+    ['/methodology', '/about'],
+    ['/docs', '/about'],
+    ['/demo', '/about'],
+    ['/demo/citizen', '/about'],
+    ['/demo/official', '/about'],
+    ['/demo/review', '/about'],
+    ['/demo/record', '/about'],
+    ['/demo/embed', '/about'],
   ]) {
     const response = await desktopPage.goto(`${baseUrl}${legacy}`, { waitUntil: 'domcontentloaded' });
     assert(response, `${legacy} returned no response`);
@@ -435,7 +470,7 @@ try {
   });
   assert(legacyPresent, '/?present=1 returned no response');
   assert(
-    new URL(desktopPage.url()).pathname === '/o-polisu',
+    new URL(desktopPage.url()).pathname === '/about',
     `/?present=1 did not reach About: ${desktopPage.url()}`,
   );
   await desktopPage.setViewportSize({ width: 1920, height: 1080 });
@@ -447,7 +482,7 @@ try {
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   trackRequests(mobile, forbiddenRequests);
   const mobilePage = await mobile.newPage();
-  await mobilePage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+  await mobilePage.goto(`${baseUrl}/karta`, { waitUntil: 'domcontentloaded' });
   await assertEntryMap(mobilePage, 'hr');
   await assertGeometry(mobilePage, 'map mobile');
   await mobilePage.screenshot({

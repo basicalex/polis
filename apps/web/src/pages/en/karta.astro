@@ -1,0 +1,27 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import PlaceMap from '../../components/entry/PlaceMap.astro';
+import Base from '../../layouts/Base.astro';
+import { entryMeta } from '../../content/entry';
+import { mapHrefs, text } from '../../content/chrome';
+
+/*
+ * The place map in English. The address keeps the Croatian slug under `/en/`,
+ * the way the place routes and About do.
+ */
+
+const lang = 'en' as const;
+const county = Astro.url.searchParams.get('zupanija');
+---
+
+<Base
+  lang={lang}
+  chrome="entry"
+  alternates={mapHrefs}
+  title={text(entryMeta.mapTitle, lang)}
+  description={text(entryMeta.mapDescription, lang)}
+>
+  <PlaceMap lang={lang} county={county} />
+</Base>

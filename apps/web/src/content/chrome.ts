@@ -10,7 +10,7 @@
  * demonstrator and the public release cannot drift apart (DESIGN.md, "Bilingual
  * EN/HR": one typed content source, equal information in both languages).
  *
- * Croatian is the product default: `/` and `/o-polisu` serve Croatian and
+ * Croatian is the product default: `/about` and `/karta` serve Croatian and
  * English lives under `/en/` (revision 2026-09-09, decision R1). Internal tooling
  * pages whose body copy is English only keep `lang="en"`, so they read the English
  * side of this file and nothing mixes languages inside one page.
@@ -25,7 +25,7 @@ import { releaseBanner, releaseBannerDetails, type Lang, type LocalizedText } fr
 export { releaseBanner, releaseBannerDetails };
 export type { Lang, LocalizedText };
 
-/** A route that differs between languages: `/o-polisu` vs `/en/o-polisu`. */
+/** A route that differs between languages: `/about` vs `/en/about`. */
 export type LocalizedHref = Record<Lang, string>;
 
 export type ChromeNavItem = {
@@ -69,17 +69,28 @@ export const languageSwitch: LocalizedText = {
   hr: 'Jezik',
 };
 
-/** Where the other language's copy of a page lives. */
+/**
+ * Each language's home: the "What is Polis?" page. The root redirects there, so
+ * the wordmark and the language fallback link to it directly.
+ */
 export const languageHomes: LocalizedHref = {
-  hr: '/',
-  en: '/en/',
+  hr: '/about',
+  en: '/en/about',
 };
 
-/** The one page that says what Polis is; the retired platform stubs redirect to it. */
-export const aboutHrefs: LocalizedHref = {
-  hr: '/o-polisu',
-  en: '/en/o-polisu',
+
+/** The place map ("Gdje ste?"), the way into the tool. It used to be the root. */
+export const mapHrefs: LocalizedHref = {
+  hr: '/karta',
+  en: '/en/karta',
 };
+
+/**
+ * The one page that says what Polis is: "What is Polis?", where `/` and `/en/`
+ * land. The old About address (`/o-polisu`) and the retired platform stubs
+ * redirect to it.
+ */
+export const aboutHrefs: LocalizedHref = languageHomes;
 
 /* ---------------------------------------------------------------------------
    Shell
@@ -108,7 +119,7 @@ export const localBanner: LocalizedText = {
 export const releaseNav = {
   primary: { en: 'Public release', hr: 'Javno izdanje' },
   boundary: { en: 'Release boundary', hr: 'Granica izdanja' },
-  about: { en: 'About Polis', hr: 'O Polisu' },
+  about: { en: 'What is Polis?', hr: 'Što je Polis?' },
   more: { en: 'More', hr: 'Dalje' },
 } satisfies Record<string, LocalizedText>;
 
@@ -294,7 +305,7 @@ export const footer = {
         {
           id: 'about',
           href: aboutHrefs,
-          label: { en: 'About Polis', hr: 'O Polisu' },
+          label: { en: 'What is Polis?', hr: 'Što je Polis?' },
         },
         {
           id: 'repository',

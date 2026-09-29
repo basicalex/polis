@@ -1,0 +1,169 @@
+---
+// SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+/*
+ * "What is Polis?", the page the roots open on and the one About page.
+ *
+ * The opening says what Polis does and gives one action into the tool, the
+ * place map at `/karta`, with a literal state line under it. Then what you can
+ * do, how it works in three steps, and why the record holds, which also says
+ * who runs Polis and what happens to the data. The close repeats the same
+ * action with one scope line and what this release does not do yet. The only
+ * picture is the tool's own first screen: the county map, drawn from the same
+ * boundary file, not clickable.
+ *
+ * The per-place notice under `/:place/privatnost` names the controller and the
+ * retention period; this page only links to it.
+ */
+
+import '../../styles/entry.css';
+import '../../styles/what-is-polis.css';
+import {
+  whatIsPolisAbilities,
+  whatIsPolisContactEmail,
+  whatIsPolisLicence,
+  whatIsPolisReasons,
+  whatIsPolisReleasePoints,
+  whatIsPolisRepository,
+  whatIsPolisSectionIds as ids,
+  whatIsPolisStages,
+  whatIsPolisSteps,
+  whatIsPolisStrings,
+} from '../../content/what-is-polis';
+import { mapHrefs, text } from '../../content/chrome';
+import { entryStrings } from '../../content/entry';
+import { livePlaces } from '../../content/places';
+import type { Lang } from '../../content/public-release';
+import { counties, COUNTRY_VIEW_BOX } from '../../lib/geo/counties';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props as Props;
+const label = (key: keyof typeof whatIsPolisStrings) => text(whatIsPolisStrings[key], lang);
+const mapHref = mapHrefs[lang];
+const placeBase = lang === 'hr' ? '/' : '/en/';
+const [whoBuildsBefore, whoBuildsAfter] = label('whoBuilds').split('{intrface}');
+const [whoWriteBefore, whoWriteAfter] = label('whoWrite').split('{email}');
+---
+
+<article class="wip">
+  <section class="wip-hero" aria-labelledby={ids.what}>
+    <div class="wip-hero-copy">
+      <h1 class="wip-title" id={ids.what}>{label('heading')}</h1>
+      <p class="wip-lede">{label('lede')}</p>
+      <p class="wip-action">
+        <a class="btn" data-variant="primary" href={mapHref}>{label('open')}</a>
+      </p>
+      <p class="wip-state">
+        <span class="wip-state-label">{label('stateLabel')}:</span>{' '}{label('state')}
+      </p>
+    </div>
+
+    <figure class="wip-hero-figure">
+      <svg class="wip-map" viewBox={COUNTRY_VIEW_BOX} aria-hidden="true" focusable="false">
+        {counties.map((county) => <path class="wip-county" d={county.d} />)}
+      </svg>
+      <figcaption class="wip-caption">{label('mapCaption')}</figcaption>
+    </figure>
+  </section>
+
+  <section class="wip-section" aria-labelledby={ids.can}>
+    <h2 class="wip-heading" id={ids.can}>{label('doTitle')}</h2>
+    <ul class="wip-abilities">
+      {
+        whatIsPolisAbilities.map((item) => (
+          <li class="wip-ability">
+            <h3 class="wip-item-title">{text(item.title, lang)}</h3>
+            <p class="wip-line">{text(item.line, lang)}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="wip-section" aria-labelledby={ids.how}>
+    <h2 class="wip-heading" id={ids.how}>{label('howTitle')}</h2>
+    <ol class="wip-steps">
+      {
+        whatIsPolisSteps.map((step, index) => (
+          <li class="wip-step">
+            <span class="wip-step-number" aria-hidden="true">
+              {index + 1}
+            </span>
+            <h3 class="wip-item-title">{text(step.title, lang)}</h3>
+            <p class="wip-line">{text(step.line, lang)}</p>
+          </li>
+        ))
+      }
+    </ol>
+    <div class="wip-stages">
+      <p class="wip-stages-label" id="wip-stages-label">{label('stagesLabel')}</p>
+      <ol class="wip-stage-list" aria-labelledby="wip-stages-label">
+        {
+          whatIsPolisStages.map((stage) => (
+            <li class="wip-stage" data-tone={stage.tone}>
+              {text(stage.label, lang)}
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section class="wip-section" aria-labelledby={ids.why}>
+    <h2 class="wip-heading" id={ids.why}>{label('whyTitle')}</h2>
+    <ul class="wip-reasons">
+      {whatIsPolisReasons.map((reason) => <li class="wip-reason">{text(reason, lang)}</li>)}
+    </ul>
+    <p class="wip-source">
+      <a href={whatIsPolisRepository} rel="noreferrer">{label('sourceLink')}</a>
+      <span class="wip-source-licence">{whatIsPolisLicence}</span>
+    </p>
+
+    <div class="wip-facts">
+      <div class="wip-fact">
+        <h3 class="wip-item-title" id={ids.who}>{label('whoTitle')}</h3>
+        <p class="wip-line">
+          {whoBuildsBefore}<a href="https://intrface.eu/" rel="noreferrer">Intrface</a>{whoBuildsAfter}
+        </p>
+        <p class="wip-line">{label('whoController')}</p>
+        <p class="wip-line">
+          {whoWriteBefore}<a href={`mailto:${whatIsPolisContactEmail}`}>{whatIsPolisContactEmail}</a>{whoWriteAfter}
+        </p>
+      </div>
+      <div class="wip-fact">
+        <h3 class="wip-item-title" id={ids.data}>{label('dataTitle')}</h3>
+        <p class="wip-line">{label('dataProcessor')}</p>
+        <p class="wip-line">{text(entryStrings.reportMapPrivacy, lang)}</p>
+        <p class="wip-line">
+          {label('dataNotices')}{' '}
+          {
+            livePlaces.map((place, index) => (
+              <>
+                {index > 0 && ', '}
+                <a href={`${placeBase}${place.slug}/privatnost`}>{place.name[lang]}</a>
+              </>
+            ))
+          }
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wip-close" aria-labelledby="wip-close-title">
+    <h2 class="wip-close-title" id="wip-close-title">{label('closeTitle')}</h2>
+    <p class="wip-action">
+      <a class="btn" data-variant="primary" href={mapHref}>{label('open')}</a>
+    </p>
+    <p class="wip-scope">{label('scope')}</p>
+    <div class="wip-release">
+      <h3 class="wip-release-title" id={ids.release}>{label('releaseTitle')}</h3>
+      <ul class="wip-release-points">
+        {whatIsPolisReleasePoints.map((point) => <li>{text(point, lang)}</li>)}
+      </ul>
+    </div>
+  </section>
+</article>

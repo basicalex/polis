@@ -2,25 +2,17 @@
 // SPDX-FileCopyrightText: 2026 Intrface j.d.o.o.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import PlaceMap from '../../components/entry/PlaceMap.astro';
-import Base from '../../layouts/Base.astro';
-import { entryMeta } from '../../content/entry';
-import { text } from '../../content/chrome';
+/*
+ * The English root. It opens on "What is Polis?" (`/en/about`); the place map
+ * moved to `/en/karta`, and an old `/en/?zupanija=` link follows it there.
+ */
+
+import { rootRedirect } from '../../lib/entry/root-redirect';
 
 if (Astro.url.searchParams.get('present') === '1') {
   return Astro.redirect('/en/presentation?present=1', 302);
 }
 
-const lang = 'en' as const;
-const county = Astro.url.searchParams.get('zupanija');
+const { location, status } = rootRedirect(Astro.url, 'en');
+return Astro.redirect(location, status);
 ---
-
-<Base
-  lang={lang}
-  chrome="entry"
-  alternates={{ hr: '/', en: '/en/' }}
-  title={text(entryMeta.mapTitle, lang)}
-  description={text(entryMeta.mapDescription, lang)}
->
-  <PlaceMap lang={lang} county={county} />
-</Base>
