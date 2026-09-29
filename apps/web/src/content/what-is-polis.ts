@@ -50,10 +50,22 @@ export const whatIsPolisMeta = {
 
 export const whatIsPolisStrings = {
   /* the opening */
-  heading: { hr: 'Što je Polis?', en: 'What is Polis?' },
+  /*
+   * The headline says what Polis does, the way the other INTRFACE products
+   * open; the question stays in the tab title and the footer link. Two
+   * sentences: the report, then what you watch.
+   */
+  headline: {
+    hr: 'Prijavite problem u svom mjestu.',
+    en: 'Report a problem where you live.',
+  },
+  headlineThen: {
+    hr: 'Pratite tko ga je preuzeo, što je obećano i što se promijenilo.',
+    en: 'Then see who took it, what was promised and what changed.',
+  },
   lede: {
-    hr: 'Polis je mjesto na kojem prijavite komunalni problem svojoj općini, bez računa i bez poznavanja nadležnosti. Prijava dobije broj predmeta, a svatko vidi tko ju je preuzeo, što je obećano i što se promijenilo.',
-    en: 'Polis is where you report a communal problem to your municipality, with no account and no need to know which office handles it. The report gets a case number, and anyone can see who took it, what was promised, and what changed.',
+    hr: 'Polis ne traži račun, a ne morate znati ni koji je ured nadležan. Prijava dobije broj predmeta i svaki korak ostaje javan pod tim brojem.',
+    en: 'Polis needs no account, and you do not need to know which office handles it. The report gets a case number, and every step stays public under that number.',
   },
   open: { hr: 'Otvorite Polis', en: 'Open Polis' },
   stateLabel: { hr: 'Stanje', en: 'Status' },

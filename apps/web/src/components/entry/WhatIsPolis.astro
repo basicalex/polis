@@ -5,7 +5,8 @@
 /*
  * "What is Polis?", the page the roots open on and the one About page.
  *
- * The opening says what Polis does and gives one action into the tool, the
+ * The opening says what Polis does in a two-sentence headline (no question;
+ * the question is the tab title) and gives one action into the tool, the
  * place map at `/karta`, with a literal state line under it. Then what you can
  * do, how it works in three steps, and why the record holds, which also says
  * who runs Polis and what happens to the data. The close repeats the same
@@ -52,7 +53,9 @@ const [whoWriteBefore, whoWriteAfter] = label('whoWrite').split('{email}');
 <article class="wip">
   <section class="wip-hero" aria-labelledby={ids.what}>
     <div class="wip-hero-copy">
-      <h1 class="wip-title" id={ids.what}>{label('heading')}</h1>
+      <h1 class="wip-title" id={ids.what}>
+        {label('headline')}{' '}<span class="wip-title-then">{label('headlineThen')}</span>
+      </h1>
       <p class="wip-lede">{label('lede')}</p>
       <p class="wip-action">
         <a class="btn" data-variant="primary" href={mapHref}>{label('open')}</a>

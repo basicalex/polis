@@ -845,3 +845,19 @@ test('What is Polis has one action into the map, a state line, the source, and b
   assert.ok(entries.length > 10, 'localized strings are present');
   assert.doesNotMatch(content, /comprehensive|robust|seamless|leverage|ensure|empower|revolutioni|cutting-edge/i);
 });
+
+test('What is Polis opens on what Polis does, not on the question', async () => {
+  const [component, content] = await Promise.all([
+    readFile(new URL('../src/components/entry/WhatIsPolis.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/content/what-is-polis.ts', import.meta.url), 'utf8'),
+  ]);
+  const hero = component.slice(component.indexOf('<h1'), component.indexOf('</h1>'));
+  assert.match(hero, /label\('headline'\)/);
+  assert.match(hero, /label\('headlineThen'\)/);
+  assert.doesNotMatch(component, /label\('heading'\)/);
+  assert.match(content, /headline: \{\s*hr: 'Prijavite problem u svom mjestu\.',\s*en: 'Report a problem where you live\.',/);
+  const headlines = content.slice(content.indexOf('headline:'), content.indexOf('lede:'));
+  assert.doesNotMatch(headlines, /\?/);
+  // The question stays in the tab title.
+  assert.match(content, /title: \{ hr: 'Što je Polis\?', en: 'What is Polis\?' \}/);
+});

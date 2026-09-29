@@ -48,8 +48,22 @@
 .wip-title {
   margin: 0;
   font-size: var(--type-heading-lg);
-  line-height: 1.05;
+  line-height: 1.08;
   text-wrap: balance;
+}
+
+/*
+ * The second sentence of the headline: what you watch after reporting. It
+ * sits under the first at the smaller heading size, so the headline stays
+ * two short blocks rather than one long display paragraph.
+ */
+.wip-title-then {
+  display: block;
+  margin-top: var(--space-3);
+  max-width: 26ch;
+  color: var(--polis-muted);
+  font-size: var(--type-heading-sm);
+  line-height: 1.25;
 }
 
 .wip-lede {

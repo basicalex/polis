@@ -29,8 +29,16 @@ const aboutSectionIds = [
   'izdanje',
 ];
 const aboutCopy = {
-  hr: { path: '/about', heading: 'Što je Polis?' },
-  en: { path: '/en/about', heading: 'What is Polis?' },
+  hr: {
+    path: '/about',
+    title: 'Što je Polis?',
+    heading: 'Prijavite problem u svom mjestu. Pratite tko ga je preuzeo, što je obećano i što se promijenilo.',
+  },
+  en: {
+    path: '/en/about',
+    title: 'What is Polis?',
+    heading: 'Report a problem where you live. Then see who took it, what was promised and what changed.',
+  },
 };
 const chromeCandidates = [
   process.env.CHROME_PATH,
@@ -136,8 +144,11 @@ async function assertAbout(page, language) {
   assert(response, `${copy.path} returned no response`);
   assert(response.status() === 200, `${copy.path} returned ${response.status()} instead of 200`);
 
-  const heading = (await page.locator('h1').first().innerText()).trim();
-  assert(heading === copy.heading, `${page.url()} is titled "${heading}" instead of "${copy.heading}"`);
+  // The headline says what Polis does; the question lives in the tab title only.
+  const heading = (await page.locator('h1').first().innerText()).replace(/\s+/g, ' ').trim();
+  assert(heading === copy.heading, `${page.url()} opens on "${heading}" instead of "${copy.heading}"`);
+  const title = await page.title();
+  assert(title.includes(copy.title), `${page.url()} has the tab title "${title}" without "${copy.title}"`);
 
   const ids = await page
     .locator('.wip [id]')
